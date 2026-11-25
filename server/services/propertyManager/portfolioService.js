@@ -242,6 +242,103 @@ async function notifyOccupants(businessId, propertyId, actor) {
   for (const r of rows) await notify(r.requester_id, 'property_contact_updated', { property: p.label }, `property_contact_updated:${p.id}:${r.requester_id}:${stamp}`, `/business/${businessId}/maintenance-request`);
   return { notified: rows.length };
 }
+// 347 property transfer between businesses (fail-closed, D-518): the
+// caller must own BOTH businesses; the property moves with its units,
+// requests, schedules, keys, incidents, turnovers, work orders, quotes,
+// invoices, common areas, entry records and compliance records in one
+// transaction. Converted work never moves: any linked request with a job,
+// or any job naming the property directly, refuses the transfer with 409.
+// Staff assignments end (their members belong to the source business).
+// Vendor contacts carry over (348): the property's vendors are copied
+// into the target business's directory, deduped by name + email, so the
+// relationships survive the move.
+async function transferProperty(businessId, propertyId, actor, body) {
+  const toBusinessId = Number(body?.to_business_id ?? body?.toBusinessId);
+  if (!Number.isInteger(toBusinessId)) invalid('to_business_id');
+  if (toBusinessId === businessId) invalid('to_business_id');
+  const out = await withTransaction(pool, async db => {
+    const { rows: [from] } = await db.query('SELECT id, user_id FROM businesses WHERE id=$1', [businessId]);
+    const { rows: [to] } = await db.query('SELECT id, user_id FROM businesses WHERE id=$1', [toBusinessId]);
+    if (!from || !to) fail(404, 'not_found');
+    if (String(from.user_id) !== String(actor) || String(to.user_id) !== String(actor)) fail(403, 'transfer_not_permitted');
+    const p = await property(db, businessId, propertyId, { lock: true });
+    if (p.status !== 'active') fail(409, 'property_archived');
+    const { rows: dup } = await db.query('SELECT 1 FROM properties WHERE business_id=$1 AND archived_at IS NULL AND LOWER(label)=LOWER($2) LIMIT 1', [toBusinessId, p.label]);
+    if (dup.length) fail(409, 'duplicate_property');
+    const { rows: [converted] } = await db.query('SELECT COUNT(*)::int n FROM property_maintenance_requests WHERE property_id=$1 AND job_id IS NOT NULL', [p.id]);
+    if (converted.n) fail(409, 'property_has_converted_requests');
+    const { rows: [jobbed] } = await db.query('SELECT COUNT(*)::int n FROM jobs WHERE property_id=$1', [p.id]);
+    if (jobbed.n) fail(409, 'property_has_converted_requests');
+    const { rows: vendors } = await db.query(`SELECT DISTINCT v.name, v.trade, v.contact_name, v.phone, v.email, v.license_number FROM property_vendors v WHERE v.id IN (
+        SELECT o.vendor_id FROM property_work_orders o JOIN property_maintenance_requests r ON r.id=o.request_id WHERE r.property_id=$1
+        UNION SELECT s.vendor_id FROM property_maintenance_schedules s WHERE s.property_id=$1 AND s.vendor_id IS NOT NULL)`, [p.id]);
+    let vendorsCarried = 0;
+    for (const v of vendors) {
+      const { rows: [ex] } = await db.query('SELECT 1 FROM property_vendors WHERE business_id=$1 AND LOWER(name)=LOWER($2) AND COALESCE(email,\'\')=COALESCE($3,\'\') LIMIT 1', [toBusinessId, v.name, v.email]);
+      if (ex) continue;
+      await db.query(`INSERT INTO property_vendors(business_id, created_by, name, trade, contact_name, phone, email, license_number, status)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,'approved')`, [toBusinessId, actor, v.name, v.trade, v.contact_name, v.phone, v.email, v.license_number]);
+      vendorsCarried += 1;
+    }
+    const moved = {};
+    const move = async (key, sql, params) => { moved[key] = (await db.query(sql, params)).rowCount; };
+    await move('properties', 'UPDATE properties SET business_id=$2 WHERE id=$1', [p.id, toBusinessId]);
+    await move('units', 'UPDATE property_portfolio_units SET business_id=$2 WHERE property_id=$1', [p.id, toBusinessId]);
+    await move('requests', 'UPDATE property_maintenance_requests SET business_id=$2, owner_id=$3 WHERE property_id=$1', [p.id, toBusinessId, to.user_id]);
+    await move('schedules', 'UPDATE property_maintenance_schedules SET business_id=$2 WHERE property_id=$1', [p.id, toBusinessId]);
+    await move('keys', 'UPDATE property_keys SET business_id=$2 WHERE property_id=$1', [p.id, toBusinessId]);
+    await move('incidents', 'UPDATE property_incidents SET business_id=$2 WHERE property_id=$1', [p.id, toBusinessId]);
+    await move('turnovers', 'UPDATE property_turnovers SET business_id=$2 WHERE property_id=$1', [p.id, toBusinessId]);
+    await move('work_orders', `UPDATE property_work_orders SET business_id=$2 WHERE request_id IN (SELECT id FROM property_maintenance_requests WHERE property_id=$1)`, [p.id, toBusinessId]);
+    await move('quotes', `UPDATE property_work_quotes SET business_id=$2 WHERE request_id IN (SELECT id FROM property_maintenance_requests WHERE property_id=$1)`, [p.id, toBusinessId]);
+    await move('invoices', `UPDATE property_vendor_invoices SET business_id=$2 WHERE work_order_id IN (SELECT id FROM property_work_orders WHERE request_id IN (SELECT id FROM property_maintenance_requests WHERE property_id=$1)) OR property_id=$1`, [p.id, toBusinessId]);
+    await move('common_areas', 'UPDATE property_common_areas SET business_id=$2 WHERE property_id=$1', [p.id, toBusinessId]);
+    await move('entry_records', `UPDATE property_entry_records SET business_id=$2 WHERE request_id IN (SELECT id FROM property_maintenance_requests WHERE property_id=$1)`, [p.id, toBusinessId]);
+    await move('compliance_records', `UPDATE property_compliance_records SET business_id=$2 WHERE unit_id IN (SELECT id FROM property_portfolio_units WHERE property_id=$1)`, [p.id, toBusinessId]);
+    moved.assignments_ended = (await db.query(`UPDATE property_staff_assignments SET status='ended', ended_at=NOW(), ended_by=$2, end_reason='transferred' WHERE property_id=$1 AND status='active'`, [p.id, actor])).rowCount;
+    return { property_id: p.id, from_business_id: businessId, to_business_id: toBusinessId, moved, vendors_carried: vendorsCarried };
+  });
+  return { ...out, handover: await handoverExport(toBusinessId, propertyId) };
+}
+// 346 portfolio handover export (G6-13): the whole portfolio as JSON, or
+// CSV by section. JSON reuses handoverExport per property so the bundle
+// matches the per-property handover exactly, plus the full vendor
+// directory. CSV flattens one row per unit (properties without units get
+// one row); the vendors section flattens the directory.
+const csvCell = (v) => {
+  if (v == null) return '';
+  const s = String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+const toCsv = (headers, rows) => [headers.map(csvCell).join(','), ...rows.map(r => r.map(csvCell).join(','))].join('\r\n');
+async function portfolioExport(businessId, { format = 'json', section = 'properties' } = {}) {
+  const fmt = format === 'csv' ? 'csv' : 'json';
+  const sec = section === 'vendors' ? 'vendors' : 'properties';
+  if (fmt === 'csv' && sec === 'vendors') {
+    const { rows } = await pool.query(`SELECT v.*, (SELECT COUNT(*)::int FROM property_work_orders o WHERE o.vendor_id=v.id) AS work_orders
+      FROM property_vendors v WHERE v.business_id=$1 ORDER BY v.name`, [businessId]);
+    return { contentType: 'text/csv', filename: `portfolio-vendors-${new Date().toISOString().slice(0, 10)}.csv`,
+      body: toCsv(['name', 'trade', 'status', 'contact_name', 'phone', 'email', 'license_number', 'insurance_expires_on', 'work_orders'],
+        rows.map(v => [v.name, v.trade, v.status, v.contact_name, v.phone, v.email, v.license_number, v.insurance_expires_on ? String(v.insurance_expires_on).slice(0, 10) : null, v.work_orders])) };
+  }
+  const { rows: props } = await pool.query(`SELECT id FROM properties WHERE business_id=$1 AND status='active' ORDER BY label`, [businessId]);
+  const handovers = [];
+  for (const { id } of props) handovers.push(await handoverExport(businessId, id));
+  if (fmt === 'json') {
+    const { rows: vendors } = await pool.query('SELECT * FROM property_vendors WHERE business_id=$1 ORDER BY name', [businessId]);
+    return { contentType: 'application/json', body: { generated_at: new Date().toISOString(), properties: handovers, vendors } };
+  }
+  const rows = [];
+  for (const h of handovers) {
+    const managers = h.assignments.filter(a => a.role === 'manager').map(a => a.user_name || a.contact_name).filter(Boolean).join('; ');
+    const vendorNames = h.vendor_contacts.map(v => v.name).join('; ');
+    const units = h.units.length ? h.units : [null];
+    for (const u of units) rows.push([h.property.label, h.property.type, h.property.address, h.property.city, h.property.owner_name,
+      u?.unit_label, u?.occupancy_status, u?.contact_name, u?.contact_email, u?.contact_phone, managers, vendorNames, h.open_requests.length]);
+  }
+  return { contentType: 'text/csv', filename: `portfolio-export-${new Date().toISOString().slice(0, 10)}.csv`,
+    body: toCsv(['property', 'type', 'address', 'city', 'owner', 'unit', 'occupancy', 'unit_contact_name', 'unit_contact_email', 'unit_contact_phone', 'managers', 'vendors', 'open_requests'], rows) };
+}
 // 350 revoke one person's access to a property; keys they hold get flagged
 async function revokeAccess(businessId, propertyId, actor, body) {
   const userId = uuid(body?.user_id, 'user_id');
@@ -252,4 +349,4 @@ async function revokeAccess(businessId, propertyId, actor, body) {
   await notify(userId, 'property_access_revoked', { property: p.label }, `property_access_revoked:${rows[0].id}`, null);
   return { ended: rows.length, keys_to_recover: keys };
 }
-module.exports = { TYPES, portfolio, createProperty, updateProperty, profile, archive, restore, deleteProperty, addUnit, addArea, archiveArea, assign, endAssignment, accessReview, reviewAssignment, mine, handoverExport, reassign, notifyOccupants, revokeAccess, OPEN_REQ, ownerOf };
+module.exports = { TYPES, portfolio, createProperty, updateProperty, profile, archive, restore, deleteProperty, addUnit, addArea, archiveArea, assign, endAssignment, accessReview, reviewAssignment, mine, handoverExport, portfolioExport, transferProperty, reassign, notifyOccupants, revokeAccess, OPEN_REQ, ownerOf };

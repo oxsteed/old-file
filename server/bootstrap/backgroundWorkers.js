@@ -50,6 +50,7 @@ const { startDeliveryWindowWarningsJob } = require('../jobs/deliveryWindowWarnin
 const { startDeliveryDelayEscalationJob } = require('../jobs/deliveryDelayEscalation'); // Group 9 Slice E (485)
 const { startDeliveryWeeklyReportJob } = require('../jobs/deliveryWeeklyReport'); // Group 9 Slice F (495)
 const { startSupportTicketSlaJob } = require('../jobs/supportTicketSlaJob');
+const { startPropertySlaBreachEscalationJob } = require('../jobs/propertySlaBreachEscalation'); // Batch J (341)
 const { startHelperCompletionAutoConfirmJob } = require('../jobs/helperCompletionAutoConfirm');
 const { startScheduledDeletionJob } = require('../jobs/scheduledDeletionJob');
 const { startWorkAgreementProposalTimeoutJob } = require('../jobs/workAgreementProposalTimeout');
@@ -237,6 +238,7 @@ class BackgroundWorkers {
       startDeliveryDelayEscalationJob();
       startDeliveryWeeklyReportJob();
       startSupportTicketSlaJob();
+      startPropertySlaBreachEscalationJob(); // Batch J (341)
       startHelperCompletionAutoConfirmJob();
       startWorkAgreementProposalTimeoutJob();
       startRecurringJobScheduler();

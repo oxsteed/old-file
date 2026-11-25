@@ -443,5 +443,27 @@ async function ownerIncidents(user) {
     FROM property_incidents i JOIN properties p ON p.id=i.property_id JOIN businesses b ON b.id=i.business_id LEFT JOIN users au ON au.id=i.assigned_to WHERE p.owner_user_id=$1 AND i.owner_shared_at IS NOT NULL ORDER BY i.owner_shared_at DESC LIMIT 100`, [user]);
   return { incidents: rows };
 }
+// 344 case evidence folder: one incident bundled with the linked request's
+// event trail + intake photos, the incident's own evidence items, and the
+// property's filed compliance documents, so the whole case reads in one
+// place instead of across four surfaces. No new entity: the incident IS
+// the case; this read is the folder.
+async function caseFolder(businessId, incidentId, user, role) {
+  const i = await incidentFor(pool, businessId, incidentId, user, role);
+  let req = null; let events = [];
+  if (i.request_id) {
+    ({ rows: [req] } = await pool.query('SELECT id, title, status, urgency, property_label, unit_label, photo_urls FROM property_maintenance_requests WHERE id=$1', [i.request_id]));
+    if (req) {
+      ({ rows: events } = await pool.query(`SELECT e.id, e.event_type, e.note, e.created_at,
+          NULLIF(TRIM(CONCAT(u.first_name,' ',u.last_name)),'') AS actor_name
+        FROM property_maintenance_request_events e LEFT JOIN users u ON u.id=e.actor_id
+        WHERE e.request_id=$1 ORDER BY e.id`, [req.id]));
+    }
+  }
+  const { rows: documents } = await pool.query(`SELECT c.id, c.title, c.record_type, c.document_url, c.due_date, u.unit_label
+    FROM property_compliance_records c JOIN property_portfolio_units u ON u.id=c.unit_id
+    WHERE c.business_id=$1 AND u.property_id=$2 AND c.document_url IS NOT NULL ORDER BY c.due_date DESC NULLS LAST LIMIT 20`, [businessId, i.property_id]);
+  return { incident: i, request: req ? { ...req, events } : null, evidence: i.evidence || [], documents };
+}
 module.exports = { TRADES, duplicates, linkDuplicate, requestApproval, approvalInbox, approvalEvents, decideApproval, vendors, createVendor, updateVendor, addQuote, quotes, selectQuote, issueWorkOrder, closeWorkOrder, workOrders,
-  getEntry, saveEntry, notifyOccupant, occupantEntry, selectWindow, keys, addKey, keyAction, routeEmergency, incidents, createIncident, updateIncident, addEvidence, shareWithOwner, ownerIncidents };
+  getEntry, saveEntry, notifyOccupant, occupantEntry, selectWindow, keys, addKey, keyAction, routeEmergency, incidents, createIncident, updateIncident, addEvidence, shareWithOwner, ownerIncidents, caseFolder };

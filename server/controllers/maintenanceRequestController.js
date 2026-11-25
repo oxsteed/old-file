@@ -38,6 +38,15 @@ function toNumberOrNull(value) {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+function toDateOrNull(value) {
+  if (value === '' || value == null) return null;
+  const s = String(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || Number.isNaN(new Date(`${s}T00:00:00Z`).getTime())) {
+    throw new AppError('Invalid date', 400, 'validation_failed');
+  }
+  return s;
+}
+
 function computeSlaTargetAt(urgency) {
   const hours = {
     emergency: 4,
@@ -556,9 +565,62 @@ exports.updateRequest = async (req, res, next) => {
       ? trimString(req.body.resolution_summary, 4000)
       : existing.resolution_summary;
     const nextScheduledEnd = req.body.scheduled_end_at || req.body.scheduledEndAt || existing.scheduled_end_at || null;
+    // 347 (Batch J): re-link the request to another property of the same
+    // business, before conversion. A converted request never moves: its
+    // job already carries the old property. Archived properties refuse
+    // (D-501); the unit is kept only if it belongs to the new property.
+    let nextPropertyId = existing.property_id;
+    let nextPropertyLabel = existing.property_label;
+    let nextUnitId = existing.unit_id;
+    const wantedPropertyId = req.body.property_id ?? req.body.propertyId;
+    if (wantedPropertyId !== undefined && String(wantedPropertyId) !== String(existing.property_id || '')) {
+      if (existing.job_id) throw new AppError('Request already has a job', 409, 'request_converted');
+      const newPropertyId = String(wantedPropertyId);
+      if (!/^[0-9a-f-]{36}$/i.test(newPropertyId)) throw new AppError('Invalid property', 400, 'validation_failed');
+      const { rows: [newProperty] } = await client.query(
+        'SELECT id, label, archived_at FROM properties WHERE id = $1 AND business_id = $2',
+        [newPropertyId, existing.business_id]
+      );
+      if (!newProperty) throw new AppError('Property not found', 404, 'not_found');
+      if (newProperty.archived_at) throw new AppError('Property is archived', 409, 'property_archived');
+      nextPropertyId = newProperty.id;
+      nextPropertyLabel = newProperty.label;
+      const wantedUnitId = req.body.unit_id ?? req.body.unitId;
+      if (wantedUnitId !== undefined && wantedUnitId !== null && wantedUnitId !== '') {
+        const { rows: [newUnit] } = await client.query(
+          'SELECT id FROM property_portfolio_units WHERE id = $1 AND property_id = $2',
+          [String(wantedUnitId), newProperty.id]
+        );
+        if (!newUnit) throw new AppError('Unit not found', 404, 'not_found');
+        nextUnitId = newUnit.id;
+      } else nextUnitId = null;
+    }
+    // 342 (Batch J): temporary relocation note on the request itself: where
+    // the occupant is relocated during the repair, and the return date.
+    const relocationNote = req.body.relocation_note !== undefined
+      ? trimString(req.body.relocation_note, 2000) : existing.relocation_note;
+    const relocationUntil = req.body.relocation_until !== undefined
+      ? toDateOrNull(req.body.relocation_until) : existing.relocation_until;
+    // 343 (Batch J, G6-9): recompute follow_up_due_at only when the status
+    // or the schedule actually changes. Any other edit used to silently
+    // postpone the follow-up, again and again, until nobody followed up.
+    const statusChanged = existing.status !== nextStatus;
+    const sameInstant = (a, b) => (a == null && b == null)
+      || (a != null && b != null && new Date(a).getTime() === new Date(b).getTime());
+    const scheduleChanged = !sameInstant(scheduledStart, existing.scheduled_start_at);
     const nextFollowUpAt = req.body.follow_up_due_at
       || req.body.followUpDueAt
-      || computeFollowUpDueAt(nextStatus, scheduledStart);
+      || (statusChanged || scheduleChanged ? computeFollowUpDueAt(nextStatus, scheduledStart) : existing.follow_up_due_at);
+    // 343 (Batch J): marking the follow-up done creates the inspection
+    // record the audit found missing. The request must be completed (the
+    // follow-up only exists after the repair), and the record is created
+    // once: a repeat mark is a no-op.
+    const wantsFollowUpDone = req.body.follow_up_done === true || req.body.follow_up_done === 'true';
+    if (wantsFollowUpDone && nextStatus !== 'completed') {
+      throw new AppError('Follow-up needs a completed request', 409, 'follow_up_not_ready');
+    }
+    const followUpDoneAt = wantsFollowUpDone && !existing.follow_up_done_at ? new Date() : null;
+    let followUpInspection = null;
     const nextTemplateIntake = req.body.template_intake
       ? { ...(existing.template_intake || {}), ...req.body.template_intake }
       : existing.template_intake;
@@ -579,6 +641,12 @@ exports.updateRequest = async (req, res, next) => {
            follow_up_due_at = $12,
            resolution_summary = $13,
            template_intake = COALESCE($14::jsonb, template_intake),
+           property_id = $16,
+           property_label = $17,
+           unit_id = $18,
+           relocation_note = $19,
+           relocation_until = $20,
+           follow_up_done_at = COALESCE($21, follow_up_done_at),
            updated_at = NOW(),
            status_updated_at = CASE WHEN status <> $1::varchar THEN NOW() ELSE status_updated_at END
        WHERE id = $15
@@ -599,6 +667,12 @@ exports.updateRequest = async (req, res, next) => {
         resolutionSummary || null,
         nextTemplateIntake ? JSON.stringify(nextTemplateIntake) : null,
         existing.id,
+        nextPropertyId,
+        nextPropertyLabel,
+        nextUnitId,
+        relocationNote || null,
+        relocationUntil,
+        followUpDoneAt,
       ]
     );
     await insertEvent(
@@ -611,6 +685,18 @@ exports.updateRequest = async (req, res, next) => {
       tenantVisibleNotes || ownerNotes || null,
       { tenant_visible: Boolean(tenantVisibleNotes) }
     );
+    if (followUpDoneAt) {
+      const dueDate = nextFollowUpAt
+        ? new Date(nextFollowUpAt).toISOString().slice(0, 10)
+        : new Date().toISOString().slice(0, 10);
+      const { rows: [insp] } = await client.query(
+        `INSERT INTO property_compliance_records(business_id, unit_id, request_id, record_type, title, status, due_date, completed_at, notes)
+         VALUES($1,$2,$3,'inspection',$4,'complete',$5,NOW(),$6) RETURNING *`,
+        [existing.business_id, nextUnitId, existing.id, `Follow-up inspection: ${existing.title}`, dueDate, `Follow-up for maintenance request ${existing.id}`]
+      );
+      followUpInspection = insp;
+      await insertEvent(client, request.id, req.user.id, 'follow_up_inspected', existing.status, nextStatus, null, { inspection_id: insp.id });
+    }
     await client.query('COMMIT');
     // A newly assigned helper must be able to discover the assignment:
     // notify them (the assigned queue at GET /assigned is the durable
@@ -638,7 +724,6 @@ exports.updateRequest = async (req, res, next) => {
     // silent so the occupant is not spammed. Never notifies the actor
     // about their own change. Fire-and-forget: never blocks the update.
     // Batch J (349) extends this same hook to tenant-visible note updates.
-    const statusChanged = existing.status !== nextStatus;
     const requester = request.requester_id || null;
     if (statusChanged && requester && String(requester) !== String(req.user.id)) {
       sendNotification({
@@ -657,7 +742,31 @@ exports.updateRequest = async (req, res, next) => {
         error: err.message,
       }));
     }
-    return res.json({ request: await withHydratedPhotos(request) });
+    // 349 (Batch J): a tenant-visible note update notifies the requester
+    // once, keyed on the update. A status change does not double-notify:
+    // the status notice above already covers an update that also changes
+    // the status, and owner-only notes stay silent.
+    const notesChanged = (existing.tenant_visible_notes || '') !== (tenantVisibleNotes || '');
+    if (!statusChanged && notesChanged && requester && String(requester) !== String(req.user.id)) {
+      sendNotification({
+        userId: requester,
+        type: 'property_request_status',
+        data: {
+          request_id: String(request.id),
+          business_id: String(request.business_id),
+          title: request.title || '',
+          status: nextStatus,
+        },
+        action_url: `/business/${request.business_id}/maintenance-request`,
+        idempotencyKey: `property-request-note:${request.id}:${request.updated_at ? new Date(request.updated_at).getTime() : Date.now()}`,
+      }).catch((err) => logger.warn('[maintenance] requester note notification failed', {
+        requestId: request.id,
+        error: err.message,
+      }));
+    }
+    const out = { request: await withHydratedPhotos(request) };
+    if (followUpInspection) out.follow_up_inspection = followUpInspection;
+    return res.json(out);
   } catch (err) {
     await client.query('ROLLBACK');
     next(err);

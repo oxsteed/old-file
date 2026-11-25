@@ -102,6 +102,22 @@ async function calendar(businessId, user, role, { from, to, property_id: propert
     ORDER BY due_on`, args);
   return { from: f, to: t, items: rows.filter(r => r.overdue || (r.due_on && new Date(r.due_on) >= new Date(`${f}T00:00:00Z`))) };
 }
+// 341 emergency triage: open emergency/urgent requests first, then SLA.
+// Same assignment scope as slaBreaches (admins see all, other members only
+// their assigned properties). `breached` is derived from sla_target_at;
+// the SLA-breach escalation job (server/jobs/propertySlaBreachEscalation.js)
+// is what notifies on it.
+async function emergencies(businessId, user, role) {
+  const admin = ['owner', 'manager'].includes(role);
+  const { rows } = await pool.query(`SELECT r.id, r.title, r.status, r.urgency, r.unit_label, r.sla_target_at, r.sla_alerted_at, p.id AS property_id, p.label AS property,
+      EXTRACT(EPOCH FROM (NOW() - r.sla_target_at))/3600 AS hours_overdue
+    FROM property_maintenance_requests r LEFT JOIN properties p ON p.id=r.property_id
+    WHERE r.business_id=$1 AND r.urgency IN ('emergency','urgent') AND r.status NOT IN ('completed','cancelled','rejected')
+      AND ($2::boolean OR EXISTS (SELECT 1 FROM property_staff_assignments a WHERE a.property_id=r.property_id AND a.user_id=$3 AND a.status='active' AND (a.ends_at IS NULL OR a.ends_at > NOW())))
+    ORDER BY CASE r.urgency WHEN 'emergency' THEN 0 WHEN 'urgent' THEN 1 ELSE 2 END, r.sla_target_at ASC NULLS LAST, r.created_at DESC`,
+  [businessId, admin, user]);
+  return { emergencies: rows.map(r => ({ ...r, breached: r.sla_target_at ? new Date(r.sla_target_at) < new Date() : false })) };
+}
 // 330 missed maintenance alerts (notify once per due date)
 async function alerts(businessId, user, role, { notifyNow = false } = {}) {
   const cal = await calendar(businessId, user, role, { from: addDays(today(), -365), to: today() });
@@ -321,4 +337,4 @@ async function invoices(businessId, { status } = {}) {
   [businessId, ['unmatched', 'matched', 'over', 'approved', 'rejected'].includes(status) ? status : null]);
   return { invoices: rows };
 }
-module.exports = { STEPS, createSchedule, completeSchedule, updateSchedule, bookOccurrence, calendar, alerts, slaBreaches, sendSlaBreachAlerts, startTurnover, updateStep, closeTurnover, turnoverBoard, costs, unitSpend, budgetAlerts, addInvoice, decideInvoice, invoices, nextSeasonal };
+module.exports = { STEPS, createSchedule, completeSchedule, updateSchedule, bookOccurrence, calendar, alerts, slaBreaches, sendSlaBreachAlerts, emergencies, startTurnover, updateStep, closeTurnover, turnoverBoard, costs, unitSpend, budgetAlerts, addInvoice, decideInvoice, invoices, nextSeasonal };
