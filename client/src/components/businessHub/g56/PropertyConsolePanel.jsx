@@ -230,14 +230,15 @@ function AreasSection({ base, propertyId, areas, p }) {
   const add = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    const created = await p.send('post', `${base}/p/${propertyId}/areas`, { ...form, name: form.name.trim() });
+    // Batch H: the route is POST /p/:propertyId/common-areas, not /areas.
+    const created = await p.send('post', `${base}/p/${propertyId}/common-areas`, { ...form, name: form.name.trim() });
     if (created) setForm({ name: '', kind: 'other', access_notes: '' });
   };
   return (
     <div>
       <h4>{p.tr('areas')}</h4>
       {areas.length === 0 ? <p>{p.common('empty')}</p> : (
-        <ul className="g56-list">{areas.map((a) => <li key={a.id}>{a.name} · {a.kind}{a.access_notes ? ` · ${a.access_notes}` : ''}</li>)}</ul>
+        <ul className="g56-list">{areas.map((a) => <li key={a.id}>{a.name} · {a.kind}{a.access_notes ? ` · ${a.access_notes}` : ''}{p.data.can_manage && <> <button type="button" disabled={p.busy} onClick={() => p.send('delete', `${base}/common-areas/${a.id}`)} data-track="ui.e96cf59a5b.74">{p.tr('archive')}</button></>}</li>)}</ul>
       )}
       {p.data.can_manage && (
         <form onSubmit={add} className="g56-row" data-track="ui.e96cf59a5b.11">
@@ -396,7 +397,8 @@ function RequestDetail({ base, requestId, onClose }) {
     ev.preventDefault();
     const windows = (entryForm.start && entryForm.end)
       ? [{ start: new Date(entryForm.start).toISOString(), end: new Date(entryForm.end).toISOString() }] : [];
-    await e.send('post', `${base}/requests/${requestId}/entry`, {
+    // Batch H: the entry route is PUT, not POST (server/routes/propertyManager.js).
+    await e.send('put', `${base}/requests/${requestId}/entry`, {
       consent: entryForm.consent, consent_method: entryForm.method,
       offered_windows: windows, instructions: entryForm.instructions.trim() || undefined,
     });
@@ -446,7 +448,8 @@ function RequestDetail({ base, requestId, onClose }) {
         <button type="submit" disabled={q.busy} data-track="ui.e96cf59a5b.25">{q.tr('requestApproval')}</button>
       </form>
       <div className="g56-row">
-        <button type="button" disabled={q.busy} onClick={() => q.send('post', `${base}/requests/${requestId}/notify-occupant`, {})} data-track="ui.e96cf59a5b.26">{q.tr('notifyOccupant')}</button>
+        {/* Batch H: the route is POST /requests/:id/entry/notify, not /notify-occupant. */}
+        <button type="button" disabled={q.busy} onClick={() => q.send('post', `${base}/requests/${requestId}/entry/notify`, {})} data-track="ui.e96cf59a5b.26">{q.tr('notifyOccupant')}</button>
         <button type="button" disabled={q.busy} onClick={() => q.send('post', `${base}/requests/${requestId}/emergency`, {})} data-track="ui.e96cf59a5b.27">{q.tr('routeEmergency')}</button>
       </div>
       <h5>{q.tr('entry')}</h5>
