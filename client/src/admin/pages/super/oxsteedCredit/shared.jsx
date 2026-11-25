@@ -466,6 +466,7 @@ export const CREDIT_SUBNAV_ITEMS = [
   { routeKey: 'oxsteedCreditPartners', labelKey: 'adminPartnerNetwork', descriptionKey: 'adminPartnerNetworkDescription' },
   { routeKey: 'oxsteedCreditHealth', labelKey: 'adminCreditSubnavHealth', descriptionKey: 'adminCreditHealthDescription' },
   { routeKey: 'oxsteedCreditAudit', labelKey: 'adminAuditHistory', descriptionKey: 'adminAuditHistoryDescription' },
+  { routeKey: 'oxsteedCreditAuditRequests', labelKey: 'adminAuditRequests', descriptionKey: 'adminAuditRequestsDescription' },
   { routeKey: 'oxsteedCreditCustomers', labelKey: 'adminCustomerWallets', descriptionKey: 'adminCustomerWalletSearchDescription' },
   { routeKey: 'oxsteedCreditMoneyOut', labelKey: 'moneyOutEyebrow' },
   { routeKey: 'oxsteedCreditCards', labelKey: 'adminCreditSubnavCards', descriptionKey: 'cards.adminDescription' },
