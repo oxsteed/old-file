@@ -91,13 +91,22 @@ function trySilentUpdate(worker) {
 
 let waitingWorker = null;
 const updateListeners = new Set();
+// Workers already announced or silently applied, so announceUpdate is
+// idempotent per worker. A silent apply never sets waitingWorker (the
+// worker is being activated, not held), so without this a second
+// detectWaiting for the same worker would fall through to the quiet
+// path and notify listeners of an update that is already applying —
+// the D-447 detectWaiting call inside watchInstalling hit exactly
+// that (serviceWorkerVersion test: "applied silently once").
+const handledWorkers = new Set();
 export const getWaitingWorker = () => waitingWorker;
 export function subscribeWorkerUpdate(listener) {
   updateListeners.add(listener);
   return () => updateListeners.delete(listener);
 }
 function announceUpdate(worker) {
-  if (waitingWorker === worker) return;
+  if (waitingWorker === worker || handledWorkers.has(worker)) return;
+  handledWorkers.add(worker);
   if (trySilentUpdate(worker)) return;
   waitingWorker = worker;
   scheduleQuietAutoUpdate();
