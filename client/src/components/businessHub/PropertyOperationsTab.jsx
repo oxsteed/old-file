@@ -56,9 +56,11 @@ const EMPTY_PACKAGE = {
   is_active: true,
 };
 
+const COMPLIANCE_RECORD_TYPES = ['inspection', 'fire', 'safety', 'equipment', 'seasonal', 'vendor', 'other'];
+
 const EMPTY_COMPLIANCE = {
   unit_id: '',
-  record_type: 'Inspection',
+  record_type: 'inspection',
   title: '',
   status: 'pending',
   due_date: '',
@@ -495,7 +497,7 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
       <Section title={t('businessHub.propertyOps.compliance.title')} subtitle={t('businessHub.propertyOps.compliance.subtitle')}>
         <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSaveCompliance} data-track="ui.4e4f008510.14">
           <Input label={t('businessHub.propertyOps.compliance.unit')}><Select value={complianceForm.unit_id} onChange={(e) => setComplianceForm((current) => ({ ...current, unit_id: e.target.value }))}><option value="">{t('businessHub.propertyOps.compliance.generalWholeProperty')}</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.property_label}{unit.unit_label ? ` · ${unit.unit_label}` : ''}</option>)}</Select></Input>
-          <Input label={t('businessHub.propertyOps.compliance.recordType')}><TextInput value={complianceForm.record_type} onChange={(e) => setComplianceForm((current) => ({ ...current, record_type: e.target.value }))} /></Input>
+          <Input label={t('businessHub.propertyOps.compliance.recordType')}><Select value={complianceForm.record_type} onChange={(e) => setComplianceForm((current) => ({ ...current, record_type: e.target.value }))}>{COMPLIANCE_RECORD_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}{!COMPLIANCE_RECORD_TYPES.includes(complianceForm.record_type) && complianceForm.record_type ? <option value={complianceForm.record_type}>{complianceForm.record_type}</option> : null}</Select></Input>
           <Input label={t('businessHub.propertyOps.compliance.titleLabel')}><TextInput value={complianceForm.title} onChange={(e) => setComplianceForm((current) => ({ ...current, title: e.target.value }))} /></Input>
           <Input label={t('businessHub.propertyOps.compliance.status')}><Select value={complianceForm.status} onChange={(e) => setComplianceForm((current) => ({ ...current, status: e.target.value }))}><option value="pending">{t('businessHub.propertyOps.options.complianceStatus.pending')}</option><option value="in_progress">{t('businessHub.propertyOps.options.complianceStatus.inProgress')}</option><option value="complete">{t('businessHub.propertyOps.options.complianceStatus.complete')}</option><option value="overdue">{t('businessHub.propertyOps.options.complianceStatus.overdue')}</option></Select></Input>
           <Input label={t('businessHub.propertyOps.compliance.dueDate')}><TextInput type="date" value={complianceForm.due_date} onChange={(e) => setComplianceForm((current) => ({ ...current, due_date: e.target.value }))} /></Input>

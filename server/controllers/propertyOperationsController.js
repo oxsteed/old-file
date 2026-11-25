@@ -47,6 +47,17 @@ function normalizeComplianceStatus(status, dueDate, completedAt) {
   return 'pending';
 }
 
+// D-508 (326, G6-14): compliance record types are a closed enum going
+// forward. Values in use before this change ('fire', 'Inspection') are in
+// the set; anything else is rejected on create. Updates validate only when
+// the type actually changes, so existing rows keep their stored text.
+const COMPLIANCE_RECORD_TYPES = ['inspection', 'fire', 'safety', 'equipment', 'seasonal', 'vendor', 'other'];
+function normalizeComplianceRecordType(value) {
+  const v = trimString(value, 80).toLowerCase();
+  if (!COMPLIANCE_RECORD_TYPES.includes(v)) throw new AppError('Record type must be one of: ' + COMPLIANCE_RECORD_TYPES.join(', '), 400, 'validation_failed');
+  return v;
+}
+
 async function getBusinessOrThrow(businessId, { publicOnly = false } = {}) {
   const { rows } = await pool.query(
     publicOnly
@@ -569,7 +580,7 @@ async function assertOwnUnit(unitId, businessId) {
 exports.createComplianceRecord = async (req, res, next) => {
   try {
     const title = trimString(req.body.title, 180);
-    const recordType = trimString(req.body.record_type, 80);
+    const recordType = req.body.record_type == null ? '' : normalizeComplianceRecordType(req.body.record_type);
     if (!title || !recordType) {
       throw new AppError('Record type and title are required', 400, 'validation_failed');
     }
@@ -614,6 +625,20 @@ exports.updateComplianceRecord = async (req, res, next) => {
       : null;
     await assertOwnUnit(req.body.unit_id, req.business.id);
 
+    const { rows: [existing] } = await pool.query(
+      'SELECT record_type FROM property_compliance_records WHERE id = $1 AND business_id = $2',
+      [req.params.recordId, req.business.id]
+    );
+    if (!existing) throw new AppError('Compliance record not found', 404, 'not_found');
+    let recordType = null;
+    if (req.body.record_type !== undefined && req.body.record_type !== null && String(req.body.record_type).trim() !== '') {
+      const normalized = trimString(req.body.record_type, 80).toLowerCase();
+      // D-508: a legacy value may be re-saved unchanged, but any change must land inside the enum.
+      recordType = normalized === String(existing.record_type || '').trim().toLowerCase()
+        ? String(existing.record_type)
+        : normalizeComplianceRecordType(req.body.record_type);
+    }
+
     const { rows } = await pool.query(
       `UPDATE property_compliance_records
        SET unit_id = COALESCE($1, unit_id),
@@ -630,7 +655,7 @@ exports.updateComplianceRecord = async (req, res, next) => {
        RETURNING *`,
       [
         req.body.unit_id || null,
-        trimString(req.body.record_type, 80) || null,
+        recordType,
         trimString(req.body.title, 180) || null,
         status,
         dueDate,
