@@ -211,6 +211,11 @@ const NOTIFICATION_TYPES = [
   { type: 'cart_recovery', group: 'orders' },
   { type: 'delivery:delivery_approaching', group: 'orders' },
   { type: 'driver_document_renewal', group: 'orders' },
+  // Group 9 partials Wave 2 Batch L (451, G9-A8): the driver hears when
+  // ops approves their profile and when a payout is approved or paid.
+  { type: 'driver_approved', group: 'work' },
+  { type: 'driver_payout_approved', group: 'payments' },
+  { type: 'driver_payout_paid', group: 'payments' },
   { type: 'delivery_offer_expired', group: 'orders' },
   { type: 'delivery_window_warning', group: 'orders' },
   { type: 'delivery:delivery_assigned', group: 'orders' },

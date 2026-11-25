@@ -30,6 +30,18 @@ const { renderWeeklyReportPdf } = require('../services/deliveryWeeklyReportPdf')
 // Group 9 Slice G (item 500): driver shifts and shift closeout.
 const shiftService = require('../services/deliveryDriverShiftService');
 
+// Group 9 partials Wave 2 Batch L (451, G9-A8, D-529): driver approval
+// and payout notices. Fire-and-forget after the transition commits;
+// sendNotification never throws (it returns { success: false } and logs),
+// and the try/catch here guards the require itself, so a notice can never
+// block an approval or a payout transition.
+async function notifyDriver(userId, type, data, actionUrl, idempotencyKey) {
+  try {
+    const { sendNotification } = require('../services/notificationService');
+    await sendNotification({ userId, type, data, action_url: actionUrl, idempotencyKey });
+  } catch (_) { /* the notice is lost; the transition already happened */ }
+}
+
 const HELPER_MODES = new Set([
   'helper', 'helper_pro', 'business_owner', 'business_manager',
   'business_representative', 'business_employee',
@@ -1270,12 +1282,20 @@ exports.upsertDriver = async (req, res, next) => {
   try {
     const driverId = text(req.body.userId, 80);
     if (!driverId) throw new AppError('Driver userId is required', 400, 'delivery_driver_invalid');
+    const { rows: [prior] } = await pool.query('SELECT approved FROM delivery_driver_profiles WHERE user_id = $1', [driverId]);
     // Group 9 Slice A (item 454b): the dispatch ResourceForm collects
     // serviceArea, maxPieces, fragile/perishable support, insurance
     // expiry and the availability window, but upsertDriver persisted
     // none of them; the columns exist (migration 572) and the values
     // were silently dropped. They are written now.
     const { rows } = await pool.query(`INSERT INTO delivery_driver_profiles (user_id, approved, active, vehicle_type, max_payload_lbs, cargo_length_in, cargo_width_in, cargo_height_in, equipment, service_area, max_pieces, fragile_supported, perishable_supported, insurance_expires_at, available_from, available_until, insurance_acknowledged, updated_by_user_id) VALUES ($1, TRUE, TRUE, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) ON CONFLICT (user_id) DO UPDATE SET approved = TRUE, active = TRUE, vehicle_type = EXCLUDED.vehicle_type, max_payload_lbs = EXCLUDED.max_payload_lbs, cargo_length_in = EXCLUDED.cargo_length_in, cargo_width_in = EXCLUDED.cargo_width_in, cargo_height_in = EXCLUDED.cargo_height_in, equipment = EXCLUDED.equipment, service_area = EXCLUDED.service_area, max_pieces = EXCLUDED.max_pieces, fragile_supported = EXCLUDED.fragile_supported, perishable_supported = EXCLUDED.perishable_supported, insurance_expires_at = EXCLUDED.insurance_expires_at, available_from = EXCLUDED.available_from, available_until = EXCLUDED.available_until, insurance_acknowledged = EXCLUDED.insurance_acknowledged, updated_by_user_id = EXCLUDED.updated_by_user_id, updated_at = NOW() RETURNING *`, [driverId, text(req.body.vehicleType, 32) || null, positiveNumber(req.body.maxPayloadLbs), positiveNumber(req.body.cargoLengthIn), positiveNumber(req.body.cargoWidthIn), positiveNumber(req.body.cargoHeightIn), JSON.stringify(normalizeHandling(req.body.equipment)), JSON.stringify(normalizeServiceArea(req.body.serviceArea ?? req.body.service_area)), Math.max(1, nonNegativeInteger(req.body.maxPieces ?? req.body.max_pieces, 1)), req.body.fragileSupported === true || req.body.fragile_supported === true, req.body.perishableSupported === true || req.body.perishable_supported === true, isoDate(req.body.insuranceExpiresAt ?? req.body.insurance_expires_at, 'insuranceExpiresAt'), isoDate(req.body.availableFrom ?? req.body.available_from, 'availableFrom'), isoDate(req.body.availableUntil ?? req.body.available_until, 'availableUntil'), req.body.insuranceAcknowledged === true, req.user.id]);
+    // Group 9 partials Wave 2 Batch L (451, G9-A8, D-529): tell the
+    // driver they were approved, but only on the transition into
+    // approval. Repeat upserts (ops updating capacity fields on an
+    // already-approved profile) stay silent.
+    if (prior?.approved !== true) {
+      await notifyDriver(driverId, 'driver_approved', { driver_user_id: driverId }, '/delivery', `driver-approved:${driverId}:${new Date(rows[0].updated_at).getTime()}`);
+    }
     res.status(201).json({ success: true, driver: rows[0] });
   } catch (error) {
     next(error);
@@ -1713,7 +1733,7 @@ exports.getDriverReadiness = async (req, res, next) => {
       'fragile', 'perishable', 'hazmat', 'equipment', 'serviceArea', 'availability',
       'availableFrom', 'availableUntil', 'documents', 'vehicle'];
     const FIX_TARGET = {
-      approval: 'profile', insurance: 'profile', insuranceExpiry: 'documents', pieces: 'profile',
+      approval: 'profile', insurance: 'profile', insuranceExpiry: 'profile', pieces: 'profile',
       payload: 'profile', dimensions: 'profile', fragile: 'profile', perishable: 'profile',
       hazmat: 'profile', equipment: 'profile', serviceArea: 'service-area', availability: 'profile',
       availableFrom: 'profile', availableUntil: 'profile', documents: 'documents', vehicle: 'vehicles',
@@ -1744,7 +1764,7 @@ exports.getDriverReadiness = async (req, res, next) => {
       if (!profile.cargo_length_in || !profile.cargo_width_in || !profile.cargo_height_in) {
         checklist.dimensions = { key: 'dimensions', status: 'warn', detail: 'no_dimensions_recorded', fix: 'profile' };
       }
-      if (!profile.insurance_expires_at) checklist.insuranceExpiry = { key: 'insuranceExpiry', status: 'warn', detail: 'no_expiry_recorded', fix: 'documents' };
+      if (!profile.insurance_expires_at) checklist.insuranceExpiry = { key: 'insuranceExpiry', status: 'warn', detail: 'no_expiry_recorded', fix: 'profile' };
     }
     // Documents: an expired document fails readiness; one expiring within
     // 30 days warns. No documents at all warns (nothing on file to renew).
@@ -1911,6 +1931,11 @@ exports.approveDriverPayout = async (req, res, next) => {
     await client.query('BEGIN');
     const payout = await approvePayout(client, req.params.payoutId, req.user.id, req.body.note);
     await client.query('COMMIT');
+    // Group 9 partials Wave 2 Batch L (451, G9-A8, D-529): tell the
+    // driver their payout was approved. After COMMIT, never blocking.
+    // Re-approving an already-approved row reuses the same key, so the
+    // driver is not notified twice for one approval.
+    await notifyDriver(payout.driver_user_id, 'driver_payout_approved', { payout_id: String(payout.id), delivery_job_id: payout.delivery_job_id ? String(payout.delivery_job_id) : null, payout_cents: payout.payout_cents }, '/delivery/payouts', `driver-payout-approved:${payout.id}`);
     res.json({ success: true, payout });
   } catch (error) {
     if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
@@ -1925,6 +1950,9 @@ exports.markDriverPayoutPaid = async (req, res, next) => {
     await client.query('BEGIN');
     const payout = await markPayoutPaid(client, req.params.payoutId, req.user.id, req.body.paymentReference ?? req.body.payment_reference, req.body.note);
     await client.query('COMMIT');
+    // Group 9 partials Wave 2 Batch L (451, G9-A8, D-529): tell the
+    // driver their payout was paid. After COMMIT, never blocking.
+    await notifyDriver(payout.driver_user_id, 'driver_payout_paid', { payout_id: String(payout.id), delivery_job_id: payout.delivery_job_id ? String(payout.delivery_job_id) : null, payout_cents: payout.payout_cents }, '/delivery/payouts', `driver-payout-paid:${payout.id}`);
     res.json({ success: true, payout });
   } catch (error) {
     if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }

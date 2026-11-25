@@ -417,4 +417,253 @@ ddescribe('Group 9 Slice A: driver enroll and prepare (451-455)', () => {
     expect(farByKey.serviceArea).toBe('fail');
     expect(far.res.payload.checklist.find((item) => item.key === 'serviceArea').fix).toBe('service-area');
   });
+
+  test('455b (G9-A1): the insurance-expiry fix points at the profile editor, not documents', async () => {
+    // The claim gate reads profile.insurance_expires_at and never reads
+    // driver_documents, so a documents fix link cannot fix this row.
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    await pool.query(
+      `INSERT INTO delivery_driver_profiles
+         (user_id, approved, active, vehicle_type, max_payload_lbs, cargo_length_in, cargo_width_in, cargo_height_in,
+          equipment, service_area, insurance_acknowledged, max_pieces, insurance_expires_at)
+       VALUES ($1, TRUE, TRUE, 'car', 500, 40, 40, 40, '{}', '{"states":["OH"]}'::jsonb, TRUE, 3, NOW() - INTERVAL '5 days')`,
+      [driverId],
+    );
+    const customerId = await makeUser('customer');
+    const job = await makeMarketplaceJob(customerId);
+    const withJob = await call(localDelivery.getDriverReadiness, {
+      user: helperUser(driverId), query: { jobId: String(job.id) },
+    });
+    const expiryRow = withJob.res.payload.checklist.find((item) => item.key === 'insuranceExpiry');
+    expect(expiryRow.status).toBe('fail');
+    expect(expiryRow.fix).toBe('profile');
+
+    // No expiry recorded at all: the warn row points at the profile too.
+    const noExpiryId = await makeUser('helper', { defaultMode: 'helper' });
+    await pool.query(
+      `INSERT INTO delivery_driver_profiles
+         (user_id, approved, active, vehicle_type, max_payload_lbs, equipment, service_area, insurance_acknowledged, max_pieces)
+       VALUES ($1, TRUE, TRUE, 'car', 500, '{}', '{"states":["OH"]}'::jsonb, TRUE, 3)`,
+      [noExpiryId],
+    );
+    const noExpiry = await call(localDelivery.getDriverReadiness, {
+      user: helperUser(noExpiryId), query: {},
+    });
+    const warnRow = noExpiry.res.payload.checklist.find((item) => item.key === 'insuranceExpiry');
+    expect(warnRow.status).toBe('warn');
+    expect(warnRow.detail).toBe('no_expiry_recorded');
+    expect(warnRow.fix).toBe('profile');
+  });
+
+  test('451b (G9-A1): PATCH driver-profile updates capacity, insurance expiry, and the availability window, and keeps approval', async () => {
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    await pool.query(
+      `INSERT INTO delivery_driver_profiles
+         (user_id, approved, active, vehicle_type, max_payload_lbs, equipment, service_area, insurance_acknowledged, max_pieces)
+       VALUES ($1, TRUE, TRUE, 'car', 300, '{}', '{"states":["OH"]}'::jsonb, TRUE, 2)`,
+      [driverId],
+    );
+    const insuranceExpires = new Date(Date.now() + 180 * 86400000).toISOString();
+    const availableFrom = new Date(Date.now() + 86400000).toISOString();
+    const availableUntil = new Date(Date.now() + 60 * 86400000).toISOString();
+    const { res, next } = await call(localDelivery.updateOwnDriverProfile, {
+      user: helperUser(driverId),
+      body: {
+        maxPayloadLbs: 900, maxPieces: 5, insuranceExpiresAt: insuranceExpires,
+        availableFrom, availableUntil, fragileSupported: true,
+      },
+    });
+    expect(next).not.toHaveBeenCalled();
+    expect(res.payload.profile.approved).toBe(true);
+    expect(Number(res.payload.profile.max_payload_lbs)).toBe(900);
+    expect(res.payload.profile.max_pieces).toBe(5);
+    expect(res.payload.profile.fragile_supported).toBe(true);
+    expect(new Date(res.payload.profile.insurance_expires_at).getTime())
+      .toBe(new Date(insuranceExpires).getTime());
+    expect(new Date(res.payload.profile.available_from).getTime())
+      .toBe(new Date(availableFrom).getTime());
+    expect(new Date(res.payload.profile.available_until).getTime())
+      .toBe(new Date(availableUntil).getTime());
+    // Untouched fields survive the PATCH.
+    expect(res.payload.profile.vehicle_type).toBe('car');
+    expect(res.payload.profile.service_area).toEqual({ states: ['OH'] });
+  });
+
+  test('451c (G9-A1): onboarding collects the availability window', async () => {
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    const availableFrom = new Date(Date.now() + 86400000).toISOString();
+    const availableUntil = new Date(Date.now() + 30 * 86400000).toISOString();
+    const { res, next } = await call(localDelivery.selfServeDriverOnboarding, {
+      user: helperUser(driverId),
+      body: {
+        insuranceAcknowledged: true, vehicleType: 'car', maxPayloadLbs: 100,
+        availableFrom, availableUntil,
+      },
+    });
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(201);
+    expect(new Date(res.payload.profile.available_from).getTime())
+      .toBe(new Date(availableFrom).getTime());
+    expect(new Date(res.payload.profile.available_until).getTime())
+      .toBe(new Date(availableUntil).getTime());
+  });
+
+  test('452b (G9-A12): vehicle PATCH fixes a plate typo and keeps the active vehicle', async () => {
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    await call(localDelivery.selfServeDriverOnboarding, {
+      user: helperUser(driverId),
+      body: { insuranceAcknowledged: true, vehicleType: 'van', maxPayloadLbs: 500 },
+    });
+    const created = await call(localDelivery.createDriverVehicle, {
+      user: helperUser(driverId),
+      body: { vehicleType: 'van', maxPayloadLbs: 1200, plate: 'ABC-123', make: 'Ford', model: 'Transit', year: 2022 },
+    });
+    const vehicleId = created.res.payload.vehicle.id;
+    await call(localDelivery.activateDriverVehicle, {
+      user: helperUser(driverId), params: { vehicleId: String(vehicleId) },
+    });
+    const edited = await call(localDelivery.updateDriverVehicle, {
+      user: helperUser(driverId), params: { vehicleId: String(vehicleId) },
+      body: { plate: 'ABC-1234' },
+    });
+    expect(edited.next).not.toHaveBeenCalled();
+    expect(edited.res.payload.vehicle.plate).toBe('ABC-1234');
+    expect(edited.res.payload.vehicle.make).toBe('Ford');
+    const profile = await call(localDelivery.getDriverProfile, { user: helperUser(driverId) });
+    expect(String(profile.res.payload.profile.active_vehicle_id)).toBe(String(vehicleId));
+  });
+
+  test('453b (G9-A12): document PATCH fixes an expiry and keeps the reminder stamps', async () => {
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    const created = await call(localDelivery.createDriverDocument, {
+      user: helperUser(driverId),
+      body: { documentType: 'license', title: 'Licence', expiresAt: new Date(Date.now() + 5 * 86400000).toISOString() },
+    });
+    const docId = created.res.payload.document.id;
+    // The 30-day reminder already went out for this document.
+    await pool.query('UPDATE driver_documents SET reminder_30_sent_at = NOW() WHERE id = $1', [docId]);
+    const newExpiry = new Date(Date.now() + 400 * 86400000).toISOString();
+    const edited = await call(localDelivery.updateDriverDocument, {
+      user: helperUser(driverId), params: { documentId: String(docId) },
+      body: { expiresAt: newExpiry, title: 'Licence (renewed)' },
+    });
+    expect(edited.next).not.toHaveBeenCalled();
+    expect(new Date(edited.res.payload.document.expires_at).getTime())
+      .toBe(new Date(newExpiry).getTime());
+    const { rows: [stored] } = await pool.query('SELECT reminder_30_sent_at FROM driver_documents WHERE id = $1', [docId]);
+    expect(stored.reminder_30_sent_at).not.toBeNull();
+  });
+
+  test('451d (G9-A8): approval notifies the driver once, with a non-empty localized title', async () => {
+    const opsId = await makeUser('admin');
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    await call(localDelivery.selfServeDriverOnboarding, {
+      user: helperUser(driverId),
+      body: { insuranceAcknowledged: true, vehicleType: 'car', maxPayloadLbs: 100 },
+    });
+    const approved = await call(localDelivery.upsertDriver, {
+      user: { id: opsId, role: 'admin' },
+      body: { userId: driverId, vehicleType: 'car', maxPayloadLbs: 100, insuranceAcknowledged: true },
+    });
+    expect(approved.next).not.toHaveBeenCalled();
+    const { rows } = await pool.query(
+      `SELECT type, title, body FROM notifications WHERE user_id = $1 AND type = 'driver_approved'`,
+      [driverId],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].title).toBeTruthy();
+    expect(rows[0].title).toBe('Driver profile approved');
+    expect(rows[0].body).toContain('claim deliveries');
+    // A repeat upsert (ops updating fields on an approved profile) stays silent.
+    await call(localDelivery.upsertDriver, {
+      user: { id: opsId, role: 'admin' },
+      body: { userId: driverId, vehicleType: 'van', maxPayloadLbs: 200, insuranceAcknowledged: true },
+    });
+    const { rows: again } = await pool.query(
+      `SELECT id FROM notifications WHERE user_id = $1 AND type = 'driver_approved'`,
+      [driverId],
+    );
+    expect(again).toHaveLength(1);
+  });
+
+  test('451e (G9-A8): payout approve and mark-paid notify the driver, in order', async () => {
+    const approverId = await makeUser('admin');
+    const payerId = await makeUser('admin');
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    const customerId = await makeUser('customer');
+    const job = await makeMarketplaceJob(customerId);
+    const { rows: [payout] } = await pool.query(
+      `INSERT INTO delivery_driver_payouts (delivery_job_id, driver_user_id, payout_cents, status)
+       VALUES ($1, $2, 700, 'accrued') RETURNING *`,
+      [job.id, driverId],
+    );
+    const approved = await call(localDelivery.approveDriverPayout, {
+      user: { id: approverId, role: 'admin' }, params: { payoutId: String(payout.id) }, body: {},
+    });
+    expect(approved.next).not.toHaveBeenCalled();
+    expect(approved.res.payload.payout.status).toBe('approved');
+    const { rows: approvedNotes } = await pool.query(
+      `SELECT type, title FROM notifications WHERE user_id = $1 AND type = 'driver_payout_approved'`,
+      [driverId],
+    );
+    expect(approvedNotes).toHaveLength(1);
+    expect(approvedNotes[0].title).toBe('Driver payout approved');
+
+    const paid = await call(localDelivery.markDriverPayoutPaid, {
+      user: { id: payerId, role: 'admin' },
+      params: { payoutId: String(payout.id) },
+      body: { paymentReference: 'stripe_tr_test_123' },
+    });
+    expect(paid.next).not.toHaveBeenCalled();
+    expect(paid.res.payload.payout.status).toBe('paid');
+    const { rows: paidNotes } = await pool.query(
+      `SELECT type, title FROM notifications WHERE user_id = $1 AND type = 'driver_payout_paid'`,
+      [driverId],
+    );
+    expect(paidNotes).toHaveLength(1);
+    expect(paidNotes[0].title).toBe('Driver payout paid');
+  });
+
+  test('455c (G9-A15): a failed claim carries the server reasons for the client to render', async () => {
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    await pool.query(
+      `INSERT INTO delivery_driver_profiles
+         (user_id, approved, active, vehicle_type, max_payload_lbs, cargo_length_in, cargo_width_in, cargo_height_in,
+          equipment, service_area, insurance_acknowledged, max_pieces, insurance_expires_at)
+       VALUES ($1, TRUE, TRUE, 'car', 500, 40, 40, 40, '{}', '{"states":["OH"]}'::jsonb, TRUE, 1, NOW() + INTERVAL '90 days')`,
+      [driverId],
+    );
+    const customerId = await makeUser('customer');
+    const { rows: [job] } = await pool.query(
+      `INSERT INTO delivery_jobs
+         (reference, customer_user_id, status, dispatch_state, fulfillment_source,
+          origin_address, origin_city, origin_state, origin_lat, origin_lng,
+          destination_address, destination_city, destination_state, destination_lat, destination_lng,
+          distance_miles, package_type, weight_lbs, pieces,
+          price_snapshot, customer_total_cents, driver_payout_cents,
+          pickup_window_start, pickup_window_end,
+          delivery_window_start, delivery_window_end)
+       VALUES ($1, $2, 'posted', 'marketplace_posted', 'marketplace',
+          '1 Origin Way', 'Columbus', 'OH', 40.0, -83.0, '2 Destination Way', 'Columbus', 'OH', 40.1, -83.1,
+          8, 'medium', 20, 5,
+          '{}', 1000, 700, NOW() + INTERVAL '24 hours', NOW() + INTERVAL '26 hours',
+          NOW() + INTERVAL '24 hours', NOW() + INTERVAL '28 hours')
+       RETURNING *`,
+      [`DLV-G9A-${crypto.randomBytes(4).toString('hex').toUpperCase()}`, customerId],
+    );
+    await pool.query(
+      `INSERT INTO delivery_payments (delivery_job_id, delivery_extra_id, customer_user_id, amount_cents, status, captured_at, idempotency_key)
+       VALUES ($1, NULL, $2, 1000, 'paid', NOW(), $3)`,
+      [job.id, customerId, `g9a-pay-${job.id}`],
+    );
+    await expect(claimAction({
+      params: { id: String(job.id) },
+      body: {},
+      user: helperUser(driverId),
+      headers: { 'idempotency-key': `g9a-claim-capacity-${driverId.slice(0, 8)}` },
+    })).rejects.toMatchObject({
+      code: 'delivery_capacity_mismatch',
+      fields: { reasons: expect.arrayContaining(['pieces']) },
+    });
+  });
 });

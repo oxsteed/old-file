@@ -239,6 +239,56 @@ const T = {
       ar: 'تمت الموافقة على دفعتك وهي في طريقها إليك.',
     },
   },
+  // Group 9 partials Wave 2 Batch L (451, G9-A8): the driver hears when
+  // ops approves their profile and when a payout is approved or paid.
+  driver_approved: {
+    title: {
+      en: 'Driver profile approved',
+      fr: 'Profil de chauffeur approuvé',
+      es: 'Perfil de conductor aprobado',
+      ht: 'Pwofil chofè apwouve',
+      ar: 'تمت الموافقة على ملف السائق',
+    },
+    body: {
+      en: 'Your driver profile was approved. You can now claim deliveries.',
+      fr: 'Votre profil de chauffeur a été approuvé. Vous pouvez maintenant accepter des livraisons.',
+      es: 'Tu perfil de conductor fue aprobado. Ya puedes reclamar entregas.',
+      ht: 'Pwofil chofè ou an apwouve. Ou ka reklame livrezon kounye a.',
+      ar: 'تمت الموافقة على ملف السائق الخاص بك. يمكنك الآن استلام التوصيلات.',
+    },
+  },
+  driver_payout_approved: {
+    title: {
+      en: 'Driver payout approved',
+      fr: 'Paiement chauffeur approuvé',
+      es: 'Pago de conductor aprobado',
+      ht: 'Peman chofè apwouve',
+      ar: 'تمت الموافقة على دفعة السائق',
+    },
+    body: {
+      en: 'Your delivery payout was approved and is on its way to being paid.',
+      fr: 'Votre paiement de livraison a été approuvé et sera bientôt versé.',
+      es: 'Tu pago de entrega fue aprobado y está en camino de pagarse.',
+      ht: 'Peman livrezon ou an apwouve epi y ap peye li byento.',
+      ar: 'تمت الموافقة على دفعة التوصيل الخاصة بك وهي في طريقها للدفع.',
+    },
+  },
+  driver_payout_paid: {
+    title: {
+      en: 'Driver payout paid',
+      fr: 'Paiement chauffeur versé',
+      es: 'Pago de conductor realizado',
+      ht: 'Peman chofè peye',
+      ar: 'تم دفع دفعة السائق',
+    },
+    body: {
+      en: 'Your delivery payout was paid. Check your payout history for the details.',
+      fr: 'Votre paiement de livraison a été versé. Consultez votre historique de paiements pour les détails.',
+      es: 'Tu pago de entrega fue realizado. Revisa tu historial de pagos para ver los detalles.',
+      ht: 'Yo peye peman livrezon ou an. Gade istwa peman ou pou detay yo.',
+      ar: 'تم دفع دفعة التوصيل الخاصة بك. تحقق من سجل الدفعات للاطلاع على التفاصيل.',
+    },
+  },
   payout_failed: {
     title: {
       en: 'Payout failed',
@@ -1774,6 +1824,27 @@ const EMAIL_TEMPLATES = {
       ar: 'عرض المدفوعات',
     },
     payout_approved: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
+    driver_approved: {
+      en: 'View Driving',
+      fr: 'Voir la conduite',
+      es: 'Ver conducción',
+      ht: 'Gade kondwi',
+      ar: 'عرض القيادة',
+    },
+    driver_payout_approved: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
+    driver_payout_paid: {
       en: 'View Payouts',
       fr: 'Voir les paiements',
       es: 'Ver pagos',
