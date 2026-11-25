@@ -7180,6 +7180,7 @@
     "bidFailed": "Nou pa t kapab soumèt òf la.",
     "jobStarted": "Travay la kòmanse avèk siksè",
     "jobCompleted": "Travay la fini avèk siksè",
+    "attendanceRequired": "Konfime prezans ou sou plas anvan ou make travay sa a fini.",
     "jobCancelled": "Travay la anile avèk siksè",
     "sessionExpired": "Sesyon ou fini. Tanpri konekte ankò.",
     "sessionRedirect": "Sesyon ou fini. N ap voye w nan paj koneksyon an…",

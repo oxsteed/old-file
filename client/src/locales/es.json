@@ -6887,6 +6887,7 @@
     "bidFailed": "No se pudo enviar la oferta.",
     "jobStarted": "Trabajo iniciado correctamente",
     "jobCompleted": "Trabajo completado correctamente",
+    "attendanceRequired": "Confirma la asistencia en el lugar antes de marcar este trabajo como completado.",
     "jobCancelled": "Trabajo cancelado correctamente",
     "sessionExpired": "Tu sesión ha vencido. Inicia sesión de nuevo.",
     "sessionRedirect": "Tu sesión ha vencido. Redirigiendo al inicio de sesión…",

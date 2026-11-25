@@ -6887,6 +6887,7 @@
     "bidFailed": "Failed to submit bid.",
     "jobStarted": "Job started successfully",
     "jobCompleted": "Job completed successfully",
+    "attendanceRequired": "Confirm attendance on site before marking this job complete.",
     "jobCancelled": "Job cancelled successfully",
     "sessionExpired": "Your session has expired. Please log in again.",
     "sessionRedirect": "Your session has expired. Redirecting to login…",

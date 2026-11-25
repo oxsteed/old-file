@@ -1619,6 +1619,32 @@ exports.requestJobChanges = async (req, res, next) => {
  * helper-completion auto-confirm job (review P2-478). `asClient` decides
  * whether a Tier-3 escrow authorization is captured in the same transaction.
  */
+// D-472 (281, G5-1): a physical-site job must have attendance evidence
+// before it can complete (and before escrow is captured). Attendance
+// evidence is the Batch B attendance confirmation
+// (attendance_confirmed_at) or a recorded arrival (arrived_at). Scope is
+// physical-site only: a job is physical-site when it carries a location
+// address. Remote / no-location jobs are exempt — there is no site to
+// attend. NOTE: jobs.is_remote exists in migration 012 but is unreferenced
+// in product code and absent from the test database, so the gate keys on
+// location_address alone; a remote job that carries a stale address is
+// still gated, fail closed.
+async function assertJobAttendanceForCompletion(client, jobId) {
+  const { rows: [row] } = await client.query(
+    `SELECT location_address, attendance_confirmed_at, arrived_at FROM jobs WHERE id = $1`,
+    [jobId]
+  );
+  if (!row) return;
+  const hasSite = typeof row.location_address === 'string' && row.location_address.trim().length > 0;
+  if (!hasSite) return;
+  if (row.attendance_confirmed_at || row.arrived_at) return;
+  throw new AppError(
+    'Attendance must be confirmed on site before this job can be completed. Confirm attendance or mark arrival first.',
+    409,
+    'attendance_required'
+  );
+}
+
 async function completeJobCore({ job, jobId, asClient, actorUserId = null, req = null }) {
   // Wrap all state changes in a transaction for atomicity
   return withJobTransaction(pool, async (client) => {
@@ -1640,6 +1666,13 @@ async function completeJobCore({ job, jobId, asClient, actorUserId = null, req =
         'change_order_pending'
       );
     }
+
+    // D-472 (281, G5-1): fail closed on attendance BEFORE any money moves.
+    // The escrow capture and the Credit release below must never run for a
+    // physical-site job nobody attended. Auto-confirm funnels through here
+    // too, so an unanswered completion request cannot capture escrow for
+    // unperformed work when the 72 h window lapses.
+    await assertJobAttendanceForCompletion(client, jobId);
 
     // Tier-3 escrow: when the customer marks complete, capture authorized funds in the same transaction
     // so helpers get paid without a separate "Capture" step (and we roll back if Stripe fails).
@@ -1922,6 +1955,23 @@ exports.completeJob = async (req, res, next) => {
 
 
 async function requestHelperCompletion({ job, helperId, aftercareInstructions = null }) {
+  // D-472 (281, G5-1): the helper's completion request is the first step
+  // toward escrow capture, so the same attendance gate applies here. A
+  // missing row falls through to the UPDATE below, which 409s as before.
+  const { rows: [gate] } = await pool.query(
+    `SELECT location_address, attendance_confirmed_at, arrived_at FROM jobs WHERE id = $1 AND assigned_helper_id = $2`,
+    [job.id, helperId]
+  );
+  if (gate) {
+    const hasSite = typeof gate.location_address === 'string' && gate.location_address.trim().length > 0;
+    if (hasSite && !gate.attendance_confirmed_at && !gate.arrived_at) {
+      throw new AppError(
+        'Attendance must be confirmed on site before this job can be completed. Confirm attendance or mark arrival first.',
+        409,
+        'attendance_required'
+      );
+    }
+  }
   const { rows } = await pool.query(
     `UPDATE jobs
         SET completion_requested_at = COALESCE(completion_requested_at, NOW()),

@@ -625,6 +625,7 @@ function JobDetailContent() {
     if (serverCode === 'bid_needs_reconfirm') return t('jobEdit.acceptNeedsReconfirm');
     if (serverCode === 'bid_expired') return t('jobEdit.acceptBidExpired');
     if (serverCode === 'payment_reauthorization_required') return t('jobPaymentReauth.blockedComplete');
+    if (serverCode === 'attendance_required') return t('jobDetail.attendanceRequired');
     if (serverCode === 'precondition_failed' || serverCode === 'version_conflict') {
       fetchJob(id);
       return t('jobEdit.acceptJobChanged');

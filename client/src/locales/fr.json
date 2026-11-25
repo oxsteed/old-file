@@ -6887,6 +6887,7 @@
     "bidFailed": "Impossible de soumettre l'offre.",
     "jobStarted": "Mission démarrée avec succès",
     "jobCompleted": "Mission terminée avec succès",
+    "attendanceRequired": "Confirmez votre présence sur place avant de marquer ce travail comme terminé.",
     "jobCancelled": "Mission annulée avec succès",
     "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
     "sessionRedirect": "Votre session a expiré. Redirection vers la connexion…",
