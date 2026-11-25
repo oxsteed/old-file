@@ -47139,7 +47139,21 @@
       "crewLead": "Chèf",
       "crewMembers": "Manm",
       "checklists": "Lis etap pa sèvis",
-      "checklistsHelp": "Yon etap pa liy. Nouvo vizit kòmanse ak etap sa yo."
+      "checklistsHelp": "Yon etap pa liy. Nouvo vizit kòmanse ak etap sa yo.",
+      "report": "Rapò travay",
+      "fromDate": "Depi",
+      "toDate": "Jiska",
+      "totalAppointments": "Randevou",
+      "progressUpdates": "Mizajou pwogrè",
+      "openExceptions": "Eksepsyon ouvè",
+      "stalled": "Travay ki bloke",
+      "noStalled": "Okenn travay ki bloke",
+      "noRecentUpdates": "Okenn mizajou pwogrè nan peryòd sa a",
+      "stConfirmed": "Konfime",
+      "stInProgress": "An kou",
+      "stCompleted": "Konplete",
+      "stCancelled": "Anile",
+      "lastProgress": "dènye pwogrè"
     },
     "sched": {
       "coverage": "Ranplasman ekip",

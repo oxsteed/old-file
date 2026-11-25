@@ -47253,7 +47253,21 @@
       "crewLead": "القائد",
       "crewMembers": "الأعضاء",
       "checklists": "قوائم التحقق للخدمات",
-      "checklistsHelp": "خطوة في كل سطر. تبدأ الزيارات الجديدة بهذه الخطوات."
+      "checklistsHelp": "خطوة في كل سطر. تبدأ الزيارات الجديدة بهذه الخطوات.",
+      "report": "تقرير العمل",
+      "fromDate": "من",
+      "toDate": "إلى",
+      "totalAppointments": "المواعيد",
+      "progressUpdates": "تحديثات التقدم",
+      "openExceptions": "الاستثناءات المفتوحة",
+      "stalled": "العمل المتوقف",
+      "noStalled": "لا يوجد عمل متوقف",
+      "noRecentUpdates": "لا توجد تحديثات تقدم في هذه الفترة",
+      "stConfirmed": "مؤكدة",
+      "stInProgress": "قيد التنفيذ",
+      "stCompleted": "مكتملة",
+      "stCancelled": "ملغاة",
+      "lastProgress": "آخر تقدم"
     },
     "sched": {
       "coverage": "تغطية الوردية",

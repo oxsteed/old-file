@@ -47139,7 +47139,21 @@
       "crewLead": "Chef",
       "crewMembers": "Membres",
       "checklists": "Listes par service",
-      "checklistsHelp": "Une étape par ligne. Les nouvelles interventions commencent avec ces étapes."
+      "checklistsHelp": "Une étape par ligne. Les nouvelles interventions commencent avec ces étapes.",
+      "report": "Rapport de travail",
+      "fromDate": "Du",
+      "toDate": "Au",
+      "totalAppointments": "Rendez-vous",
+      "progressUpdates": "Mises à jour de progression",
+      "openExceptions": "Exceptions ouvertes",
+      "stalled": "Travail bloqué",
+      "noStalled": "Aucun travail bloqué",
+      "noRecentUpdates": "Aucune mise à jour de progression sur cette période",
+      "stConfirmed": "Confirmés",
+      "stInProgress": "En cours",
+      "stCompleted": "Terminés",
+      "stCancelled": "Annulés",
+      "lastProgress": "dernière progression"
     },
     "sched": {
       "coverage": "Remplacement de quart",

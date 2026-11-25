@@ -76,6 +76,23 @@ describeDb('Groups 5-6: team member jobs and crews', () => {
     const p = (await request(app).get(`${B()}/work/appointments/${a}/progress`).set(as(manager)).expect(200)).body;
     expect(p.updates[0]).toMatchObject({ percent: 50, note: 'Halfway there' });
   });
+  test('264: manager work report aggregates status, updates and stalled work', async () => {
+    const a = await mk(employee, 9);
+    await request(app).post(`${B()}/work/appointments/${a}/progress`).set(as(employee)).send({ note: 'Started', percent: 10 }).expect(201);
+    const stalled = await pool.query("INSERT INTO business_appointments(business_id,service_id,staff_id,start_time,end_time,status) VALUES($1,$2,$3,NOW() - INTERVAL '3 hours',NOW() - INTERVAL '2 hours','in_progress') RETURNING id", [bizId, serviceId, employee]).then((r) => r.rows[0].id);
+    try {
+      const rep = (await request(app).get(`${B()}/owner/work-report`).set(as(manager)).expect(200)).body;
+      expect(rep.appointments.total).toBeGreaterThanOrEqual(2);
+      expect(rep.appointments.byStatus.confirmed).toBeGreaterThanOrEqual(1);
+      expect(rep.appointments.byStatus.in_progress).toBeGreaterThanOrEqual(1);
+      expect(rep.progressUpdates.items.map((i) => i.note)).toContain('Started');
+      expect(rep.stalled.map((s) => s.id)).toContain(stalled);
+      await request(app).get(`${B()}/owner/work-report`).set(as(employee)).expect(403);
+      await request(app).get(`${B()}/owner/work-report?from=bad-date`).set(as(manager)).expect(400);
+    } finally {
+      await pool.query('DELETE FROM business_appointments WHERE id = $1', [stalled]);
+    }
+  });
   test('265, 286-290: exceptions route, are idempotent, cannot be self-resolved, and escalate when overdue', async () => {
     const a = await mk(employee, 5);
     const send = { kind: 'missing_instruction', category: 'access_code', description: 'No gate code given', appointment_id: a, request_id: 'r-1' };

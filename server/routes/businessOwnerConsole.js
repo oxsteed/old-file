@@ -137,6 +137,8 @@ router.post('/:businessId/work/exceptions', ...write('any'), h(async (req, res) 
 router.post('/:businessId/work/exceptions/:exceptionId/escalate', ...write('any'), h(async (req, res) => res.json(await workJobs.escalate(req.business.id, req.user.id, req.params.exceptionId))));
 router.patch('/:businessId/work/exceptions/:exceptionId', ...write('any'), h(async (req, res) => res.json(await workJobs.updateException(req.business.id, req.user.id, ctx(req), req.params.exceptionId, req.body))));
 router.get('/:businessId/owner/exceptions', ...biz('manager', 'jobs.view_all'), h(async (req, res) => res.json(await workJobs.exceptionQueue(req.business.id, req.query))));
+// 264 (G5-17): manager work report for a date range.
+router.get('/:businessId/owner/work-report', ...biz('manager', 'jobs.view_all'), h(async (req, res) => res.json(await workJobs.workReport(req.business.id, req.query))));
 router.get('/:businessId/work/crews', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workJobs.crews(req.business.id))));
 router.post('/:businessId/owner/crews', ...write('manager', 'jobs.assign'), h(async (req, res) => res.status(201).json(await workJobs.saveCrew(req.business.id, req.user.id, req.body))));
 router.put('/:businessId/owner/crews/:crewId', ...write('manager', 'jobs.assign'), h(async (req, res) => res.json(await workJobs.saveCrew(req.business.id, req.user.id, req.body, req.params.crewId))));

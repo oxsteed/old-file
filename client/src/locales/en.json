@@ -47139,7 +47139,21 @@
       "crewLead": "Lead",
       "crewMembers": "Members",
       "checklists": "Service checklists",
-      "checklistsHelp": "One step per line. New visits start with these steps."
+      "checklistsHelp": "One step per line. New visits start with these steps.",
+      "report": "Work report",
+      "fromDate": "From",
+      "toDate": "To",
+      "totalAppointments": "Appointments",
+      "progressUpdates": "Progress updates",
+      "openExceptions": "Open exceptions",
+      "stalled": "Stalled work",
+      "noStalled": "No stalled work",
+      "noRecentUpdates": "No progress updates in this range",
+      "stConfirmed": "Confirmed",
+      "stInProgress": "In progress",
+      "stCompleted": "Completed",
+      "stCancelled": "Cancelled",
+      "lastProgress": "last progress"
     },
     "sched": {
       "coverage": "Shift cover",

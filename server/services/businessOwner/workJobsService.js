@@ -347,6 +347,48 @@ async function removeDocument(businessId, documentId) {
   return { deleted: true };
 }
 
+// 264 (G5-17): the manager's work report for a date range: appointments by
+// status, progress-record updates with author and service, open exceptions,
+// and in-progress appointments stalled (no progress in 48h). Appointments
+// only: the OxSteed-job (helper_job_work) half is out of scope (D-462).
+function parseReportDate(value, fallback) {
+  if (!value) return fallback;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw invalid('from');
+  const d = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== value) throw invalid('from');
+  return value;
+}
+async function workReport(businessId, query = {}) {
+  const to = parseReportDate(query.to, new Date().toISOString().slice(0, 10));
+  const fromDate = new Date(`${to}T00:00:00Z`);
+  fromDate.setUTCDate(fromDate.getUTCDate() - 6);
+  const from = parseReportDate(query.from, fromDate.toISOString().slice(0, 10));
+  if (from > to) throw invalid('from');
+  const days = Math.round((new Date(`${to}T00:00:00Z`) - new Date(`${from}T00:00:00Z`)) / 86400000) + 1;
+  if (days > 90) throw invalid('from');
+  const [byStatus, updates, openExceptions, stalled] = await Promise.all([
+    pool.query(`SELECT status, COUNT(*)::int AS n FROM business_appointments
+      WHERE business_id=$1 AND start_time >= $2::date AND start_time < ($3::date + INTERVAL '1 day')
+      GROUP BY status ORDER BY status`, [businessId, from, to]),
+    pool.query(`SELECT p.percent, p.note, p.created_at, s.name AS service_name, TRIM(CONCAT(u.first_name,' ',u.last_name)) AS author
+      FROM business_appointment_progress p JOIN business_appointments a ON a.id=p.appointment_id
+      LEFT JOIN business_services s ON s.id=a.service_id
+      LEFT JOIN users u ON u.id=p.author_id
+      WHERE a.business_id=$1 AND p.created_at >= $2::date AND p.created_at < ($3::date + INTERVAL '1 day')
+      ORDER BY p.created_at DESC LIMIT 100`, [businessId, from, to]),
+    pool.query("SELECT COUNT(*)::int AS n FROM business_work_exceptions WHERE business_id=$1 AND status IN ('open','acknowledged')", [businessId]),
+    pool.query(`SELECT a.id, s.name AS service_name, a.start_time, MAX(p.created_at) AS last_progress
+      FROM business_appointments a LEFT JOIN business_appointment_progress p ON p.appointment_id=a.id
+      LEFT JOIN business_services s ON s.id=a.service_id
+      WHERE a.business_id=$1 AND a.status='in_progress' AND a.start_time <= NOW()
+      GROUP BY a.id, s.name, a.start_time
+      HAVING MAX(p.created_at) IS NULL OR MAX(p.created_at) < NOW() - INTERVAL '48 hours'
+      ORDER BY a.start_time LIMIT 50`, [businessId]),
+  ]);
+  return { range: { from, to }, appointments: { byStatus: Object.fromEntries(byStatus.rows.map((r) => [r.status, r.n])), total: byStatus.rows.reduce((s, r) => s + r.n, 0) },
+    progressUpdates: { count: updates.rows.length, items: updates.rows }, openExceptions: openExceptions.rows[0].n, stalled: stalled.rows };
+}
+
 module.exports = { board, checklist, addChecklistItem, setChecklistItem, setServiceChecklist, serviceChecklists, addProgress, progress,
   raiseException, myExceptions, exceptionQueue, updateException, escalate, KINDS, crews, saveCrew, appointmentCrew, allocateCrew, setCrewTask,
-  respondAttendance, applySubcontractorScope, SUBCONTRACTOR_DENY, documents, addDocument, removeDocument };
+  respondAttendance, applySubcontractorScope, SUBCONTRACTOR_DENY, documents, addDocument, removeDocument, workReport };

@@ -47139,7 +47139,21 @@
       "crewLead": "Líder",
       "crewMembers": "Miembros",
       "checklists": "Listas por servicio",
-      "checklistsHelp": "Un paso por línea. Las visitas nuevas empiezan con estos pasos."
+      "checklistsHelp": "Un paso por línea. Las visitas nuevas empiezan con estos pasos.",
+      "report": "Informe de trabajo",
+      "fromDate": "Desde",
+      "toDate": "Hasta",
+      "totalAppointments": "Citas",
+      "progressUpdates": "Actualizaciones de progreso",
+      "openExceptions": "Excepciones abiertas",
+      "stalled": "Trabajo estancado",
+      "noStalled": "Sin trabajo estancado",
+      "noRecentUpdates": "Sin actualizaciones de progreso en este periodo",
+      "stConfirmed": "Confirmadas",
+      "stInProgress": "En curso",
+      "stCompleted": "Completadas",
+      "stCancelled": "Canceladas",
+      "lastProgress": "último progreso"
     },
     "sched": {
       "coverage": "Cobertura de turno",

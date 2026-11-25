@@ -155,6 +155,34 @@ function Checklists({ businessId }) {
   );
 }
 
+function Report({ businessId }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const weekAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+  const [from, setFrom] = useState(weekAgo);
+  const [to, setTo] = useState(today);
+  const p = useBizG56(`/businesses/${businessId}/owner/work-report?from=${from}&to=${to}`, 'team');
+  const d = p.data;
+  const statusKey = { confirmed: 'stConfirmed', in_progress: 'stInProgress', completed: 'stCompleted', cancelled: 'stCancelled' };
+  return (
+    <section className="g56-panel">
+      <h3>{p.tr('report')}</h3>
+      <div className="g56-row">
+        <label>{p.tr('fromDate')} <input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
+        <label>{p.tr('toDate')} <input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
+      </div>
+      {d && (<>
+        <p>{p.tr('totalAppointments')}: {d.appointments.total} · {p.tr('progressUpdates')}: {d.progressUpdates.count} · {p.tr('openExceptions')}: {d.openExceptions}</p>
+        <ul className="g56-list">{Object.keys(statusKey).filter(s => d.appointments.byStatus[s]).map(s => (<li key={s}>{p.tr(statusKey[s])}: {d.appointments.byStatus[s]}</li>))}</ul>
+        <h4>{p.tr('stalled')}</h4>
+        {d.stalled.length === 0 ? <p>{p.tr('noStalled')}</p> : <ul className="g56-list">{d.stalled.map(a => (<li key={a.id}>{a.service_name} — {p.time(a.start_time)} ({p.tr('lastProgress')}: {a.last_progress ? p.time(a.last_progress) : '—'})</li>))}</ul>}
+        <h4>{p.tr('progressUpdates')}</h4>
+        {d.progressUpdates.items.length === 0 ? <p>{p.tr('noRecentUpdates')}</p> : <ul className="g56-list">{d.progressUpdates.items.map((u, i) => (<li key={i}>{u.service_name} — {u.percent}%{u.note ? ` — ${u.note}` : ''} · {u.author || ''} {p.time(u.created_at)}</li>))}</ul>}
+      </>)}
+      {p.errorText && <p className="g56-error" role="alert">{p.errorText}</p>}
+    </section>
+  );
+}
+
 export default function OwnerTeamWork({ businessId, role }) {
   if (!businessId || !['owner', 'manager'].includes(role)) return null;
   return (<>
@@ -165,5 +193,6 @@ export default function OwnerTeamWork({ businessId, role }) {
     <FollowUps businessId={businessId} />
     <Crews businessId={businessId} />
     <Checklists businessId={businessId} />
+    <Report businessId={businessId} />
   </>);
 }
