@@ -46054,7 +46054,10 @@
     "scheduled": "Fen pwograme",
     "cleared": "Fen retire",
     "expired": "Aksè manm ekspire",
-    "ongoing": "Aksè kontinyèl"
+    "ongoing": "Aksè kontinyèl",
+    "jobId": "ID travay la",
+    "jobIdHelp": "Si ou vle: travay OxSteed ke travay sa a konsène",
+    "forJob": "Pou travay la"
   },
   "helperG4": {
     "reputation": {

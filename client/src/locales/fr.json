@@ -46054,7 +46054,10 @@
     "scheduled": "Fin programmée",
     "cleared": "Fin supprimée",
     "expired": "Adhésion expirée",
-    "ongoing": "Accès continu"
+    "ongoing": "Accès continu",
+    "jobId": "ID de la mission",
+    "jobIdHelp": "Facultatif : la mission OxSteed concernée par cette tâche",
+    "forJob": "Pour la mission"
   },
   "helperG4": {
     "reputation": {

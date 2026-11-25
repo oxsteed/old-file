@@ -46054,7 +46054,10 @@
     "scheduled": "End time scheduled",
     "cleared": "End time cleared",
     "expired": "Membership expired",
-    "ongoing": "Ongoing access"
+    "ongoing": "Ongoing access",
+    "jobId": "Job ID",
+    "jobIdHelp": "Optional: the OxSteed job this task is for",
+    "forJob": "For job"
   },
   "helperG4": {
     "reputation": {

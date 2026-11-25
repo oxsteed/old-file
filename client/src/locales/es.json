@@ -46054,7 +46054,10 @@
     "scheduled": "Fin programado",
     "cleared": "Fin eliminado",
     "expired": "Membresía vencida",
-    "ongoing": "Acceso continuo"
+    "ongoing": "Acceso continuo",
+    "jobId": "ID del trabajo",
+    "jobIdHelp": "Opcional: el trabajo de OxSteed al que corresponde esta tarea",
+    "forJob": "Para el trabajo"
   },
   "helperG4": {
     "reputation": {
