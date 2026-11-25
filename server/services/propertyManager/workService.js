@@ -67,7 +67,26 @@ async function approvalInbox(user) {
       (SELECT json_agg(json_build_object('vendor', v.name, 'amount_cents', q.amount_cents, 'status', q.status) ORDER BY q.amount_cents) FROM property_work_quotes q JOIN property_vendors v ON v.id=q.vendor_id WHERE q.request_id=r.id) AS quotes
     FROM property_maintenance_requests r JOIN properties p ON p.id=r.property_id JOIN businesses b ON b.id=r.business_id
     WHERE r.approval_status='pending' AND ${APPROVER_SQL} ORDER BY r.approval_requested_at`, [user]);
-  return { approvals: rows };
+  // D-433: decided approvals stay visible (last 20) so a decision does not
+  // vanish from the owner's view the moment it is made.
+  const { rows: decided } = await pool.query(`SELECT r.id, r.title, r.approval_amount_cents, r.approval_status, r.approval_decided_at, p.label AS property, b.business_name,
+      NULLIF(TRIM(CONCAT(u.first_name,' ',u.last_name)),'') AS decided_by
+    FROM property_maintenance_requests r JOIN properties p ON p.id=r.property_id JOIN businesses b ON b.id=r.business_id
+    LEFT JOIN users u ON u.id=r.approval_decided_by
+    WHERE r.approval_status IN ('approved','declined') AND r.approval_decided_at IS NOT NULL AND ${APPROVER_SQL} ORDER BY r.approval_decided_at DESC LIMIT 20`, [user]);
+  return { approvals: rows, decided };
+}
+// D-433: audit trail for one approval. Approver-only (404 otherwise); only
+// approval% events are exposed, never the full manager-internal history.
+async function approvalEvents(user, requestId) {
+  const { rows: [r] } = await pool.query(`SELECT r.id FROM property_maintenance_requests r JOIN properties p ON p.id=r.property_id JOIN businesses b ON b.id=r.business_id
+    WHERE r.id::text=$2 AND ${APPROVER_SQL}`, [user, String(requestId)]);
+  if (!r) fail(404, 'not_found');
+  const { rows } = await pool.query(`SELECT e.id, e.event_type, e.note, e.created_at,
+      NULLIF(TRIM(CONCAT(u.first_name,' ',u.last_name)),'') AS actor_name
+    FROM property_maintenance_request_events e LEFT JOIN users u ON u.id=e.actor_id
+    WHERE e.request_id=$1 AND e.event_type LIKE 'approval%' ORDER BY e.id`, [r.id]);
+  return { request_id: r.id, events: rows };
 }
 async function decideApproval(user, requestId, body) {
   const decision = oneOf(body?.decision, ['approved', 'declined'], 'decision');
@@ -316,10 +335,17 @@ async function routeEmergency(businessId, requestId, user, role) {
   return { notified: targets.length, contacts, emergency_phone: s?.emergency_phone || null, emergency_instructions: s?.emergency_instructions || null };
 }
 // 342-345 incidents
+// D-435: an assignee must be a real user; a bad id is rejected, never stored.
+async function assigneeId(db, value) {
+  const id = uuid(value, 'assigned_to');
+  const { rows } = await db.query('SELECT 1 FROM users WHERE id=$1', [id]);
+  if (!rows.length) fail(404, 'not_found');
+  return id;
+}
 async function incidents(businessId, propertyId, user, role) {
   const { property: p } = await propertyAccess(pool, businessId, propertyId, user, role);
-  const { rows } = await pool.query(`SELECT i.*, u.unit_label, (i.follow_up_on IS NOT NULL AND i.follow_up_done_at IS NULL AND i.follow_up_on < CURRENT_DATE) AS follow_up_overdue
-    FROM property_incidents i LEFT JOIN property_portfolio_units u ON u.id=i.unit_id WHERE i.property_id=$1 ORDER BY i.status, i.created_at DESC`, [p.id]);
+  const { rows } = await pool.query(`SELECT i.*, u.unit_label, NULLIF(TRIM(CONCAT(au.first_name,' ',au.last_name)),'') AS assignee_name, (i.follow_up_on IS NOT NULL AND i.follow_up_done_at IS NULL AND i.follow_up_on < CURRENT_DATE) AS follow_up_overdue
+    FROM property_incidents i LEFT JOIN property_portfolio_units u ON u.id=i.unit_id LEFT JOIN users au ON au.id=i.assigned_to WHERE i.property_id=$1 ORDER BY i.status, i.created_at DESC`, [p.id]);
   return { incidents: rows };
 }
 async function createIncident(businessId, propertyId, user, role, body) {
@@ -328,8 +354,9 @@ async function createIncident(businessId, propertyId, user, role, body) {
   const reqId = body?.request_id ? uuid(body.request_id, 'request_id') : null;
   if (reqId) { const { rows } = await pool.query('SELECT 1 FROM property_maintenance_requests WHERE id=$1 AND business_id=$2', [reqId, businessId]); if (!rows.length) fail(404, 'not_found'); }
   const severity = oneOf(body?.severity, ['minor', 'major', 'critical'], 'severity', 'major');
-  const { rows: [i] } = await pool.query(`INSERT INTO property_incidents(business_id, property_id, unit_id, request_id, title, severity, relocation_note, relocation_until, follow_up_on, created_by)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`, [businessId, p.id, unit, reqId, text(body?.title, 160), severity, text(body?.relocation_note, 2000, { required: false }), day(body?.relocation_until, 'relocation_until'), day(body?.follow_up_on, 'follow_up_on'), user]);
+  const assignedTo = body?.assigned_to ? await assigneeId(pool, body.assigned_to) : null;
+  const { rows: [i] } = await pool.query(`INSERT INTO property_incidents(business_id, property_id, unit_id, request_id, title, severity, relocation_note, relocation_until, follow_up_on, category, assigned_to, created_by)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`, [businessId, p.id, unit, reqId, text(body?.title, 160), severity, text(body?.relocation_note, 2000, { required: false }), day(body?.relocation_until, 'relocation_until'), day(body?.follow_up_on, 'follow_up_on'), text(body?.category, 80, { required: false }), assignedTo, user]);
   if (severity === 'critical') {
     const owner = (await ownerOf(pool, businessId)).user_id;
     for (const t of [...new Set([...(await propertyPeople(pool, p.id)), owner].map(String))].filter(x => x !== String(user))) await notify(t, 'property_emergency', { title: i.title }, `property_incident:${i.id}`, `/business/${businessId}/hub?tab=properties&property=${p.id}`);
@@ -348,6 +375,8 @@ async function updateIncident(businessId, incidentId, user, role, body) {
   if (b.relocation_note !== undefined) f.relocation_note = text(b.relocation_note, 2000, { required: false });
   if (b.relocation_until !== undefined) f.relocation_until = day(b.relocation_until, 'relocation_until');
   if (b.follow_up_on !== undefined) { f.follow_up_on = day(b.follow_up_on, 'follow_up_on'); f.follow_up_done_at = null; }
+  if (b.category !== undefined) f.category = text(b.category, 80, { required: false });
+  if (b.assigned_to !== undefined) f.assigned_to = b.assigned_to === null ? null : await assigneeId(pool, b.assigned_to);
   if (b.owner_summary !== undefined) f.owner_summary = text(b.owner_summary, 4000, { required: false });
   if (b.follow_up_done) f.follow_up_done_at = new Date().toISOString();
   if (b.status !== undefined) { f.status = oneOf(b.status, ['open', 'resolved'], 'status'); f.resolved_at = f.status === 'resolved' ? new Date().toISOString() : null; }
@@ -374,10 +403,11 @@ async function shareWithOwner(businessId, incidentId, user, role) {
   return out;
 }
 async function ownerIncidents(user) {
-  const { rows } = await pool.query(`SELECT i.id, i.title, i.severity, i.status, i.owner_summary, i.owner_shared_at, i.relocation_until, i.follow_up_on, i.resolved_at, p.label AS property, b.business_name,
+  const { rows } = await pool.query(`SELECT i.id, i.title, i.severity, i.status, i.category, i.assigned_to, i.owner_summary, i.owner_shared_at, i.relocation_until, i.follow_up_on, i.resolved_at, p.label AS property, b.business_name,
+      NULLIF(TRIM(CONCAT(au.first_name,' ',au.last_name)),'') AS assignee_name,
       jsonb_array_length(i.evidence) AS evidence_count
-    FROM property_incidents i JOIN properties p ON p.id=i.property_id JOIN businesses b ON b.id=i.business_id WHERE p.owner_user_id=$1 AND i.owner_shared_at IS NOT NULL ORDER BY i.owner_shared_at DESC LIMIT 100`, [user]);
+    FROM property_incidents i JOIN properties p ON p.id=i.property_id JOIN businesses b ON b.id=i.business_id LEFT JOIN users au ON au.id=i.assigned_to WHERE p.owner_user_id=$1 AND i.owner_shared_at IS NOT NULL ORDER BY i.owner_shared_at DESC LIMIT 100`, [user]);
   return { incidents: rows };
 }
-module.exports = { TRADES, duplicates, linkDuplicate, requestApproval, approvalInbox, decideApproval, vendors, createVendor, updateVendor, addQuote, quotes, selectQuote, issueWorkOrder, closeWorkOrder, workOrders,
+module.exports = { TRADES, duplicates, linkDuplicate, requestApproval, approvalInbox, approvalEvents, decideApproval, vendors, createVendor, updateVendor, addQuote, quotes, selectQuote, issueWorkOrder, closeWorkOrder, workOrders,
   getEntry, saveEntry, notifyOccupant, occupantEntry, selectWindow, keys, addKey, keyAction, routeEmergency, incidents, createIncident, updateIncident, addEvidence, shareWithOwner, ownerIncidents };
