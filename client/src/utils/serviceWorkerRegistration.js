@@ -139,7 +139,21 @@ export function hasUnsavedInput(root = typeof document === 'undefined' ? null : 
     const type = (el.type || '').toLowerCase();
     if (['hidden', 'submit', 'button', 'reset', 'image', 'file', 'password', 'search'].includes(type)) return false;
     if (type === 'checkbox' || type === 'radio') return el.checked !== el.defaultChecked;
-    if (el.tagName === 'SELECT') return Array.from(el.options || []).some(o => o.selected !== o.defaultSelected);
+    if (el.tagName === 'SELECT') {
+      // React sets the selected PROPERTY but no selected ATTRIBUTE, so
+      // comparing selected against defaultSelected reports every untouched
+      // React select as dirty — and every page carrying one (the home page
+      // has two) blocks silent updates forever. Compare the currently
+      // selected option against the default one instead: the first option
+      // carrying a selected attribute, else the first option. (CI: the
+      // PWA installed-mode matrix never reloaded after navigating home,
+      // because the post-job wizard's untouched selects read dirty.)
+      const options = Array.from(el.options || []);
+      if (el.multiple) return options.some(o => o.selected !== o.defaultSelected);
+      const current = options.find(o => o.selected);
+      const initial = options.find(o => o.defaultSelected) || options[0];
+      return current !== initial;
+    }
     return (el.value || '') !== (el.defaultValue || '');
   });
 }

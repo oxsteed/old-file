@@ -398,3 +398,64 @@ test('P2: a waiting worker the announce path never saw still applies on navigati
   app.fireControllerChange();
   assert.equal(app.reloads.length, 1, 'the tab reloads onto the new worker once the controller changes');
 });
+
+test('P2: untouched selects do not block the quiet apply (React sets no selected attribute)', async () => {
+  // hasUnsavedInput compared selected against defaultSelected per option.
+  // React sets the selected PROPERTY but no selected ATTRIBUTE, so every
+  // untouched React select read dirty and every page carrying one blocked
+  // silent updates forever. CI: the PWA installed-mode matrix never
+  // reloaded after navigating home, because the post-job wizard's untouched
+  // selects (easy / one_time, both first options) read dirty.
+  const reactSelect = {
+    tagName: 'SELECT',
+    options: [
+      { value: 'easy', selected: true, defaultSelected: false },
+      { value: 'lockbox', selected: false, defaultSelected: false },
+    ],
+  };
+  const app = subject({ pathname: '/checkout', inputs: [reactSelect] });
+  app.registerServiceWorker();
+  await app.settle();
+  await app.settle();
+  assert.equal(app.getWaitingWorker(), app.worker);
+  app.location.href = 'https://app.invalid/discover';
+  app.win.history.pushState({}, '', '/discover');
+  assert.equal(app.posted.length, 1);
+  assert.equal(app.posted[0].type, 'SKIP_WAITING');
+
+  // A select whose default is a non-first option via a selected attribute
+  // is clean while untouched too.
+  const attrSelect = {
+    tagName: 'SELECT',
+    options: [
+      { value: 'one_time', selected: false, defaultSelected: false },
+      { value: 'recurring', selected: true, defaultSelected: true },
+    ],
+  };
+  const app2 = subject({ pathname: '/checkout', inputs: [attrSelect] });
+  app2.registerServiceWorker();
+  await app2.settle();
+  await app2.settle();
+  app2.location.href = 'https://app.invalid/discover';
+  app2.win.history.pushState({}, '', '/discover');
+  assert.equal(app2.posted.length, 1);
+});
+
+test('P2: a select the user changed still blocks the quiet apply', async () => {
+  const changedSelect = {
+    tagName: 'SELECT',
+    options: [
+      { value: 'easy', selected: false, defaultSelected: false },
+      { value: 'lockbox', selected: true, defaultSelected: false },
+    ],
+  };
+  const app = subject({ pathname: '/checkout', inputs: [changedSelect] });
+  app.registerServiceWorker();
+  await app.settle();
+  await app.settle();
+  assert.equal(app.getWaitingWorker(), app.worker);
+  app.location.href = 'https://app.invalid/discover';
+  app.win.history.pushState({}, '', '/discover');
+  assert.equal(app.posted.length, 0, 'changed select keeps the worker waiting');
+  assert.equal(app.getWaitingWorker(), app.worker);
+});

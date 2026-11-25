@@ -226,22 +226,42 @@ for (const profile of profiles) {
           await (await navigator.serviceWorker.getRegistration()).update();
         });
         await page.waitForFunction(async () => !!(await navigator.serviceWorker.getRegistration()).waiting);
+        // PWA silent updates (D-443): there is no refresh prompt anymore.
+        // The update is deferred while authoring a job and applies silently
+        // at the next quiet moment instead.
         assert.equal(await page.getByRole('button', { name: 'Refresh to update', exact: true }).count(), 0,
           'updates are deferred while authoring a job');
         assert.equal(await title.inputValue(), 'Keep draft through update');
         await page.locator('.ox-navbar').getByRole('link', { name: 'OxSteed', exact: true }).click();
         await page.waitForURL(fixture.origin + '/');
-        await page
-          .getByRole('button', { name: 'Refresh to update', exact: true })
-          .waitFor();
-        // Prove that refresh replaced the document, then wait for the actual
-        // form below. The window load event also waits for unrelated resources
-        // and can stall on mobile Chromium after a worker takeover.
-        await page.evaluate(() => { window.__pwaBeforeUpdateDocument = true; });
-        await page
-          .getByRole('button', { name: 'Refresh to update', exact: true })
-          .click();
-        await page.waitForFunction(() => !window.__pwaBeforeUpdateDocument);
+        // The URL changes before the route transition commits (the home
+        // chunk loads lazily, ~2s here). The update guard is held until the
+        // guarded form unmounts, so wait for the wizard to leave the DOM
+        // before expecting the quiet apply — otherwise the navigation fires
+        // while still guarded and the worker sits waiting.
+        await page.locator('#job-title').waitFor({ state: 'detached', timeout: 15000 });
+        assert.equal(await page.getByRole('button', { name: 'Refresh to update', exact: true }).count(), 0,
+          'no refresh prompt on the home page either');
+        // The home page is clean, so the next in-app navigation applies the
+        // waiting worker silently: the tab reloads fresh, with no prompt.
+        // Prove that the navigation replaced the document, then wait for the
+        // actual form below. The window load event also waits for unrelated
+        // resources and can stall on mobile Chromium after a worker takeover.
+        // The update guard settles ~1s after the route transition commits
+        // (the coordination hook clears after the wizard unmounts), so the
+        // first navigation can land while still guarded; retry the
+        // navigation until the worker applies, as a user keeps browsing.
+        let applied = false;
+        for (let attempt = 0; attempt < 6 && !applied; attempt++) {
+          await page.evaluate(() => {
+            window.__pwaBeforeUpdateDocument = true;
+            history.pushState({}, '', '/discover');
+          });
+          applied = await page.waitForFunction(() => !window.__pwaBeforeUpdateDocument, { timeout: 1500 })
+            .then(() => true)
+            .catch(() => false);
+        }
+        assert.equal(applied, true, 'waiting worker applies silently after navigating away');
         // Identity flips when the new document is created, which can be before
         // that reload has committed. A second reload also returns readyState
         // to "loading", so this wait includes it. Do not wait for window load.
