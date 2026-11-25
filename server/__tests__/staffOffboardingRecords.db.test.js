@@ -314,6 +314,22 @@ suite('S-11 offboarding records, reassignment, rehire (DB)', () => {
     expect(Math.abs(retainUntil - sevenYearsOut)).toBeLessThan(86400000 * 2);
   });
 
+  test('legacy revoke bumps the projection in-transaction (G5-29, 296)', async () => {
+    const before = await db.query('SELECT version FROM access_projection_versions WHERE user_id = $1', [EMPLOYEE]);
+    const { res, error } = await call(membersCtrl.revokeMember, asOwner({}, { memberId: String(employeeMembershipId) }));
+    expect(error).toBeNull();
+    expect(res.statusCode).toBe(200);
+    expect(res.body.offboarding).toBeTruthy();
+    const after = await db.query('SELECT version FROM access_projection_versions WHERE user_id = $1', [EMPLOYEE]);
+    expect(Number(after.rows[0]?.version || 0)).toBe(Number(before.rows[0]?.version || 0) + 1);
+    // The removal notice carries the remaining-access link (G5-47, 300).
+    const { rows: [note] } = await db.query(
+      `SELECT action_url FROM notifications WHERE user_id = $1 AND type = 'member_removed' ORDER BY created_at DESC LIMIT 1`,
+      [EMPLOYEE]
+    );
+    expect(note?.action_url).toBe('/vortex#remaining-access');
+  });
+
   test('rehire restores role/job/pay and links the offboarding record', async () => {
     // Revoke the membership first (the rehire precondition).
     await db.query(`UPDATE business_members SET status = 'revoked' WHERE id = $1`, [employeeMembershipId]);
@@ -339,6 +355,12 @@ suite('S-11 offboarding records, reassignment, rehire (DB)', () => {
     // Rehiring an active member is a conflict, not a duplicate.
     const again = await call(membersCtrl.rehireMember, asOwner({ user_id: EMPLOYEE }));
     expect(again.res.statusCode).toBe(409);
+  });
+
+  test('rehire bumps the projection too (G5-48, 296)', async () => {
+    // One bump from the legacy revoke above, one from the rehire.
+    const { rows } = await db.query('SELECT version FROM access_projection_versions WHERE user_id = $1', [EMPLOYEE]);
+    expect(Number(rows[0]?.version)).toBe(2);
   });
 
   test('rehire of an unknown person is a 404', async () => {

@@ -11215,6 +11215,14 @@
         "title": "Eliminado de {{businessName}}",
         "body": "Has sido eliminado como {{role}} de \"{{businessName}}\"."
       },
+      "member_role_changed": {
+        "title": "Acceso cambiado en {{businessName}}",
+        "body": "Tu rol o tus permisos en \"{{businessName}}\" cambiaron. Tu rol ahora es {{role}}."
+      },
+      "membership_expiring": {
+        "title": "Tu acceso a {{businessName}} termina pronto",
+        "body": "Tu acceso a \"{{businessName}}\" como {{role}} termina el {{expiresAt}}."
+      },
       "member_rehired": {
         "title": "Bienvenido de nuevo a {{businessName}}",
         "body": "Has sido recontratado en \"{{businessName}}\" como {{role}}."

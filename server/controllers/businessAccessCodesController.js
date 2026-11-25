@@ -727,6 +727,8 @@ exports.removeMembership = async (req, res, next) => {
         business_id: req.business.id, membership_id: mid,
         params: { businessName: req.business.business_name, role: rows[0].role },
       },
+      // G5-47 (300): the notice links to the member's remaining access.
+      action_url: '/vortex#remaining-access',
     }).catch(() => {});
   } catch (err) {
     next(err);

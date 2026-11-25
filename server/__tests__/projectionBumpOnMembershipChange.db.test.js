@@ -154,7 +154,7 @@ dbDescribe('projection bump on membership change (G-27)', () => {
     const { res, error } = await call(teamCtrl.changeMembershipRole, {
       user: { id: OWNER },
       params: { membershipId: String(roleMembershipId) },
-      business: { id: bizId },
+      business: { id: bizId, business_name: `Projection Bump Biz ${stamp}`, owner_id: OWNER },
       businessRole: 'owner',
       body: { role: 'representative', reason: 'Covers the sales desk', confirm: true },
     });
@@ -162,6 +162,21 @@ dbDescribe('projection bump on membership change (G-27)', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.data.role).toBe('representative');
     expect(await projectionVersion(ROLE_MEMBER)).toBe(1);
+    // G5-33 (296): the member is notified of the role change, with a
+    // non-empty localized title. The send is fire-and-forget, so poll.
+    let note = null;
+    for (let i = 0; i < 50 && !note; i++) {
+      const { rows } = await pool.query(
+        `SELECT title, body, action_url FROM notifications WHERE user_id = $1 AND type = 'member_role_changed' ORDER BY created_at DESC LIMIT 1`,
+        [ROLE_MEMBER],
+      );
+      note = rows[0] || null;
+      if (!note) await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(note).toBeTruthy();
+    expect(note.title).toBeTruthy();
+    expect(note.body).toContain('representative');
+    expect(note.action_url).toBe('/vortex#remaining-access');
   });
 
   test('location replace then clear each bump the member projection version', async () => {

@@ -84,7 +84,7 @@ async function localizedNotificationText(client, { userId, type, title, body, da
   return { title: rendered.title || title, body: rendered.body || body };
 }
 
-async function insertNotification(client, { userId, type, title, body, data }) {
+async function insertNotification(client, { userId, type, title, body, data, action_url = null }) {
   const text = await localizedNotificationText(client, { userId, type, title, body, data });
   // Item 11: this shared helper used to INSERT unconditionally, bypassing
   // every preference. It stays in-transaction (S-01: the membership change
@@ -124,11 +124,11 @@ async function insertNotification(client, { userId, type, title, body, data }) {
   const { deriveIdempotencyKey } = require('../services/notificationService');
   const deliveryKey = deriveIdempotencyKey({ type, userId, title: text.title, body: text.body, data });
   const { rows } = await client.query(
-    `INSERT INTO notifications (user_id, type, title, body, data, delivery_key)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO notifications (user_id, type, title, body, data, delivery_key, action_url)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      ON CONFLICT (delivery_key) WHERE delivery_key IS NOT NULL DO NOTHING
      RETURNING id`,
-    [userId, type, text.title, text.body, JSON.stringify(data || {}), deliveryKey]
+    [userId, type, text.title, text.body, JSON.stringify(data || {}), deliveryKey, action_url]
   );
   if (rows[0]) return rows[0].id;
   const { rows: existing } = await client.query(
@@ -405,7 +405,17 @@ async function revokeMember(req, res) {
             business_id: biz.id, business_name: biz.business_name, role: member.role,
             params: { businessName: biz.business_name, role: member.role },
           },
+          // G5-47 (300): the notice links to the member's remaining access.
+          action_url: '/vortex#remaining-access',
         });
+      }
+
+      // G5-29 (296): the legacy revoke path bumps the projection in the
+      // same transaction, mirroring removeMembership (G-27). Without it
+      // the member's switcher/projection kept listing the business
+      // until a focus/TTL refetch, with clicks 404ing.
+      if (member.member_id) {
+        await bumpProjection(client, member.member_id);
       }
 
       await logBusinessAction(req, {
@@ -670,6 +680,11 @@ async function rehireMember(req, res) {
           [member.id, record.id]
         );
       }
+      // G5-48 (296): a rehire restores the projection in the same
+      // transaction (mirroring removeMembership), so the member's
+      // switcher lists the business again immediately instead of
+      // waiting on a focus/TTL refetch.
+      await bumpProjection(client, user.id);
       // Prior training completions (tied to user_id) for the history view.
       const { rows: completions } = await client.query(
         `SELECT c.id, c.passed, c.completed_at, m.title AS module_title
@@ -711,6 +726,9 @@ async function rehireMember(req, res) {
     if (outcome.conflict === 'invite_exists') return res.status(409).json({ error: 'This person has a pending or expired invite; resend or revoke it first' });
     if (outcome.conflict === 'no_prior_membership') return res.status(404).json({ error: 'No prior membership found for this person' });
     if (outcome.conflict === 'target_rank_too_high') return res.status(403).json({ error: 'You can only manage members with roles below your own' });
+    // G5-48 (296): drop the cached permissions with the rehire, so the
+    // restored role takes effect immediately.
+    permissionsService.invalidateCache(biz.id, user.id);
     return res.status(201).json(outcome);
   } catch (err) {
     if (err.code === 'location_scope_forbidden') return res.status(403).json({ error: err.message, code: err.code });

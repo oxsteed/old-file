@@ -3144,6 +3144,14 @@
         "title": "Yo retire ou nan {{businessName}}",
         "body": "Yo retire ou kòm {{role}} nan \"{{businessName}}\"."
       },
+      "member_role_changed": {
+        "title": "Aksè chanje nan {{businessName}}",
+        "body": "Wòl ou oswa otorizasyon ou nan \"{{businessName}}\" chanje. Wòl ou kounye a se {{role}}."
+      },
+      "membership_expiring": {
+        "title": "Aksè ou nan {{businessName}} ap fini byento",
+        "body": "Aksè ou nan \"{{businessName}}\" kòm {{role}} fini nan dat {{expiresAt}}."
+      },
       "member_rehired": {
         "title": "Byenveni tounen nan {{businessName}}",
         "body": "Yo anboche ou ankò nan \"{{businessName}}\" kòm {{role}}."

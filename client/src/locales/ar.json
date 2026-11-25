@@ -11215,6 +11215,14 @@
         "title": "تمت إزالتك من {{businessName}}",
         "body": "تمت إزالتك بصفة {{role}} من \"{{businessName}}\"."
       },
+      "member_role_changed": {
+        "title": "تم تغيير الوصول في {{businessName}}",
+        "body": "تغيّر دورك أو أذوناتك في \"{{businessName}}\". دورك الآن هو {{role}}."
+      },
+      "membership_expiring": {
+        "title": "سينتهي وصولك إلى {{businessName}} قريبًا",
+        "body": "سينتهي وصولك إلى \"{{businessName}}\" بصفة {{role}} في {{expiresAt}}."
+      },
       "member_rehired": {
         "title": "مرحبًا بعودتك إلى {{businessName}}",
         "body": "تمت إعادة توظيفك في \"{{businessName}}\" بصفة {{role}}."

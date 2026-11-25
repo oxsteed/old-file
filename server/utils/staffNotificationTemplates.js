@@ -115,6 +115,43 @@ const staffNotifications = {
       ar: 'تمت إعادة توظيفك في "{businessName}" بصفة {role}.',
     },
   },
+  // Batch E (296, G5-33): one notice covers a role change and a
+  // permission-override change; {role} is the member's role after
+  // the change.
+  member_role_changed: {
+    title: {
+      en: 'Access changed at {businessName}',
+      es: 'Acceso cambiado en {businessName}',
+      fr: 'Accès modifié chez {businessName}',
+      ht: 'Aksè chanje nan {businessName}',
+      ar: 'تم تغيير الوصول في {businessName}',
+    },
+    body: {
+      en: 'Your role or permissions at "{businessName}" changed. Your role is now {role}.',
+      es: 'Tu rol o tus permisos en "{businessName}" cambiaron. Tu rol ahora es {role}.',
+      fr: 'Votre rôle ou vos autorisations chez « {businessName} » ont changé. Votre rôle est désormais {role}.',
+      ht: 'Wòl ou oswa otorizasyon ou nan "{businessName}" chanje. Wòl ou kounye a se {role}.',
+      ar: 'تغيّر دورك أو أذوناتك في "{businessName}". دورك الآن هو {role}.',
+    },
+  },
+  // Batch E (296, G5-8): pre-expiry warning sent when an owner
+  // schedules an access end date; {expiresAt} is the scheduled end.
+  membership_expiring: {
+    title: {
+      en: 'Access to {businessName} ends soon',
+      es: 'Tu acceso a {businessName} termina pronto',
+      fr: 'Votre accès à {businessName} se termine bientôt',
+      ht: 'Aksè ou nan {businessName} ap fini byento',
+      ar: 'سينتهي وصولك إلى {businessName} قريبًا',
+    },
+    body: {
+      en: 'Your access to "{businessName}" as a {role} ends on {expiresAt}.',
+      es: 'Tu acceso a "{businessName}" como {role} termina el {expiresAt}.',
+      fr: 'Votre accès à « {businessName} » en tant que {role} se termine le {expiresAt}.',
+      ht: 'Aksè ou nan "{businessName}" kòm {role} fini nan dat {expiresAt}.',
+      ar: 'سينتهي وصولك إلى "{businessName}" بصفة {role} في {expiresAt}.',
+    },
+  },
   career_hired: {
     title: {
       en: 'You were hired at {businessName}',

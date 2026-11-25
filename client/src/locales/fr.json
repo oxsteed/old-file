@@ -11215,6 +11215,14 @@
         "title": "Retiré de {{businessName}}",
         "body": "Vous avez été retiré en tant que {{role}} de « {{businessName}} »."
       },
+      "member_role_changed": {
+        "title": "Accès modifié chez {{businessName}}",
+        "body": "Votre rôle ou vos autorisations chez « {{businessName}} » ont changé. Votre rôle est désormais {{role}}."
+      },
+      "membership_expiring": {
+        "title": "Votre accès à {{businessName}} se termine bientôt",
+        "body": "Votre accès à « {{businessName}} » en tant que {{role}} se termine le {{expiresAt}}."
+      },
       "member_rehired": {
         "title": "Bon retour à {{businessName}}",
         "body": "Vous avez été réembauché à « {{businessName}} » en tant que {{role}}."

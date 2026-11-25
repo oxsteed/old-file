@@ -59,6 +59,24 @@ describeDb('time-bound membership authority and isolated cleanup',()=>{
   const business=await workspace(),spy=jest.spyOn(expiry,'expireForUser').mockRejectedValueOnce(Object.assign(new Error('Synthetic unavailable'),{code:'membership_expiry_unavailable'}));
   const response=await require('supertest')(app()).get(`/api/businesses/${business.id}/team/readiness`).set('Authorization',`Bearer ${token(member)}`).expect(503);expect(response.body.retryable).toBe(true);spy.mockRestore();
  });
+ test('scheduling warns the member and expiry notifies them as removed (G5-8, 296)',async()=>{
+  const business=await workspace();
+  await expiry.schedule(business.id,owner,business.membership.id,{expectedVersion:1,expires_at:'2030-06-01T00:00:00Z'});
+  // The warning is fire-and-forget, so poll for the row instead of
+  // assuming the send finished when schedule returned.
+  const poll=async(sql,params)=>{for(let i=0;i<50;i++){const {rows}=await db.query(sql,params);if(rows.length)return rows;await new Promise(r=>setTimeout(r,100));}return [];};
+  const warned=await poll("SELECT type,title,body,action_url FROM notifications WHERE user_id=$1 AND type='membership_expiring' AND data->>'expires_at'='2030-06-01T00:00:00Z' ORDER BY created_at DESC LIMIT 1",[member]);
+  expect(warned).toHaveLength(1);
+  expect(warned[0].title).toBeTruthy();
+  expect(warned[0].body).toContain('2030-06-01');
+  expect(warned[0].action_url).toBe('/vortex#remaining-access');
+  await db.query("UPDATE business_members SET access_valid_until=NOW()-INTERVAL '1 minute' WHERE id=$1",[business.membership.id]);
+  expect(await expiry.expireForUser(member)).toBe(1);
+  const removed=await poll("SELECT type,title,body,action_url FROM notifications WHERE user_id=$1 AND type='member_removed' AND data->>'business_id'=$2 ORDER BY created_at DESC LIMIT 1",[member,String(business.id)]);
+  expect(removed).toHaveLength(1);
+  expect(removed[0].title).toBeTruthy();
+  expect(removed[0].action_url).toBe('/vortex#remaining-access');
+ });
  test('cleanup failure rolls back membership, reassignment and audit writes together',async()=>{
   const business=await workspace();await team.createTask(business.id,owner,{kind:'task',title:'Rollback fixture',assignee_id:member,due_at:'2030-01-01T00:00:00Z',requestId:crypto.randomUUID()});
   await db.query("UPDATE business_members SET access_valid_until=NOW()-INTERVAL '1 minute' WHERE id=$1",[business.membership.id]);

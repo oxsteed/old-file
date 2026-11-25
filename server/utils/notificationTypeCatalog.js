@@ -370,6 +370,10 @@ const NOTIFICATION_TYPES = [
   { type: 'draft_recovery', group: 'other' },
   { type: 'growth_offer', group: 'other' },
   { type: 'member_removed', group: 'other' },
+  // Batch E (296, G5-8/G5-33): membership-expiry warning and
+  // role/permission-change notice.
+  { type: 'member_role_changed', group: 'other' },
+  { type: 'membership_expiring', group: 'other' },
   { type: 'metric_threshold_alert', group: 'other' },
   { type: 'reengagement_nudge', group: 'other' },
   { type: 'watchlist_booking', group: 'other' },
