@@ -175,7 +175,7 @@ async function applyAsUser(db, { opening, user, body, req }) {
   await notifyHiringTeam(db, opening, {
     type: 'career_new_applicant',
     params: { openingTitle: opening.title, applicantNumber },
-    actionUrl: opening.employer_type === 'platform' ? '/admin/careers' : `/business/${opening.business_id}/careers`,
+    actionUrl: opening.employer_type === 'platform' ? '/admin/super/careers' : `/business/${opening.business_id}/careers`,
     deliveryKey: `career_new_applicant:${application.id}`,
   });
   return {
@@ -296,7 +296,7 @@ async function confirmGuestApplication(db, { opening, token }) {
   await notifyHiringTeam(db, opening, {
     type: 'career_new_applicant',
     params: { openingTitle: opening.title, applicantNumber },
-    actionUrl: opening.employer_type === 'platform' ? '/admin/careers' : `/business/${opening.business_id}/careers`,
+    actionUrl: opening.employer_type === 'platform' ? '/admin/super/careers' : `/business/${opening.business_id}/careers`,
     deliveryKey: `career_new_applicant:${application.id}`,
   });
   return { application_id: application.id, replayed: false };

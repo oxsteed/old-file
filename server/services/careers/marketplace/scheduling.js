@@ -317,7 +317,7 @@ async function bookSlot(db, { app, user, proposalId, startsAt }) {
       userId: uid,
       type: 'career_interview_booked',
       params: { openingTitle: app.opening_title, applicantLabel: `#${app.id}`, when: formatWhen(new Date(interview.scheduled_at), interview.timezone, 'en'), timezone: interview.timezone },
-      actionUrl: app.employer_type === 'platform' ? '/admin/careers' : `/business/${app.business_id}/careers?application=${app.id}`,
+      actionUrl: app.employer_type === 'platform' ? '/admin/super/careers' : `/business/${app.business_id}/careers?application=${app.id}`,
       deliveryKey: `career_booked:${interview.id}:${uid}`,
       channels: ['in_app', 'email', 'push'],
       attachments: [icsAttachment(teamIcs)],
@@ -340,7 +340,7 @@ async function declineProposal(db, { app, proposalId, message }) {
     await deliver(db, {
       userId: uid, type: 'career_interview_times_declined',
       params: { openingTitle: app.opening_title, applicantLabel: `#${app.id}` },
-      actionUrl: app.employer_type === 'platform' ? '/admin/careers' : `/business/${app.business_id}/careers?application=${app.id}`,
+      actionUrl: app.employer_type === 'platform' ? '/admin/super/careers' : `/business/${app.business_id}/careers?application=${app.id}`,
       deliveryKey: `career_proposal_declined:${p.id}:${uid}`, channels: ['in_app', 'email'],
     });
   }
@@ -387,7 +387,7 @@ async function requestReschedule(db, { app, interviewId, reason }) {
     await deliver(db, {
       userId: uid, type: 'career_interview_reschedule_requested',
       params: { openingTitle: app.opening_title, applicantLabel: `#${app.id}` },
-      actionUrl: app.employer_type === 'platform' ? '/admin/careers' : `/business/${app.business_id}/careers?application=${app.id}`,
+      actionUrl: app.employer_type === 'platform' ? '/admin/super/careers' : `/business/${app.business_id}/careers?application=${app.id}`,
       deliveryKey: `career_resched_req:${i.id}:${new Date(row.reschedule_requested_at).getTime()}:${uid}`, channels: ['in_app', 'email', 'push'],
     });
   }
@@ -532,7 +532,7 @@ async function sendReminders(db, { limit = 200 } = {}) {
       await deliver(db, {
         userId: claimed.interviewer_user_id, type: 'career_interview_reminder_team',
         params: { openingTitle: app.opening_title, applicantLabel: `#${app.id}`, when: formatWhen(new Date(claimed.scheduled_at), claimed.timezone, 'en'), timezone: claimed.timezone },
-        actionUrl: app.employer_type === 'platform' ? '/admin/careers' : `/business/${app.business_id}/careers?application=${app.id}`,
+        actionUrl: app.employer_type === 'platform' ? '/admin/super/careers' : `/business/${app.business_id}/careers?application=${app.id}`,
         deliveryKey: `career_reminder_team:${claimed.id}:${claimed.ics_sequence}`,
         channels: ['in_app', 'email', 'push'],
       });

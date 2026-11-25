@@ -202,7 +202,7 @@ exports.reportReview = async (req, res, next) => {
             title: 'Review Reported for Moderation',
             body: `A ${reviewType} review has been reported as ${reason.replace(/_/g, ' ')}`,
             data: { reviewId, reviewType, reportId: report.id },
-            action_url: `/admin/reviews/reports/${report.id}`
+            action_url: '/admin/moderation'
           })
         )
       );
@@ -480,7 +480,7 @@ exports.resolveReport = async (req, res, next) => {
               title: 'Review Content Warning',
               body: 'One of your reviews has been flagged for moderation. Please review our community guidelines.',
               data: { reviewId: targetReviewId, reviewType: report.review_type },
-              action_url: '/my-profile/reviews'
+              action_url: `/profile/${reviewerId}`
             });
           }
         } catch (notifyErr) {

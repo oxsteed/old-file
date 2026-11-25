@@ -70,7 +70,7 @@ exports.moderateOpening = handle(async (req, res) => {
     if (status === 'removed' && before.created_by) {
       await notifyUser(c, {
         userId: before.created_by, type: 'career_opening_removed', params: { openingTitle: before.title, note },
-        actionUrl: before.business_id ? `/business/${before.business_id}/careers` : '/admin/careers', deliveryKey: `career_opening_removed:${before.id}`,
+        actionUrl: before.business_id ? `/business/${before.business_id}/careers` : '/admin/super/careers', deliveryKey: `career_opening_removed:${before.id}`,
       });
     }
     return row;

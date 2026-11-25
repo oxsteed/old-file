@@ -165,7 +165,7 @@ async function notifyAdmins(conn, adminIds, { type, params, noticeId, title, bod
     type,
     title,
     body,
-    data: { notice_id: noticeId, params, action_url: "/admin/analytics" },
+    data: { notice_id: noticeId, params, action_url: "/admin/analytics/query-builder" },
     idempotencyKey: `admin-notice:${noticeId}`,
   });
   return Math.min(adminIds.length, 1000);
