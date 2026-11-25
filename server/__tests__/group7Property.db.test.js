@@ -141,9 +141,17 @@ describeDb('Group 7: property manager', () => {
     const s = (await request(app).post(`${B()}/p/${pid}/schedules`).set(as(manager)).send({ kind: 'equipment', title: 'Boiler service', interval_days: 180, next_due_on: '2020-01-01' }).expect(201)).body;
     await request(app).post(`${B()}/p/${pid}/schedules`).set(as(manager)).send({ kind: 'seasonal', title: 'Gutters', interval_days: 30, next_due_on: '2099-01-01' }).expect(400);
     const vb = (await request(app).post(`${B()}/p/${pid}/schedules`).set(as(manager)).send({ kind: 'vendor', title: 'Pest visit', vendor_id: vendorId, interval_days: 30, next_due_on: new Date().toISOString().slice(0, 10) }).expect(201)).body;
+    // D-510 (330): an open request past its SLA target is a breach; a
+    // completed one past its target is not.
+    const slaReq = (await pool.query(`INSERT INTO property_maintenance_requests(business_id,owner_id,requester_id,status,urgency,issue_category,title,description,property_id,sla_target_at) VALUES($1,$2,$3,'reported','urgent','plumbing','Burst pipe','d',$4,NOW() - INTERVAL '2 hours') RETURNING id`, [bizId, owner, tenant, pid])).rows[0].id;
+    const doneReq = (await pool.query(`INSERT INTO property_maintenance_requests(business_id,owner_id,status,urgency,issue_category,title,description,property_id,sla_target_at) VALUES($1,$2,'reported','normal','plumbing','Old tap','d',$3,NOW() - INTERVAL '2 hours') RETURNING id`, [bizId, owner, pid])).rows[0].id;
+    await pool.query("UPDATE property_maintenance_requests SET status='completed' WHERE id=$1", [doneReq]);
     const al = (await request(app).get(`${B()}/alerts`).set(as(staff)).expect(200)).body;
     expect(al.overdue.map(i => i.id)).toContain(s.id);
+    expect(al.sla_breaches.map(i => i.id)).toContain(slaReq);
+    expect(al.sla_breaches.map(i => i.id)).not.toContain(doneReq);
     expect((await request(app).post(`${B()}/alerts/notify`).set(as(manager)).expect(200)).body.notified).toBeGreaterThan(0);
+    expect(sent('property_sla_breach')).toContain(owner);
     expect((await request(app).post(`${B()}/alerts/notify`).set(as(manager)).expect(200)).body.notified).toBe(0);
     const done = (await request(app).post(`${B()}/schedules/${s.id}/done`).set(as(staff)).send({ done_on: '2026-01-10' }).expect(200)).body;
     expect(done.next_due_on.slice(0, 10)).toBe('2026-07-09');

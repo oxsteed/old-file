@@ -545,10 +545,10 @@ exports.sendNotification = async ({
       // agents only learn about these by email.
       'support_follow_up_due',
       'support_sla_breach',
-      // Batch H (322): the occupant's repair-status notice emails like the
-      // support alerts; the 330 SLA-breach type joins this list with its
-      // registration in the same checkpoint that sends it.
+      // Batch H (322, 330): the occupant's repair-status notice and the
+      // missed-maintenance SLA-breach alert email like the support alerts.
       'property_request_status',
+      'property_sla_breach',
     ];
     // Transactional: always attempt email when we have an address (cannot opt out of
     // security-relevant account notices via marketing-style toggles).

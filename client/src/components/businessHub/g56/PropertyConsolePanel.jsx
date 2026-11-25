@@ -702,6 +702,12 @@ function UpkeepSection({ base }) {
         <>
           <p className="g56-muted">{al.tr('overdue')}: {al.data.overdue.length}</p>
           {al.data.overdue.length > 0 && <ul className="g56-list">{al.data.overdue.map((row, idx) => <li key={row.id || idx}>{row.title || row.kind} · {row.due_on || ''}</li>)}</ul>}
+          {al.data.sla_breaches?.length > 0 && (
+            <>
+              <p className="g56-muted">{al.tr('slaBreaches')}: {al.data.sla_breaches.length}</p>
+              <ul className="g56-list">{al.data.sla_breaches.map((row, idx) => <li key={row.id || idx}>{row.title}{row.property ? ` · ${row.property}` : ''}{row.sla_target_at ? ` · ${al.time(row.sla_target_at)}` : ''}</li>)}</ul>
+            </>
+          )}
           <button type="button" disabled={al.busy} onClick={() => al.send('post', `${base}/alerts/notify`, {})} data-track="ui.e96cf59a5b.47">{al.tr('notifyNow')}</button>
           <Notice p={al} />
         </>

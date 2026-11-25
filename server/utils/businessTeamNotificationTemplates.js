@@ -179,6 +179,10 @@ const businessTeamNotifications = {
     title: t('Maintenance overdue', 'Mantenimiento vencido', 'Entretien en retard', 'Antretyen an reta', 'صيانة متأخرة'),
     body: t('{title} is past due.', '{title} está vencido.', '{title} est en retard.', '{title} an reta.', '{title} متأخر عن موعده.'),
   },
+  property_sla_breach: {
+    title: t('Maintenance deadline missed', 'Se venció el plazo de mantenimiento', 'Délai d’entretien dépassé', 'Dat limit antretyen an pase', 'تم تجاوز الموعد النهائي للصيانة'),
+    body: t('{title} missed its maintenance deadline.', '{title} no cumplió su plazo de mantenimiento.', '{title} a dépassé son délai d’entretien.', '{title} rate dat limit antretyen li.', 'تجاوز {title} الموعد النهائي للصيانة.'),
+  },
   property_budget_over: {
     title: t('Over budget', 'Presupuesto excedido', 'Budget dépassé', 'Bidjè depase', 'تجاوز الميزانية'),
     body: t('{property} is over its monthly maintenance budget.', '{property} superó su presupuesto mensual de mantenimiento.', '{property} dépasse son budget d’entretien mensuel.', '{property} depase bidjè antretyen chak mwa li.', 'تجاوز {property} ميزانية الصيانة الشهرية.'),

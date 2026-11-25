@@ -423,6 +423,7 @@ const NOTIFICATION_TYPES = [
   { type: 'property_emergency', group: 'work' },
   { type: 'property_incident_summary', group: 'work' },
   { type: 'property_maintenance_due', group: 'work' },
+  { type: 'property_sla_breach', group: 'work' },
   { type: 'property_budget_over', group: 'work' },
   { type: 'restaurant_pickup_unclaimed', group: 'work' },
   { type: 'restaurant_order_transfer_requested', group: 'work' },
