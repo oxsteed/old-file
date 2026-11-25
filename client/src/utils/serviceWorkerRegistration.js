@@ -186,6 +186,16 @@ function installQuietWatch() {
       return result;
     };
   }
+  // PWA silent updates (D-446): in-app replaces (redirects, tab switches
+  // that replace the entry) are quiet moments too, same as pushes.
+  if (history && typeof history.replaceState === 'function') {
+    const originalReplace = history.replaceState.bind(history);
+    history.replaceState = function replaceStateWithUpdate(...args) {
+      const result = originalReplace(...args);
+      if (canApplyQuietly(window.location.pathname)) applyWorkerUpdate();
+      return result;
+    };
+  }
   if (typeof document.addEventListener !== 'function') return;
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden' && canApplyQuietly(window.location.pathname)) applyWorkerUpdate();

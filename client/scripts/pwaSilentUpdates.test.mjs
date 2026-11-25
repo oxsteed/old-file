@@ -136,12 +136,20 @@ function subject({
     if (name === './appUpdateSafety.js') return safety;
     throw Error(`Unexpected fixture dependency ${name}`);
   });
+  // lazyWithRetry shares the same safety instance, so the guarded-reload
+  // markers behave exactly as they do in the app.
+  const lazyModule = load('lazyWithRetry.js', (name) => {
+    if (name === 'react') return { lazy: (fn) => fn };
+    if (name === '@sentry/react') return { withScope: (fn) => fn({ setTag: () => {} }), captureException: () => {} };
+    if (name === './appUpdateSafety.js') return safety;
+    throw Error(`Unexpected fixture dependency ${name}`);
+  });
 
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
   return {
     win, doc, location, history, registration, worker, sw,
     reloads, posted, updateCalls, versionFetches, intervals, timeouts,
-    fireControllerChange, settle, ...registrationModule,
+    fireControllerChange, settle, safety, ...registrationModule, ...lazyModule,
     fireInterval: () => { for (const t of [...intervals]) t.fn(); },
     dispatchVisibility: (state) => {
       doc.visibilityState = state;
@@ -278,4 +286,66 @@ test('P1: the Credit page re-fetches on resume and on the balance nudge', () => 
   assert.match(page, /import \{ CREDIT_BALANCE_EVENT \} from '\.\.\/\.\.\/lib\/realtime'/);
   assert.match(page, /socket\.on\(CREDIT_BALANCE_EVENT, handler\)/);
   assert.match(page, /socket\.off\(CREDIT_BALANCE_EVENT, handler\)/);
+});
+
+// ── P2: preload errors, replaceState, reconnect re-fetch ────────────────────
+
+test('P2: vite:preloadError reloads once, guarded, and shares the marker with unhandledrejection', () => {
+  const app = subject({ pathname: '/discover' });
+  app.installGlobalChunkReload();
+  const chunkError = () => new Error('Failed to fetch dynamically imported module');
+  const preloadError = (error) => {
+    const event = new Event('vite:preloadError', { cancelable: true });
+    event.payload = error;
+    app.win.dispatchEvent(event);
+    return event;
+  };
+
+  // A non-chunk preload error is not a deploy staleness signal: no reload.
+  const other = preloadError(new Error('Something else broke'));
+  assert.equal(other.defaultPrevented, false);
+  assert.equal(app.reloads.length, 0);
+
+  // A chunk preload error reloads once, guarded, and prevents Vite's re-throw.
+  const first = preloadError(chunkError());
+  assert.equal(first.defaultPrevented, true);
+  assert.equal(app.reloads.length, 1);
+  assert.match(app.reloads[0], /chunk-retry=auto-global/);
+
+  // A second preload error inside the marker window does not reload again.
+  preloadError(chunkError());
+  assert.equal(app.reloads.length, 1);
+
+  // The unhandledrejection path shares the same marker: still no second reload.
+  const rejection = new Event('unhandledrejection');
+  rejection.reason = chunkError();
+  app.win.dispatchEvent(rejection);
+  assert.equal(app.reloads.length, 1);
+});
+
+test('P2: a waiting worker applies on history.replaceState too', async () => {
+  // Same guarded setup as the pushState test: the worker waits while the
+  // form is dirty, then applies once the page is clean and the app replaces
+  // the history entry (redirects and tab switches that replace the entry).
+  const dirtyInput = { tagName: 'INPUT', type: 'text', disabled: false, readOnly: false, value: 'Keep my draft', defaultValue: '' };
+  const app = subject({ pathname: '/checkout', inputs: [dirtyInput] });
+  app.registerServiceWorker();
+  await app.settle();
+  await app.settle();
+  assert.equal(app.getWaitingWorker(), app.worker);
+  assert.equal(app.posted.length, 0);
+  app.location.href = 'https://app.invalid/discover';
+  app.doc.querySelectorAll = () => [];
+  app.win.history.replaceState({}, '', '/discover');
+  assert.equal(app.posted.length, 1);
+  assert.equal(app.posted[0].type, 'SKIP_WAITING');
+  assert.equal(app.reloads.length, 0, 'reload waits for controllerchange');
+  app.fireControllerChange();
+  assert.equal(app.reloads.length, 1, 'the tab reloads onto the new worker once the controller changes');
+});
+
+test('P2: App re-fetches active queries after a socket reconnect', () => {
+  const appJsx = fs.readFileSync(path.join(root, 'src/App.jsx'), 'utf8');
+  assert.match(appJsx, /import \{ subscribeSocketReconnect \} from '\.\/hooks\/useSocket'/);
+  assert.match(appJsx, /subscribeSocketReconnect\(\(\) => queryClient\.invalidateQueries\(\)\)/);
 });

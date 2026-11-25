@@ -137,7 +137,7 @@
     "test:credit-transfer-gate": "node --test scripts/creditTransferGate.test.mjs",
     "test:credit-terms-empty-state": "node --test scripts/creditTermsEmptyState.test.mjs",
     "test:locale-shard-loaders": "node --test scripts/localeShardLoaders.test.mjs",
-    "test:pwa-silent-updates": "node --test scripts/pwaSilentUpdates.test.mjs"
+    "test:pwa-silent-updates": "node --test scripts/pwaSilentUpdates.test.mjs scripts/socketReconnect.test.mjs"
   },
   "dependencies": {
     "@sentry/react": "^8.55.1",
