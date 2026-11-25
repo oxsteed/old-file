@@ -286,7 +286,7 @@ describeDb('statementExportService against an isolated schema', () => {
       product text NOT NULL, currency_code text NOT NULL, period_from date NOT NULL, period_to date NOT NULL,
       format text NOT NULL, language text NOT NULL, state text NOT NULL, error_code text,
       row_count bigint, rows_rendered bigint NOT NULL DEFAULT 0, manifest jsonb,
-      created_at timestamptz NOT NULL DEFAULT now(), completed_at timestamptz);`);
+      created_at timestamptz NOT NULL DEFAULT now(), completed_at timestamptz, expires_at timestamptz);`);
     const manifest = { complete: true, files: [{ id: 'f1', kind: 'csv', part: 1, rowFrom: 1, rowTo: 2, byteLength: 10 }] };
     await db.query(`INSERT INTO statement_export_jobs
       (id, requested_by, product, currency_code, period_from, period_to, format, language, state, row_count, manifest, completed_at)
