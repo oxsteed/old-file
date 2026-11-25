@@ -302,3 +302,37 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
   if (status === 409) return t('delivery.ui.conflict');
   return t(fallback);
 }
+
+// Group 9 partials Wave 2 Batch L (455, G9-A15, D-531): a failed claim
+// carries the server's capability reasons in error.fields.reasons
+// (delivery_capacity_mismatch from checkAssignment). Map each reason to
+// its readiness label so the driver sees what actually blocks the claim
+// instead of a generic capacity message.
+const CLAIM_REASON_LABELS = {
+  missing_profile: 'approval',
+  not_approved_or_active: 'approval',
+  insurance: 'insurance',
+  insurance_expired: 'insuranceExpiry',
+  pieces: 'pieces',
+  payload: 'payload',
+  dimension_length: 'dimensions',
+  dimension_width: 'dimensions',
+  dimension_height: 'dimensions',
+  fragile: 'fragile',
+  perishable: 'perishable',
+  hazmat: 'hazmat',
+  service_area: 'serviceArea',
+  availability: 'availability',
+  available_from: 'availableFrom',
+  available_until: 'availableUntil',
+};
+export function deliveryClaimReasons(error, t) {
+  const fields = error?.response?.data?.fields || error?.response?.data?.error?.fields || {};
+  const reasons = Array.isArray(fields.reasons) ? fields.reasons : [];
+  return reasons.map((reason) => {
+    if (typeof reason === 'string' && reason.startsWith('equipment_')) return t('delivery.driver.readiness.equipment');
+    if (typeof reason === 'string' && reason.startsWith('vehicle_')) return t('delivery.driver.readiness.vehicle');
+    const key = CLAIM_REASON_LABELS[reason];
+    return key ? t(`delivery.driver.readiness.${key}`) : String(reason);
+  });
+}

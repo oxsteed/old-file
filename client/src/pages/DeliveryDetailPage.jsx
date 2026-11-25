@@ -20,10 +20,14 @@ import {
   syncDeliveryExtraPayment, syncDeliveryPayment, updateDeliveryStatus, uploadDeliveryProof,
   uploadDeliveryItemPhoto, claimDeliveryJob, declineDeliveryJob,
   addDeliveryStop, reorderDeliveryStops, completeDeliveryStop,
-  obtainDeliveryPin, deliveryDate, deliveryMoney, deliveryUnit, deliveryError,
+  obtainDeliveryPin, deliveryDate, deliveryMoney, deliveryUnit, deliveryError, deliveryClaimReasons,
   getJobExceptions, listJobDocuments, downloadDeliveryReceipt,
   createDeliveryDispute, listJobDisputes,
 } from '../api/delivery';
+// Group 9 partials Wave 2 Batch L (455, G9-A15, D-531): the offer panel
+// shows the job-scoped readiness checklist, so the driver sees what
+// blocks this specific delivery before claiming.
+import { DriverReadinessChecklist } from './DeliveryPage';
 import { RoutePreview } from '../components/delivery/DeliveryEstimate';
 // Group 9 Slice C (items 462/463/465): the multi-stop sequence, the
 // window-warning banner, and the per-stop navigation handoff.
@@ -54,6 +58,9 @@ export default function DeliveryDetailPage() {
   const [searchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  // Group 9 partials Wave 2 Batch L (455, G9-A15, D-531): the server's
+  // reasons for a failed claim, rendered under the error.
+  const [claimReasons, setClaimReasons] = useState([]);
   const [denied, setDenied] = useState(false);
   // Group 9 Slice G (item 498): a driver's job access expires 7
   // days after the job reaches a terminal state. The detail read
@@ -175,12 +182,12 @@ export default function DeliveryDetailPage() {
 
   const act = async (operation, successKey = 'delivery.ui.saved', errorKey = 'delivery.errors.status') => {
     if (actionLock.current) return;
-    actionLock.current = true; setBusy(true); setError(''); setNotice('');
+    actionLock.current = true; setBusy(true); setError(''); setNotice(''); setClaimReasons([]);
     try {
       await operation();
       setNotice(t(successKey));
       await load();
-    } catch (failure) { setError(deliveryError(failure, t, errorKey)); }
+    } catch (failure) { setClaimReasons(deliveryClaimReasons(failure, t)); setError(deliveryError(failure, t, errorKey)); }
     finally { actionLock.current = false; setBusy(false); }
   };
 
@@ -283,6 +290,12 @@ export default function DeliveryDetailPage() {
         <button className="delivery-button delivery-button--secondary" disabled={loading || busy} onClick={load} data-track="ui.4c1e141977.2"><RefreshCw size={16} />{t('delivery.helper.refresh')}</button>
       </header>
       {error && <div className="delivery-alert delivery-alert--error" role="alert">{error}<button className="delivery-button delivery-button--secondary" disabled={loading || busy} onClick={load} data-track="ui.4c1e141977.3">{t('delivery.helper.refresh')}</button></div>}
+      {claimReasons.length > 0 && (
+        <div className="delivery-alert delivery-alert--error" role="alert">
+          <p>{t('delivery.errors.claimReasons')}</p>
+          <ul>{claimReasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+        </div>
+      )}
       {notice && <p className="delivery-alert delivery-alert--success" role="status">{notice}</p>}
       {/* Group 9 Slice D (item 467): a mismatched pickup count is
         flagged to everyone on the job, never silently passed. */}
@@ -330,6 +343,7 @@ export default function DeliveryDetailPage() {
             <div className="delivery-offer-panel">
               <OfferCountdown job={job} t={t} />
               {job.my_decline && <p className="delivery-job-card__declined">{t('delivery.driver.declined')} · {t(`delivery.driver.declineReasons.${job.my_decline.reason_code}`)}</p>}
+              <DriverReadinessChecklist t={t} jobId={id} fixBase="/delivery" />
               {!isOfferExpired(job) && (
                 <div className="delivery-dispatch-actions">
                   <button type="button" className="delivery-button delivery-button--primary" disabled={busy} onClick={() => act(() => claimDeliveryJob(id), 'delivery.ui.saved', 'delivery.errors.claim')} data-track="ui.4c1e141977.26">{t('delivery.helper.claim')}</button>
