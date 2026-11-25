@@ -4038,7 +4038,7 @@ function TeamTab({
                 })}
               </p>
               <p className="text-sm mt-1">
-                <a href="#offboarding-history" className="underline">{t('businessHub.offboardingViewHistory')}</a>
+                <a href="#offboarding-history" className="underline" data-track="ui.83b215c0c9.116">{t('businessHub.offboardingViewHistory')}</a>
               </p>
             </div>
           )}

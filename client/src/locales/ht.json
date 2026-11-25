@@ -11035,7 +11035,11 @@
         "accessSummary": "Rezime aks?",
         "notes": "Nòt",
         "updateUnit": "Mete inite a ajou",
-        "addUnit": "Ajoute inite"
+        "addUnit": "Ajoute inite",
+        "property": "Pwopriyete",
+        "noProperty": "Pa gen pwopriyete (etiquèt pèsonalize)",
+        "customProperty": "Lòt pwopriyete (etiquèt pèsonalize)",
+        "contactEmail": "Imèl kontak"
       },
       "packages": {
         "title": "Pake ak pri pwopriyete",
@@ -46468,7 +46472,8 @@
       "clocked_in": "Make sòti ou anvan.",
       "invalid_status_transition": "Etap sa a pa posib kounye a.",
       "closure_dispositions_required": "Chak kòmand louvri bezwen yon desizyon anvan fèmti.",
-      "closure_notice_required": "Ekri avi pou kliyan an anvan ou fèmen."
+      "closure_notice_required": "Ekri avi pou kliyan an anvan ou fèmen.",
+      "property_has_live_requests": "Pwopriyete sa a gen demann ki poko fèmen. Fèmen yo oswa deplase yo anvan ou efase li."
     },
     "launch": {
       "title": "Estati lansman",
@@ -47405,6 +47410,8 @@
       "revokeAccess": "Retire aksè",
       "archive": "Achive",
       "restore": "Retabli",
+      "deleteProperty": "Efase pwopriyete a",
+      "deletePropertyConfirm": "Efase {label}? Ou pa ka anile sa.",
       "archiveReason": "Rezon",
       "moveOut": "Depa",
       "moveIn": "Antre",

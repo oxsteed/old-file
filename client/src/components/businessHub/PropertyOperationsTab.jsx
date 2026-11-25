@@ -13,6 +13,7 @@ import {
   updatePropertyPackage,
   updatePropertyUnit,
 } from '../../api/propertyOperations';
+import { listBusinessProperties } from '../../api/maintenanceRequests';
 import { formatMoney } from '../../lib/format';
 
 const EMPTY_SETTINGS = {
@@ -30,12 +31,14 @@ const EMPTY_SETTINGS = {
 };
 
 const EMPTY_UNIT = {
+  property_id: '',
   property_label: '',
   unit_label: '',
   property_type: 'Apartment',
   occupancy_status: 'occupied',
   contact_name: '',
   contact_phone: '',
+  contact_email: '',
   access_summary: '',
   priority_tier: 'standard',
   notes: '',
@@ -139,6 +142,39 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
 
   const [unitForm, setUnitForm] = useState(EMPTY_UNIT);
   const [editingUnitId, setEditingUnitId] = useState(null);
+  // 303 (Batch F): canonical properties for the unit picker. A unit linked
+  // to one carries its property_id; the label is synced server-side.
+  const [properties, setProperties] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    listBusinessProperties(businessId)
+      .then((rows) => { if (!cancelled) setProperties(rows); })
+      .catch(() => { if (!cancelled) setProperties([]); });
+    return () => { cancelled = true; };
+  }, [businessId]);
+
+  // '' = no property chosen yet, '__custom' = free-text label, otherwise a
+  // canonical property id.
+  const unitPropertySelect = unitForm.property_id
+    || (unitForm.property_label ? '__custom' : '');
+
+  function handleUnitPropertySelect(value) {
+    if (value === '__custom') {
+      setUnitForm((current) => ({ ...current, property_id: '' }));
+      return;
+    }
+    if (!value) {
+      setUnitForm((current) => ({ ...current, property_id: '', property_label: '' }));
+      return;
+    }
+    const property = properties.find((item) => String(item.id) === String(value));
+    setUnitForm((current) => ({
+      ...current,
+      property_id: value,
+      property_label: property ? property.label : current.property_label,
+    }));
+  }
   const [packageForm, setPackageForm] = useState(EMPTY_PACKAGE);
   const [editingPackageId, setEditingPackageId] = useState(null);
   const [complianceForm, setComplianceForm] = useState(EMPTY_COMPLIANCE);
@@ -364,7 +400,16 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <Section title={t('businessHub.propertyOps.units.title')} subtitle={t('businessHub.propertyOps.units.subtitle')}>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSaveUnit} data-track="ui.4e4f008510.4">
-            <Input label={t('businessHub.propertyOps.units.propertyLabel')}><TextInput value={unitForm.property_label} onChange={(e) => setUnitForm((current) => ({ ...current, property_label: e.target.value }))} /></Input>
+            <Input label={t('businessHub.propertyOps.units.property')}>
+              <Select value={unitPropertySelect} onChange={(e) => handleUnitPropertySelect(e.target.value)}>
+                <option value="">{t('businessHub.propertyOps.units.noProperty')}</option>
+                {properties.map((property) => <option key={property.id} value={property.id}>{property.label}</option>)}
+                <option value="__custom">{t('businessHub.propertyOps.units.customProperty')}</option>
+              </Select>
+            </Input>
+            {unitForm.property_id ? null : (
+              <Input label={t('businessHub.propertyOps.units.propertyLabel')}><TextInput value={unitForm.property_label} onChange={(e) => setUnitForm((current) => ({ ...current, property_label: e.target.value }))} /></Input>
+            )}
             <Input label={t('businessHub.propertyOps.units.unit')}><TextInput value={unitForm.unit_label} onChange={(e) => setUnitForm((current) => ({ ...current, unit_label: e.target.value }))} /></Input>
             <Input label={t('businessHub.propertyOps.units.propertyType')}><TextInput value={unitForm.property_type} onChange={(e) => setUnitForm((current) => ({ ...current, property_type: e.target.value }))} /></Input>
             <Input label={t('businessHub.propertyOps.units.occupancy')}>
@@ -377,6 +422,7 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
             </Input>
             <Input label={t('businessHub.propertyOps.units.contactName')}><TextInput value={unitForm.contact_name} onChange={(e) => setUnitForm((current) => ({ ...current, contact_name: e.target.value }))} /></Input>
             <Input label={t('businessHub.propertyOps.units.contactPhone')}><TextInput value={unitForm.contact_phone} onChange={(e) => setUnitForm((current) => ({ ...current, contact_phone: e.target.value }))} /></Input>
+            <Input label={t('businessHub.propertyOps.units.contactEmail')}><TextInput type="email" value={unitForm.contact_email} onChange={(e) => setUnitForm((current) => ({ ...current, contact_email: e.target.value }))} /></Input>
             <Input label={t('businessHub.propertyOps.units.priorityTier')}><Select value={unitForm.priority_tier} onChange={(e) => setUnitForm((current) => ({ ...current, priority_tier: e.target.value }))}><option value="standard">{t('businessHub.propertyOps.options.priority.standard')}</option><option value="priority">{t('businessHub.propertyOps.options.priority.priority')}</option><option value="vip">{t('businessHub.propertyOps.options.priority.vip')}</option></Select></Input>
             <Input label={t('businessHub.propertyOps.units.accessSummary')} wide><TextArea rows={2} value={unitForm.access_summary} onChange={(e) => setUnitForm((current) => ({ ...current, access_summary: e.target.value }))} /></Input>
             <Input label={t('businessHub.propertyOps.units.notes')} wide><TextArea rows={2} value={unitForm.notes} onChange={(e) => setUnitForm((current) => ({ ...current, notes: e.target.value }))} /></Input>
@@ -390,8 +436,11 @@ export default function PropertyOperationsTab({ businessId, workspace, currency 
               <div key={unit.id} className="rounded-2xl border border-gray-800 bg-gray-950 px-4 py-3">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-white">{unit.property_label}{unit.unit_label ? ` · ${unit.unit_label}` : ''}</p>
+                    <p className="text-sm font-semibold text-white">{unit.property_name || unit.property_label}{unit.unit_label ? ` · ${unit.unit_label}` : ''}</p>
                     <p className="mt-1 text-sm text-gray-400">{unit.property_type} · {unit.occupancy_status} · {unit.priority_tier}</p>
+                    {[unit.contact_name, unit.contact_phone, unit.contact_email].filter(Boolean).length > 0 ? (
+                      <p className="mt-1 text-sm text-gray-400">{[unit.contact_name, unit.contact_phone, unit.contact_email].filter(Boolean).join(' · ')}</p>
+                    ) : null}
                     {unit.access_summary ? <p className="mt-2 text-sm leading-6 text-gray-400">{unit.access_summary}</p> : null}
                   </div>
                   <div className="flex gap-2">

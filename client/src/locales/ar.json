@@ -10734,7 +10734,11 @@
         "accessSummary": "ملخص الوصول",
         "notes": "ملحوظات",
         "updateUnit": "تحديث الوحدة",
-        "addUnit": "أضف وحدة"
+        "addUnit": "أضف وحدة",
+        "property": "العقار",
+        "noProperty": "بدون عقار (تسمية مخصصة)",
+        "customProperty": "عقار آخر (تسمية مخصصة)",
+        "contactEmail": "البريد الإلكتروني لجهة الاتصال"
       },
       "packages": {
         "title": "حزم العقارات والتسعير",
@@ -46582,7 +46586,8 @@
       "clocked_in": "سجّل خروجك أولًا.",
       "invalid_status_transition": "هذه الخطوة غير ممكنة الآن.",
       "closure_dispositions_required": "يحتاج كل طلب مفتوح إلى تصرف قبل الإغلاق.",
-      "closure_notice_required": "اكتب إشعار العملاء قبل الإغلاق."
+      "closure_notice_required": "اكتب إشعار العملاء قبل الإغلاق.",
+      "property_has_live_requests": "لا يزال هذا العقار يحتوي على طلبات مفتوحة. أكملها أو انقلها قبل الحذف."
     },
     "launch": {
       "title": "حالة الإطلاق",
@@ -47519,6 +47524,8 @@
       "revokeAccess": "إلغاء الوصول",
       "archive": "أرشفة",
       "restore": "استعادة",
+      "deleteProperty": "حذف العقار",
+      "deletePropertyConfirm": "حذف {label}؟ لا يمكن التراجع عن هذا الإجراء.",
       "archiveReason": "السبب",
       "moveOut": "المغادرة",
       "moveIn": "الانتقال",

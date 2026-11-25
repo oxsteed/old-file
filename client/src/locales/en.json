@@ -10734,7 +10734,11 @@
         "accessSummary": "Access summary",
         "notes": "Notes",
         "updateUnit": "Update unit",
-        "addUnit": "Add unit"
+        "addUnit": "Add unit",
+        "property": "Property",
+        "noProperty": "No property (custom label)",
+        "customProperty": "Other property (custom label)",
+        "contactEmail": "Contact email"
       },
       "packages": {
         "title": "Property Packages and Pricing",
@@ -46468,7 +46472,8 @@
       "clocked_in": "Clock out first.",
       "invalid_status_transition": "That step isn’t possible now.",
       "closure_dispositions_required": "Every open order needs a disposition before closing.",
-      "closure_notice_required": "Write the customer notice before closing."
+      "closure_notice_required": "Write the customer notice before closing.",
+      "property_has_live_requests": "This property still has open requests. Complete or move them before deleting."
     },
     "launch": {
       "title": "Launch status",
@@ -47405,6 +47410,8 @@
       "revokeAccess": "Revoke access",
       "archive": "Archive",
       "restore": "Restore",
+      "deleteProperty": "Delete property",
+      "deletePropertyConfirm": "Delete {label}? This cannot be undone.",
       "archiveReason": "Reason",
       "moveOut": "Move-out",
       "moveIn": "Move-in",

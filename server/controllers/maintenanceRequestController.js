@@ -420,7 +420,7 @@ exports.listProperties = async (req, res, next) => {
     // sold building stops appearing in the maintenance filter and the add
     // form; the console portfolio (?archived=1) is the archived history
     // view, and ?include_archived=true lists them here when needed.
-    const includeArchived = req.query.include_archived === 'true' || req.query.include_archived === '1';
+    const includeArchived = req.query?.include_archived === 'true' || req.query?.include_archived === '1';
     const { rows } = await pool.query(
       `SELECT id, business_id, label, address, address_city, address_state,
               address_zip, address_country, status, archived_at, created_at, updated_at

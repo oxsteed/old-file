@@ -119,6 +119,12 @@ function PortfolioSection({ base, showArchived, setShowArchived, selectedId, onS
                     {r.archived_at ? p.tr('restore') : p.tr('archive')}
                   </button>
                 )}
+                {' '}
+                {p.data.can_manage && (
+                  <button type="button" disabled={p.busy} onClick={async () => { if (!window.confirm(p.tr('deletePropertyConfirm', { label: r.label }))) return; await p.send('delete', `${base}/p/${r.id}`); }} data-track="ui.e96cf59a5b.73">
+                    {p.tr('deleteProperty')}
+                  </button>
+                )}
               </td>
             </tr>
           ))}</tbody>

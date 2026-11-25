@@ -10734,7 +10734,11 @@
         "accessSummary": "Résumé d’accès",
         "notes": "Remarques",
         "updateUnit": "Mettre ? jour l unit?",
-        "addUnit": "Ajouter une unit?"
+        "addUnit": "Ajouter une unit?",
+        "property": "Propriété",
+        "noProperty": "Aucune propriété (libellé personnalisé)",
+        "customProperty": "Autre propriété (libellé personnalisé)",
+        "contactEmail": "E-mail du contact"
       },
       "packages": {
         "title": "Forfaits et tarification immobiliers",
@@ -46468,7 +46472,8 @@
       "clocked_in": "Pointez votre sortie d’abord.",
       "invalid_status_transition": "Cette étape n’est pas possible maintenant.",
       "closure_dispositions_required": "Chaque commande ouverte doit avoir une décision avant la fermeture.",
-      "closure_notice_required": "Rédigez l’avis aux clients avant de fermer."
+      "closure_notice_required": "Rédigez l’avis aux clients avant de fermer.",
+      "property_has_live_requests": "Cette propriété a encore des demandes ouvertes. Terminez-les ou déplacez-les avant de la supprimer."
     },
     "launch": {
       "title": "État du lancement",
@@ -47405,6 +47410,8 @@
       "revokeAccess": "Révoquer l’accès",
       "archive": "Archiver",
       "restore": "Restaurer",
+      "deleteProperty": "Supprimer la propriété",
+      "deletePropertyConfirm": "Supprimer {label} ? Cette action est irréversible.",
       "archiveReason": "Motif",
       "moveOut": "Départ",
       "moveIn": "Emménagement",

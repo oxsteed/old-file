@@ -10734,7 +10734,11 @@
         "accessSummary": "Resumen de acceso",
         "notes": "Notas",
         "updateUnit": "Actualizar unidad",
-        "addUnit": "Agregar unidad"
+        "addUnit": "Agregar unidad",
+        "property": "Propiedad",
+        "noProperty": "Sin propiedad (etiqueta personalizada)",
+        "customProperty": "Otra propiedad (etiqueta personalizada)",
+        "contactEmail": "Correo electrónico de contacto"
       },
       "packages": {
         "title": "Paquetes y precios de propiedades",
@@ -46468,7 +46472,8 @@
       "clocked_in": "Marca tu salida primero.",
       "invalid_status_transition": "Ese paso no es posible ahora.",
       "closure_dispositions_required": "Cada pedido abierto necesita una disposición antes de cerrar.",
-      "closure_notice_required": "Escribe el aviso al cliente antes de cerrar."
+      "closure_notice_required": "Escribe el aviso al cliente antes de cerrar.",
+      "property_has_live_requests": "Esta propiedad todavía tiene solicitudes abiertas. Complétalas o muévelas antes de eliminarla."
     },
     "launch": {
       "title": "Estado de lanzamiento",
@@ -47405,6 +47410,8 @@
       "revokeAccess": "Revocar acceso",
       "archive": "Archivar",
       "restore": "Restaurar",
+      "deleteProperty": "Eliminar propiedad",
+      "deletePropertyConfirm": "¿Eliminar {label}? Esta acción no se puede deshacer.",
       "archiveReason": "Motivo",
       "moveOut": "Salida",
       "moveIn": "Entrada",
