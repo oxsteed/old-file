@@ -448,6 +448,24 @@ const T = {
       ar: 'تمت الموافقة على تصحيح لأحد كشوفات حسابك. سجّل الدخول إلى حسابك لعرض النسخة المصححة وتنزيلها.',
     },
   },
+  // Group 14 Slice 5d (716, D-430): a new audit request reaches the
+  // bookkeeper/admin queue. The body carries no amounts or figures.
+  audit_request_received: {
+    title: {
+      en: 'New audit request',
+      fr: 'Nouvelle demande d’audit',
+      es: 'Nueva solicitud de auditoría',
+      ht: 'Nouvo demann odit',
+      ar: 'طلب تدقيق جديد',
+    },
+    body: {
+      en: 'A new audit request was filed. Open the audit queue to review it.',
+      fr: 'Une nouvelle demande d’audit a été déposée. Ouvrez la file d’audit pour l’examiner.',
+      es: 'Se presentó una nueva solicitud de auditoría. Abre la cola de auditoría para revisarla.',
+      ht: 'Yo te depoze yon nouvo demann odit. Louvri ke odit la pou revize li.',
+      ar: 'تم تقديم طلب تدقيق جديد. افتح قائمة التدقيق لمراجعته.',
+    },
+  },
   food_order_accepted: {
     title: {
       en: 'Order confirmed',
@@ -1972,6 +1990,13 @@ const EMAIL_TEMPLATES = {
       es: 'Ver estado de cuenta corregido',
       ht: 'Gade releve korije a',
       ar: 'عرض كشف الحساب المصحح',
+    },
+    audit_request_received: {
+      en: 'View Audit Queue',
+      fr: 'Voir la file d’audit',
+      es: 'Ver cola de auditoría',
+      ht: 'Gade ke odit la',
+      ar: 'عرض قائمة التدقيق',
     },
     appointment_requested: {
       title: {

@@ -312,6 +312,9 @@ const NOTIFICATION_TYPES = [
   { type: 'oxsteed_credit_card_security', group: 'credit' },
   { type: 'oxsteed_credit_transaction', group: 'credit' },
   { type: 'statement_amended', group: 'credit' },
+  // Group 14 Slice 5d (716, D-430): a new audit request reaches the
+  // bookkeeper/admin queue.
+  { type: 'audit_request_received', group: 'credit' },
   { type: 'statement_ready', group: 'credit' },
   { type: 'customer360_attention', group: 'support' },
   { type: 'dispute_opened', group: 'support' },
