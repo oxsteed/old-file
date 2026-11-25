@@ -46057,7 +46057,8 @@
     "ongoing": "Ongoing access",
     "jobId": "Job ID",
     "jobIdHelp": "Optional: the OxSteed job this task is for",
-    "forJob": "For job"
+    "forJob": "For job",
+    "scopeAll": "Everyone"
   },
   "helperG4": {
     "reputation": {

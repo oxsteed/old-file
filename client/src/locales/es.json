@@ -46057,7 +46057,8 @@
     "ongoing": "Acceso continuo",
     "jobId": "ID del trabajo",
     "jobIdHelp": "Opcional: el trabajo de OxSteed al que corresponde esta tarea",
-    "forJob": "Para el trabajo"
+    "forJob": "Para el trabajo",
+    "scopeAll": "Todo el equipo"
   },
   "helperG4": {
     "reputation": {

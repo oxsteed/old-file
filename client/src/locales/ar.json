@@ -46171,7 +46171,8 @@
     "ongoing": "صلاحيات مستمرة",
     "jobId": "معرّف المهمة",
     "jobIdHelp": "اختياري: مهمة OxSteed التي تتعلق بها هذه المهمة",
-    "forJob": "للمهمة"
+    "forJob": "للمهمة",
+    "scopeAll": "الجميع"
   },
   "helperG4": {
     "reputation": {

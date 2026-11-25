@@ -46057,7 +46057,8 @@
     "ongoing": "Accès continu",
     "jobId": "ID de la mission",
     "jobIdHelp": "Facultatif : la mission OxSteed concernée par cette tâche",
-    "forJob": "Pour la mission"
+    "forJob": "Pour la mission",
+    "scopeAll": "Toute l'équipe"
   },
   "helperG4": {
     "reputation": {

@@ -14,7 +14,11 @@ async function actor(db,businessId,userId){
 async function read(businessId,userId){
  const {owner,business,membership}=await actor(pool,businessId,userId);
  const canAllocate=owner||membership?.role==='manager';
- const {rows:documents}=await pool.query(`SELECT DISTINCT ON(d.kind) d.*,EXISTS(SELECT 1 FROM business_team_acknowledgments a WHERE a.document_id=d.id AND a.user_id=$2) AS acknowledged FROM business_team_documents d WHERE d.business_id=$1 ORDER BY d.kind,d.version DESC`,[businessId,userId]);
+ // D-465 (269, G5-18): team documents are scoped. A member sees a
+ // document when it is business-wide, addressed to them, or attached to a
+ // job they are the assigned helper on; the owner sees all. The latest
+ // version is per (kind, scope), not per kind alone.
+ const {rows:documents}=await pool.query(`SELECT DISTINCT ON(d.kind, d.job_id, d.assignee_id) d.*,EXISTS(SELECT 1 FROM business_team_acknowledgments a WHERE a.document_id=d.id AND a.user_id=$2) AS acknowledged,u2.first_name AS assignee_first_name,u2.last_name AS assignee_last_name,j.title AS job_title FROM business_team_documents d LEFT JOIN users u2 ON u2.id=d.assignee_id LEFT JOIN jobs j ON j.id=d.job_id WHERE d.business_id=$1 AND ($3::boolean OR (d.job_id IS NULL AND d.assignee_id IS NULL) OR d.assignee_id=$2 OR d.job_id IN (SELECT id FROM jobs WHERE assigned_helper_id=$2)) ORDER BY d.kind,d.job_id,d.assignee_id,d.version DESC`,[businessId,userId,owner]);
  const {rows:history}=await pool.query(`SELECT a.id AS acknowledgment_id,d.id,d.kind,d.version,d.title,a.user_id,a.acknowledged_at,u.first_name,u.last_name FROM business_team_acknowledgments a JOIN business_team_documents d ON d.id=a.document_id LEFT JOIN users u ON u.id=a.user_id WHERE d.business_id=$1 AND ($3::boolean OR a.user_id=$2) ORDER BY a.acknowledged_at DESC LIMIT 100`,[businessId,userId,owner]);
  // D-464 (267, G5-16): a member sees tasks assigned to them or created by
  // them, so a manager who allocated a task to someone else can track it.
@@ -27,15 +31,24 @@ async function read(businessId,userId){
 }
 async function publish(businessId,userId,body){
  if(!['guide','policy'].includes(body?.kind)||!Number.isInteger(body.expectedVersion)||body.expectedVersion<0)fail(400,'validation_failed');const title=text(body.title,200),content=text(body.body,4000);
+ // D-465 (269, G5-18): an optional scope. A job link must name a real job;
+ // a member scope must be the owner or an active member. The version chain
+ // and the advisory lock are per (business, kind, scope).
+ const jobId=body.job_id==null?null:(uuid(body.job_id)?String(body.job_id):fail(400,'validation_failed'));
+ const assigneeId=body.assignee_id==null?null:(uuid(body.assignee_id)?String(body.assignee_id):fail(400,'validation_failed'));
  return withTransaction(pool,async db=>{
-  if(!(await actor(db,businessId,userId)).owner)fail(403,'access_required');await db.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`team-document:${businessId}:${body.kind}`]);
-  const {rows:[current]}=await db.query('SELECT COALESCE(MAX(version),0)::int AS n FROM business_team_documents WHERE business_id=$1 AND kind=$2',[businessId,body.kind]);if(current.n!==body.expectedVersion)fail(409,'team_record_changed');
-  return (await db.query('INSERT INTO business_team_documents(business_id,kind,version,title,body,published_by) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[businessId,body.kind,current.n+1,title,content,userId])).rows[0];
+  const {owner,business}=await actor(db,businessId,userId);
+  if(!owner)fail(403,'access_required');
+  if(jobId&&!(await db.query('SELECT id FROM jobs WHERE id=$1',[jobId])).rows.length)fail(404,'not_found');
+  if(assigneeId&&assigneeId!==String(business.user_id)&&!(await db.query("SELECT id FROM business_members WHERE business_id=$1 AND member_id=$2 AND status='active' AND (access_valid_until IS NULL OR access_valid_until>NOW()) FOR SHARE",[businessId,assigneeId])).rows.length)fail(404,'not_found');
+  await db.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`team-document:${businessId}:${body.kind}:${jobId||''}:${assigneeId||''}`]);
+  const {rows:[current]}=await db.query('SELECT COALESCE(MAX(version),0)::int AS n FROM business_team_documents WHERE business_id=$1 AND kind=$2 AND job_id IS NOT DISTINCT FROM $3 AND assignee_id IS NOT DISTINCT FROM $4',[businessId,body.kind,jobId,assigneeId]);if(current.n!==body.expectedVersion)fail(409,'team_record_changed');
+  return (await db.query('INSERT INTO business_team_documents(business_id,kind,version,title,body,published_by,job_id,assignee_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',[businessId,body.kind,current.n+1,title,content,userId,jobId,assigneeId])).rows[0];
  },'team_document_publish');
 }
 async function acknowledge(businessId,userId,documentId){
  if(!uuid(documentId))fail(400,'validation_failed');
- return withTransaction(pool,async db=>{await actor(db,businessId,userId);const {rows:[document]}=await db.query('SELECT id,kind,version FROM business_team_documents WHERE id=$1 AND business_id=$2',[documentId,businessId]);if(!document)fail(404,'not_found');
+ return withTransaction(pool,async db=>{const {owner}=await actor(db,businessId,userId);const {rows:[document]}=await db.query(`SELECT id,kind,version FROM business_team_documents WHERE id=$1 AND business_id=$2 AND ($3::boolean OR (job_id IS NULL AND assignee_id IS NULL) OR assignee_id=$4 OR job_id IN (SELECT id FROM jobs WHERE assigned_helper_id=$4))`,[documentId,businessId,owner,userId]);if(!document)fail(404,'not_found');
   // Historical acknowledgments stay historical. Do not silently acknowledge
   // a newly published version when the person read an older one.
   await db.query('INSERT INTO business_team_acknowledgments(document_id,user_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[documentId,userId]);return document;
