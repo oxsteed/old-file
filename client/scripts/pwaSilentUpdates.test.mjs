@@ -225,3 +225,48 @@ test('P0: a waiting worker on a guarded page applies when the tab is hidden', as
   app.fireControllerChange();
   assert.equal(app.reloads.length, 1);
 });
+
+// ── P1: open tabs find new versions ─────────────────────────────────────────
+
+test('P1: update() is called on resume when the server build differs', async () => {
+  const app = subject({ waiting: false, versionBuildId: 'test-build-2' });
+  app.registerServiceWorker();
+  await app.settle();
+  await app.settle();
+  assert.equal(app.updateCalls.length, 0);
+  app.dispatchVisibility('visible');
+  await app.settle();
+  await app.settle();
+  assert.deepEqual(app.versionFetches, ['/api/version']);
+  assert.equal(app.updateCalls.length, 1, 'a different server build triggers registration.update()');
+  // A second resume inside the throttle window does not check again.
+  app.dispatchFocus();
+  await app.settle();
+  await app.settle();
+  assert.equal(app.versionFetches.length, 1);
+  assert.equal(app.updateCalls.length, 1);
+});
+
+test('P1: no update() when the server build matches', async () => {
+  const app = subject({ waiting: false, versionBuildId: 'test-build-1' });
+  app.registerServiceWorker();
+  await app.settle();
+  await app.settle();
+  app.dispatchVisibility('visible');
+  await app.settle();
+  await app.settle();
+  assert.equal(app.versionFetches.length, 1);
+  assert.equal(app.updateCalls.length, 0);
+});
+
+test('P1: update() runs on the 30-minute interval as a backstop', async () => {
+  const app = subject({ waiting: false });
+  app.registerServiceWorker();
+  await app.settle();
+  await app.settle();
+  assert.equal(app.intervals.length, 1);
+  assert.equal(app.intervals[0].ms, 30 * 60 * 1000);
+  assert.equal(app.updateCalls.length, 0);
+  app.fireInterval();
+  assert.equal(app.updateCalls.length, 1);
+});

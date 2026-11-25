@@ -204,6 +204,48 @@ export function applyWorkerUpdate() {
   return true;
 }
 
+// PWA silent updates (D-444): open tabs discover a new release without
+// waiting for a navigation. A cheap /api/version check runs on resume
+// (visibilitychange/focus, throttled) and registration.update() runs on a
+// 30-minute interval as a backstop, so a deploy reaches open tabs within
+// 30 minutes. update() itself is a no-op when nothing changed.
+export const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
+export const UPDATE_CHECK_THROTTLE_MS = 5 * 60 * 1000;
+let updateChecksInstalled = false;
+let lastUpdateCheckAt = 0;
+
+async function checkForUpdate(registration) {
+  const now = Date.now();
+  if (now - lastUpdateCheckAt < UPDATE_CHECK_THROTTLE_MS) return;
+  lastUpdateCheckAt = now;
+  try {
+    const res = await fetch('/api/version', { cache: 'no-store' });
+    if (!res?.ok) return;
+    const { buildId } = await res.json();
+    const current = getServiceWorkerVersion();
+    // An unversioned local build has nothing stable to compare against;
+    // the interval backstop below still picks up a new worker by byte change.
+    if (!buildId || !current || current === FALLBACK_RELEASE_ID) return;
+    if (String(buildId) !== current) await registration.update();
+  } catch {
+    // The next resume or the interval retries; a failed check never prompts.
+  }
+}
+
+function installUpdateChecks(registration) {
+  if (updateChecksInstalled || typeof window === 'undefined' || typeof document === 'undefined') return;
+  updateChecksInstalled = true;
+  const check = () => { checkForUpdate(registration).catch(() => {}); };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') check();
+  });
+  window.addEventListener('focus', check);
+  const interval = (window.setInterval || setInterval)(() => {
+    registration.update().catch(() => {});
+  }, UPDATE_CHECK_INTERVAL_MS);
+  interval?.unref?.();
+}
+
 export function registerServiceWorker() {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
   trackInteraction();
@@ -225,6 +267,7 @@ export function registerServiceWorker() {
       };
       registration.addEventListener('updatefound', watchInstalling);
       watchInstalling();
+      installUpdateChecks(registration);
     }).catch(() => { /* The app works without a worker. */ });
   };
   if (document.readyState === 'complete') register();
