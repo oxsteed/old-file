@@ -401,6 +401,21 @@ function BusinessHubInner() {
       return true;
     });
 
+  // G5-35/G5-38 (255): tabs the member cannot open. Launch-hidden tabs
+  // are not denials, so only tabs that pass the launch filter but fail
+  // the permission filter count as denied sections.
+  const launchedTabs = candidateTabs
+    .filter((tb) => isBusinessHubTabLaunched(tb) || (isRestaurantBusiness && tb === 'staff'));
+  const deniedTabs = launchedTabs.filter((tb) => !visibleTabs.includes(tb));
+  // Least-privilege code to ask for per denied section; tabs without a
+  // mapping link to the request form with no code prefilled.
+  const deniedTabRequestCode = {
+    calendar: 'calendar.view_self',
+    messages: 'messages.view_assigned',
+    invoices: 'invoices.view',
+    analytics: 'analytics.view_financial',
+  };
+
   const aliasedTab = tabAliases[requestedTab] ?? requestedTab;
   const tab = !currentBiz || loadingBiz
     ? requestedTab
@@ -2181,10 +2196,40 @@ function BusinessHubInner() {
             {tab === 'owner-console' && bizId && <Suspense fallback={null}><BusinessOwnerConsole businessId={bizId} role={currentRole} /></Suspense>}
             {tab === 'my-work' && bizId && <Suspense fallback={null}><TeamMemberWork businessId={bizId} role={currentRole} /></Suspense>}
             {/* ── Overview tab ────────────────────────────────────── */}
-            {tab === 'overview' && bizId && (
+            {tab === 'overview' && bizId && (<>
               <BusinessOperationsOverview businessId={bizId} viewerId={user?.id} role={currentRole}
                 onOpen={(panel, task) => { setCalendarFocus(task?.type === 'confirmBookings' ? 'pending' : 'all'); setTab(panel); }} availablePanels={visibleTabs} />
-            )}
+              {/* G5-35/G5-38 (255): denied sections link to the access-request
+                  flow (My Work) instead of silently hiding. The code for the
+                  section is prefilled; the owner/manager is notified by the
+                  existing permission-request flow. */}
+              {currentRole !== 'owner' && deniedTabs.length > 0 && (
+                <div className="bh-calendar-panel">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold">{t('businessHub.deniedSectionsTitle')}</h3>
+                    <p className="bh-calendar-panel-description">
+                      {t('businessHub.deniedSectionsDescription')}
+                    </p>
+                  </div>
+                  <ul className="grid gap-2">
+                    {deniedTabs.map((tb) => (
+                      <li key={tb} className="flex items-center justify-between gap-3 flex-wrap">
+                        <span className="text-sm">{tabLabel(tb)}</span>
+                        <button
+                          type="button"
+                          className="min-h-11 px-4 rounded-full border text-sm font-semibold"
+                          style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
+                          onClick={() => navigate(`/business/${bizId}/workspace/my-work${deniedTabRequestCode[tb] ? `?code=${deniedTabRequestCode[tb]}` : ''}`)}
+                          data-track="business.hub.request_access"
+                        >
+                          {t('businessHub.requestAccess')}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>)}
 
             {tab === 'analytics' && bizId && canViewFinanceHub && (
               <BusinessAnalyticsTab businessId={bizId} viewerId={user?.id} onInvoices={() => setTab('invoices')} />

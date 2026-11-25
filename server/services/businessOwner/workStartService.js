@@ -54,15 +54,70 @@ async function overview(businessId, userId, ctx) {
 
 // 254
 async function onboarding(businessId, userId) {
-  const { rows: [c] } = await pool.query(`SELECT
+  const [derived, loc, phone, member, firstTask, confirms] = await Promise.all([
+    pool.query(`SELECT
       EXISTS (SELECT 1 FROM business_staff_availability WHERE business_id=$1 AND user_id=$2) AS availability,
       NOT EXISTS (SELECT 1 FROM (SELECT DISTINCT ON (kind) id FROM business_team_documents WHERE business_id=$1 ORDER BY kind, version DESC) d
         WHERE NOT EXISTS (SELECT 1 FROM business_team_acknowledgments a WHERE a.document_id=d.id AND a.user_id=$2)) AS documents,
       EXISTS (SELECT 1 FROM business_service_staff ss JOIN business_services s ON s.id=ss.service_id WHERE s.business_id=$1 AND ss.staff_id=$2 AND ss.is_available) AS services,
       EXISTS (SELECT 1 FROM business_staff_shifts WHERE business_id=$1 AND user_id=$2 AND cancelled_at IS NULL AND published_at IS NOT NULL AND shift_date >= CURRENT_DATE) AS first_shift,
-      EXISTS (SELECT 1 FROM users WHERE id=$2 AND COALESCE(NULLIF(phone,''), NULLIF(phone_number,'')) IS NOT NULL) AS phone`, [businessId, userId]);
+      EXISTS (SELECT 1 FROM users WHERE id=$2 AND COALESCE(NULLIF(phone,''), NULLIF(phone_number,'')) IS NOT NULL) AS phone`, [businessId, userId]),
+    pool.query(`SELECT l.name FROM business_service_location_members lm JOIN business_service_locations l ON l.id=lm.location_id
+      WHERE lm.user_id=$2 AND l.business_id=$1 AND l.status <> 'closed' ORDER BY l.name LIMIT 1`, [businessId, userId]),
+    pool.query(`SELECT COALESCE(NULLIF(phone, ''), NULLIF(phone_number, '')) AS phone FROM users WHERE id=$1`, [userId]),
+    membership(pool, businessId, userId),
+    pool.query(`SELECT label, when_at FROM (
+        SELECT s.name AS label, a.start_time AS when_at FROM business_appointments a
+          LEFT JOIN business_services s ON s.id=a.service_id
+         WHERE a.business_id=$1 AND a.staff_id=$2 AND a.status IN ('pending','confirmed') AND a.start_time > NOW()
+        UNION ALL
+        SELECT t.title AS label, t.due_at AS when_at FROM business_team_tasks t
+         WHERE t.business_id=$1 AND t.assignee_id=$2 AND t.status='open'
+      ) x ORDER BY when_at ASC NULLS LAST LIMIT 1`, [businessId, userId]),
+    pool.query(`SELECT item FROM business_member_onboarding_confirmations WHERE business_id=$1 AND user_id=$2`, [businessId, userId]),
+  ]);
+  const c = derived.rows[0];
   const items = ['phone', 'availability', 'documents', 'services', 'first_shift'].map(key => ({ key, done: !!c[key] }));
-  return { items, complete: items.every(i => i.done) };
+  // G5-24 (254): the four member confirmations on top of the derived
+  // readiness items. Each is an explicit acknowledgment the member records
+  // against what they are confirming (their location, the phone on file,
+  // their role, their first assigned task). An item with nothing to confirm
+  // yet cannot be confirmed; confirmations persist in their own table so a
+  // confirmation is never lost when the derived state changes.
+  const done = new Set(confirms.rows.map((r) => r.item));
+  const details = {
+    location: loc.rows[0]?.name || null,
+    contact: phone.rows[0]?.phone || null,
+    role: member?.role || null,
+    first_task: firstTask.rows[0] ? { label: firstTask.rows[0].label, when: firstTask.rows[0].when_at } : null,
+  };
+  const confirm_items = ['location', 'contact', 'role', 'first_task'].map((key) => ({
+    key,
+    done: done.has(key),
+    detail: details[key],
+    can_confirm: details[key] != null,
+  }));
+  return {
+    items,
+    complete: items.every(i => i.done),
+    confirm_items,
+    confirm_complete: confirm_items.every((i) => i.done),
+  };
+}
+
+const CONFIRM_ITEMS = ['location', 'contact', 'role', 'first_task'];
+async function confirmOnboarding(businessId, userId, body) {
+  const item = typeof body?.item === 'string' ? body.item : invalid('item');
+  if (!CONFIRM_ITEMS.includes(item)) invalid('item');
+  const ob = await onboarding(businessId, userId);
+  const entry = ob.confirm_items.find((i) => i.key === item);
+  if (!entry?.can_confirm) fail(409, 'onboarding_not_ready');
+  await pool.query(
+    `INSERT INTO business_member_onboarding_confirmations(business_id, user_id, item)
+     VALUES($1,$2,$3) ON CONFLICT (business_id, user_id, item) DO NOTHING`,
+    [businessId, userId, item],
+  );
+  return { item, done: true };
 }
 
 // 255 / 288
@@ -259,5 +314,5 @@ async function dispatchBoard(businessId) {
   return { confirm_within_hours: hours, pending: rows };
 }
 
-module.exports = { overview, onboarding, accessCheck, requestPermission, myPermissionRequests, permissionQueue, decidePermission, cancelPermissionRequest,
+module.exports = { overview, onboarding, confirmOnboarding, accessCheck, requestPermission, myPermissionRequests, permissionQueue, decidePermission, cancelPermissionRequest,
   queue, claim, release, matches, conflicts, respondDispatch, dispatchBoard, NEVER_REQUEST, membership };

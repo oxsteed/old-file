@@ -106,6 +106,8 @@ router.get('/:businessId/owner/reports/recurring', ...biz('manager', 'analytics.
 const ctx = req => ({ role: req.businessRole, permissions: req.permissions });
 router.get('/:businessId/work/me', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workStart.overview(req.business.id, req.user.id, ctx(req)))));
 router.get('/:businessId/work/onboarding', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workStart.onboarding(req.business.id, req.user.id))));
+// G5-24 (254): record one first-shift confirmation (location, contact, role, first task).
+router.post('/:businessId/work/onboarding/confirm', ...write('any', 'business.view'), h(async (req, res) => res.json(await workStart.confirmOnboarding(req.business.id, req.user.id, req.body))));
 router.get('/:businessId/work/access-check', ...biz('any'), h(async (req, res) => res.json(await workStart.accessCheck(req.business.id, req.user.id, ctx(req), req.query.code))));
 router.get('/:businessId/work/permission-requests', ...biz('any'), h(async (req, res) => res.json(await workStart.myPermissionRequests(req.business.id, req.user.id))));
 router.post('/:businessId/work/permission-requests', ...write('any'), h(async (req, res) => res.status(201).json(await workStart.requestPermission(req.business.id, req.user.id, ctx(req), req.body))));

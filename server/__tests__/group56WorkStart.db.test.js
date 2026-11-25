@@ -48,6 +48,37 @@ describeDb('Groups 5-6: team member start and dispatch', () => {
     expect((await request(app).get(`/api/businesses/${bizId}/work/me`).set(as(crypto.randomUUID()))).status).toBe(404);
   });
 
+  test('254: first-shift confirmations record explicitly and persist', async () => {
+    const byKey = (ob) => Object.fromEntries(ob.confirm_items.map((i) => [i.key, i]));
+    const before = (await request(app).get(`/api/businesses/${bizId}/work/onboarding`).set(as(employee)).expect(200)).body;
+    expect(Object.keys(byKey(before)).sort()).toEqual(['contact', 'first_task', 'location', 'role']);
+    // Role and contact have something to confirm (membership + phone on
+    // file); location and first task do not yet, so they cannot be confirmed.
+    expect(byKey(before).role).toMatchObject({ done: false, can_confirm: true, detail: 'employee' });
+    expect(byKey(before).contact).toMatchObject({ done: false, can_confirm: true, detail: '555-0100' });
+    expect(byKey(before).location).toMatchObject({ done: false, can_confirm: false, detail: null });
+    expect(byKey(before).first_task).toMatchObject({ done: false, can_confirm: false, detail: null });
+    expect(before.confirm_complete).toBe(false);
+
+    // Confirming an unready step fails closed; an unknown item is invalid.
+    expect((await request(app).post(`/api/businesses/${bizId}/work/onboarding/confirm`).set(as(employee)).send({ item: 'location' })).body.code).toBe('onboarding_not_ready');
+    expect((await request(app).post(`/api/businesses/${bizId}/work/onboarding/confirm`).set(as(employee)).send({ item: 'nope' })).body.code).toBe('validation_failed');
+
+    // Role confirms, persists, and re-confirming is idempotent.
+    expect((await request(app).post(`/api/businesses/${bizId}/work/onboarding/confirm`).set(as(employee)).send({ item: 'role' }).expect(200)).body).toMatchObject({ item: 'role', done: true });
+    await request(app).post(`/api/businesses/${bizId}/work/onboarding/confirm`).set(as(employee)).send({ item: 'role' }).expect(200);
+    const afterRole = (await request(app).get(`/api/businesses/${bizId}/work/onboarding`).set(as(employee)).expect(200)).body;
+    expect(byKey(afterRole).role.done).toBe(true);
+
+    // A first task makes the first-task step confirmable.
+    const appt = await mk(employee, 72);
+    const withTask = (await request(app).get(`/api/businesses/${bizId}/work/onboarding`).set(as(employee)).expect(200)).body;
+    expect(byKey(withTask).first_task).toMatchObject({ done: false, can_confirm: true });
+    expect(byKey(withTask).first_task.detail.label).toBe('Clean');
+    await request(app).post(`/api/businesses/${bizId}/work/onboarding/confirm`).set(as(employee)).send({ item: 'first_task' }).expect(200);
+    await pool.query("UPDATE business_appointments SET status='cancelled' WHERE id=$1", [appt]);
+  });
+
   test('255 + 288: permission help request, explained denial, approval grants an override', async () => {
     const chk = (await request(app).get(`/api/businesses/${bizId}/work/access-check?code=customers.view_all`).set(as(employee)).expect(200)).body;
     expect(chk).toMatchObject({ allowed: false, reason: 'not_in_role', can_request: true });

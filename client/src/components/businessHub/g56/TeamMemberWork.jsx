@@ -11,9 +11,20 @@ function Overview({ businessId }) {
   const p = useBizG56(`/businesses/${businessId}/work/me`, 'work');
   const ob = useBizG56(`/businesses/${businessId}/work/onboarding`, 'work');
   const pr = useBizG56(`/businesses/${businessId}/work/permission-requests`, 'work');
-  const [code, setCode] = useState(''); const [reason, setReason] = useState('');
+  // G5-35/G5-38 (255): a denied Hub section links here with ?code= so the
+  // permission code is prefilled instead of making the member guess it.
+  const [code, setCode] = useState(() => new URLSearchParams(window.location.search).get('code') || '');
+  const [reason, setReason] = useState('');
   if (!p.data) return p.errorText ? <section className="g56-panel"><p className="g56-error">{p.errorText}</p></section> : null;
   const me = p.data;
+  // G5-24 (254): what a confirm item is confirming. Role renders through
+  // the translated role label; the first task shows its label and time.
+  const confirmDetail = (item) => {
+    if (!item.detail) return null;
+    if (item.key === 'role') return p.tr(`role.${item.detail}`);
+    if (typeof item.detail === 'string') return item.detail;
+    return `${item.detail.label}${item.detail.when ? ` · ${p.time(item.detail.when)}` : ''}`;
+  };
   return (
     <section className="g56-panel">
       <h3>{p.tr('title')}</h3>
@@ -24,9 +35,26 @@ function Overview({ businessId }) {
         <span>{p.tr('locations')}: {me.locations.map(l => l.name).join(', ') || p.common('none')}</span>
         <span>{p.tr('managers')}: {me.managers.map(m => m.name).join(', ')}</span>
       </div>
+      {/* G5-40 (252): the effective permissions, which work/me already
+          returned but no surface rendered. Role + duties (services,
+          locations, tasks on the board) were already here. */}
+      {Array.isArray(me.permissions) && (
+        <p>{p.tr('permissions')}: {me.permissions.length ? me.permissions.join(', ') : p.common('none')}</p>
+      )}
       {ob.data && !ob.data.complete && (<>
         <h4>{p.tr('onboarding')}</h4>
         <ul className="g56-list">{ob.data.items.map(i => <li key={i.key} className={i.done ? 'g56-ok' : 'g56-miss'}>{i.done ? '✓' : '•'} {p.tr(`ob.${i.key}`)}</li>)}</ul></>)}
+      {ob.data?.confirm_items && !ob.data.confirm_complete && (<>
+        <h4>{p.tr('confirmFirstShift')}</h4>
+        <ul className="g56-list">{ob.data.confirm_items.map(i => (
+          <li key={i.key} className={i.done ? 'g56-ok' : 'g56-miss'}>
+            {i.done ? '✓' : '•'} {p.tr(`obConfirm.${i.key}`)}
+            {confirmDetail(i) ? <> — {confirmDetail(i)}</> : null}
+            {!i.done && (
+              <button type="button" disabled={ob.busy || !i.can_confirm} onClick={() => ob.send('post', `/businesses/${businessId}/work/onboarding/confirm`, { item: i.key })} data-track="ui.9ab3b7b94b.11">{p.tr('confirm')}</button>
+            )}
+          </li>))}</ul>
+        {ob.errorText && <p className="g56-error" role="alert">{ob.errorText}</p>}</>)}
       <h4>{p.tr('askAccess')}</h4>
       <p>{p.tr('askAccessHelp')}</p>
       <div className="g56-row">
