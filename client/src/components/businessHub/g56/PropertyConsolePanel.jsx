@@ -152,7 +152,7 @@ function PropertyDetail({ base, propertyId, onBack }) {
       const v = String(fd.get(key) || '').trim();
       if (v) body[key] = v;
     }
-    for (const key of ['monthly_budget_cents', 'approval_threshold_cents', 'reserve_balance_cents']) {
+    for (const key of ['monthly_budget_cents', 'approval_threshold_cents', 'reserve_target_cents', 'reserve_balance_cents']) {
       const v = toCents(fd.get(key));
       if (v != null) body[key] = v;
     }
@@ -169,6 +169,7 @@ function PropertyDetail({ base, propertyId, onBack }) {
           <label>{p.tr('owner')}<input name="owner_name" defaultValue={property.owner_name || ''} maxLength={160} /></label>
           <label>{p.tr('monthlyBudget')}<input name="monthly_budget_cents" inputMode="decimal" defaultValue={dollars(property.monthly_budget_cents)} dir="ltr" /></label>
           <label>{p.tr('approvalThreshold')}<input name="approval_threshold_cents" inputMode="decimal" defaultValue={dollars(property.approval_threshold_cents)} dir="ltr" /></label>
+          <label>{p.tr('reserveTarget')}<input name="reserve_target_cents" inputMode="decimal" defaultValue={dollars(property.reserve_target_cents)} dir="ltr" /></label>
           <label>{p.tr('reserveBalance')}<input name="reserve_balance_cents" inputMode="decimal" defaultValue={dollars(property.reserve_balance_cents)} dir="ltr" /></label>
           <label>{p.common('notes')}<input name="notes" defaultValue={property.notes || ''} maxLength={4000} /></label>
           <button type="submit" disabled={p.busy} data-track="ui.e96cf59a5b.8">{p.tr('saveProfile')}</button>
@@ -177,6 +178,7 @@ function PropertyDetail({ base, propertyId, onBack }) {
       <p className="g56-muted">
         {[property.address, property.address_city, property.property_type].filter(Boolean).join(' · ')}
         {property.monthly_budget_cents != null && <> · {p.tr('budget')}: {money(property.monthly_budget_cents)}</>}
+        {property.reserve_target_cents != null && <> · {p.tr('reserveTarget')}: {money(property.reserve_target_cents)}</>}
         {property.reserve_balance_cents != null && <> · {p.tr('reserve')}: {money(property.reserve_balance_cents)}</>}
       </p>
       <UnitsSection base={base} propertyId={propertyId} units={units} p={p} />
@@ -679,16 +681,18 @@ function UpkeepSection({ base }) {
   const co = useBizG56(`${base}/costs`, 'properties');
   const inv = useBizG56(`${base}/invoices`, 'properties');
   const money = useMoney();
-  const [invoiceForm, setInvoiceForm] = useState({ vendor_id: '', amount: '', work_order_id: '' });
+  const [invoiceForm, setInvoiceForm] = useState({ vendor_id: '', amount: '', invoice_number: '', work_order_id: '', property_id: '' });
   const addInvoice = async (ev) => {
     ev.preventDefault();
     const cents = toCents(invoiceForm.amount);
-    if (!invoiceForm.vendor_id || cents == null) return;
+    if (!invoiceForm.vendor_id || cents == null || !invoiceForm.invoice_number.trim()) return;
     const created = await inv.send('post', `${base}/invoices`, {
       vendor_id: invoiceForm.vendor_id, amount_cents: cents,
+      invoice_number: invoiceForm.invoice_number.trim(),
       work_order_id: invoiceForm.work_order_id.trim() || undefined,
+      property_id: invoiceForm.property_id || undefined,
     });
-    if (created) setInvoiceForm({ vendor_id: '', amount: '', work_order_id: '' });
+    if (created) setInvoiceForm({ vendor_id: '', amount: '', invoice_number: '', work_order_id: '', property_id: '' });
   };
   return (
     <div>
@@ -713,21 +717,23 @@ function UpkeepSection({ base }) {
         </>
       )}
       <h4>{tv.tr('turnovers')}</h4>
+      <Notice p={tv} />
       {!tv.data ? (tv.errorText && <p className="g56-error">{tv.errorText}</p>) : tv.data.turnovers.length === 0 ? <p>{tv.common('empty')}</p> : (
         <table className="g56-table">
-          <thead><tr><th scope="col">{tv.tr('label')}</th><th scope="col">{tv.tr('unitLabel')}</th><th scope="col">{tv.common('status')}</th><th scope="col">{tv.tr('due')}</th><th scope="col"><span className="g56-sr">{tv.tr('closeWorkOrder')}</span></th></tr></thead>
+          <thead><tr><th scope="col">{tv.tr('label')}</th><th scope="col">{tv.tr('unitLabel')}</th><th scope="col">{tv.common('status')}</th><th scope="col">{tv.tr('due')}</th><th scope="col"><span className="g56-sr">{tv.tr('completeTurnover')}</span></th></tr></thead>
           <tbody>{tv.data.turnovers.map((row) => (
             <tr key={row.id}>
-              <td>{row.property}</td><td>{row.unit_label}</td><td>{row.status} · {row.done_steps}/{row.total_steps}{row.at_risk ? ` · ${tv.tr('overdue')}` : ''}</td>
+              <td>{row.property}</td><td>{row.unit_label}</td><td>{row.status} · {row.done_steps}/{row.total_steps}{row.at_risk ? ` · ${tv.tr('overdue')}` : ''}{row.keys_out ? ` · ${tv.tr('keysOut')}: ${row.keys_out}` : ''}</td>
               <td>{row.move_in_on || '—'}</td>
               <td>
                 {row.steps?.map((s) => (
                   <span key={s.key}>
-                    <button type="button" disabled={tv.busy} onClick={() => tv.send('post', `${base}/turnovers/${row.id}/steps/${s.key}`, { status: s.status === 'done' ? 'pending' : 'done' })} data-track="ui.e96cf59a5b.48">{s.key}: {s.status}</button>
+                    <button type="button" disabled={tv.busy} onClick={() => tv.send('post', `${base}/turnovers/${row.id}/steps/${s.key}`, { status: s.status === 'done' ? 'pending' : 'done' })} data-track="ui.e96cf59a5b.48">{s.key}: {s.status}{s.key === 'repairs' && s.request_ids?.length ? ` (${s.request_ids.length})` : ''}</button>
                     {' '}
                   </span>
                 ))}
-                <button type="button" disabled={tv.busy} onClick={() => tv.send('post', `${base}/turnovers/${row.id}/close`, {})} data-track="ui.e96cf59a5b.49">{tv.tr('closeWorkOrder')}</button>
+                <TurnoverRepairLink base={base} row={row} tv={tv} />
+                <button type="button" disabled={tv.busy || row.status !== 'ready'} onClick={() => tv.send('post', `${base}/turnovers/${row.id}/close`, { status: 'completed' })} data-track="ui.e96cf59a5b.49">{tv.tr('completeTurnover')}</button>
               </td>
             </tr>
           ))}</tbody>
@@ -740,9 +746,9 @@ function UpkeepSection({ base }) {
           <button type="button" disabled={co.busy} onClick={() => co.send('post', `${base}/costs/alerts`, {})} data-track="ui.e96cf59a5b.65">{co.tr('sendBudgetAlerts')}</button>
           <Notice p={co} />
           <table className="g56-table">
-            <thead><tr><th scope="col">{co.tr('label')}</th><th scope="col">{co.tr('monthSpend')}</th><th scope="col">{co.tr('budget')}</th><th scope="col">{co.tr('reserve')}</th></tr></thead>
+            <thead><tr><th scope="col">{co.tr('label')}</th><th scope="col">{co.tr('monthSpend')}</th><th scope="col">{co.tr('budget')}</th><th scope="col">{co.tr('variance')}</th><th scope="col">{co.tr('reserve')}</th><th scope="col">{co.tr('reserveTarget')}</th></tr></thead>
             <tbody>{co.data.properties.map((row) => (
-              <tr key={row.id}><td>{row.label}</td><td>{money(row.month_spend_cents)}</td><td>{row.monthly_budget_cents == null ? '—' : money(row.monthly_budget_cents)}</td><td>{row.reserve_balance_cents == null ? '—' : money(row.reserve_balance_cents)}</td></tr>
+              <tr key={row.id}><td>{row.label}</td><td>{money(row.month_spend_cents)}</td><td>{row.monthly_budget_cents == null ? '—' : money(row.monthly_budget_cents)}</td><td>{row.variance_cents == null ? '—' : money(row.variance_cents)}{row.over_budget ? ` · ${co.tr('overdue')}` : ''}</td><td>{row.reserve_balance_cents == null ? '—' : money(row.reserve_balance_cents)}</td><td>{row.reserve_target_cents == null ? '—' : money(row.reserve_target_cents)}{row.reserve_funded_pct != null ? ` · ${row.reserve_funded_pct}%` : ''}</td></tr>
             ))}</tbody>
           </table>
         </>
@@ -767,20 +773,44 @@ function UpkeepSection({ base }) {
           ))}</tbody>
         </table>
       )}
-      <VendorsInvoiceForm base={base} inv={inv} invoiceForm={invoiceForm} setInvoiceForm={setInvoiceForm} addInvoice={addInvoice} />
+      <VendorsInvoiceForm base={base} inv={inv} invoiceForm={invoiceForm} setInvoiceForm={setInvoiceForm} addInvoice={addInvoice} properties={co.data?.properties || []} />
     </div>
   );
 }
 
-function VendorsInvoiceForm({ base, inv, invoiceForm, setInvoiceForm, addInvoice }) {
+function TurnoverRepairLink({ base, row, tv }) {
+  const [requestId, setRequestId] = useState('');
+  if (!['open', 'ready'].includes(row.status)) return null;
+  const repairs = row.steps?.find((s) => s.key === 'repairs');
+  if (!repairs) return null;
+  const link = async (ev) => {
+    ev.preventDefault();
+    const id = requestId.trim();
+    if (!id) return;
+    const linked = await tv.send('post', `${base}/turnovers/${row.id}/steps/repairs`, {
+      status: repairs.status, request_ids: [...(repairs.request_ids || []), id],
+    });
+    if (linked) setRequestId('');
+  };
+  return (
+    <form onSubmit={link} className="g56-row" data-track="ui.e96cf59a5b.75">
+      <label>{tv.tr('linkRepairRequest')}<input value={requestId} maxLength={40} onChange={(ev) => setRequestId(ev.target.value)} placeholder={tv.tr('requestId')} dir="ltr" /></label>
+      <button type="submit" disabled={tv.busy || !requestId.trim()} data-track="ui.e96cf59a5b.76">{tv.tr('linkRepairRequest')}</button>
+    </form>
+  );
+}
+
+function VendorsInvoiceForm({ base, inv, invoiceForm, setInvoiceForm, addInvoice, properties }) {
   const v = useBizG56(`${base}/vendors`, 'properties');
   if (!v.data) return v.errorText ? <p className="g56-error">{v.errorText}</p> : null;
   return (
     <form onSubmit={addInvoice} className="g56-row" data-track="ui.e96cf59a5b.52">
       <label>{inv.common('vendor')}<select value={invoiceForm.vendor_id} onChange={(ev) => setInvoiceForm({ ...invoiceForm, vendor_id: ev.target.value })}><option value="">—</option>{v.data.vendors.map((vendor) => <option key={vendor.id} value={vendor.id}>{vendor.name}</option>)}</select></label>
+      <label>{inv.tr('invoiceNumber')}<input value={invoiceForm.invoice_number} maxLength={60} onChange={(ev) => setInvoiceForm({ ...invoiceForm, invoice_number: ev.target.value })} dir="ltr" /></label>
       <label>{inv.common('amount')}<input inputMode="decimal" value={invoiceForm.amount} onChange={(ev) => setInvoiceForm({ ...invoiceForm, amount: ev.target.value })} dir="ltr" /></label>
       <label>{inv.tr('workOrders')}<input value={invoiceForm.work_order_id} onChange={(ev) => setInvoiceForm({ ...invoiceForm, work_order_id: ev.target.value })} dir="ltr" /></label>
-      <button type="submit" disabled={inv.busy || !invoiceForm.vendor_id} data-track="ui.e96cf59a5b.53">{inv.tr('addInvoice')}</button>
+      <label>{inv.tr('label')}<select value={invoiceForm.property_id} onChange={(ev) => setInvoiceForm({ ...invoiceForm, property_id: ev.target.value })}><option value="">—</option>{properties.map((property) => <option key={property.id} value={property.id}>{property.label}</option>)}</select></label>
+      <button type="submit" disabled={inv.busy || !invoiceForm.vendor_id || !invoiceForm.invoice_number.trim()} data-track="ui.e96cf59a5b.53">{inv.tr('addInvoice')}</button>
     </form>
   );
 }

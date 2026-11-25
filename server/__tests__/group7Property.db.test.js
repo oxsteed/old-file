@@ -193,6 +193,24 @@ describeDb('Group 7: property manager', () => {
     expect((await request(app).get('/api/me/property/incidents').set(as(landlord)).expect(200)).body.incidents[0]).toMatchObject({ owner_summary: 'Pipe burst; repaired.', evidence_count: 1 });
   });
 
+  test('336-340: job-less invoice carries property_id; reserve target PATCH', async () => {
+    // D-513: the panel invoice form used to send no invoice_number (server-
+    // required) and no property, so a direct vendor invoice could never be
+    // filed against a property from the UI. The job-less leg takes the
+    // property straight from the form; approving it counts toward the
+    // property's month spend.
+    await request(app).post(`${B()}/invoices`).set(as(manager)).send({ vendor_id: vendorId, property_id: pid, amount_cents: 25000 }).expect(400);
+    const inv = (await request(app).post(`${B()}/invoices`).set(as(manager)).send({ vendor_id: vendorId, property_id: pid, invoice_number: 'INV-DIRECT-1', amount_cents: 25000 }).expect(201)).body;
+    expect(inv).toMatchObject({ property_id: pid, match_status: 'unmatched' });
+    await request(app).post(`${B()}/invoices/${inv.id}/decision`).set(as(manager)).send({ decision: 'approved' }).expect(200);
+    expect((await request(app).get(`${B()}/invoices`).set(as(manager)).expect(200)).body.invoices.find(i => i.id === inv.id)).toMatchObject({ property: 'Elm Court' });
+    // D-514: reserve_target_cents was accepted by updateProperty but had no
+    // profile-form input, so it could never be set from the UI.
+    await request(app).patch(`${B()}/p/${pid}`).set(as(manager)).send({ reserve_target_cents: 300000 }).expect(200);
+    const row = (await request(app).get(`${B()}/costs`).set(as(manager)).expect(200)).body.properties.find(p => p.id === pid);
+    expect(row).toMatchObject({ month_spend_cents: 115000, over_budget: true, variance_cents: -114000, reserve_funded_pct: 17, reserve_short_cents: 250000 });
+  });
+
   test('346-350: handover export, reassignment, occupant notice, revocation', async () => {
     await request(app).post(`${B()}/p/${pid}/assignments`).set(as(manager)).send({ role: 'manager', user_id: manager }).expect(201);
     const ex = (await request(app).get(`${B()}/p/${pid}/handover`).set(as(manager)).expect(200)).body;
