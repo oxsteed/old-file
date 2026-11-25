@@ -19,7 +19,8 @@ import {
   requestDeliveryReschedule, requestDeliveryReturn, reviewDeliveryExtra,
   syncDeliveryExtraPayment, syncDeliveryPayment, updateDeliveryStatus, uploadDeliveryProof,
   uploadDeliveryItemPhoto, claimDeliveryJob, declineDeliveryJob,
-  addDeliveryStop, reorderDeliveryStops, completeDeliveryStop,
+  addDeliveryStop, reorderDeliveryStops, completeDeliveryStop, updateDeliveryStopNote,
+  sendDeliveryWaitingNotice, resumeDeliveryJob, requestDeliveryRedelivery, reviewDeliveryRedelivery,
   obtainDeliveryPin, deliveryDate, deliveryMoney, deliveryUnit, deliveryError, deliveryClaimReasons,
   getJobExceptions, listJobDocuments, downloadDeliveryReceipt,
   createDeliveryDispute, listJobDisputes,
@@ -114,6 +115,13 @@ export default function DeliveryDetailPage() {
   const [disputeSubject, setDisputeSubject] = useState('payout_amount');
   const [disputeDescription, setDisputeDescription] = useState('');
   const [extra, setExtra] = useState({ category: 'waiting', amount: '', notes: '' });
+  // Group 9 partials Wave 2 Batch O (469/475, G9-A10/G9-A11, D-545/
+  // D-548): the free waiting-notice note, and the redelivery-attempt
+  // request (a new delivery window for a failed drop-off).
+  const [waitingNote, setWaitingNote] = useState('');
+  const [redeliveryStart, setRedeliveryStart] = useState('');
+  const [redeliveryEnd, setRedeliveryEnd] = useState('');
+  const [redeliveryReason, setRedeliveryReason] = useState('');
   const uploaded = useRef(null);
   const requestSequence = useRef(0);
   const actionLock = useRef(false);
@@ -261,7 +269,7 @@ export default function DeliveryDetailPage() {
     <Link className="delivery-button delivery-button--secondary" to="/delivery">{t('delivery.detail.back')}</Link>
   </div></PageShell>;
 
-  const { activity = [], proofs = [], extras = [], issues = [], payments = [], rescheduleRequests = [], returns = [], itemPhotos = [] } = data;
+  const { activity = [], proofs = [], extras = [], issues = [], payments = [], rescheduleRequests = [], redeliveryRequests = [], returns = [], itemPhotos = [] } = data;
   // Group 9 partials Wave 2 Batch N (467/468, G9-A5, D-542): the
   // customer photos the driver checks the items against before
   // acknowledging the condition, shown inside the pickup form as
@@ -282,6 +290,13 @@ export default function DeliveryDetailPage() {
   const nextStatus = job.status === 'assigned' ? 'picked_up' : job.status === 'picked_up' ? 'in_transit' : null;
   const canReturn = participant && ['picked_up', 'in_transit', 'failed'].includes(job.status);
   const canCancel = participant && ['posted', 'assigned'].includes(job.status);
+  // Group 9 partials Wave 2 Batch O (475, G9-A11, D-548): the driver
+  // can request a redelivery attempt on a failed drop-off — the job
+  // is failed, or a recipient_unavailable issue was recorded for it —
+  // while no redelivery request is already pending.
+  const canRedelivery = isAssigned && ['failed', 'in_transit', 'picked_up'].includes(job.status)
+    && (job.status === 'failed' || issues.some((item) => item.code === 'recipient_unavailable'))
+    && !redeliveryRequests.some((item) => item.status === 'pending');
   const paymentLabel = (extraItem) => ['captured', 'paid'].includes(extraItem.payment_status)
     ? t('delivery.detail.paymentStates.paid')
     : extraItem.status === 'approved' ? label('ui.paymentStates', extraItem.payment_status) : label('detail.extraStatus', extraItem.status);
@@ -343,6 +358,7 @@ export default function DeliveryDetailPage() {
           <DeliveryStops job={job} stops={stops} warnings={windowWarnings} isAssigned={isAssigned} isOwner={isCustomer} t={t} date={date} busy={busy}
             onComplete={(stopId) => act(() => completeDeliveryStop(id, stopId))}
             onMove={(stopIds) => act(() => reorderDeliveryStops(id, stopIds))}
+            onNote={(stopId, note) => act(() => updateDeliveryStopNote(id, stopId, note))}
             onAdd={(payload) => act(() => addDeliveryStop(id, payload))} />
           {isOffered && (
             <div className="delivery-offer-panel">
@@ -419,7 +435,11 @@ export default function DeliveryDetailPage() {
             {job.proof_preference === 'pin' && <label className="delivery-field">{t('delivery.detail.pin')}<input className="delivery-input" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={proofValue} onChange={(event) => setProofValue(event.target.value)} required /></label>}
             {job.proof_preference === 'recipient_confirmation' && <>
               <label className="delivery-field">{t('delivery.detail.recipientName')}<input className="delivery-input" value={recipientName} onChange={(event) => setRecipientName(event.target.value)} maxLength={160} required /></label>
-              <label className="delivery-field">{t('delivery.ui.recipientContact')}<input className="delivery-input" value={recipientContact} onChange={(event) => setRecipientContact(event.target.value)} maxLength={160} required /></label>
+              {/* Group 9 partials Wave 2 Batch O (471, G9-A6, D-546):
+                the recipient phone is masked to its last 4 digits, so
+                the last 4 digits are enough here; the full number is
+                no longer shown anywhere on the page. */}
+              <label className="delivery-field">{t('delivery.ui.recipientContact')}<input className="delivery-input" value={recipientContact} onChange={(event) => setRecipientContact(event.target.value)} maxLength={160} required /><small>{t('delivery.detail.recipientContactHint')}</small></label>
               <label><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} required data-track="ui.4c1e141977.7" /> {t('delivery.ui.recipientConfirmed')}</label>
             </>}
             {['photo', 'signature'].includes(job.proof_preference) && <label className="delivery-field">{t('delivery.detail.proofFile')}<input type="file" accept={job.proof_preference === 'signature' ? 'image/jpeg,image/png,image/webp,application/pdf' : 'image/jpeg,image/png,image/webp'} required onChange={(event) => { const file = event.target.files?.[0]; uploaded.current = null; if (file && file.size > 10485760) { setProofFile(null); event.target.value = ''; setError(t('delivery.ui.fileTooLarge')); } else setProofFile(file || null); }} /><small>{t('delivery.ui.proofFileHint')}</small></label>}
@@ -450,6 +470,12 @@ export default function DeliveryDetailPage() {
       {participant && exceptions && (
         <section className="delivery-panel"><h2>{t('delivery.detail.exceptionsTitle')}</h2>
           <p>{t('delivery.detail.exceptionsOpenCount', { count: exceptions.openCount || 0 })}</p>
+          {/* Group 9 partials Wave 2 Batch O (470/475, G9-A7, D-547):
+            once ops has acked the exception (no open issues left) a
+            failed job the driver still holds can be resumed by the
+            driver. Ops still resolves; this button only appears after
+            the ack, and the server refuses it while anything is open. */}
+          {isAssigned && exceptions.resumeAvailable && <p><button type="button" className="delivery-button delivery-button--primary" disabled={busy} onClick={() => act(() => resumeDeliveryJob(id), 'delivery.detail.resumed', 'delivery.errors.resume')} data-track="ui.4c1e141977.38">{t('delivery.detail.resumeDelivery')}</button></p>}
           {!exceptions.events?.length && <p>{t('delivery.detail.exceptionsEmpty')}</p>}
           <ol className="delivery-timeline">{(exceptions.events || []).map((event) => <li key={event.id}><span className="delivery-timeline__dot" /><div>
             <strong>{t(`delivery.detail.exceptionKinds.${event.kind}`)}{event.code ? ` · ${label('ui.issueCodes', event.code)}` : ''}</strong>
@@ -457,6 +483,18 @@ export default function DeliveryDetailPage() {
             {event.description && <p>{event.description}</p>}
             {event.reason && <p>{event.reason}</p>}
             {event.status && <p>{label('ui.requestStates', event.status)}{event.resolution ? ` · ${event.resolution}` : ''}</p>}
+            {event.kind === 'redelivery' && event.deliveryWindowStart && <p>{date(event.deliveryWindowStart)} – {date(event.deliveryWindowEnd)}</p>}
+            {/* Group 9 partials Wave 2 Batch O (470/475, G9-A7,
+              D-547): the exception escalation timer — how long the
+              driver has waited, and when ops aims to answer. A passed
+              target never auto-resolves anything; it only says so. */}
+            {event.kind === 'issue' && event.status === 'open' && event.responseTargetMinutes != null && (
+              <p role="status">
+                {event.responseOverdue
+                  ? t('delivery.detail.exceptionResponseOverdue', { minutes: event.minutesWaiting, target: event.responseTargetMinutes })
+                  : t('delivery.detail.exceptionResponseEta', { minutes: event.minutesWaiting, target: event.responseTargetMinutes, when: date(event.responseDueAt) })}
+              </p>
+            )}
           </div></li>)}</ol>
         </section>
       )}
@@ -489,6 +527,16 @@ export default function DeliveryDetailPage() {
           <label className="delivery-field">{t('delivery.customer.notes')}<textarea className="delivery-input" required maxLength={2000} value={extra.notes} onChange={(event) => setExtra({ ...extra, notes: event.target.value })} /></label>
           <button className="delivery-button delivery-button--secondary" data-track="ui.4c1e141977.13">{t('delivery.ui.requestExtra')}</button>
         </fieldset></form>}
+        {/* Group 9 partials Wave 2 Batch O (469, G9-A10, D-545): the
+          free waiting notice next to the chargeable waiting extra. No
+          amount, no approval, no charge — it only tells the shipper
+          the driver is waiting. Limited to one notice per job every
+          15 minutes server-side. */}
+        {isAssigned && active && <form onSubmit={(event) => { event.preventDefault(); act(async () => { await sendDeliveryWaitingNotice(id, { note: waitingNote }); setWaitingNote(''); }, 'delivery.detail.waitingNoticeSent', 'delivery.errors.waitingNotice'); }} data-track="ui.4c1e141977.37"><fieldset className="delivery-form-fields" disabled={busy}>
+          <h3>{t('delivery.detail.waitingNoticeTitle')}</h3><p>{t('delivery.detail.waitingNoticeHint')}</p>
+          <label className="delivery-field">{t('delivery.customer.notes')}<input className="delivery-input" value={waitingNote} onChange={(event) => setWaitingNote(event.target.value)} maxLength={500} placeholder={t('delivery.detail.waitingNoticePlaceholder')} /></label>
+          <button className="delivery-button delivery-button--secondary" data-track="ui.4c1e141977.40">{t('delivery.detail.waitingNoticeSend')}</button>
+        </fieldset></form>}
       </section>
       {isCustomer && <section className="delivery-panel"><h2>{t('delivery.detail.payments')}</h2>
         {!payments.length && <p>{t('delivery.ui.noPayments')}</p>}
@@ -513,6 +561,17 @@ export default function DeliveryDetailPage() {
             <label className="delivery-field">{t('delivery.ui.windowEnd')}<input className="delivery-input" type="datetime-local" min={windowStart || undefined} value={windowEnd} onChange={(event) => setWindowEnd(event.target.value)} required /></label>
           </div>
           <button className="delivery-button delivery-button--secondary" data-track="ui.4c1e141977.18">{t('delivery.detail.requestReschedule')}</button>
+          {/* Group 9 partials Wave 2 Batch O (475, G9-A11, D-548): the
+            redelivery-attempt request — a new delivery window for a
+            failed drop-off, approved by the shipper or ops. Its own
+            path: the general reschedule above still refuses a job
+            after pickup. */}
+          {canRedelivery && <div className="delivery-stop-grid">
+            <label className="delivery-field">{t('delivery.detail.redeliveryWindowStart')}<input className="delivery-input" type="datetime-local" value={redeliveryStart} onChange={(event) => setRedeliveryStart(event.target.value)} required /></label>
+            <label className="delivery-field">{t('delivery.detail.redeliveryWindowEnd')}<input className="delivery-input" type="datetime-local" min={redeliveryStart || undefined} value={redeliveryEnd} onChange={(event) => setRedeliveryEnd(event.target.value)} required /></label>
+          </div>}
+          {canRedelivery && <label className="delivery-field">{t('delivery.detail.redeliveryReason')}<input className="delivery-input" value={redeliveryReason} onChange={(event) => setRedeliveryReason(event.target.value)} maxLength={1000} /></label>}
+          {canRedelivery && <button type="button" className="delivery-button delivery-button--secondary" disabled={!redeliveryStart || !redeliveryEnd} onClick={() => { const start = new Date(redeliveryStart), end = new Date(redeliveryEnd); if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || start <= new Date() || end <= start) { setError(t('delivery.ui.windowInvalid')); return; } act(async () => { await requestDeliveryRedelivery(id, { deliveryWindowStart: start.toISOString(), deliveryWindowEnd: end.toISOString(), reason: redeliveryReason }); setRedeliveryStart(''); setRedeliveryEnd(''); setRedeliveryReason(''); }, 'delivery.detail.redeliverySent', 'delivery.errors.redelivery'); }} data-track="ui.4c1e141977.39">{t('delivery.detail.requestRedelivery')}</button>}
           {/* Group 9 Slice D (item 475): when the return is a failed
             drop-off because the recipient was unavailable, the reason
             travels with the return request so the structured
@@ -523,7 +582,9 @@ export default function DeliveryDetailPage() {
           {cancelOpen && canCancel && <div role="group" aria-label={t('delivery.ui.cancelDelivery')}><p>{t('delivery.ui.cancelHint')}</p><button type="button" className="delivery-button delivery-button--danger" disabled={!reason.trim()} onClick={() => act(async () => { await updateDeliveryStatus(id, 'cancelled', { reason }); setCancelOpen(false); })} data-track="ui.4c1e141977.21">{t('delivery.ui.confirmCancel')}</button></div>}
         </fieldset></form>
       </section>}
-      {(rescheduleRequests.length > 0 || returns.length > 0) && <section className="delivery-panel"><h2>{t('delivery.ui.requests')}</h2>{rescheduleRequests.map((item) => <p key={item.id}>{t('delivery.detail.requestReschedule')} · {label('ui.requestStates', item.status)} · {date(item.delivery_window_start || item.pickup_window_start)} · {item.reason}</p>)}{returns.map((item) => <p key={item.id}>{t('delivery.detail.requestReturn')} · {label('ui.requestStates', item.status)} · {item.reason}</p>)}</section>}
+      {(rescheduleRequests.length > 0 || returns.length > 0 || redeliveryRequests.length > 0) && <section className="delivery-panel"><h2>{t('delivery.ui.requests')}</h2>{rescheduleRequests.map((item) => <p key={item.id}>{t('delivery.detail.requestReschedule')} · {label('ui.requestStates', item.status)} · {date(item.delivery_window_start || item.pickup_window_start)} · {item.reason}</p>)}{returns.map((item) => <p key={item.id}>{t('delivery.detail.requestReturn')} · {label('ui.requestStates', item.status)} · {item.reason}</p>)}{redeliveryRequests.map((item) => <p key={item.id}>{t('delivery.detail.requestRedelivery')} · {label('ui.requestStates', item.status)} · {date(item.delivery_window_start)} – {date(item.delivery_window_end)}{item.reason ? ` · ${item.reason}` : ''}
+        {isCustomer && item.status === 'pending' && <><button key="approved" className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => act(() => reviewDeliveryRedelivery(id, item.id, 'approved'), 'delivery.ui.saved', 'delivery.errors.redelivery')} data-track="ui.4c1e141977.41">{t('delivery.detail.approve')}</button><button key="rejected" className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => act(() => reviewDeliveryRedelivery(id, item.id, 'rejected'), 'delivery.ui.saved', 'delivery.errors.redelivery')} data-track="ui.4c1e141977.42">{t('delivery.detail.reject')}</button></>}
+      </p>)}</section>}
       <section className="delivery-panel"><h2>{t('delivery.detail.supportTitle')}</h2><p>{t('delivery.detail.supportHint')}</p>
         {issues.map((item) => <p key={item.id}>{label('ui.issueCodes', item.code)} · {item.description} · {label('ui.requestStates', item.status)} {item.resolution}
           {/* Group 9 Slice D (items 470/475): the structured metadata,

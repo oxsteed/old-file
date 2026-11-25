@@ -132,9 +132,17 @@ async function validateProof(client, job, body, userId) {
     }
   } else if (type === 'recipient_confirmation') {
     const name = String(body.recipientName || '').trim();
-    const contact = String(body.recipientContact || '').replace(/\D/g,'');
-    const expected = String(job.destination_contact_phone || '').replace(/\D/g,'');
-    if (name.length<2 || name.length>160 || body.confirmed !== true || contact.length<7 || contact !== expected) throw new AppError('Confirm the recipient name, contact and receipt',400,'delivery_recipient_confirmation_required');
+    const contact = String(body.recipientContact || '').replace(/\D/g, '');
+    const expected = String(job.destination_contact_phone || '').replace(/\D/g, '');
+    // Group 9 partials Wave 2 Batch O (471, G9-A6, D-546): the stops
+    // phone is masked to the last 4 digits, so the driver can no longer
+    // read the full number to type it here. The last 4 digits the mask
+    // shows are accepted as the contact value instead. The name and the
+    // explicit receipt confirmation still have to match; the later
+    // recipient relay replaces this driver-typed proof with a
+    // recipient-side confirmation.
+    const lastFourMatch = contact.length === 4 && expected.length >= 7 && expected.endsWith(contact);
+    if (name.length < 2 || name.length > 160 || body.confirmed !== true || contact.length < 4 || (contact !== expected && !lastFourMatch)) throw new AppError('Confirm the recipient name, contact and receipt', 400, 'delivery_recipient_confirmation_required');
     proof.recipientName = name;
     proof.proofValue = 'recipient_attestation';
   } else {
@@ -160,4 +168,4 @@ function operatorSafeJob(job) {
   const { proof_pin_digest, proof_pin_consumed_at, ...safe } = job;
   return safe;
 }
-module.exports={stableValue,fingerprint,idempotencyKey,actionReplay,saveAction,customerSafeJob,operatorSafeJob,recordActivity,pinDigest,validateProof,recordProof,roundCoord,DRIVER_ACCESS_EXPIRY_DAYS,driverAccessExpiresAt,assertDriverJobAccess};
+module.exports={stableValue,fingerprint,idempotencyKey,actionReplay,saveAction,customerSafeJob,operatorSafeJob,recordActivity,pinDigest,validateProof,recordProof,roundCoord,maskPhone,DRIVER_ACCESS_EXPIRY_DAYS,driverAccessExpiresAt,assertDriverJobAccess};

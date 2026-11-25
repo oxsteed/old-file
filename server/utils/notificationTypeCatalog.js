@@ -248,6 +248,12 @@ const NOTIFICATION_TYPES = [
   { type: 'delivery:delivery_return_in_transit', group: 'orders' },
   { type: 'delivery:delivery_return_requested', group: 'orders' },
   { type: 'delivery:delivery_returned', group: 'orders' },
+  // Group 9 partials Wave 2 Batch O (469/475, G9-A10/G9-A11): the free
+  // waiting notice and the redelivery-attempt request lifecycle.
+  { type: 'delivery:delivery_waiting_notice', group: 'orders' },
+  { type: 'delivery:delivery_redelivery_requested', group: 'orders' },
+  { type: 'delivery:delivery_redelivery_approved', group: 'orders' },
+  { type: 'delivery:delivery_redelivery_rejected', group: 'orders' },
   { type: 'delivery:tracking_stale', group: 'orders' },
   // Group 9 (item 495): driver weekly delivery report ready notice.
   { type: 'delivery:weekly_report_ready', group: 'orders' },

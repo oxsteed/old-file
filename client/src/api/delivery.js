@@ -55,6 +55,16 @@ export const listDeliveryStops = (id) => api.get(`/delivery/jobs/${id}/stops`).t
 export const addDeliveryStop = (id, payload) => mutate('post', `/delivery/jobs/${id}/stops`, payload);
 export const reorderDeliveryStops = (id, stopIds) => mutate('post', `/delivery/jobs/${id}/stops/reorder`, { stopIds });
 export const completeDeliveryStop = (id, stopId) => mutate('post', `/delivery/jobs/${id}/stops/${stopId}/complete`);
+// Group 9 partials Wave 2 Batch O (462/464/469/470/475): the driver
+// note on a stop (G9-A13), the free waiting notice (G9-A10), the
+// driver resume after ops ack (G9-A7), and the redelivery-attempt
+// request with ops-or-shipper review (G9-A11).
+export const updateDeliveryStopNote = (id, stopId, note) => mutate('post', `/delivery/jobs/${id}/stops/${stopId}/note`, { note });
+export const sendDeliveryWaitingNotice = (id, payload = {}) => mutate('post', `/delivery/jobs/${id}/waiting-notices`, payload);
+export const resumeDeliveryJob = (id) => mutate('post', `/delivery/jobs/${id}/resume`);
+export const requestDeliveryRedelivery = (id, payload) => mutate('post', `/delivery/jobs/${id}/redelivery-requests`, payload);
+export const reviewDeliveryRedelivery = (id, requestId, decision) => mutate('patch', `/delivery/jobs/${id}/redelivery-requests/${requestId}`, { decision });
+export const reviewInternalDeliveryRedelivery = (requestId, decision) => mutate('patch', `/delivery/internal/redelivery-requests/${requestId}`, { decision });
 export const updateDeliveryStatus = (id, status, details = {}) => mutate('patch', `/delivery/jobs/${id}/status`, { status, ...details });
 export const getDelivery = (id) => api.get(`/delivery/jobs/${id}`).then((response) => response.data);
 export const reportDeliveryIssue = (id, payload) => mutate('post', `/delivery/jobs/${id}/issues`, payload);
@@ -281,6 +291,19 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
     stopInvalid: ['delivery_stop_type_invalid', 'delivery_stop_address_required', 'delivery_stop_order_invalid', 'delivery_stop_not_found'],
     stopForbidden: ['delivery_stop_forbidden'],
     stopUnavailable: ['delivery_stop_unavailable', 'delivery_stop_conflict'],
+    // Group 9 partials Wave 2 Batch O (469/470/475, G9-A10/A7/A11):
+    // the waiting-notice throttle, the resume refusals, and the
+    // redelivery refusals. The resume and redelivery 409s share the
+    // recovery-pending message: the job is frozen until ops acts.
+    waitingThrottled: ['delivery_waiting_throttled'],
+    waitingForbidden: ['delivery_waiting_forbidden'],
+    waitingUnavailable: ['delivery_waiting_unavailable'],
+    resumeConflict: ['delivery_resume_conflict'],
+    redeliveryInvalid: ['delivery_redelivery_window_invalid', 'delivery_redelivery_decision_invalid'],
+    redeliveryUnavailable: ['delivery_redelivery_evidence_required', 'delivery_redelivery_window_expired'],
+    redeliveryPending: ['delivery_redelivery_pending'],
+    redeliveryConflict: ['delivery_redelivery_conflict', 'delivery_redelivery_not_found'],
+    redeliveryForbidden: ['delivery_redelivery_forbidden'],
     recoveryPending: ['delivery_recovery_pending', 'delivery_reschedule_pending', 'delivery_return_pending'],
     proofInvalid: ['delivery_proof_mismatch', 'delivery_proof_rejected', 'delivery_proof_upload_required', 'delivery_recipient_confirmation_required', 'delivery_return_proof_required', 'delivery_return_proof_unavailable'],
     pinInvalid: ['delivery_proof_pin_invalid'],

@@ -59,6 +59,18 @@ router.get('/jobs/:id/stops', requireAuth, controller.listStops);
 router.post('/jobs/:id/stops', requireAuth, rejectImpersonated, controller.addStop);
 router.post('/jobs/:id/stops/reorder', requireAuth, rejectImpersonated, controller.reorderStops);
 router.post('/jobs/:id/stops/:stopId/complete', requireAuth, rejectImpersonated, controller.completeStop);
+// Group 9 partials Wave 2 Batch O (462/464, G9-A13, D-543): the driver
+// note on a stop — route notes are no longer view-only.
+router.post('/jobs/:id/stops/:stopId/note', requireAuth, rejectImpersonated, controller.updateStopNote);
+// Group 9 partials Wave 2 Batch O (469, G9-A10, D-545): the free
+// waiting notice, alongside the chargeable waiting extra.
+router.post('/jobs/:id/waiting-notices', requireAuth, rejectImpersonated, controller.createWaitingNotice);
+// Group 9 partials Wave 2 Batch O (470/475, G9-A7, D-547): the driver
+// resume after ops ack, and the redelivery-attempt request (475,
+// G9-A11, D-548) with ops-or-shipper review.
+router.post('/jobs/:id/resume', requireAuth, rejectImpersonated, controller.resumeDelivery);
+router.post('/jobs/:id/redelivery-requests', requireAuth, rejectImpersonated, controller.requestRedelivery);
+router.patch('/jobs/:id/redelivery-requests/:requestId', requireAuth, rejectImpersonated, controller.reviewRedelivery);
 // Group 9 Slice B (item 460): a driver passes on a marketplace offer
 // with a reason code. Advisory only; it never blocks claiming.
 router.post('/jobs/:id/decline', requireAuth, rejectImpersonated, controller.decline);
@@ -137,6 +149,10 @@ router.post('/internal/jobs/:id/release-marketplace', requireAuth, requireOperat
 router.patch('/internal/reschedule-requests/:requestId', requireAuth, requireOperationsWorkspace, controller.reviewReschedule);
 router.patch('/internal/returns/:returnId', requireAuth, requireOperationsWorkspace, controller.reviewReturn);
 router.patch('/internal/issues/:issueId/resolve', requireAuth, requireOperationsWorkspace, controller.resolveIssue);
+// Group 9 partials Wave 2 Batch O (475, G9-A11, D-548): ops reviews a
+// redelivery-attempt request on the internal route; the shipper uses
+// the participant route above. Same handler, same fail-closed checks.
+router.patch('/internal/redelivery-requests/:requestId', requireAuth, requireOperationsWorkspace, controller.reviewRedelivery);
 
 // Customer tracking links: signed, expiring tokens for recipients without an
 // OxSteed account. Management endpoints are owner-or-ops; the public
