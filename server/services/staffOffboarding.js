@@ -33,6 +33,33 @@
  *   - a staff_offboarding_records row captures the whole outcome plus the
  *     retention deadline (businesses.staff_record_retention_years,
  *     default 7 years) before which the staff history must be kept.
+ *   - G5-3 (Batch E, 294): in-progress OxSteed jobs the member held
+ *     through this business move to the same reassignment target (see
+ *     the jobs block below). jobs carry no business_id, so only
+ *     business-attributed jobs move: jobs linked to a business booking
+ *     (booking_requests.business_id -> appointments.job_id) or to one
+ *     of the business's team tasks (business_team_tasks.job_id).
+ *     Unattributed jobs are the member's own work and stay with them;
+ *     finished jobs stay as history, and jobs with an open dispute
+ *     (dispute_status 'open'/'under_review') stay put until the
+ *     dispute resolves.
+ *   - G5-32 (Batch E, 298): the member's workspace contexts for this
+ *     business are deleted here, so every removal path (remove, legacy
+ *     revoke, expiry, self-leave) clears them, not just self-leave.
+ *
+ * G5-32 forced-logout note (Batch E, 298): when revokeAccountSessions
+ * is true (the remove/revoke paths; default), every refresh token for
+ * the user is revoked in this transaction, so the member is signed out
+ * on all devices once their access token expires (access tokens live
+ * up to 15 minutes). That revocation is account-wide, not
+ * business-scoped: sessions carry no business id, so there is no
+ * business-scoped session to revoke. After re-login the member lands
+ * on Personal Home: the workspace route redirects an unknown business
+ * to `/` (G5-31) and the home route renders the workspaceUnavailable
+ * notice there. The expiry and self-leave paths pass
+ * revokeAccountSessions: false, so a member whose access simply ended
+ * (or who left voluntarily) is NOT force-logged-out of their personal
+ * account or their other businesses.
  *
  * Staff history is deliberately NOT deleted here. Schedules, time entries
  * and training records are wage-and-hour history; migrations 946 and 1202
@@ -85,6 +112,8 @@ async function applyStaffOffboarding(client, {
     correctiveActionsReassigned: 0,
     bookingsReassigned: 0,
     appointmentsReassigned: 0,
+    jobsReassigned: 0,
+    workspaceContextsCleared: 0,
     reassignedToUserId: null,
     offboardingRecord: null,
     refreshTokensRevoked: 0,
@@ -215,6 +244,60 @@ async function applyStaffOffboarding(client, {
     );
   }
 
+  // G5-3 (294): business-attributed OxSteed jobs move to the same
+  // reassignment target as bookings and tasks, in this transaction.
+  // jobs carry no business_id, so attribution is by link only: a job
+  // reached through one of this business's bookings
+  // (booking_requests.business_id -> appointments.job_id) or through
+  // one of this business's team tasks (business_team_tasks.job_id).
+  // Only live assigned jobs move ('accepted'/'in_progress' in the
+  // job_status enum) with no open dispute (dispute_status 'open' /
+  // 'under_review');
+  // finished jobs stay as history, and unattributed jobs are the
+  // member's own work and stay with them. Moving the row also
+  // blocks the member: every job endpoint keys on client_id /
+  // assigned_helper_id, so a removed member is no longer the assignee
+  // and can no longer view, message on, or complete the job. Each move
+  // writes a job_revisions row (D-474 pattern, source 'system') so the
+  // client sees who held the job and who it moved to.
+  let jobsReassigned = 0;
+  if (reassignTo) {
+    const { rows: jobsToMove } = await client.query(
+      `SELECT j.id FROM jobs j
+        WHERE j.assigned_helper_id = $1 AND j.deleted_at IS NULL
+          AND j.status IN ('accepted', 'in_progress') AND j.dispute_status NOT IN ('open', 'under_review')
+          AND (EXISTS (SELECT 1 FROM appointments a JOIN booking_requests br ON br.appointment_id = a.id
+                        WHERE a.job_id = j.id AND br.business_id = $2)
+            OR EXISTS (SELECT 1 FROM business_team_tasks t WHERE t.job_id = j.id AND t.business_id = $2))`,
+      [userId, businessId]
+    );
+    for (const job of jobsToMove) {
+      const { rows: [updated] } = await client.query(
+        `UPDATE jobs SET assigned_helper_id = $2, version = version + 1, updated_at = NOW()
+          WHERE id = $1 AND assigned_helper_id = $3 AND status IN ('accepted', 'in_progress') AND dispute_status NOT IN ('open', 'under_review')
+          RETURNING version, revision`,
+        [job.id, reassignTo, userId]
+      );
+      if (!updated) continue;
+      await client.query(
+        `INSERT INTO job_revisions
+           (job_id, version, revision, is_material, source, actor_id, actor_role, reason, changes, snapshot,
+            request_id, idempotency_key)
+         VALUES ($1, $2, $3, TRUE, 'system', $4, 'system', 'Staff offboarding: job reassigned to manager', $5::jsonb, NULL, NULL, NULL)`,
+        [job.id, updated.version, updated.revision, removedBy,
+          JSON.stringify({ assigned_helper_id: { from: userId, to: reassignTo } })]
+      );
+      jobsReassigned += 1;
+    }
+  }
+
+  // G5-32 (298): clear this business's workspace contexts for the
+  // removed member on every removal path, not just self-leave.
+  const contexts = await client.query(
+    'DELETE FROM user_workspace_contexts WHERE user_id = $1 AND business_id = $2 RETURNING business_id',
+    [userId, businessId]
+  );
+
   // Audit fix (finding 32): a refresh token is a long-lived credential, not
   // a membership row. Revoke every refresh token for the offboarded user
   // inside the same transaction, so a revoked member cannot silently mint
@@ -237,6 +320,8 @@ async function applyStaffOffboarding(client, {
     correctiveActionsReassigned: correctiveActions.rowCount || 0,
     bookingsReassigned: bookings.rowCount || 0,
     appointmentsReassigned,
+    jobsReassigned,
+    workspaceContextsCleared: contexts.rowCount || 0,
     reassignedToUserId: reassignTo,
     refreshTokensRevoked: refreshTokens.rowCount || 0,
   };
@@ -248,10 +333,10 @@ async function applyStaffOffboarding(client, {
        (business_id, membership_id, user_id, removed_by, reason,
         pins_deactivated, sessions_ended, drawers_flagged,
         crew_tasks_reassigned, corrective_actions_reassigned,
-        bookings_reassigned, appointments_reassigned,
+        bookings_reassigned, appointments_reassigned, jobs_reassigned,
         reassigned_to_user_id, retain_until, team_tasks_reassigned)
-     SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-            (CURRENT_DATE + (COALESCE(b.staff_record_retention_years, 7) * INTERVAL '1 year'))::date,$14
+     SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+            (CURRENT_DATE + (COALESCE(b.staff_record_retention_years, 7) * INTERVAL '1 year'))::date,$15
        FROM businesses b
       WHERE b.id = $1
      RETURNING *`,
@@ -260,6 +345,7 @@ async function applyStaffOffboarding(client, {
       counts.pinsDeactivated, counts.sessionsEnded, counts.drawersFlagged,
       counts.crewTasksReassigned, counts.correctiveActionsReassigned,
       counts.bookingsReassigned, counts.appointmentsReassigned,
+      counts.jobsReassigned,
       reassignTo,
       counts.teamTasksReassigned,
     ]

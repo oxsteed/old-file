@@ -78,11 +78,13 @@ const uid = (tail) => `d0000000-0000-4000-8000-${rid}${tail}`;
 const OWNER = uid('11111111');
 const MANAGER = uid('22222222');
 const EMPLOYEE = uid('33333333');
+const EMPLOYEE2 = uid('44444444');
 
 let bizId;
 let restaurantId;
 let locationId;
 let employeeMembershipId;
+let employee2MembershipId;
 
 async function insertUser(id, email) {
   await db.query(
@@ -105,6 +107,7 @@ suite('S-11 offboarding records, reassignment, rehire (DB)', () => {
     await insertUser(OWNER, `off-owner-${stamp}@example.com`);
     await insertUser(MANAGER, `off-manager-${stamp}@example.com`);
     await insertUser(EMPLOYEE, `off-emp-${stamp}@example.com`);
+    await insertUser(EMPLOYEE2, `off-emp2-${stamp}@example.com`);
     const { rows: [biz] } = await db.query(
       `INSERT INTO businesses (user_id, business_name) VALUES ($1, $2) RETURNING id`,
       [OWNER, `Offboard Biz ${stamp}`]
@@ -124,6 +127,14 @@ suite('S-11 offboarding records, reassignment, rehire (DB)', () => {
       [bizId, OWNER, EMPLOYEE, `off-emp-${stamp}@example.com`]
     );
     employeeMembershipId = mem.id;
+    const { rows: [mem2] } = await db.query(
+      `INSERT INTO business_members
+         (business_id, owner_id, member_id, role, invite_email, status, accepted_at)
+       VALUES ($1, $2, $3, 'employee', $4, 'active', NOW())
+       RETURNING id`,
+      [bizId, OWNER, EMPLOYEE2, `off-emp2-${stamp}@example.com`]
+    );
+    employee2MembershipId = mem2.id;
     const { rows: [rest] } = await db.query(
       `INSERT INTO food_restaurants (business_id, owner_user_id, display_name)
        VALUES ($1, $2, $3) RETURNING id`,
@@ -208,6 +219,82 @@ suite('S-11 offboarding records, reassignment, rehire (DB)', () => {
     expect(String(doneRow.assigned_to)).toBe(EMPLOYEE); // completed history keeps its assignee
     const { rows: [actionRow] } = await db.query(`SELECT assignee_id FROM restaurant_corrective_actions WHERE id = $1`, [action.id]);
     expect(String(actionRow.assignee_id)).toBe(MANAGER);
+  });
+
+  test('business-attributed jobs move to the manager; personal, disputed and finished jobs stay (G5-3, 294)', async () => {
+    const mkJob = (status, dispute) => db.query(
+      `INSERT INTO jobs (client_id, assigned_helper_id, title, description, status, dispute_status)
+       VALUES ($1, $2, 'Fix sink', 'Leak under sink', $3, $4) RETURNING id`,
+      [OWNER, EMPLOYEE2, status, dispute]
+    ).then((r) => r.rows[0].id);
+    const linkBooking = async (jobId, hourOffset) => {
+      const { rows: [appt] } = await db.query(
+        `INSERT INTO appointments (customer_id, helper_id, job_id, service_description, scheduled_start_time, scheduled_end_time, status)
+         VALUES ($1, $2, $3, 'Fix sink', NOW() + ($4::int) * INTERVAL '1 hour', NOW() + ($4::int) * INTERVAL '1 hour' + INTERVAL '1 hour', 'confirmed') RETURNING id`,
+        [OWNER, EMPLOYEE2, jobId, hourOffset]
+      );
+      await db.query(
+        `INSERT INTO booking_requests (customer_id, helper_id, service_name, requested_date, requested_start_time, requested_end_time, status, business_id, appointment_id)
+         VALUES ($1, $2, 'Fix sink', CURRENT_DATE, '09:00', '10:00', 'accepted', $3, $4)`,
+        [OWNER, EMPLOYEE2, bizId, appt.id]
+      );
+    };
+    const businessJob = await mkJob('in_progress', 'none');
+    await linkBooking(businessJob, 0);
+    const acceptedJob = await mkJob('accepted', 'none');
+    await db.query(
+      `INSERT INTO business_team_tasks (business_id, assignee_id, created_by, request_id, kind, title, job_id, due_at, status)
+       VALUES ($1, $2, $3, gen_random_uuid(), 'task', 'Job-linked task', $4, NOW() + INTERVAL '1 day', 'open')`,
+      [bizId, EMPLOYEE2, MANAGER, acceptedJob]
+    );
+    const personalJob = await mkJob('in_progress', 'none');
+    const disputedJob = await mkJob('in_progress', 'open');
+    await linkBooking(disputedJob, 2);
+    const finishedJob = await mkJob('completed', 'none');
+    await linkBooking(finishedJob, 4);
+    await db.query(
+      `INSERT INTO user_workspace_contexts (user_id, business_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [EMPLOYEE2, bizId]
+    );
+
+    const result = await withTransaction(db, (client) =>
+      applyStaffOffboarding(client, {
+        businessId: bizId,
+        userId: EMPLOYEE2,
+        reason: 'test removal',
+        membershipId: employee2MembershipId,
+        removedBy: OWNER,
+        reassignToUserId: MANAGER,
+      })
+    );
+
+    expect(result.jobsReassigned).toBe(2);
+    expect(result.workspaceContextsCleared).toBe(1);
+    const { rows: moved } = await db.query(
+      `SELECT id, assigned_helper_id FROM jobs WHERE id = ANY($1::uuid[]) ORDER BY id`,
+      [[businessJob, acceptedJob]]
+    );
+    expect(moved.every((r) => String(r.assigned_helper_id) === MANAGER)).toBe(true);
+    const { rows: stayed } = await db.query(
+      `SELECT id, assigned_helper_id FROM jobs WHERE id = ANY($1::uuid[])`,
+      [[personalJob, disputedJob, finishedJob]]
+    );
+    expect(stayed.every((r) => String(r.assigned_helper_id) === EMPLOYEE2)).toBe(true);
+    const { rows: revisions } = await db.query(
+      `SELECT job_id FROM job_revisions WHERE job_id = ANY($1::uuid[]) AND source = 'system' AND reason LIKE 'Staff offboarding%'`,
+      [[businessJob, acceptedJob]]
+    );
+    expect(revisions).toHaveLength(2);
+    const { rows: ctxRows } = await db.query(
+      `SELECT 1 FROM user_workspace_contexts WHERE user_id = $1 AND business_id = $2`,
+      [EMPLOYEE2, bizId]
+    );
+    expect(ctxRows).toHaveLength(0);
+    const { rows: [record] } = await db.query(
+      `SELECT jobs_reassigned FROM staff_offboarding_records WHERE business_id = $1 AND user_id = $2 ORDER BY removed_at DESC LIMIT 1`,
+      [bizId, EMPLOYEE2]
+    );
+    expect(record.jobs_reassigned).toBe(2);
   });
 
   test('offboarding record is written with the retention deadline', async () => {
