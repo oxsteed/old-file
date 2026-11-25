@@ -841,6 +841,20 @@ async function completeCreditTopupFromWebhook({ paymentIntentId, providerEvidenc
       });
     }
   }
+  if (result.outcome === 'completed') {
+    // Live balance nudge (D-445): post-commit only; best-effort, and never
+    // fails a completed top-up. No amounts in the payload.
+    try {
+      const socketService = require('./socketService');
+      if (typeof socketService.broadcastCreditBalance === 'function') {
+        socketService.broadcastCreditBalance(result.customerId, {
+          kind: 'topup', currencyCode: result.currencyCode, transactionId: result.transactionId,
+        });
+      }
+    } catch {
+      // A failed nudge must never fail a completed top-up.
+    }
+  }
   return result;
 }
 

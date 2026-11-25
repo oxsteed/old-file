@@ -270,3 +270,12 @@ test('P1: update() runs on the 30-minute interval as a backstop', async () => {
   app.fireInterval();
   assert.equal(app.updateCalls.length, 1);
 });
+
+test('P1: the Credit page re-fetches on resume and on the balance nudge', () => {
+  const page = fs.readFileSync(path.join(root, 'src/pages/food/OxsteedCreditPage.jsx'), 'utf8');
+  // Same resume pattern as WalletPage (line 106 there).
+  assert.match(page, /useAppResume\(\(\) => load\(\{ quiet: true \}\)\)/);
+  assert.match(page, /import \{ CREDIT_BALANCE_EVENT \} from '\.\.\/\.\.\/lib\/realtime'/);
+  assert.match(page, /socket\.on\(CREDIT_BALANCE_EVENT, handler\)/);
+  assert.match(page, /socket\.off\(CREDIT_BALANCE_EVENT, handler\)/);
+});

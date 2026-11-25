@@ -8,6 +8,7 @@ const { logAdminAction } = require('../services/auditService');
 const { resolveSocketAccessToken } = require('../utils/accessCookie');
 const { isAccessTokenPayload } = require('../utils/accessToken');
 const { bindCareersInterviewRoom } = require('./careersInterviewRoom');
+const { jobRoom } = require('./socketEvents');
 
 // Logistics roles admitted to the operations workspace (mirrors
 // server/middleware/requireInternalLogisticsWorkspace.js). Holders with an
@@ -324,6 +325,43 @@ function bindChatNamespace(namespace, { pool, socketService, logger, auditLog = 
 
     socket.on('delivery:leave', (deliveryJobId) => {
       if (deliveryJobId) socket.leave(`delivery_${deliveryJobId}`);
+    });
+
+    // PWA silent updates (D-445): `job:join` subscribes this socket to the
+    // live bid stream for one job. Membership is decided server-side: the
+    // job's client, a helper who bid on the job, the assigned helper, or an
+    // admin. Anyone else joins nothing and receives no bid events. Bid
+    // events are point-in-time broadcasts, not state: after any reconnect
+    // the client MUST re-emit `job:join` and re-fetch the bid list via
+    // GET /api/bids/job/:jobId, never reconstructing it from cached events.
+    // H9: room joins gate access to data streams, so re-validate the
+    // socket's token/account before honoring them (mirrors /support's
+    // sensitive handlers).
+    socket.on('job:join', validateBeforeHandler(async (jobId) => {
+      const userId = socket.userId;
+      if (!jobId || !userId) return;
+      try {
+        const { rows } = await pool.query(
+          `SELECT 1 FROM jobs j
+            WHERE j.id = $1 AND (
+              j.client_id = $2
+              OR j.assigned_helper_id = $2
+              OR EXISTS (SELECT 1 FROM bids b WHERE b.job_id = j.id AND b.helper_id = $2)
+              OR $3 IN ('admin', 'super_admin')
+            )`,
+          [jobId, userId, socket.userRole]
+        );
+        if (rows.length) {
+          socket.join(jobRoom(jobId));
+          logger.debug('Socket joined job room', { userId, jobId });
+        }
+      } catch (err) {
+        logger.error('socket job:join error', { message: err.message });
+      }
+    }));
+
+    socket.on('job:leave', (jobId) => {
+      if (jobId) socket.leave(jobRoom(jobId));
     });
 
     // Room membership is always decided by the server. Arbitrary client room
