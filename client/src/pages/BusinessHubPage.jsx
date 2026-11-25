@@ -2387,6 +2387,7 @@ function BusinessHubInner() {
                 onResend={handleResendInvite}
                 onExpireInvite={handleExpireInvite}
                 offboardingRecords={offboardingRecords}
+                lastOffboarding={lastOffboarding}
                 onRehire={handleRehire}
                 onApprove={handleApproveMember}
                 onDeny={handleDenyMember}
@@ -3557,6 +3558,7 @@ function TeamTab({
   showVortexAccess = false,
   onInvite, onOpenHiring, businessId,
   onRevoke, onResend, onExpireInvite, offboardingRecords = [], onRehire,
+  lastOffboarding = null,
   onAccept, onDecline, onApprove, onDeny, onChangeRole,
   isOwner = false, canEditPermissions = false, onEditPermissions,
   showOnceCode, onDismissShowOnceCode,
