@@ -47447,7 +47447,15 @@
       "unassigned": "Sin asignar",
       "uncategorised": "Sin categoría",
       "sharedAt": "Compartido",
-      "assigneeUserId": "ID de usuario asignado"
+      "assigneeUserId": "ID de usuario asignado",
+      "consentExpired": "Consentimiento vencido",
+      "consentValidUntil": "Consentimiento válido hasta",
+      "instructionsExpireAt": "Las instrucciones vencen",
+      "keyHistory": "Historial de llaves",
+      "scheduleTitle": "Título del programa",
+      "nextDueOn": "Próximo vencimiento",
+      "equipmentName": "Equipo",
+      "slaBreaches": "Incumplimientos de SLA"
     },
     "ops": {
       "title": "Consola de operaciones",

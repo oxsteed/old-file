@@ -226,20 +226,37 @@ function windowsOf(list) {
   if (!Array.isArray(list) || list.length > 6) invalid('offered_windows');
   return list.map(w => { const s = isoDate(w?.start, 'start'); const e = isoDate(w?.end, 'end'); if (e <= s) invalid('end'); return { start: s, end: e }; });
 }
-const visibleEntry = (e) => e && ({ ...e, instructions: e.instructions_expire_at && new Date(e.instructions_expire_at) <= new Date() ? null : e.instructions, instructions_expired: Boolean(e.instructions_expire_at && new Date(e.instructions_expire_at) <= new Date()) });
+// D-505: consent authorizes one visit only — the selected window. A
+// granted consent with no selected window authorizes nothing yet, and a
+// consent whose window ended no longer authorizes entry. The stored consent
+// is never rewritten; the read surface reports the effective state.
+const visibleEntry = (e) => e && ({ ...e, instructions: e.instructions_expire_at && new Date(e.instructions_expire_at) <= new Date() ? null : e.instructions, instructions_expired: Boolean(e.instructions_expire_at && new Date(e.instructions_expire_at) <= new Date()),
+  consent_valid_until: e.selected_end || null, consent_expired: Boolean(e.consent === 'granted' && e.selected_end && new Date(e.selected_end) <= new Date()) });
 async function getEntry(businessId, requestId, user, role) {
   const { request: r } = await requestAccess(pool, businessId, requestId, user, role);
   const { rows: [e] } = await pool.query('SELECT * FROM property_entry_records WHERE request_id=$1', [r.id]);
-  return { request_id: r.id, permission_to_enter: r.permission_to_enter, entry: visibleEntry(e) || null };
+  const entry = visibleEntry(e) || null;
+  const entry_authorized = Boolean(entry && entry.consent === 'granted' && entry.selected_end && new Date(entry.selected_end) > new Date());
+  return { request_id: r.id, permission_to_enter: r.permission_to_enter, entry_authorized, entry };
 }
 async function saveEntry(businessId, requestId, user, role, body) {
   const b = body || {};
   const consent = b.consent === undefined ? undefined : oneOf(b.consent, ['granted', 'denied'], 'consent');
   const method = consent ? oneOf(b.consent_method, ['portal', 'phone', 'email', 'in_person', 'written'], 'consent_method') : null;
   const windows = windowsOf(b.offered_windows);
-  const expires = b.instructions_expire_at ? isoDate(b.instructions_expire_at, 'instructions_expire_at') : null;
   return withTransaction(pool, async db => {
     const { request: r } = await requestAccess(db, businessId, requestId, user, role, { lock: true });
+    // D-506: visit instructions expire with the scheduled window. When new
+    // instructions arrive with no explicit expiry, default to the latest
+    // offered window end, else the already-selected window end, else the
+    // previous expiry. An explicit expiry always wins; a save with no new
+    // instructions leaves the expiry untouched.
+    const { rows: [prev] } = await db.query('SELECT selected_end, instructions_expire_at FROM property_entry_records WHERE request_id=$1', [r.id]);
+    const hasInstructions = b.instructions !== undefined && b.instructions !== null && String(b.instructions).trim() !== '';
+    let expires = null;
+    if (b.instructions_expire_at) expires = isoDate(b.instructions_expire_at, 'instructions_expire_at');
+    else if (hasInstructions && windows?.length) expires = windows.reduce((m, w) => (w.end > m ? w.end : m), windows[0].end);
+    else if (hasInstructions) expires = prev?.selected_end || prev?.instructions_expire_at || null;
     const { rows: [e] } = await db.query(`INSERT INTO property_entry_records(business_id, request_id, consent, consent_method, consent_given_by, consent_recorded_by, consent_recorded_at, offered_windows, instructions, instructions_expire_at)
       VALUES($1,$2,$3::varchar,$4,$5,CASE WHEN $3::varchar IS NOT NULL THEN $6::uuid END,CASE WHEN $3::varchar IS NOT NULL THEN NOW() END,COALESCE($7::jsonb,'[]'::jsonb),$8,$9)
       ON CONFLICT (request_id) DO UPDATE SET
@@ -280,7 +297,9 @@ async function selectWindow(user, requestId, body) {
     const w = e?.offered_windows.find(x => new Date(x.start).getTime() === new Date(start).getTime());
     if (!w) fail(409, 'window_not_offered');
     await db.query(`UPDATE property_entry_records SET selected_start=$2, selected_end=$3, selected_by=$4, consent=COALESCE(consent,'granted'), consent_method=COALESCE(consent_method,'portal'),
-      consent_recorded_at=COALESCE(consent_recorded_at,NOW()), updated_at=NOW() WHERE id=$1`, [e.id, w.start, w.end, user]);
+      consent_recorded_at=COALESCE(consent_recorded_at,NOW()),
+      instructions_expire_at=CASE WHEN instructions IS NULL THEN instructions_expire_at ELSE LEAST(COALESCE(instructions_expire_at, $3::timestamptz), $3::timestamptz) END,
+      updated_at=NOW() WHERE id=$1`, [e.id, w.start, w.end, user]);
     await db.query(`UPDATE property_maintenance_requests SET scheduled_start_at=$2, scheduled_end_at=$3, permission_to_enter=TRUE, updated_at=NOW() WHERE id=$1`, [r.id, w.start, w.end]);
     await event(db, r.id, user, 'entry_window_selected', null, w);
     return { r, w };

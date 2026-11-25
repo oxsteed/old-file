@@ -47447,7 +47447,15 @@
       "unassigned": "Unassigned",
       "uncategorised": "Uncategorised",
       "sharedAt": "Shared",
-      "assigneeUserId": "Assignee user ID"
+      "assigneeUserId": "Assignee user ID",
+      "consentExpired": "Consent expired",
+      "consentValidUntil": "Consent valid until",
+      "instructionsExpireAt": "Instructions expire",
+      "keyHistory": "Key history",
+      "scheduleTitle": "Schedule title",
+      "nextDueOn": "Next due",
+      "equipmentName": "Equipment",
+      "slaBreaches": "SLA breaches"
     },
     "ops": {
       "title": "Operations console",

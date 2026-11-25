@@ -115,8 +115,21 @@ describeDb('Group 7: property manager', () => {
     await request(app).post(`/api/me/property/entry/${reqId}/window`).set(as(tenant)).send({ start }).expect(200);
     await pool.query("UPDATE property_entry_records SET instructions_expire_at=NOW() - INTERVAL '1 minute' WHERE request_id=$1", [reqId]);
     const e = (await request(app).get(`${B()}/requests/${reqId}/entry`).set(as(staff)).expect(200)).body.entry;
-    expect(e).toMatchObject({ instructions: null, instructions_expired: true, consent: 'granted' });
+    expect(e).toMatchObject({ instructions: null, instructions_expired: true, consent: 'granted', consent_expired: false });
     expect(new Date(e.selected_start).toISOString()).toBe(start);
+    // D-505: consent authorizes the selected window only. Before the window
+    // ends the visit is authorized; once the window ends it is not.
+    expect((await request(app).get(`${B()}/requests/${reqId}/entry`).set(as(staff)).expect(200)).body.entry_authorized).toBe(true);
+    await pool.query("UPDATE property_entry_records SET selected_end=NOW() - INTERVAL '1 hour' WHERE request_id=$1", [reqId]);
+    const e2 = (await request(app).get(`${B()}/requests/${reqId}/entry`).set(as(staff)).expect(200)).body;
+    expect(e2.entry_authorized).toBe(false);
+    expect(e2.entry).toMatchObject({ consent_expired: true });
+    // D-506: instructions saved with no explicit expiry default to the
+    // latest offered window end.
+    const req2 = (await pool.query(`INSERT INTO property_maintenance_requests(business_id,owner_id,requester_id,status,urgency,issue_category,title,description,property_id) VALUES($1,$2,$3,'reported','normal','plumbing','Tap','d',$4) RETURNING id`, [bizId, owner, tenant, pid])).rows[0].id;
+    const w2s = new Date(Date.now() + 2 * 864e5).toISOString(); const w2e = new Date(Date.now() + 3 * 864e5).toISOString();
+    const e3 = (await request(app).put(`${B()}/requests/${req2}/entry`).set(as(staff)).send({ consent: 'granted', consent_method: 'portal', offered_windows: [{ start: w2s, end: w2e }], instructions: 'Knock twice' }).expect(200)).body;
+    expect(new Date(e3.instructions_expire_at).toISOString()).toBe(w2e);
     keyId = (await request(app).post(`${B()}/p/${pid}/keys`).set(as(manager)).send({ label: '2A front', unit_id: unitId }).expect(201)).body.id;
     await request(app).post(`${B()}/keys/${keyId}/check-out`).set(as(staff)).send({ holder_user_id: staff, request_id: reqId }).expect(200);
     await request(app).post(`${B()}/keys/${keyId}/check-out`).set(as(staff)).send({ holder_name: 'x' }).expect(409);

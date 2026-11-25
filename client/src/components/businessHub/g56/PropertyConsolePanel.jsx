@@ -364,7 +364,7 @@ function RequestDetail({ base, requestId, onClose }) {
   const [quoteForm, setQuoteForm] = useState({ vendor_id: '', amount: '', scope: '', available_on: '' });
   const [woForm, setWoForm] = useState({ vendor_id: '', quote_id: '', nte: '', scope: '' });
   const [approvalForm, setApprovalForm] = useState({ amount: '', note: '' });
-  const [entryForm, setEntryForm] = useState({ consent: 'granted', method: 'portal', start: '', end: '', instructions: '' });
+  const [entryForm, setEntryForm] = useState({ consent: 'granted', method: 'portal', start: '', end: '', instructions: '', instructionsExpireAt: '' });
   if (!q.data) return q.errorText ? <p className="g56-error">{q.errorText}</p> : null;
   const addQuote = async (ev) => {
     ev.preventDefault();
@@ -401,6 +401,7 @@ function RequestDetail({ base, requestId, onClose }) {
     await e.send('put', `${base}/requests/${requestId}/entry`, {
       consent: entryForm.consent, consent_method: entryForm.method,
       offered_windows: windows, instructions: entryForm.instructions.trim() || undefined,
+      instructions_expire_at: entryForm.instructionsExpireAt ? new Date(entryForm.instructionsExpireAt).toISOString() : undefined,
     });
   };
   return (
@@ -458,6 +459,8 @@ function RequestDetail({ base, requestId, onClose }) {
           {q.tr('permissionToEnter')}: {String(e.data.permission_to_enter ?? '—')}
           {e.data.entry?.instructions ? ` · ${q.tr('entryInstructions')}: ${e.data.entry.instructions}` : ''}
           {e.data.entry?.instructions_expired ? ` · ${q.tr('instructionsExpired')}` : ''}
+          {e.data.entry?.consent_expired ? ` · ${q.tr('consentExpired')}` : ''}
+          {e.data.entry?.consent_valid_until && !e.data.entry?.consent_expired ? ` · ${q.tr('consentValidUntil')}: ${q.time(e.data.entry.consent_valid_until)}` : ''}
         </p>
       )}
       <form onSubmit={saveEntry} className="g56-row" data-track="ui.e96cf59a5b.28">
@@ -465,6 +468,7 @@ function RequestDetail({ base, requestId, onClose }) {
         <label>{q.tr('windowStart')}<input type="datetime-local" value={entryForm.start} onChange={(ev) => setEntryForm({ ...entryForm, start: ev.target.value })} /></label>
         <label>{q.tr('windowEnd')}<input type="datetime-local" value={entryForm.end} onChange={(ev) => setEntryForm({ ...entryForm, end: ev.target.value })} /></label>
         <label>{q.tr('entryInstructions')}<input value={entryForm.instructions} maxLength={2000} onChange={(ev) => setEntryForm({ ...entryForm, instructions: ev.target.value })} /></label>
+        <label>{q.tr('instructionsExpireAt')}<input type="datetime-local" value={entryForm.instructionsExpireAt} onChange={(ev) => setEntryForm({ ...entryForm, instructionsExpireAt: ev.target.value })} /></label>
         <button type="submit" disabled={e.busy} data-track="ui.e96cf59a5b.29">{q.tr('saveEntry')}</button>
       </form>
     </div>
@@ -570,6 +574,12 @@ function KeysSection({ base, propertyId, p }) {
         <label>{k.tr('contactName')}<input value={holder} maxLength={160} onChange={(ev) => setHolder(ev.target.value)} /></label>
         <button type="submit" disabled={k.busy || !label.trim()} data-track="ui.e96cf59a5b.36">{k.tr('addKey')}</button>
       </form>
+      {k.data.keys.some((row) => (row.events || []).length > 0) && (
+        <div>
+          <h5>{k.tr('keyHistory')}</h5>
+          <ul className="g56-list">{k.data.keys.flatMap((row) => (row.events || []).map((ev, idx) => <li key={`${row.id}-${idx}`}>{row.label} · {ev.action} · {ev.holder_name || '—'} · {k.time(ev.at)}</li>))}</ul>
+        </div>
+      )}
     </div>
   );
 }

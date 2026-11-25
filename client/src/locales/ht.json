@@ -47447,7 +47447,15 @@
       "unassigned": "Pa asiyen",
       "uncategorised": "San kategori",
       "sharedAt": "Yo te pataje l",
-      "assigneeUserId": "ID itilizatè yo asiyen l"
+      "assigneeUserId": "ID itilizatè yo asiyen l",
+      "consentExpired": "Konsantman ekspire",
+      "consentValidUntil": "Konsantman valab jiska",
+      "instructionsExpireAt": "Enstriksyon yo ekspire",
+      "keyHistory": "Istorik kle",
+      "scheduleTitle": "Tit orè a",
+      "nextDueOn": "Pwochen dat limit",
+      "equipmentName": "Ekipman",
+      "slaBreaches": "SLA ki depase"
     },
     "ops": {
       "title": "Konsòl operasyon",

@@ -47561,7 +47561,15 @@
       "unassigned": "غير مكلَّف",
       "uncategorised": "بلا فئة",
       "sharedAt": "شُارك في",
-      "assigneeUserId": "معرّف المستخدم المكلَّف"
+      "assigneeUserId": "معرّف المستخدم المكلَّف",
+      "consentExpired": "انتهت صلاحية الموافقة",
+      "consentValidUntil": "الموافقة صالحة حتى",
+      "instructionsExpireAt": "انتهاء صلاحية التعليمات",
+      "keyHistory": "سجل المفاتيح",
+      "scheduleTitle": "عنوان الجدولة",
+      "nextDueOn": "الاستحقاق التالي",
+      "equipmentName": "المعدات",
+      "slaBreaches": "تجاوزات اتفاقية مستوى الخدمة"
     },
     "ops": {
       "title": "وحدة تحكم العمليات",
