@@ -151,6 +151,9 @@ function subject({
     reloads, posted, updateCalls, versionFetches, intervals, timeouts,
     fireControllerChange, settle, safety, ...registrationModule, ...lazyModule,
     fireInterval: () => { for (const t of [...intervals]) t.fn(); },
+    fireRegistrationEvent: (type) => {
+      for (const fn of [...(regListeners.get(type) || [])]) fn();
+    },
     dispatchVisibility: (state) => {
       doc.visibilityState = state;
       doc.dispatchEvent(new Event('visibilitychange'));
@@ -348,4 +351,25 @@ test('P2: App re-fetches active queries after a socket reconnect', () => {
   const appJsx = fs.readFileSync(path.join(root, 'src/App.jsx'), 'utf8');
   assert.match(appJsx, /import \{ subscribeSocketReconnect \} from '\.\/hooks\/useSocket'/);
   assert.match(appJsx, /subscribeSocketReconnect\(\(\) => queryClient\.invalidateQueries\(\)\)/);
+});
+
+test('P1: a worker that reaches waiting before updatefound is still tracked', async () => {
+  // CI red (run 45595409891, pwaShell test 115): a fast install can reach
+  // 'waiting' before the updatefound handler runs, so registration.installing
+  // is already null, no statechange listener is ever attached, and the
+  // module never tracks the waiting worker — the pushState quiet-apply path
+  // then does nothing and the tab never reloads. The registration must be
+  // checked directly when the handler runs, not only via statechange.
+  const app = subject({ waiting: false });
+  app.registerServiceWorker();
+  await app.settle();
+  await app.settle();
+  assert.equal(app.getWaitingWorker(), null);
+  // Simulate a user interaction so the silent window does not apply the
+  // worker immediately; it must be tracked for quiet apply instead.
+  app.win.dispatchEvent(new Event('input'));
+  app.registration.waiting = app.worker;
+  app.fireRegistrationEvent('updatefound');
+  assert.equal(app.getWaitingWorker(), app.worker);
+  assert.equal(app.posted.length, 0, 'tracked, not yet applied');
 });

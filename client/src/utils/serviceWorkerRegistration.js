@@ -274,6 +274,17 @@ export function registerServiceWorker() {
         worker?.addEventListener('statechange', () => {
           if (worker.state === 'installed') detectWaiting();
         });
+        // A fast install can reach 'waiting' before the updatefound handler
+        // runs (or before this first call): registration.installing is
+        // already null, the statechange listener above never fires, and
+        // detectWaiting is never called again — so check the registration
+        // directly too. Without this, a waiting worker the module never
+        // tracks can never apply silently: the tab sits on the old release
+        // until a manual refresh, and the pushState quiet-apply path does
+        // nothing (CI: pwaShell test 115 timed out waiting for the reload
+        // after navigating). The D-444 resume/interval update() calls hit
+        // the same race.
+        detectWaiting();
       };
       registration.addEventListener('updatefound', watchInstalling);
       watchInstalling();

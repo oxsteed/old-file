@@ -43,6 +43,7 @@ describeDb('pwa silent updates: live credit and bids', () => {
   let pool;
   let httpServer;
   let io;
+  let chat;
   let ids;
   let jobId;
   let bidId;
@@ -95,14 +96,31 @@ describeDb('pwa silent updates: live credit and bids', () => {
     return seen;
   }
 
-  async function waitFor(fn, label) {
-    const deadline = Date.now() + 5000;
+  async function waitFor(fn, label, timeoutMs = 5000) {
+    const deadline = Date.now() + timeoutMs;
     for (;;) {
       const value = fn();
       if (value) return value;
       if (Date.now() > deadline) throw new Error(`Timed out waiting for ${label}`);
       await new Promise((resolve) => setTimeout(resolve, 25));
     }
+  }
+
+  // Wait until the server has actually admitted this socket to the job room.
+  // A fixed sleep after job:join is not enough: under suite load the join's
+  // token re-validation + access query can take longer than the sleep, and
+  // a bid broadcast in between misses the socket entirely (the full suite
+  // failed exactly this way: the admin never received bid:created).
+  async function waitForRoom(socket, roomJobId) {
+    const { jobRoom } = require('../realtime/socketEvents');
+    const room = jobRoom(roomJobId);
+    await waitFor(
+      () => chat.adapter.rooms.get(room)?.has(socket.id),
+      `socket ${socket.id} to join ${room}`,
+      // The join runs token re-validation plus an access query; give it
+      // headroom over the 5s event waits for a loaded machine.
+      10000,
+    );
   }
 
   function callController(fn, req) {
@@ -151,7 +169,7 @@ describeDb('pwa silent updates: live credit and bids', () => {
     );
     httpServer = http.createServer();
     io = new Server(httpServer);
-    const chat = io.of('/chat');
+    chat = io.of('/chat');
     chat.use(createChatAuthenticator({ pool, jwtSecret: process.env.JWT_SECRET }));
     bindChatNamespace(chat, { pool, socketService, logger: silentLogger });
     socketService.init(chat);
@@ -175,7 +193,10 @@ describeDb('pwa silent updates: live credit and bids', () => {
     clientSocket.emit('job:join', jobId);
     strangerSocket.emit('job:join', jobId);
     adminSocket.emit('job:join', jobId);
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await waitForRoom(clientSocket, jobId);
+    await waitForRoom(adminSocket, jobId);
+    // The stranger is denied: never a room member, so no membership wait —
+    // the negative assertion below only needs the broadcast to have flown.
     const { createBid } = require('../controllers/bidController');
     const { statusCode, payload } = await callController(createBid, {
       user: { id: ids.helper, role: 'helper' },
@@ -196,7 +217,7 @@ describeDb('pwa silent updates: live credit and bids', () => {
     const helperSocket = await connectSocket(ids.helper);
     const helperBids = collect(helperSocket, 'bid:updated');
     helperSocket.emit('job:join', jobId);
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await waitForRoom(helperSocket, jobId);
     const { updateBid } = require('../controllers/bidController');
     const updated = await callController(updateBid, {
       user: { id: ids.helper, role: 'helper' },
@@ -212,7 +233,7 @@ describeDb('pwa silent updates: live credit and bids', () => {
     const clientSocket = await connectSocket(ids.client);
     const withdrawn = collect(clientSocket, 'bid:withdrawn');
     clientSocket.emit('job:join', jobId);
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await waitForRoom(clientSocket, jobId);
     const { withdrawBid } = require('../controllers/bidController');
     const result = await callController(withdrawBid, {
       user: { id: ids.helper, role: 'helper' },
