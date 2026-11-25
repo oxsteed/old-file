@@ -495,6 +495,21 @@ function JobDetailContent() {
     }
   }
 
+  // D-451 (270, G5-4): the assigned helper confirms attendance; the exact
+  // address is only revealed after this stamp exists (see serializeJob).
+  async function handleConfirmAttendance() {
+    setActionLoading(true);
+    try {
+      await api.post(`/jobs/${id}/attendance`);
+      fetchJob(id);
+      toast.success(t('jobDetail.attendanceConfirmed'));
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   // G-15: either party marks a no-show (terminal). A reason is required.
   async function handleNoShow() {
     if (!noShowReason.trim()) {
@@ -824,6 +839,14 @@ function JobDetailContent() {
             <h3>{t('jobDetail.aftercareTitle')}</h3>
             <p className="jd-aftercare-text">{job.aftercare_instructions}</p>
           </div>}
+          {/* D-451 (270, G5-4): the assigned helper confirms attendance; the
+              exact address stays hidden until this stamp exists. */}
+          {isAssignedHelper && ['accepted', 'in_progress'].includes(job.status) && !job.attendance_confirmed_at && <div className="jdp-secondary-action">
+            <button type="button" className="jdp-btn-ghost" onClick={handleConfirmAttendance} disabled={actionLoading || loading} data-track="ui.573dfef74b.28">{t('jobDetail.confirmAttendance')}</button>
+          </div>}
+          {isAssignedHelper && job.attendance_confirmed_at && <p role="status" className="jdp-completion-pending">
+            {t('jobDetail.attendanceConfirmedAt', { time: new Date(job.attendance_confirmed_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}
+          </p>}
           {/* G-15: the assigned helper marks arrival; the customer sees it. */}
           {isAssignedHelper && ['accepted', 'in_progress'].includes(job.status) && !job.arrived_at && <div className="jdp-secondary-action">
             <button type="button" className="jdp-btn-ghost" onClick={handleArrive} disabled={actionLoading || loading} data-track="ui.573dfef74b.18">{t('jobDetail.markArrived')}</button>
@@ -965,6 +988,7 @@ function JobDetailContent() {
               {daysLeft !== null && <div><dt>{t('jobDetail.expires')}</dt><dd>{daysLeft === 0 ? t('jobDetail.postingExpired') : calendarDate(job.expires_at)}</dd></div>}
               {(job.scheduled_date || job.scheduled_time) && <div><dt>{t('jobDetail.scheduled')}</dt><dd>{job.scheduled_date && calendarDate(job.scheduled_date)}{job.scheduled_date && job.scheduled_time && ` ${t('jobDetail.at')} `}{job.scheduled_time && String(job.scheduled_time).substring(0, 5)}</dd></div>}
               {job.location_address && <div><dt>{t('jobDetail.addressLabel')}</dt><dd>{job.location_address}</dd></div>}
+              {isAssignedHelper && !job.location_address && !job.attendance_confirmed_at && ['accepted', 'in_progress'].includes(job.status) && <div><dt>{t('jobDetail.addressLabel')}</dt><dd>{t('jobDetail.addressHiddenUntilAttendance')}</dd></div>}
             </dl>
             {job.client_name && <div className="jdp-participant"><h3 className="jdp-small-heading">{t('jobDetail.postedBy')}</h3><div className="jdp-client-row"><span className="jdp-client-avatar" aria-hidden="true">{initials(job.client_name)}</span><p>{formatNameForPrivacy(job.client_name)}</p></div></div>}
             {job.helper_name && job.assigned_helper_id && <div className="jdp-participant"><h3 className="jdp-small-heading">{t('jobDetail.assignedHelper')}</h3><div className="jdp-client-row"><span className="jdp-client-avatar" aria-hidden="true">{initials(job.helper_name)}</span><p>{formatNameForPrivacy(job.helper_name)}</p></div></div>}

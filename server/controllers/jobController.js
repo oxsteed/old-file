@@ -3,7 +3,7 @@ const { attributePromotionJobHire } = require('../analytics/promotionAttribution
 const { scoreAndMatch } = require('../services/matchService');
 const { uploadFile, getPublicUrl, deleteFile } = require('../utils/storage');
 const logger = require('../utils/logger');
-const { fuzzCoords } = require('../models/jobModel');
+const { fuzzCoords, confirmAttendance } = require('../models/jobModel');
 const { withTransaction, withJobTransaction } = require('../utils/transaction');
 const { captureAuthorizedPaymentWithClient, reconcileJobAuthorizationFromStripe } = require('../services/paymentCaptureService');
 const { assertNoPendingAdjustment } = require('../services/jobPaymentReauthorizationService');
@@ -610,6 +610,7 @@ exports.getJob = async (req, res, next) => {
         j.created_at, j.updated_at, j.expires_at,
         j.started_at, j.completed_at, j.cancelled_at, j.cancellation_reason,
         j.escrow_status, j.accepted_at, j.completion_requested_at,
+        j.attendance_confirmed_at,
         j.completion_requested_at + make_interval(hours => ${HELPER_COMPLETION_CONFIRM_HOURS_SQL}) AS completion_auto_confirm_at,
         j.payment_rail, j.settlement_currency, j.location_country_code, j.timezone,
         u.first_name || ' ' || u.last_name AS client_name,
@@ -1453,6 +1454,41 @@ exports.markJobArrived = async (req, res, next) => {
   }
 };
 
+// D-451 (270, G5-4): the assigned helper confirms attendance on the job.
+// This wires up jobModel.confirmAttendance, which had zero route callers:
+// the exact address stays hidden from the helper (see serializeJob) until
+// this stamp exists. Idempotent only in the sense that a second confirm
+// 409s; the stamp itself is the attendance evidence.
+exports.confirmJobAttendance = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { rows: jobRows } = await pool.query(
+      `SELECT id, client_id, assigned_helper_id, status, attendance_confirmed_at
+         FROM jobs WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    );
+    const job = jobRows[0];
+    if (!job || String(job.assigned_helper_id) !== String(req.user.id)) {
+      throw new AppError('Job not found or you are not the assigned helper', 404, 'job_not_found');
+    }
+    if (job.attendance_confirmed_at) {
+      throw new AppError('Attendance is already confirmed for this job', 409, 'already_confirmed');
+    }
+    if (!['accepted', 'in_progress'].includes(job.status)) {
+      throw new AppError(`Attendance cannot be confirmed in '${job.status}' state`, 400, 'invalid_job_state');
+    }
+    let result;
+    try {
+      result = await confirmAttendance(id, req.user.id);
+    } catch (modelErr) {
+      throw new AppError('Cannot confirm attendance for this job.', 409, 'attendance_not_confirmed');
+    }
+    res.json({ message: 'Attendance confirmed', job: serializeJob(result, { user: req.user }) });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // G-15: no-show is a terminal state for a job (and its linked appointment)
 // when one party never shows. The other party is notified and the client
 // gets a rebook prompt on the job page.
@@ -2058,7 +2094,7 @@ exports.getMyJobs = async (req, res, next) => {
         budget_min_cents, budget_max_cents, currency_code,
         version, revision,
         ${asHelper ? 'NULL::text AS private_notes' : 'private_notes'},
-        accepted_at, completion_requested_at,
+        accepted_at, completion_requested_at, attendance_confirmed_at,
         started_at, completed_at, cancelled_at, cancellation_reason,
         expires_at, created_at, updated_at
       FROM jobs
@@ -2073,6 +2109,14 @@ exports.getMyJobs = async (req, res, next) => {
     if (!asHelper) {
       for (const row of rows) {
         if (String(row.client_id) !== String(req.user.id)) row.private_notes = null;
+      }
+    }
+    // D-451 (270, G5-4): getMyJobs bypasses serializeJob, so the helper
+    // address gate is applied here directly: a helper who has not
+    // confirmed attendance sees no exact address in their own job list.
+    if (asHelper) {
+      for (const row of rows) {
+        if (!row.attendance_confirmed_at) row.location_address = null;
       }
     }
 

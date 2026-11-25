@@ -57,6 +57,12 @@ function serializeJob(row, { user = null, role = null } = {}) {
     for (const key of PARTY_ONLY) delete out[key];
   } else if (viewer === 'helper') {
     for (const key of OWNER_ONLY) delete out[key];
+    // D-451 (270, G5-4): the assigned helper sees the exact address only
+    // after confirming attendance. The column the gate reads must be
+    // selected by every helper-visible read (getJob, getMyJobs); a row
+    // without it fails closed and the address stays hidden. City/state/
+    // zip are coarse planning data and stay visible.
+    if (!row.attendance_confirmed_at) delete out.location_address;
   } else if (viewer === 'linked') {
     // G-6/G-7: a linked recipient/site contact sees the site (address)
     // and who posted it, but no escrow, payment bookkeeping, fees, or

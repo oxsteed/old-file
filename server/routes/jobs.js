@@ -18,7 +18,7 @@ const { errorHandler } = require('../middleware/errorHandler');
 const {
   createJob, getJobs, getJob, getPublicJob, updateJob, patchJob, getJobRevisions,
   cancelJob, assignHelper, startJob, markJobArrived, markJobNoShow, requestJobChanges,
-  completeJob, closeJob, getMyJobs,
+  completeJob, closeJob, getMyJobs, confirmJobAttendance,
 } = require('../controllers/jobController');
 
 const { getDraft, saveDraft, deleteDraft } = require('../controllers/draftController');
@@ -98,6 +98,7 @@ const jobHandback = require('../services/jobHandbackService');
 // Group 4 rest item 184: the assigned helper hands a hired job back before it starts.
 router.post('/:id/hand-back', authenticate, rejectImpersonated, jobEditLimiter, async (req, res, next) => { try { res.json({ handback: await jobHandback.handBack(req.user.id, req.params.id, req.body) }); } catch (e) { next(e); } });
 router.post('/:id/arrive',   authenticate, markJobArrived);
+router.post('/:id/attendance', authenticate, confirmJobAttendance);
 router.post('/:id/no-show',  authenticate, markJobNoShow);
 // G-16: customer asks for changes on a completion request (rework, not a dispute).
 router.post('/:id/request-changes', authenticate, requestJobChanges);
