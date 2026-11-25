@@ -76,6 +76,8 @@ const NOTIFICATION_TYPES = [
   { type: 'household_spending_request', group: 'work' },
   { type: 'household_visit_update', group: 'work' },
   { type: 'booking_transferred', group: 'work' },
+  // G5-11 (260): a pending business booking dispatched to a member.
+  { type: 'booking_dispatched', group: 'work' },
   { type: 'booking_request_new', group: 'work' },
   { type: 'booking_reschedule_accepted', group: 'work' },
   { type: 'booking_reschedule_declined', group: 'work' },

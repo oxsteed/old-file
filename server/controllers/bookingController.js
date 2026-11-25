@@ -1406,6 +1406,11 @@ exports.transferBookingRequest = async (req, res) => {
         `UPDATE booking_requests
             SET helper_id = $2,
                 helper_response_reason = COALESCE($3, helper_response_reason),
+                -- G5-11 (260): a transfer is not a dispatch; the new
+                -- provider was not dispatched and confirms by accepting
+                -- as the provider, not via the dispatch flow.
+                dispatch_status = NULL,
+                dispatched_at = NULL,
                 updated_at = CURRENT_TIMESTAMP
           WHERE id = $1 AND status = 'accepted'
           RETURNING *`,
@@ -1480,6 +1485,135 @@ exports.transferBookingRequest = async (req, res) => {
   } catch (err) {
     logger.error('Error transferring booking', { error: err.message });
     sendError(res, 500, 'Failed to transfer booking');
+  }
+};
+
+/**
+ * G5-11 (260): dispatch a pending business booking to a member.
+ * Manager-gated (isBookingManagerForBooking), same as accept/decline.
+ * Sets helper_id to the member with dispatch_status='pending'; the member
+ * confirms by accepting (any accept path flips it to 'confirmed'), and a
+ * member who cannot do the work transfers it on (they pass the manager
+ * gate as the current provider). Decline semantics are untouched:
+ * declining still declines the booking for the customer. Pending only:
+ * a counter-proposed booking already carries a counter proposal from its
+ * current provider. Notifies the member (booking_dispatched) and
+ * broadcasts booking:updated so their queue refreshes.
+ */
+exports.dispatchBookingRequest = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const actorId = req.user.id;
+    const { memberId } = req.body || {};
+
+    if (typeof memberId !== 'string' || !/^[0-9a-f-]{36}$/i.test(memberId)) {
+      return sendError(res, 400, 'A valid member id is required', 'validation_failed');
+    }
+
+    const booking = await bookingLifecycle.loadBooking(bookingId);
+    if (!booking) {
+      return sendError(res, 404, 'Booking request not found');
+    }
+    if (!(await bookingLifecycle.isBookingManagerForBooking(actorId, booking))) {
+      return sendError(res, 403, 'Only the provider or a business manager can dispatch this booking', 'forbidden');
+    }
+    if (!booking.business_id) {
+      return sendError(res, 400, 'Only business bookings can be dispatched', 'dispatch_target_ineligible');
+    }
+    if (booking.status !== 'pending') {
+      return sendError(res, 400, 'Only pending bookings can be dispatched');
+    }
+    if (String(memberId) === String(booking.helper_id)) {
+      return sendError(res, 400, 'Booking is already with this member', 'validation_failed');
+    }
+    if (String(memberId) === String(booking.customer_id)) {
+      return sendError(res, 400, 'The customer cannot be the provider', 'validation_failed');
+    }
+
+    const { rows: [membership] } = await pool.query(
+      `SELECT 1 FROM businesses WHERE id = $1 AND user_id = $2 AND is_active = TRUE
+        UNION
+       SELECT 1 FROM business_members
+        WHERE business_id = $1 AND member_id = $2 AND status = 'active'`,
+      [booking.business_id, memberId]
+    );
+    if (!membership) {
+      return sendError(res, 400, 'Member is not part of this business', 'dispatch_target_ineligible');
+    }
+
+    const updatedResult = await withTransaction(pool, async (client) => {
+      const updated = await client.query(
+        `UPDATE booking_requests
+            SET helper_id = $2,
+                dispatch_status = 'pending',
+                dispatched_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1 AND status = 'pending'
+          RETURNING *`,
+        [bookingId, memberId]
+      );
+      if (!updated.rows.length) return updated;
+      await emitDomainEvent(client, 'booking.dispatched', serviceEventProps(updated.rows[0]), {
+        userId: actorId,
+        req,
+      });
+      return updated;
+    }, 'booking_dispatch');
+
+    const updated = updatedResult.rows[0];
+    if (!updated) {
+      return sendError(res, 400, 'Booking cannot be dispatched', 'booking_not_dispatchable');
+    }
+
+    await logBookingAudit(bookingId, 'dispatched', actorId, 'helper', 'pending', 'pending');
+    try {
+      broadcastToUser(memberId, 'booking:updated', { bookingId: booking.id, status: 'pending' });
+      await sendNotification({
+        userId: memberId,
+        type: 'booking_dispatched',
+        body: `${booking.service_name}, ${booking.requested_date} ${booking.requested_start_time}-${booking.requested_end_time}`,
+        data: { bookingId: booking.id, dispatchedBy: actorId },
+        action_url: '/calendar?tab=bookingRequests',
+      });
+    } catch (e) {
+      logger.warn('Failed to notify member of booking dispatch', { error: e.message });
+    }
+
+    logger.info('Booking dispatched', { bookingId, actorId, memberId });
+    res.json({
+      success: true,
+      data: transformBooking(updated),
+    });
+  } catch (err) {
+    logger.error('Error dispatching booking', { error: err.message });
+    sendError(res, 500, 'Failed to dispatch booking');
+  }
+};
+
+/**
+ * G5-12 (257): dispatch + transfer candidates for one booking. Manager-gated:
+ * only someone who can dispatch or transfer needs the roster with fit flags.
+ * Business bookings only; a helper-owned booking has no member roster.
+ */
+exports.listTransferCandidates = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const actorId = req.user.id;
+    const booking = await bookingLifecycle.loadBooking(bookingId);
+    if (!booking) {
+      return sendError(res, 404, 'Booking request not found');
+    }
+    if (!(await bookingLifecycle.isBookingManagerForBooking(actorId, booking))) {
+      return sendError(res, 403, 'Only the provider or a business manager can view dispatch candidates', 'forbidden');
+    }
+    const result = await bookingLifecycle.listBookingTransferCandidates(booking);
+    if (!result) {
+      return sendError(res, 400, 'Only business bookings have dispatch candidates', 'dispatch_target_ineligible');
+    }
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error('Error listing transfer candidates', { error: err.message });
+    sendError(res, 500, 'Failed to list transfer candidates');
   }
 };
 

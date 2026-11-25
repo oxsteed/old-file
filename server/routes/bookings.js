@@ -104,6 +104,11 @@ router.post('/:bookingId/helper-cancel', requireAuth, requireBookingProviderCapa
 // No activation gate for the caller: a revoked helper can still hand
 // existing work to someone who can do it, like decline/cancel.
 router.post('/:bookingId/transfer', requireAuth, requireBookingProviderCapability, bookingController.transferBookingRequest);
+// G5-11 (260): dispatch a pending business booking to a member (manager-gated).
+// No activation gate for the caller: dispatch is a business management action.
+router.post('/:bookingId/dispatch', requireAuth, requireBookingProviderCapability, bookingController.dispatchBookingRequest);
+// G5-12 (257): dispatch + transfer candidates for one booking (manager-gated).
+router.get('/:bookingId/transfer-candidates', requireAuth, bookingController.listTransferCandidates);
 router.post('/:bookingId/counter-propose', requireAuth, requireBookingProviderCapability, requireBookingProviderActivation, bookingController.counterProposeBooking);
 router.post('/:bookingId/counter-propose/respond', requireAuth, bookingController.respondToCounterPropose);
 router.post('/:bookingId/convert-to-job', requireAuth, bookingController.convertBookingToJob);

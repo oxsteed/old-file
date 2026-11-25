@@ -1255,6 +1255,22 @@ const T = {
       ar: 'تم تحويل حجزك إلى مزود آخر.',
     },
   },
+  booking_dispatched: {
+    title: {
+      en: 'Booking Assigned to You',
+      fr: 'Réservation assignée',
+      es: 'Reserva asignada a ti',
+      ht: 'Yo asiyen yon rezèvasyon ba ou',
+      ar: 'تم إسناد حجز إليك',
+    },
+    body: {
+      en: 'A booking has been assigned to you. Confirm it to add it to your calendar.',
+      fr: 'Une réservation vous a été assignée. Confirmez-la pour l’ajouter à votre calendrier.',
+      es: 'Se te asignó una reserva. Confírmala para añadirla a tu calendario.',
+      ht: 'Yo asiyen yon rezèvasyon ba ou. Konfime li pou ajoute li nan kalandriye ou.',
+      ar: 'تم إسناد حجز إليك. أكّده لإضافته إلى تقويمك.',
+    },
+  },
   vortex_approval_requested: {
     title: {
       en: 'Approval needed',
@@ -1870,6 +1886,13 @@ const EMAIL_TEMPLATES = {
       ar: 'عرض الحجوزات',
     },
     booking_transferred: {
+      en: 'View Bookings',
+      fr: 'Voir les réservations',
+      es: 'Ver reservas',
+      ht: 'Gade rezèvasyon yo',
+      ar: 'عرض الحجوزات',
+    },
+    booking_dispatched: {
       en: 'View Bookings',
       fr: 'Voir les réservations',
       es: 'Ver reservas',

@@ -9,6 +9,10 @@ import BookingRescheduleBox from './BookingRescheduleBox';
 import MessengerAvailabilityPicker from '../helperProfile/chat/MessengerAvailabilityPicker';
 import { buildProposeBookingPayload } from '../helperProfile/chat/messengerBookingRequests.js';
 import '../helperProfile/chat/MessengerDock.css';
+// G5-39: the panel owns its card styles so the conflict badge renders in
+// every host (helper calendar and the Business Hub queue), not only on
+// /calendar where CalendarPage.css loads.
+import '../../styles/CalendarPage.css';
 
 /**
  * BookingRequestsPanel — thin client over shared /bookings/incoming +
@@ -27,6 +31,8 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
   // G-37: transfer drafts for accepted bookings (new provider id + reason).
   const [transferDrafts, setTransferDrafts] = useState({});
   const [transferringId, setTransferringId] = useState(null);
+  // G5-11 (260): dispatch in flight per booking.
+  const [dispatchingId, setDispatchingId] = useState(null);
   // Per-row acting state: while a confirm/decline POST is in flight the row's
   // buttons are disabled (double-click cannot double-fire a money-adjacent accept).
   const [acting, setActing] = useState(null); // { id, kind: 'confirm' | 'decline' } | null
@@ -85,7 +91,17 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
       onBookingConfirmed?.();
     } catch (err) {
       console.error('Error confirming booking:', err);
-      toast.error(t('calendar.errorConfirmingBooking', { defaultValue: 'Failed to confirm booking' }));
+      // G5-39: surface the 409 reason instead of a generic failure. The
+      // server error message for a slot conflict is the code itself
+      // (slotConflictError), so map the code to a human string here.
+      const code = err?.response?.data?.code;
+      if (code === 'SCHEDULING_CONFLICT') {
+        toast.error(t('calendar.errorSchedulingConflict'));
+      } else if (code === 'HELPER_UNAVAILABLE') {
+        toast.error(t('calendar.errorHelperUnavailable'));
+      } else {
+        toast.error(err?.response?.data?.error || t('calendar.errorConfirmingBooking'));
+      }
     } finally {
       actingRef.current = null;
       setActing(null);
@@ -139,6 +155,24 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
       toast.error(err?.response?.data?.error || t('calendar.errorTransferringBooking'));
     } finally {
       setTransferringId(null);
+    }
+  };
+
+  // G5-11 (260): dispatch a pending business booking to a member. The
+  // member confirms by accepting; the panel reloads so the dispatched
+  // member sees it with the "dispatched to you" badge.
+  const handleDispatchBooking = async (bookingId, memberId) => {
+    if (dispatchingId) return;
+    setDispatchingId(bookingId);
+    try {
+      await api.post(`/bookings/${bookingId}/dispatch`, { memberId });
+      toast.success(t('calendar.bookingDispatched'));
+      loadBookingRequests();
+      onBookingConfirmed?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('calendar.errorDispatchingBooking'));
+    } finally {
+      setDispatchingId(null);
     }
   };
 
@@ -223,6 +257,13 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
             onConfirm={() => handleConfirmBooking(booking.id)}
             onDecline={() => handleDeclineBooking(booking.id)}
             onPropose={() => setProposingBooking(booking)}
+            currentUserId={user?.id}
+            // G5-11 (260): dispatch is a manager action on a pending
+            // business booking; canRespond already follows the manager gate.
+            onDispatch={booking.canRespond !== false && booking.businessId
+              ? (memberId) => handleDispatchBooking(booking.id, memberId)
+              : undefined}
+            dispatching={dispatchingId === booking.id}
             t={t}
             locale={locale}
           />
@@ -302,7 +343,7 @@ function statusClass(status) {
   return 'pending';
 }
 
-function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onPropose, onTransfer, transferDraft, onTransferDraftChange, transferring, rescheduleProposal, currentUserId, onRescheduleDone, t, locale }) {
+function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onPropose, onTransfer, transferDraft, onTransferDraftChange, transferring, rescheduleProposal, currentUserId, onRescheduleDone, onDispatch, dispatching, t, locale }) {
   const _rawDate = booking.requestedDate || booking.requested_date;
   const requestedDate = _rawDate ? String(_rawDate).split('T')[0] : null;
   const startTime = booking.requestedStartTime || booking.requested_start_time || booking.start_time;
@@ -325,6 +366,34 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
   const source = booking.source || 'direct';
   const canRespond = booking.canRespond !== false;
   const canPropose = canRespond && (booking.helperId || booking.helper_id || booking.businessId || booking.business_id);
+  const helperId = booking.helperId || booking.helper_id || null;
+  const businessId = booking.businessId || booking.business_id || null;
+  const dispatchedToMe = booking.dispatchStatus === 'pending' && helperId && currentUserId && String(helperId) === String(currentUserId);
+
+  // G5-12 (257) / G5-11 (260): ranked members for this booking's slot,
+  // with availability / time-off / overlap flags. Business bookings only;
+  // helper-owned bookings keep the validated free-text target. null means
+  // not loaded (or not applicable); [] means loaded but no candidates.
+  const [candidates, setCandidates] = useState(null);
+  const [dispatchTarget, setDispatchTarget] = useState('');
+  useEffect(() => {
+    if ((!onTransfer && !onDispatch) || !businessId) return undefined;
+    let cancelled = false;
+    api.get(`/bookings/${booking.id}/transfer-candidates`)
+      .then(({ data }) => { if (!cancelled) setCandidates(Array.isArray(data?.data?.candidates) ? data.data.candidates : []); })
+      .catch(() => { if (!cancelled) setCandidates(null); });
+    return () => { cancelled = true; };
+  }, [booking.id, businessId, onTransfer, onDispatch]);
+  const candidateLabel = (c) => {
+    const flags = [];
+    if (c.time_off) flags.push(t('calendar.candidateTimeOff'));
+    if (c.conflict) flags.push(t('calendar.candidateOverlap'));
+    if (c.available === false) flags.push(t('calendar.candidateUnavailable'));
+    return `${c.name}${c.role ? ` (${c.role})` : ''}${flags.length ? ` — ${flags.join(', ')}` : ''}`;
+  };
+  // Ineligible members stay selectable: the flags warn, the manager
+  // decides. The server still fails closed on a real double-booking.
+  const selectableCandidates = (candidates || []).filter((c) => !c.current);
 
   const formatDateDisplay = (date) => {
     if (!date || Number.isNaN(date.getTime())) return '—';
@@ -365,6 +434,26 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
         </div>
         <div className={`booking-status ${statusClass(status)}`}>{statusLabel(status, t)}</div>
       </div>
+
+      {/* G5-39: overlap badge on queued requests, from the server's
+          pre-accept check (same guard as the accept 409). */}
+      {booking.hasSchedulingConflict && (
+        <div className="booking-conflict-badge" role="status">
+          {t('calendar.schedulingConflictBadge')}
+        </div>
+      )}
+      {booking.helperUnavailable && (
+        <div className="booking-conflict-badge" role="status">
+          {t('calendar.helperUnavailableBadge')}
+        </div>
+      )}
+      {/* G5-11 (260): this booking was dispatched to the viewer; Confirm
+          below is the confirmation. */}
+      {dispatchedToMe && (
+        <div className="booking-conflict-badge booking-dispatched-badge" role="status">
+          {t('calendar.dispatchedToYou')}
+        </div>
+      )}
 
       <div className="booking-details">
         <div className="detail-row">
@@ -418,14 +507,28 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
       {onTransfer ? (
         <>
           <div className="booking-actions booking-transfer-actions">
-            <input
-              type="text"
-              value={transferDraft?.newHelperId || ''}
-              onChange={(e) => onTransferDraftChange?.({ newHelperId: e.target.value })}
-              placeholder={t('calendar.transferProviderPlaceholder')}
-              aria-label={t('calendar.transferProviderPlaceholder')}
-              disabled={!!transferring}
-            />
+            {candidates !== null ? (
+              <select
+                value={transferDraft?.newHelperId || ''}
+                onChange={(e) => onTransferDraftChange?.({ newHelperId: e.target.value })}
+                aria-label={t('calendar.transferProviderPlaceholder')}
+                disabled={!!transferring}
+              >
+                <option value="">{t('calendar.transferSelectPlaceholder')}</option>
+                {selectableCandidates.map((c) => (
+                  <option key={c.user_id} value={c.user_id}>{candidateLabel(c)}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={transferDraft?.newHelperId || ''}
+                onChange={(e) => onTransferDraftChange?.({ newHelperId: e.target.value })}
+                placeholder={t('calendar.transferProviderPlaceholder')}
+                aria-label={t('calendar.transferProviderPlaceholder')}
+                disabled={!!transferring}
+              />
+            )}
           <input
             type="text"
             value={transferDraft?.reason || ''}
@@ -494,6 +597,32 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
               ↻ {t('calendar.proposeTime', { defaultValue: 'Propose different time' })}
             </button>
           ) : null}
+          {onDispatch && candidates !== null && (
+            <div className="booking-actions booking-dispatch-actions">
+              <select
+                value={dispatchTarget}
+                onChange={(e) => setDispatchTarget(e.target.value)}
+                aria-label={t('calendar.dispatchTo')}
+                disabled={!!dispatching}
+              >
+                <option value="">{t('calendar.dispatchSelectPlaceholder')}</option>
+                {selectableCandidates.map((c) => (
+                  <option key={c.user_id} value={c.user_id}>{candidateLabel(c)}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="btn-confirm"
+                onClick={() => onDispatch(dispatchTarget)}
+                disabled={!!dispatching || !dispatchTarget}
+                title={t('calendar.dispatch')} data-track="ui.79e8a0a062.5"
+              >
+                {dispatching
+                  ? t('calendar.dispatching')
+                  : t('calendar.dispatch')}
+              </button>
+            </div>
+          )}
         </div>
       ) : null}
     </div>

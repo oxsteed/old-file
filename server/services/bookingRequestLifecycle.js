@@ -268,6 +268,10 @@ function toCalendarBooking(row) {
     acceptedAt: row.accepted_at,
     declinedAt: row.declined_at,
     helperResponseReason: row.helper_response_reason,
+    // G5-11 (260): booking-level dispatch state. Pending while the
+    // dispatched member has not confirmed; confirmed by any accept.
+    dispatchStatus: row.dispatch_status || null,
+    dispatchedAt: row.dispatched_at || null,
     convertedToJobId: row.converted_to_job_id,
     conversationId: row.conversation_id || null,
     guestSessionId: row.guest_session_id || null,
@@ -443,6 +447,25 @@ async function listIncomingForProvider(providerUserId, { status, statuses } = {}
       continue;
     }
     const mapped = toCalendarBooking({ ...row, ...maybeExpired });
+    // G5-39: surface the pre-accept conflict before the member retries a
+    // doomed accept. Only pending rows can still be accepted; accepted rows
+    // already hold their appointment, so they are never flagged. The check
+    // reuses the accept path's own guard (validateBookingSlot), so the badge
+    // and the 409 agree. A failing check leaves the flags off rather than
+    // hiding the row.
+    if (mapped.status === 'pending' || mapped.status === 'counter_proposed') {
+      const slotCheck = await validateBookingSlot({
+        helperId: maybeExpired.helper_id,
+        businessId: maybeExpired.business_id,
+        date: maybeExpired.requested_date,
+        start: maybeExpired.requested_start_time,
+        end: maybeExpired.requested_end_time,
+        requestOnly: maybeExpired.availability_mode === 'request_only',
+        excludeAppointmentId: maybeExpired.business_appointment_id || maybeExpired.appointment_id || null,
+      }).catch(() => ({ ok: true }));
+      mapped.hasSchedulingConflict = slotCheck.ok === false && slotCheck.code === 'slot_conflict';
+      mapped.helperUnavailable = slotCheck.ok === false && slotCheck.code === 'helper_unavailable';
+    }
     // G-14: the inbox row's action buttons follow the mutation gate, not
     // the read gate. A representative sees the booking but cannot act on
     // it; the panel hides Confirm/Decline/Propose when canRespond is false.
@@ -452,6 +475,68 @@ async function listIncomingForProvider(providerUserId, { status, statuses } = {}
     out.push(mapped);
   }
   return out;
+}
+
+/**
+ * G5-12 / G5-11 (257, 260): dispatch + transfer candidates for one business
+ * booking. Every active member of the business (owner included) with their
+ * fit for the booking's requested slot, from the same fit check the
+ * appointment queue uses (fitFor): scheduled/available, overlapping
+ * appointment, approved time off. `qualified` (service-staff membership)
+ * is deliberately NOT a criterion: a dispatched member confirms via the
+ * normal accept path, which never required service-staff membership.
+ * Business bookings only — a helper-owned booking has no member roster to
+ * rank, so its transfer target stays a validated free-text id.
+ * Returns null when the booking has no usable slot (request-only).
+ */
+async function listBookingTransferCandidates(booking) {
+  if (!booking || !booking.business_id) return null;
+  const { rows: members } = await pool.query(
+    `SELECT u.id AS user_id,
+            NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), '') AS name,
+            'owner' AS role
+       FROM businesses b JOIN users u ON u.id = b.user_id WHERE b.id = $1
+      UNION ALL
+     SELECT u.id AS user_id,
+            NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), '') AS name,
+            m.role AS role
+       FROM business_members m JOIN users u ON u.id = m.member_id
+      WHERE m.business_id = $1 AND m.status = 'active' AND m.member_id IS NOT NULL
+        AND (m.access_valid_until IS NULL OR m.access_valid_until > NOW())
+        AND (m.expires_at IS NULL OR m.expires_at > NOW())`,
+    [booking.business_id],
+  );
+  const slot = parseBookingSlot(booking);
+  let fits = null;
+  if (slot) {
+    // Lazy require: teamCommon is the Groups 5-6 shared helper; requiring
+    // it at module load would couple the booking lifecycle to that tree.
+    const { fitFor } = require('./businessOwner/teamCommon');
+    fits = await fitFor(pool, booking.business_id, members.map((m) => m.user_id), {
+      start_time: slot.startDate,
+      end_time: slot.endDate,
+      service_id: booking.service_id || null,
+      id: '',
+    });
+  }
+  const byId = Object.fromEntries((fits || []).map((f) => [String(f.user_id), f]));
+  const candidates = members.map((m) => {
+    const f = byId[String(m.user_id)];
+    return {
+      user_id: m.user_id,
+      name: m.name || 'Member',
+      role: m.role,
+      current: String(booking.helper_id) === String(m.user_id),
+      available: f ? Boolean(f.available) : null,
+      conflict: f ? Boolean(f.conflict) : null,
+      time_off: f ? Boolean(f.time_off) : null,
+      same_day: f ? f.same_day : null,
+      eligible: f ? !f.conflict && !f.time_off : true,
+    };
+  }).sort((a, b) => Number(b.eligible) - Number(a.eligible)
+    || Number(b.available) - Number(a.available)
+    || a.name.localeCompare(b.name));
+  return { candidates, has_slot: Boolean(slot) };
 }
 
 /**
@@ -1162,6 +1247,8 @@ async function acceptBookingRequest({ booking, actorId, actorType = 'helper', ap
                 accepted_at = CURRENT_TIMESTAMP,
                 updated_at = CURRENT_TIMESTAMP,
                 helper_response_reason = NULL,
+                -- G5-11 (260): accepting confirms a pending dispatch.
+                dispatch_status = CASE WHEN dispatch_status = 'pending' THEN 'confirmed' ELSE dispatch_status END,
                 counter_status = CASE
                   WHEN counter_status = 'pending' THEN 'accepted'
                   ELSE counter_status
@@ -1485,6 +1572,8 @@ async function customerAcceptBookingRequest({
             SET status = 'accepted',
                 accepted_at = CURRENT_TIMESTAMP,
                 updated_at = CURRENT_TIMESTAMP,
+                -- G5-11 (260): accepting confirms a pending dispatch.
+                dispatch_status = CASE WHEN dispatch_status = 'pending' THEN 'confirmed' ELSE dispatch_status END,
                 counter_status = 'accepted'
           WHERE id = $1 AND status = 'counter_proposed'
           RETURNING *`,
@@ -1904,6 +1993,7 @@ module.exports = {
   isBookingManagerForBooking,
   resolveProviderBusinessIds,
   listIncomingForProvider,
+  listBookingTransferCandidates,
   toCalendarBooking,
   parseBookingSlot,
   validateBookingSlot,
