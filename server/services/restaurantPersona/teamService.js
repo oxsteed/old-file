@@ -204,7 +204,7 @@ async function packageLabel(c, orderId) {
   const { rows: [r] } = await pool.query('SELECT display_name FROM food_restaurants WHERE id=$1', [c.restaurantId]);
   const name = String(o.pickup_contact_name || o.guest_name || '').trim();
   const short = name ? name.split(/\s+/).map((p, i) => (i === 0 ? p : `${p[0]}.`)).join(' ') : null;
-  return { order_id: o.id, restaurant: r?.display_name, queue_number: o.queue_number, customer: short, fulfillment_type: o.fulfillment_type, scheduled_for: o.scheduled_for, table_label: o.table_label,
+  return { order_id: o.id, restaurant: r?.display_name, queue_number: o.queue_number, customer: short, pickup_code: o.pickup_code || null, fulfillment_type: o.fulfillment_type, scheduled_for: o.scheduled_for, table_label: o.table_label,
     item_count: items.reduce((t, i) => t + i.quantity, 0), items: items.map(i => ({ name: i.item_name, quantity: i.quantity, note: i.special_instructions, allergens: i.allergens || [] })),
     allergens: [...new Set(items.flatMap(i => i.allergens || []))], printed_at: new Date().toISOString() };
 }

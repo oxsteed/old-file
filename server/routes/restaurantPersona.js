@@ -60,6 +60,8 @@ router.post(`${O}/emergency-closures`, ...W, r(made((c, q) => ops.emergencyClose
 router.get(`${O}/locations/:locationId/closure`, ...G, r((c, q) => ops.currentClosure(c, q.params.locationId)));
 router.post(`${O}/locations/:locationId/closure/checks/:key`, ...W, r((c, q) => ops.setReopenCheck(c, q.params.locationId, q.params.key, q.body)));
 router.post(`${O}/locations/:locationId/reopen`, ...W, r((c, q) => ops.reopen(c, q.params.locationId)));
+// 431 kitchen ticket queue (D-440): open tickets with per-item stations.
+router.get(`${O}/tickets`, ...G, r((c, q) => ops.kitchenTickets(c, q.query)));
 
 const S = '/:restaurantId/shift';
 // 401-405 start of shift
