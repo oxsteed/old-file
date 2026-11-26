@@ -2510,6 +2510,8 @@
     "credit": "OxSteed Credit",
     "partner": "Programme partenaire",
     "learning": "Formation professionnelle"
+  ,
+    "household": "Foyer"
   },
   "superModeApprovals": {
     "allModes": "Tous les modes",
@@ -4689,6 +4691,16 @@
       "entryPlaceholder": "Ex. : Code du portail 1234, utilisez la porte latérale.",
       "defaultLabel": "Utiliser comme lieu par défaut",
       "addButton": "Ajouter le lieu"
+    ,
+      "presetLabel": "Préréglage d'entrée",
+      "privateNotesLabel": "Notes privées",
+      "privateNotesPlaceholder": "Notes que vous seul pouvez voir",
+      "shareLabel": "Partager avec mon foyer",
+      "sharedBadge": "Partagé",
+      "archivedBadge": "Archivé",
+      "archiveButton": "Archiver",
+      "unarchiveButton": "Désarchiver",
+      "showArchivedLabel": "Afficher les lieux archivés"
     }
   },
   "partsList": {
@@ -17389,6 +17401,10 @@
     "paymentStatusVoided": "Annulé",
     "paymentStatusRequested": "Demandé",
     "additionalChargeSuffix": "(frais supplémentaires)"
+  ,
+    "bookForLabel": "Réserver pour",
+    "bookForMyself": "Moi-même",
+    "templatePrefillNotice": "Réservation depuis votre modèle : {{serviceName}}. Choisissez un horaire ci-dessous."
   },
   "household": {
     "title": "Foyer",
@@ -17486,6 +17502,151 @@
       "manage_tasks": "Gérer les plans",
       "view_calendar": "Voir le calendrier seulement"
     }
+  ,
+    "scopeGrants": {
+      "book": [
+        "Réserver des visites pour le foyer",
+        "Lire le calendrier partagé",
+        "Partager les créneaux de disponibilité"
+      ],
+      "schedule": [
+        "Planifier et replanifier les visites",
+        "Confirmer que la visite est prête",
+        "Partager les résumés de visite",
+        "Demander un remplaçant",
+        "Envoyer des rappels de visite et de fournitures",
+        "Utiliser le contact d'urgence"
+      ],
+      "prepare": [
+        "Préparer les visites : listes et fournitures",
+        "Confirmer que la visite est prête",
+        "Partager les résumés de visite",
+        "Demander un remplaçant",
+        "Envoyer des rappels de visite et de fournitures",
+        "Utiliser le contact d'urgence",
+        "Noter les besoins d'accessibilité et les instructions d'arrivée"
+      ],
+      "coordinate": [
+        "Coordonner les personnes entre les visites",
+        "Transférer la préparation d'une visite à un autre délégué",
+        "Réassigner les visites à venir"
+      ],
+      "view_records": [
+        "Lire les dossiers et documents du foyer",
+        "Lire les résumés de visite et les reçus"
+      ],
+      "manage_addresses": [
+        "Gérer les adresses de service partagées",
+        "Définir les instructions d'entrée pour les aides"
+      ],
+      "manage_tasks": [
+        "Gérer les plans et tâches d'entretien",
+        "Lire l'historique des tâches"
+      ],
+      "view_calendar": [
+        "Voir uniquement le calendrier partagé",
+        "Aucune réservation, aucune action de visite, aucun dossier"
+      ]
+    },
+    "entryPresets": {
+      "gate_code": "Code du portail",
+      "parking": "Stationnement",
+      "pets": "Animaux",
+      "stairs": "Escaliers",
+      "key_location": "Emplacement de la clé",
+      "none": "Aucun"
+    },
+    "contextLabel": "Foyer",
+    "myHousehold": "Mon foyer",
+    "yourDelegationTitle": "Votre délégation dans ce foyer",
+    "inviteBannerTitle": "Vous avez été invité à aider un foyer",
+    "inviteBannerAccept": "Accepter l'invitation",
+    "remindDelegation": "Rappeler",
+    "remindedOk": "Rappel envoyé.",
+    "remindedTooSoon": "Rappel déjà envoyé récemment. Réessayez demain.",
+    "substituteTitle": "Coordinateur remplaçant",
+    "substituteUntilLabel": "Remplaçant jusqu'au",
+    "substituteNoteLabel": "Note pour le remplaçant",
+    "setSubstitute": "Définir le remplaçant",
+    "handoffTitle": "Transférer la délégation",
+    "handoffToLabel": "Transférer à",
+    "handoffNoteLabel": "Note de transfert",
+    "handoffButton": "Transférer",
+    "receiptReason": "Motif",
+    "receiptReassigned": "{{count}} visites à venir réassignées au propriétaire",
+    "receiptScopes": "Périmètres détenus",
+    "viewReceipt": "Voir le reçu",
+    "handoffCalendarTitle": "Transférer le calendrier",
+    "handoffCalendarFrom": "Du délégué",
+    "handoffCalendarTo": "Au délégué",
+    "handoffCalendarButton": "Transférer le calendrier",
+    "prepareButton": "Préparer",
+    "prepTitle": "Préparation de la visite",
+    "checklistLabel": "Liste de contrôle",
+    "addChecklistPlaceholder": "Ajouter un élément",
+    "addChecklistButton": "Ajouter",
+    "suppliesLabel": "Fournitures",
+    "supplyItemLabel": "Article",
+    "supplyQtyLabel": "Quantité",
+    "supplyNoteLabel": "Note",
+    "addSupplyButton": "Ajouter une fourniture",
+    "accessibilityLabel": "Besoins d'accessibilité",
+    "arrivalInstructionsLabel": "Instructions d'arrivée",
+    "savePrep": "Enregistrer la préparation",
+    "assigneeLabel": "Assigné à",
+    "noAssignee": "Non assigné",
+    "availabilityTitle": "Disponibilité",
+    "availabilityDateLabel": "Date",
+    "availabilityStartLabel": "Début",
+    "availabilityEndLabel": "Fin",
+    "availabilityNoteLabel": "Note",
+    "addAvailabilityButton": "Ajouter une disponibilité",
+    "noAvailability": "Aucun créneau de disponibilité pour l'instant.",
+    "shareSummaryLabel": "Résumé de la visite",
+    "shareSummaryButton": "Partager le résumé",
+    "summarySaved": "Résumé partagé.",
+    "replacementLabel": "Motif du remplacement",
+    "replacementButton": "Demander un remplaçant",
+    "missedFollowupLabel": "Suivi de la visite manquée",
+    "missedActionLabel": "Action",
+    "missedNoteLabel": "Note",
+    "missedButton": "Envoyer le suivi",
+    "unavailableLabel": "Motif d'indisponibilité",
+    "unavailableButton": "Marquer indisponible",
+    "emergencyButton": "Contact d'urgence",
+    "emergencyContact": "Contact d'urgence",
+    "cancellationPreviewButton": "Aperçu de l'impact d'annulation",
+    "cancellationSameDay": "{{count}} visites le même jour",
+    "cancellationRecurring": "{{count}} réservations récurrentes actives",
+    "reassignLabel": "Réassigner cette visite à",
+    "reassignButton": "Réassigner",
+    "handoffPrepTitle": "Transférer cette visite",
+    "handoffPrepTo": "Transférer à",
+    "handoffPrepNote": "Note de transfert",
+    "handoffPrepButton": "Transférer la visite",
+    "acknowledgeHandoff": "Accuser réception du transfert",
+    "handoffAcknowledged": "Transfert confirmé.",
+    "handoffDone": "Transfert envoyé.",
+    "viewHistory": "Voir l'historique",
+    "vehicleLabel": "ID du véhicule",
+    "recurrenceLabel": "Se répète tous les (jours)",
+    "notesLabel": "Notes",
+    "amountDollarsLabel": "Montant (dollars)",
+    "amountInvalid": "Saisissez un montant supérieur à zéro.",
+    "bookingLabel": "Réservation",
+    "noBooking": "Aucune réservation",
+    "useTemplate": "Utiliser le modèle",
+    "forwardTitle": "Transférer à",
+    "forwardButton": "Transférer",
+    "forwardedOk": "Document transféré.",
+    "forwardedFrom": "Transféré depuis un autre document.",
+    "sharedWith": "Partagé avec {{count}} délégués",
+    "sharedAddress": "Partagé avec le foyer",
+    "neverGranted": "Jamais accordé : agir hors des périmètres ci-dessus, payer ou voir les détails de paiement.",
+    "partialLoadFailed": "Certaines sections du foyer n'ont pas pu se charger.",
+    "prepLoadFailed": "Impossible de charger la préparation de cette visite.",
+    "retry": "Réessayer",
+    "remindSupplies": "Rappeler les fournitures"
   },
   "checkout": {
     "title": "Vérifier",

@@ -2510,6 +2510,8 @@
     "credit": "OxSteed Credit",
     "partner": "برنامج الشركاء",
     "learning": "التعلم المهني"
+  ,
+    "household": "الأسرة"
   },
   "superModeApprovals": {
     "allModes": "جميع الأوضاع",
@@ -4689,6 +4691,16 @@
       "entryPlaceholder": "مثال: رمز البوابة 1234، استخدم الباب الجانبي.",
       "defaultLabel": "استخدمه كموقعي الافتراضي",
       "addButton": "أضف الموقع"
+    ,
+      "presetLabel": "إعداد الدخول المسبق",
+      "privateNotesLabel": "ملاحظات خاصة",
+      "privateNotesPlaceholder": "ملاحظات لا تراها إلا أنت",
+      "shareLabel": "مشاركة مع أسرتي",
+      "sharedBadge": "مشترك",
+      "archivedBadge": "مؤرشف",
+      "archiveButton": "أرشفة",
+      "unarchiveButton": "إلغاء الأرشفة",
+      "showArchivedLabel": "إظهار المواقع المؤرشفة"
     }
   },
   "partsList": {
@@ -16650,6 +16662,10 @@
     "paymentStatusVoided": "ملغى",
     "paymentStatusRequested": "مطلوب",
     "additionalChargeSuffix": "(رسوم إضافية)"
+  ,
+    "bookForLabel": "الحجز لـ",
+    "bookForMyself": "نفسي",
+    "templatePrefillNotice": "الحجز من القالب الخاص بك: {{serviceName}}. اختر وقتًا أدناه."
   },
   "household": {
     "title": "الأسرة",
@@ -16747,6 +16763,151 @@
       "manage_tasks": "إدارة الخطط",
       "view_calendar": "عرض التقويم فقط"
     }
+  ,
+    "scopeGrants": {
+      "book": [
+        "حجز زيارات للأسرة",
+        "قراءة التقويم المشترك",
+        "مشاركة أوقات التوفر"
+      ],
+      "schedule": [
+        "جدولة الزيارات وإعادة جدولتها",
+        "تأكيد جاهزية الزيارة",
+        "مشاركة ملخصات الزيارات",
+        "طلب مساعد بديل",
+        "إرسال تذكيرات بالزيارات والمستلزمات",
+        "استخدام جهة الاتصال الاحتياطية للطوارئ"
+      ],
+      "prepare": [
+        "تجهيز الزيارات: قوائم التحقق والمستلزمات",
+        "تأكيد جاهزية الزيارة",
+        "مشاركة ملخصات الزيارات",
+        "طلب مساعد بديل",
+        "إرسال تذكيرات بالزيارات والمستلزمات",
+        "استخدام جهة الاتصال الاحتياطية للطوارئ",
+        "تسجيل احتياجات الوصول وتعليمات الوصول"
+      ],
+      "coordinate": [
+        "تنسيق الأشخاص عبر الزيارات",
+        "تسليم تجهيز الزيارة إلى مفوض آخر",
+        "إعادة تعيين الزيارات القادمة"
+      ],
+      "view_records": [
+        "قراءة سجلات الأسرة ومستنداتها",
+        "قراءة ملخصات الزيارات والإيصالات"
+      ],
+      "manage_addresses": [
+        "إدارة عناوين الخدمة المشتركة",
+        "تعيين تعليمات الدخول للمساعدين"
+      ],
+      "manage_tasks": [
+        "إدارة خطط الصيانة والمهام",
+        "قراءة سجل المهام"
+      ],
+      "view_calendar": [
+        "عرض التقويم المشترك فقط",
+        "لا حجز ولا إجراءات زيارة ولا سجلات"
+      ]
+    },
+    "entryPresets": {
+      "gate_code": "رمز البوابة",
+      "parking": "موقف السيارات",
+      "pets": "حيوانات أليفة",
+      "stairs": "سلالم",
+      "key_location": "مكان المفتاح",
+      "none": "لا شيء"
+    },
+    "contextLabel": "الأسرة",
+    "myHousehold": "أسرتي",
+    "yourDelegationTitle": "تفويضك لهذه الأسرة",
+    "inviteBannerTitle": "تمت دعوتك للمساعدة في أسرة",
+    "inviteBannerAccept": "قبول الدعوة",
+    "remindDelegation": "تذكير",
+    "remindedOk": "تم إرسال التذكير.",
+    "remindedTooSoon": "تم التذكير مؤخرًا. حاول مجددًا غدًا.",
+    "substituteTitle": "منسق بديل",
+    "substituteUntilLabel": "البديل حتى",
+    "substituteNoteLabel": "ملاحظة للبديل",
+    "setSubstitute": "تعيين البديل",
+    "handoffTitle": "تسليم التفويض",
+    "handoffToLabel": "تسليم إلى",
+    "handoffNoteLabel": "ملاحظة التسليم",
+    "handoffButton": "تسليم",
+    "receiptReason": "السبب",
+    "receiptReassigned": "أُعيد تعيين {{count}} من الزيارات القادمة إلى المالك",
+    "receiptScopes": "النطاقات التي كان يحملها",
+    "viewReceipt": "عرض الإيصال",
+    "handoffCalendarTitle": "تسليم التقويم",
+    "handoffCalendarFrom": "من المفوض",
+    "handoffCalendarTo": "إلى المفوض",
+    "handoffCalendarButton": "تسليم التقويم",
+    "prepareButton": "تجهيز",
+    "prepTitle": "تجهيز الزيارة",
+    "checklistLabel": "قائمة التحقق",
+    "addChecklistPlaceholder": "أضف عنصرًا إلى القائمة",
+    "addChecklistButton": "إضافة",
+    "suppliesLabel": "المستلزمات",
+    "supplyItemLabel": "العنصر",
+    "supplyQtyLabel": "الكمية",
+    "supplyNoteLabel": "ملاحظة",
+    "addSupplyButton": "إضافة مستلزم",
+    "accessibilityLabel": "احتياجات الوصول",
+    "arrivalInstructionsLabel": "تعليمات الوصول",
+    "savePrep": "حفظ التجهيز",
+    "assigneeLabel": "مُسند إلى",
+    "noAssignee": "غير مُسند",
+    "availabilityTitle": "التوفر",
+    "availabilityDateLabel": "التاريخ",
+    "availabilityStartLabel": "البداية",
+    "availabilityEndLabel": "النهاية",
+    "availabilityNoteLabel": "ملاحظة",
+    "addAvailabilityButton": "إضافة توفر",
+    "noAvailability": "لا توجد أوقات توفر بعد.",
+    "shareSummaryLabel": "ملخص الزيارة",
+    "shareSummaryButton": "مشاركة الملخص",
+    "summarySaved": "تمت مشاركة الملخص.",
+    "replacementLabel": "سبب الاستبدال",
+    "replacementButton": "طلب بديل",
+    "missedFollowupLabel": "متابعة الزيارة الفائتة",
+    "missedActionLabel": "الإجراء",
+    "missedNoteLabel": "ملاحظة",
+    "missedButton": "إرسال المتابعة",
+    "unavailableLabel": "سبب عدم التوفر",
+    "unavailableButton": "وضع علامة غير متاح",
+    "emergencyButton": "جهة اتصال الطوارئ الاحتياطية",
+    "emergencyContact": "جهة اتصال الطوارئ",
+    "cancellationPreviewButton": "معاينة أثر الإلغاء",
+    "cancellationSameDay": "{{count}} زيارات في اليوم نفسه",
+    "cancellationRecurring": "{{count}} حجوزات متكررة نشطة",
+    "reassignLabel": "إعادة تعيين هذه الزيارة إلى",
+    "reassignButton": "إعادة تعيين",
+    "handoffPrepTitle": "تسليم هذه الزيارة",
+    "handoffPrepTo": "تسليم إلى",
+    "handoffPrepNote": "ملاحظة التسليم",
+    "handoffPrepButton": "تسليم الزيارة",
+    "acknowledgeHandoff": "تأكيد استلام التسليم",
+    "handoffAcknowledged": "تم تأكيد التسليم.",
+    "handoffDone": "تم إرسال التسليم.",
+    "viewHistory": "عرض السجل",
+    "vehicleLabel": "معرّف المركبة",
+    "recurrenceLabel": "يتكرر كل (أيام)",
+    "notesLabel": "ملاحظات",
+    "amountDollarsLabel": "المبلغ (دولار)",
+    "amountInvalid": "أدخل مبلغًا أكبر من صفر.",
+    "bookingLabel": "الحجز",
+    "noBooking": "لا يوجد حجز",
+    "useTemplate": "استخدام القالب",
+    "forwardTitle": "إعادة توجيه إلى",
+    "forwardButton": "إعادة توجيه",
+    "forwardedOk": "تمت إعادة توجيه المستند.",
+    "forwardedFrom": "أُعيد توجيهه من مستند آخر.",
+    "sharedWith": "تمت مشاركته مع {{count}} من المفوضين",
+    "sharedAddress": "تمت مشاركته مع الأسرة",
+    "neverGranted": "لا يُمنح أبدًا: التصرف خارج النطاقات أعلاه، أو الدفع، أو رؤية تفاصيل الدفع.",
+    "partialLoadFailed": "تعذّر تحميل بعض أقسام الأسرة.",
+    "prepLoadFailed": "تعذّر تحميل تجهيز هذه الزيارة.",
+    "retry": "إعادة المحاولة",
+    "remindSupplies": "التذكير بالمستلزمات"
   },
   "verifyEmail": {
     "title": "تحقق من بريدك الإلكتروني",

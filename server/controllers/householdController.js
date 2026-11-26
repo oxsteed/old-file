@@ -254,11 +254,15 @@ exports.listDelegations = async (req, res) => {
     const role = String(req.query.role || 'owner');
     let rows;
     if (role === 'delegate') {
+      // Wave 4, item 61/51: the selector and the booking picker need the
+      // owner's display name, so join it the same way listInvitations does.
       const result = await pool.query(
-        `SELECT * FROM household_delegations
-          WHERE delegate_user_id = $1 OR lower(delegate_email) = (
+        `SELECT d.*, u.first_name AS owner_first_name, u.last_name AS owner_last_name
+           FROM household_delegations d
+           JOIN users u ON u.id = d.owner_id
+          WHERE d.delegate_user_id = $1 OR lower(d.delegate_email) = (
             SELECT lower(email) FROM users WHERE id = $1)
-          ORDER BY created_at DESC`,
+          ORDER BY d.created_at DESC`,
         [userId],
       );
       rows = result.rows;
@@ -270,8 +274,13 @@ exports.listDelegations = async (req, res) => {
       rows = result.rows;
     }
     res.json({
-      delegations: rows.map((row) => serializeDelegation(row, {
-        forOwner: String(row.owner_id) === String(userId),
+      delegations: rows.map((row) => ({
+        ...serializeDelegation(row, {
+          forOwner: String(row.owner_id) === String(userId),
+        }),
+        ownerName: row.owner_first_name !== undefined
+          ? [row.owner_first_name, row.owner_last_name].filter(Boolean).join(' ') || null
+          : null,
       })),
     });
   } catch (err) {

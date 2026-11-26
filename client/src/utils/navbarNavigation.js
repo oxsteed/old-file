@@ -39,6 +39,15 @@ export function navbarNavigation(user, { dashboardPath = '/dashboard', workspace
   for (const item of investNavLinks(projection)) {
     if (![...primary, ...account].some((x) => x.id === item.id || x.to === item.to)) account.push(item);
   }
+  // Wave 4, item 61 (F17): /household was reachable only from the saved
+  // locations page. Signed-in users get it in the account menu, ahead of
+  // the support entry, which stays the final account action.
+  if (user && ![...primary, ...account].some((x) => x.id === 'household' || x.to === '/household')) {
+    const item = link('household', '/household', 'nav.household');
+    const supportIndex = account.findIndex((x) => x.id === 'support');
+    if (supportIndex >= 0) account.splice(supportIndex, 0, item);
+    else account.push(item);
+  }
   return {
     ...navigation,
     mode: navigation.mode || 'customer',

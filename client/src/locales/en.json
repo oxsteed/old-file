@@ -2510,6 +2510,8 @@
     "credit": "OxSteed Credit",
     "partner": "Partner program",
     "learning": "Workforce learning"
+  ,
+    "household": "Household"
   },
   "superModeApprovals": {
     "allModes": "All modes",
@@ -4689,6 +4691,16 @@
       "entryPlaceholder": "e.g. Gate code 1234, use the side door.",
       "defaultLabel": "Use as my default location",
       "addButton": "Add location"
+    ,
+      "presetLabel": "Entry preset",
+      "privateNotesLabel": "Private notes",
+      "privateNotesPlaceholder": "Notes only you can see",
+      "shareLabel": "Share with my household",
+      "sharedBadge": "Shared",
+      "archivedBadge": "Archived",
+      "archiveButton": "Archive",
+      "unarchiveButton": "Unarchive",
+      "showArchivedLabel": "Show archived locations"
     }
   },
   "partsList": {
@@ -16647,6 +16659,10 @@
     "paymentStatusVoided": "Voided",
     "paymentStatusRequested": "Requested",
     "additionalChargeSuffix": "(additional charge)"
+  ,
+    "bookForLabel": "Book for",
+    "bookForMyself": "Myself",
+    "templatePrefillNotice": "Booking from your template: {{serviceName}}. Pick a time below."
   },
   "household": {
     "title": "Household",
@@ -16744,6 +16760,151 @@
       "manage_tasks": "Manage plans",
       "view_calendar": "View calendar only"
     }
+  ,
+    "scopeGrants": {
+      "book": [
+        "Book visits for the household",
+        "Read the shared calendar",
+        "Share availability windows"
+      ],
+      "schedule": [
+        "Schedule and reschedule visits",
+        "Confirm visit readiness",
+        "Share visit summaries",
+        "Request a replacement helper",
+        "Send visit and supply reminders",
+        "Use the emergency fallback contact"
+      ],
+      "prepare": [
+        "Prepare visits: checklists and supplies",
+        "Confirm visit readiness",
+        "Share visit summaries",
+        "Request a replacement helper",
+        "Send visit and supply reminders",
+        "Use the emergency fallback contact",
+        "Record accessibility needs and arrival instructions"
+      ],
+      "coordinate": [
+        "Coordinate people across visits",
+        "Hand visit preparation to another delegate",
+        "Reassign upcoming visits"
+      ],
+      "view_records": [
+        "Read household records and documents",
+        "Read visit summaries and receipts"
+      ],
+      "manage_addresses": [
+        "Manage shared service addresses",
+        "Set entry instructions for helpers"
+      ],
+      "manage_tasks": [
+        "Manage maintenance plans and tasks",
+        "Read task history"
+      ],
+      "view_calendar": [
+        "View the shared calendar only",
+        "No booking, no visit actions, no records"
+      ]
+    },
+    "entryPresets": {
+      "gate_code": "Gate code",
+      "parking": "Parking",
+      "pets": "Pets",
+      "stairs": "Stairs",
+      "key_location": "Key location",
+      "none": "None"
+    },
+    "contextLabel": "Household",
+    "myHousehold": "My household",
+    "yourDelegationTitle": "Your delegation to this household",
+    "inviteBannerTitle": "You were invited to help with a household",
+    "inviteBannerAccept": "Accept invitation",
+    "remindDelegation": "Remind",
+    "remindedOk": "Reminder sent.",
+    "remindedTooSoon": "Already reminded recently. Try again tomorrow.",
+    "substituteTitle": "Substitute coordinator",
+    "substituteUntilLabel": "Substitute until",
+    "substituteNoteLabel": "Note for the substitute",
+    "setSubstitute": "Set substitute",
+    "handoffTitle": "Hand off delegation",
+    "handoffToLabel": "Hand off to",
+    "handoffNoteLabel": "Handoff note",
+    "handoffButton": "Hand off",
+    "receiptReason": "Reason",
+    "receiptReassigned": "{{count}} upcoming visits reassigned to the owner",
+    "receiptScopes": "Scopes held",
+    "viewReceipt": "View receipt",
+    "handoffCalendarTitle": "Hand off the calendar",
+    "handoffCalendarFrom": "From delegate",
+    "handoffCalendarTo": "To delegate",
+    "handoffCalendarButton": "Hand off calendar",
+    "prepareButton": "Prepare",
+    "prepTitle": "Visit preparation",
+    "checklistLabel": "Checklist",
+    "addChecklistPlaceholder": "Add a checklist item",
+    "addChecklistButton": "Add",
+    "suppliesLabel": "Supplies",
+    "supplyItemLabel": "Item",
+    "supplyQtyLabel": "Quantity",
+    "supplyNoteLabel": "Note",
+    "addSupplyButton": "Add supply",
+    "accessibilityLabel": "Accessibility needs",
+    "arrivalInstructionsLabel": "Arrival instructions",
+    "savePrep": "Save preparation",
+    "assigneeLabel": "Assigned to",
+    "noAssignee": "Unassigned",
+    "availabilityTitle": "Availability",
+    "availabilityDateLabel": "Date",
+    "availabilityStartLabel": "Start",
+    "availabilityEndLabel": "End",
+    "availabilityNoteLabel": "Note",
+    "addAvailabilityButton": "Add availability",
+    "noAvailability": "No availability windows yet.",
+    "shareSummaryLabel": "Visit summary",
+    "shareSummaryButton": "Share summary",
+    "summarySaved": "Summary shared.",
+    "replacementLabel": "Replacement reason",
+    "replacementButton": "Request replacement",
+    "missedFollowupLabel": "Missed visit follow-up",
+    "missedActionLabel": "Action",
+    "missedNoteLabel": "Note",
+    "missedButton": "Send follow-up",
+    "unavailableLabel": "Unavailable reason",
+    "unavailableButton": "Mark unavailable",
+    "emergencyButton": "Emergency fallback",
+    "emergencyContact": "Emergency contact",
+    "cancellationPreviewButton": "Preview cancellation impact",
+    "cancellationSameDay": "{{count}} visits the same day",
+    "cancellationRecurring": "{{count}} active recurring bookings",
+    "reassignLabel": "Reassign this visit to",
+    "reassignButton": "Reassign",
+    "handoffPrepTitle": "Hand off this visit",
+    "handoffPrepTo": "Hand off to",
+    "handoffPrepNote": "Handoff note",
+    "handoffPrepButton": "Hand off visit",
+    "acknowledgeHandoff": "Acknowledge handoff",
+    "handoffAcknowledged": "Handoff acknowledged.",
+    "handoffDone": "Handoff sent.",
+    "viewHistory": "View history",
+    "vehicleLabel": "Vehicle ID",
+    "recurrenceLabel": "Recurs every (days)",
+    "notesLabel": "Notes",
+    "amountDollarsLabel": "Amount (dollars)",
+    "amountInvalid": "Enter an amount greater than zero.",
+    "bookingLabel": "Booking",
+    "noBooking": "No booking",
+    "useTemplate": "Use template",
+    "forwardTitle": "Forward to",
+    "forwardButton": "Forward",
+    "forwardedOk": "Document forwarded.",
+    "forwardedFrom": "Forwarded from another document.",
+    "sharedWith": "Shared with {{count}} delegates",
+    "sharedAddress": "Shared with the household",
+    "neverGranted": "Never granted: acting outside the scopes above, paying, or seeing payment details.",
+    "partialLoadFailed": "Some household sections failed to load.",
+    "prepLoadFailed": "Could not load this visit's preparation.",
+    "retry": "Retry",
+    "remindSupplies": "Remind about supplies"
   },
   "verifyEmail": {
     "title": "Verify your email",

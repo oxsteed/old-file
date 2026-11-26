@@ -2510,6 +2510,8 @@
     "credit": "OxSteed Credit",
     "partner": "Pwogram patnè",
     "learning": "Aprantisaj travay"
+  ,
+    "household": "Kay"
   },
   "superModeApprovals": {
     "allModes": "Tout mòd yo",
@@ -4990,6 +4992,16 @@
       "entryPlaceholder": "Egzanp: Kòd pòtay la 1234, sèvi ak pòt sou kote a.",
       "defaultLabel": "Sèvi ak li kòm kote pa defo mwen",
       "addButton": "Ajoute kote a"
+    ,
+      "presetLabel": "Prereglaj pou antre",
+      "privateNotesLabel": "Nòt prive",
+      "privateNotesPlaceholder": "Nòt ou menm sèlman ka wè",
+      "shareLabel": "Pataje ak kay mwen",
+      "sharedBadge": "Pataje",
+      "archivedBadge": "Achive",
+      "archiveButton": "Achive",
+      "unarchiveButton": "Dezachive",
+      "showArchivedLabel": "Montre kote yo achive yo"
     }
   },
   "partsList": {
@@ -17389,6 +17401,10 @@
     "paymentStatusVoided": "Anile",
     "paymentStatusRequested": "Mande",
     "additionalChargeSuffix": "(frè adisyonèl)"
+  ,
+    "bookForLabel": "Rezève pou",
+    "bookForMyself": "Mwen menm",
+    "templatePrefillNotice": "Rezèvasyon soti nan modèl ou a: {{serviceName}}. Chwazi yon lè anba a."
   },
   "household": {
     "title": "Kay",
@@ -17486,6 +17502,151 @@
       "manage_tasks": "Jere plan yo",
       "view_calendar": "Gade kalandriye a sèlman"
     }
+  ,
+    "scopeGrants": {
+      "book": [
+        "Rezève vizit pou kay la",
+        "Li kalandriye pataje a",
+        "Pataje lè disponib yo"
+      ],
+      "schedule": [
+        "Pwograme epi repwograme vizit",
+        "Konfime vizit la pare",
+        "Pataje rezime vizit yo",
+        "Mande yon ranplasan",
+        "Voye rapèl vizit ak founiti",
+        "Sèvi ak kontak ijans lan"
+      ],
+      "prepare": [
+        "Prepare vizit: lis ak founiti",
+        "Konfime vizit la pare",
+        "Pataje rezime vizit yo",
+        "Mande yon ranplasan",
+        "Voye rapèl vizit ak founiti",
+        "Sèvi ak kontak ijans lan",
+        "Note bezwen aksè ak enstriksyon pou rive"
+      ],
+      "coordinate": [
+        "Kowòdone moun yo nan vizit yo",
+        "Remèt preparasyon yon vizit bay yon lòt delege",
+        "Reasiyen vizit k ap vini yo"
+      ],
+      "view_records": [
+        "Li dosye ak dokiman kay la",
+        "Li rezime vizit ak resi yo"
+      ],
+      "manage_addresses": [
+        "Jere adrès sèvis pataje yo",
+        "Mete enstriksyon pou antre pou edè yo"
+      ],
+      "manage_tasks": [
+        "Jere plan antretyen ak travay yo",
+        "Li istwa travay yo"
+      ],
+      "view_calendar": [
+        "Wè kalandriye pataje a sèlman",
+        "Pa gen rezervasyon, pa gen aksyon vizit, pa gen dosye"
+      ]
+    },
+    "entryPresets": {
+      "gate_code": "Kòd pòtay",
+      "parking": "Pakinn",
+      "pets": "Bèt kay",
+      "stairs": "Eskalye",
+      "key_location": "Kote kle a ye",
+      "none": "Okenn"
+    },
+    "contextLabel": "Kay",
+    "myHousehold": "Kay mwen",
+    "yourDelegationTitle": "Delegasyon ou nan kay sa a",
+    "inviteBannerTitle": "Yo envite ou pou ede yon kay",
+    "inviteBannerAccept": "Aksepte envitasyon an",
+    "remindDelegation": "Fè sonje",
+    "remindedOk": "Rapèl la voye.",
+    "remindedTooSoon": "Yo te fè sonje resaman. Eseye demen.",
+    "substituteTitle": "Kowòdonatè ranplasan",
+    "substituteUntilLabel": "Ranplasan jous",
+    "substituteNoteLabel": "Nòt pou ranplasan an",
+    "setSubstitute": "Mete ranplasan",
+    "handoffTitle": "Remèt delegasyon an",
+    "handoffToLabel": "Remèt bay",
+    "handoffNoteLabel": "Nòt remèt",
+    "handoffButton": "Remèt",
+    "receiptReason": "Rezon",
+    "receiptReassigned": "{{count}} vizit k ap vini yo reasiyen bay pwopriyetè a",
+    "receiptScopes": "Dimansyon li te genyen",
+    "viewReceipt": "Wè resi a",
+    "handoffCalendarTitle": "Remèt kalandriye a",
+    "handoffCalendarFrom": "Soti nan delege a",
+    "handoffCalendarTo": "Bay delege a",
+    "handoffCalendarButton": "Remèt kalandriye a",
+    "prepareButton": "Prepare",
+    "prepTitle": "Preparasyon vizit la",
+    "checklistLabel": "Lis verifikasyon",
+    "addChecklistPlaceholder": "Ajoute yon eleman",
+    "addChecklistButton": "Ajoute",
+    "suppliesLabel": "Founiti",
+    "supplyItemLabel": "Atik",
+    "supplyQtyLabel": "Kantite",
+    "supplyNoteLabel": "Nòt",
+    "addSupplyButton": "Ajoute founiti",
+    "accessibilityLabel": "Bezwen aksè",
+    "arrivalInstructionsLabel": "Enstriksyon pou rive",
+    "savePrep": "Anrejistre preparasyon an",
+    "assigneeLabel": "Bay",
+    "noAssignee": "Pa asiyen",
+    "availabilityTitle": "Disponibilite",
+    "availabilityDateLabel": "Dat",
+    "availabilityStartLabel": "Kòmansman",
+    "availabilityEndLabel": "Fen",
+    "availabilityNoteLabel": "Nòt",
+    "addAvailabilityButton": "Ajoute disponibilite",
+    "noAvailability": "Pa gen lè disponib pou kounye a.",
+    "shareSummaryLabel": "Rezime vizit la",
+    "shareSummaryButton": "Pataje rezime a",
+    "summarySaved": "Rezime a pataje.",
+    "replacementLabel": "Rezon ranplasman an",
+    "replacementButton": "Mande ranplasan",
+    "missedFollowupLabel": "Swivi vizit yo te rate a",
+    "missedActionLabel": "Aksyon",
+    "missedNoteLabel": "Nòt",
+    "missedButton": "Voye swivi a",
+    "unavailableLabel": "Rezon li pa disponib",
+    "unavailableButton": "Make li pa disponib",
+    "emergencyButton": "Kontak ijans",
+    "emergencyContact": "Kontak ijans",
+    "cancellationPreviewButton": "Wè enpak anilasyon an",
+    "cancellationSameDay": "{{count}} vizit menm jou a",
+    "cancellationRecurring": "{{count}} rezervasyon ki repete aktif",
+    "reassignLabel": "Reasiyen vizit sa a bay",
+    "reassignButton": "Reasiyen",
+    "handoffPrepTitle": "Remèt vizit sa a",
+    "handoffPrepTo": "Remèt bay",
+    "handoffPrepNote": "Nòt remèt",
+    "handoffPrepButton": "Remèt vizit la",
+    "acknowledgeHandoff": "Konfime ou resevwa remèt la",
+    "handoffAcknowledged": "Remèt la konfime.",
+    "handoffDone": "Remèt la voye.",
+    "viewHistory": "Wè istwa a",
+    "vehicleLabel": "ID machin nan",
+    "recurrenceLabel": "Li repete chak (jou)",
+    "notesLabel": "Nòt",
+    "amountDollarsLabel": "Kantite (dola)",
+    "amountInvalid": "Mete yon kantite ki pi gran pase zewo.",
+    "bookingLabel": "Rezèvasyon",
+    "noBooking": "Pa gen rezervasyon",
+    "useTemplate": "Sèvi ak modèl la",
+    "forwardTitle": "Voye bay",
+    "forwardButton": "Voye",
+    "forwardedOk": "Dokiman an voye.",
+    "forwardedFrom": "Yo voye l soti nan yon lòt dokiman.",
+    "sharedWith": "Pataje ak {{count}} delege",
+    "sharedAddress": "Pataje ak kay la",
+    "neverGranted": "Yo pa janm bay li: aji deyò dimansyon yo, peye, oswa wè detay peman.",
+    "partialLoadFailed": "Gen kèk seksyon kay la ki pa t chaje.",
+    "prepLoadFailed": "Li pa t posib pou chaje preparasyon vizit sa a.",
+    "retry": "Eseye ankò",
+    "remindSupplies": "Fè sonje founiti yo"
   },
   "checkout": {
     "title": "Kesye",

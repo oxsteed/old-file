@@ -18,18 +18,19 @@ export default function SavedLocations() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({ label: '', address: '', entry_instructions: '', is_default: false });
+  const [form, setForm] = useState({ label: '', address: '', entry_instructions: '', is_default: false, entry_preset: 'none', private_notes: '', shared_with_household: false });
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
     setFailed(false);
-    api.get('/life/saved-locations')
+    api.get('/life/saved-locations', { params: showArchived ? { includeArchived: 'true' } : {} })
       .then((r) => setLocations(Array.isArray(r.data?.saved_locations) ? r.data.saved_locations : []))
       .catch(() => setFailed(true))
       .finally(() => setLoading(false));
-  }, []);
+  }, [showArchived]);
 
   useEffect(load, [load]);
 
@@ -40,13 +41,16 @@ export default function SavedLocations() {
       address: loc.address || '',
       entry_instructions: loc.entry_instructions || '',
       is_default: !!loc.is_default,
+      entry_preset: loc.entry_preset || 'none',
+      private_notes: loc.private_notes || '',
+      shared_with_household: !!loc.shared_with_household,
     });
     setError('');
   }
 
   function resetForm() {
     setEditingId(null);
-    setForm({ label: '', address: '', entry_instructions: '', is_default: false });
+    setForm({ label: '', address: '', entry_instructions: '', is_default: false, entry_preset: 'none', private_notes: '', shared_with_household: false });
     setError('');
   }
 
@@ -81,6 +85,15 @@ export default function SavedLocations() {
     }
   }
 
+  async function setArchived(id, archived) {
+    try {
+      await api.put(`/life/saved-locations/${id}`, { is_archived: archived });
+      load();
+    } catch {
+      setError(t('settings.savedLocations.saveFailed'));
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col sl-page">
       <Navbar />
@@ -102,6 +115,14 @@ export default function SavedLocations() {
           </div>
         ) : (
           <>
+            <label className="text-sm flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(e) => setShowArchived(e.target.checked)}
+              />
+              {t('settings.savedLocations.showArchivedLabel')}
+            </label>
             {locations.length === 0 ? (
               <p className="text-sm text-muted">{t('settings.savedLocations.empty')}</p>
             ) : (
@@ -116,15 +137,40 @@ export default function SavedLocations() {
                             {t('settings.savedLocations.defaultBadge')}
                           </span>
                         )}
+                        {loc.is_archived && (
+                          <span className="ms-2 text-xs px-2 py-0.5 rounded-full bg-border text-muted">
+                            {t('settings.savedLocations.archivedBadge')}
+                          </span>
+                        )}
+                        {loc.shared_with_household && (
+                          <span className="ms-2 text-xs px-2 py-0.5 rounded-full bg-border text-muted">
+                            {t('settings.savedLocations.sharedBadge')}
+                          </span>
+                        )}
                         <p className="text-sm mt-1 text-muted">{loc.address}</p>
                         {loc.entry_instructions && (
                           <p className="text-sm mt-1 text-muted">{loc.entry_instructions}</p>
+                        )}
+                        {loc.entry_preset && loc.entry_preset !== 'none' && (
+                          <p className="text-sm mt-1 text-muted">{t('settings.savedLocations.presetLabel')}: {t(`household.entryPresets.${loc.entry_preset}`)}</p>
+                        )}
+                        {loc.private_notes && (
+                          <p className="text-sm mt-1 text-muted">{t('settings.savedLocations.privateNotesLabel')}: {loc.private_notes}</p>
                         )}
                       </div>
                       <div className="flex gap-2 shrink-0">
                         <button type="button" onClick={() => startEdit(loc)} className="text-sm text-orange-400 underline">
                           {t('common.edit')}
                         </button>
+                        {loc.is_archived ? (
+                          <button type="button" onClick={() => setArchived(loc.id, false)} className="text-sm text-orange-400 underline">
+                            {t('settings.savedLocations.unarchiveButton')}
+                          </button>
+                        ) : (
+                          <button type="button" onClick={() => setArchived(loc.id, true)} className="text-sm text-orange-400 underline">
+                            {t('settings.savedLocations.archiveButton')}
+                          </button>
+                        )}
                         <button type="button" onClick={() => remove(loc.id)} className="text-sm text-red-400 underline">
                           {t('common.delete')}
                         </button>
@@ -172,6 +218,37 @@ export default function SavedLocations() {
                     placeholder={t('settings.savedLocations.entryPlaceholder')}
                     className="mt-1 w-full rounded-lg border border-border p-2 text-sm bg-transparent"
                   />
+                </label>
+                <label className="text-sm font-medium">
+                  {t('settings.savedLocations.presetLabel')}
+                  <select
+                    value={form.entry_preset}
+                    onChange={(e) => setForm((f) => ({ ...f, entry_preset: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-border p-2 text-sm bg-transparent"
+                  >
+                    {['gate_code', 'parking', 'pets', 'stairs', 'key_location', 'none'].map((p) => (
+                      <option key={p} value={p}>{t(`household.entryPresets.${p}`)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-medium">
+                  {t('settings.savedLocations.privateNotesLabel')}
+                  <textarea
+                    rows={2}
+                    value={form.private_notes}
+                    maxLength={2000}
+                    onChange={(e) => setForm((f) => ({ ...f, private_notes: e.target.value }))}
+                    placeholder={t('settings.savedLocations.privateNotesPlaceholder')}
+                    className="mt-1 w-full rounded-lg border border-border p-2 text-sm bg-transparent"
+                  />
+                </label>
+                <label className="text-sm flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={form.shared_with_household}
+                    onChange={(e) => setForm((f) => ({ ...f, shared_with_household: e.target.checked }))}
+                  />
+                  {t('settings.savedLocations.shareLabel')}
                 </label>
                 <label className="text-sm flex items-center gap-2">
                   <input

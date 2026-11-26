@@ -2510,6 +2510,8 @@
     "credit": "OxSteed Credit",
     "partner": "Programa de socios",
     "learning": "Aprendizaje laboral"
+  ,
+    "household": "Hogar"
   },
   "superModeApprovals": {
     "allModes": "Todos los modos",
@@ -4689,6 +4691,16 @@
       "entryPlaceholder": "Ej.: Código de la puerta 1234, usa la puerta lateral.",
       "defaultLabel": "Usar como mi ubicación predeterminada",
       "addButton": "Agregar ubicación"
+    ,
+      "presetLabel": "Preajuste de entrada",
+      "privateNotesLabel": "Notas privadas",
+      "privateNotesPlaceholder": "Notas que solo tú puedes ver",
+      "shareLabel": "Compartir con mi hogar",
+      "sharedBadge": "Compartido",
+      "archivedBadge": "Archivado",
+      "archiveButton": "Archivar",
+      "unarchiveButton": "Desarchivar",
+      "showArchivedLabel": "Mostrar ubicaciones archivadas"
     }
   },
   "partsList": {
@@ -17389,6 +17401,10 @@
     "paymentStatusVoided": "Anulado",
     "paymentStatusRequested": "Solicitado",
     "additionalChargeSuffix": "(cargo adicional)"
+  ,
+    "bookForLabel": "Reservar para",
+    "bookForMyself": "Mí mismo",
+    "templatePrefillNotice": "Reserva desde tu plantilla: {{serviceName}}. Elige una hora abajo."
   },
   "household": {
     "title": "Hogar",
@@ -17486,6 +17502,151 @@
       "manage_tasks": "Gestionar planes",
       "view_calendar": "Solo ver calendario"
     }
+  ,
+    "scopeGrants": {
+      "book": [
+        "Reservar visitas para el hogar",
+        "Leer el calendario compartido",
+        "Compartir ventanas de disponibilidad"
+      ],
+      "schedule": [
+        "Programar y reprogramar visitas",
+        "Confirmar que la visita está lista",
+        "Compartir resúmenes de visitas",
+        "Solicitar un ayudante de reemplazo",
+        "Enviar recordatorios de visitas y suministros",
+        "Usar el contacto de emergencia"
+      ],
+      "prepare": [
+        "Preparar visitas: listas y suministros",
+        "Confirmar que la visita está lista",
+        "Compartir resúmenes de visitas",
+        "Solicitar un ayudante de reemplazo",
+        "Enviar recordatorios de visitas y suministros",
+        "Usar el contacto de emergencia",
+        "Registrar necesidades de accesibilidad e instrucciones de llegada"
+      ],
+      "coordinate": [
+        "Coordinar personas entre visitas",
+        "Pasar la preparación de una visita a otro delegado",
+        "Reasignar visitas próximas"
+      ],
+      "view_records": [
+        "Leer registros y documentos del hogar",
+        "Leer resúmenes de visitas y recibos"
+      ],
+      "manage_addresses": [
+        "Gestionar direcciones de servicio compartidas",
+        "Definir instrucciones de entrada para los ayudantes"
+      ],
+      "manage_tasks": [
+        "Gestionar planes y tareas de mantenimiento",
+        "Leer el historial de tareas"
+      ],
+      "view_calendar": [
+        "Solo ver el calendario compartido",
+        "Sin reservas, sin acciones de visita, sin registros"
+      ]
+    },
+    "entryPresets": {
+      "gate_code": "Código de puerta",
+      "parking": "Estacionamiento",
+      "pets": "Mascotas",
+      "stairs": "Escaleras",
+      "key_location": "Ubicación de la llave",
+      "none": "Ninguno"
+    },
+    "contextLabel": "Hogar",
+    "myHousehold": "Mi hogar",
+    "yourDelegationTitle": "Tu delegación en este hogar",
+    "inviteBannerTitle": "Te invitaron a ayudar con un hogar",
+    "inviteBannerAccept": "Aceptar invitación",
+    "remindDelegation": "Recordar",
+    "remindedOk": "Recordatorio enviado.",
+    "remindedTooSoon": "Ya se recordó recientemente. Inténtalo mañana.",
+    "substituteTitle": "Coordinador sustituto",
+    "substituteUntilLabel": "Sustituto hasta",
+    "substituteNoteLabel": "Nota para el sustituto",
+    "setSubstitute": "Asignar sustituto",
+    "handoffTitle": "Transferir delegación",
+    "handoffToLabel": "Transferir a",
+    "handoffNoteLabel": "Nota de transferencia",
+    "handoffButton": "Transferir",
+    "receiptReason": "Motivo",
+    "receiptReassigned": "{{count}} visitas próximas reasignadas al propietario",
+    "receiptScopes": "Permisos que tenía",
+    "viewReceipt": "Ver recibo",
+    "handoffCalendarTitle": "Transferir el calendario",
+    "handoffCalendarFrom": "Del delegado",
+    "handoffCalendarTo": "Al delegado",
+    "handoffCalendarButton": "Transferir calendario",
+    "prepareButton": "Preparar",
+    "prepTitle": "Preparación de la visita",
+    "checklistLabel": "Lista de verificación",
+    "addChecklistPlaceholder": "Añadir un elemento",
+    "addChecklistButton": "Añadir",
+    "suppliesLabel": "Suministros",
+    "supplyItemLabel": "Artículo",
+    "supplyQtyLabel": "Cantidad",
+    "supplyNoteLabel": "Nota",
+    "addSupplyButton": "Añadir suministro",
+    "accessibilityLabel": "Necesidades de accesibilidad",
+    "arrivalInstructionsLabel": "Instrucciones de llegada",
+    "savePrep": "Guardar preparación",
+    "assigneeLabel": "Asignado a",
+    "noAssignee": "Sin asignar",
+    "availabilityTitle": "Disponibilidad",
+    "availabilityDateLabel": "Fecha",
+    "availabilityStartLabel": "Inicio",
+    "availabilityEndLabel": "Fin",
+    "availabilityNoteLabel": "Nota",
+    "addAvailabilityButton": "Añadir disponibilidad",
+    "noAvailability": "Aún no hay ventanas de disponibilidad.",
+    "shareSummaryLabel": "Resumen de la visita",
+    "shareSummaryButton": "Compartir resumen",
+    "summarySaved": "Resumen compartido.",
+    "replacementLabel": "Motivo del reemplazo",
+    "replacementButton": "Solicitar reemplazo",
+    "missedFollowupLabel": "Seguimiento de visita perdida",
+    "missedActionLabel": "Acción",
+    "missedNoteLabel": "Nota",
+    "missedButton": "Enviar seguimiento",
+    "unavailableLabel": "Motivo de no disponibilidad",
+    "unavailableButton": "Marcar no disponible",
+    "emergencyButton": "Contacto de emergencia",
+    "emergencyContact": "Contacto de emergencia",
+    "cancellationPreviewButton": "Ver impacto de cancelación",
+    "cancellationSameDay": "{{count}} visitas el mismo día",
+    "cancellationRecurring": "{{count}} reservas recurrentes activas",
+    "reassignLabel": "Reasignar esta visita a",
+    "reassignButton": "Reasignar",
+    "handoffPrepTitle": "Transferir esta visita",
+    "handoffPrepTo": "Transferir a",
+    "handoffPrepNote": "Nota de transferencia",
+    "handoffPrepButton": "Transferir visita",
+    "acknowledgeHandoff": "Confirmar transferencia",
+    "handoffAcknowledged": "Transferencia confirmada.",
+    "handoffDone": "Transferencia enviada.",
+    "viewHistory": "Ver historial",
+    "vehicleLabel": "ID del vehículo",
+    "recurrenceLabel": "Se repite cada (días)",
+    "notesLabel": "Notas",
+    "amountDollarsLabel": "Monto (dólares)",
+    "amountInvalid": "Ingresa un monto mayor que cero.",
+    "bookingLabel": "Reserva",
+    "noBooking": "Sin reserva",
+    "useTemplate": "Usar plantilla",
+    "forwardTitle": "Reenviar a",
+    "forwardButton": "Reenviar",
+    "forwardedOk": "Documento reenviado.",
+    "forwardedFrom": "Reenviado desde otro documento.",
+    "sharedWith": "Compartido con {{count}} delegados",
+    "sharedAddress": "Compartido con el hogar",
+    "neverGranted": "Nunca se concede: actuar fuera de los permisos anteriores, pagar o ver detalles de pago.",
+    "partialLoadFailed": "Algunas secciones del hogar no se cargaron.",
+    "prepLoadFailed": "No se pudo cargar la preparación de esta visita.",
+    "retry": "Reintentar",
+    "remindSupplies": "Recordar suministros"
   },
   "checkout": {
     "title": "Verificar",

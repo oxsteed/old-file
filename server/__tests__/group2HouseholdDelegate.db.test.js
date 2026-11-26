@@ -765,6 +765,24 @@ ddescribe('Group 2 household delegate', () => {
     expect(again.res.statusCode).toBe(409);
   });
 
+  test('Wave 4 (51/61): role=delegate list carries the owner name for the selector and booking picker', async () => {
+    const holder = await freshUser();
+    await makeAcceptedDelegation(holder.id, ['book']);
+    const asDelegate = await call(householdCtrl.listDelegations, {
+      user: { id: holder.id }, query: { role: 'delegate' },
+    });
+    expect(asDelegate.res.statusCode).toBe(200);
+    const held = asDelegate.res.payload.delegations.find((d) => d.ownerId === owner);
+    expect(held).toBeTruthy();
+    // Owner test user is first_name 'Test', last_name 'customer'.
+    expect(held.ownerName).toBe('Test customer');
+    const asOwner = await call(householdCtrl.listDelegations, {
+      user: { id: owner }, query: {},
+    });
+    expect(asOwner.res.statusCode).toBe(200);
+    expect(asOwner.res.payload.delegations.every((d) => d.ownerName === null)).toBe(true);
+  });
+
   test('Wave 4 (79/80/81): book-only delegates cannot do visit actions; calendar-only reads no tasks', async () => {
     const bookOnly = await freshUser();
     await makeAcceptedDelegation(bookOnly.id, ['book']);
