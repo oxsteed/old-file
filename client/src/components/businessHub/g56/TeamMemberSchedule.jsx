@@ -99,12 +99,17 @@ function Delegation({ businessId, team }) {
 
 function Feedback({ businessId }) {
   const p = useBizG56(`/businesses/${businessId}/work/feedback`, 'sched');
-  if (!p.data || !p.data.feedback.length) return null;
+  const bf = useBizG56(`/businesses/${businessId}/work/booking-feedback`, 'sched');
+  const mine = p.data?.feedback || [];
+  const bookings = bf.data?.feedback || [];
+  if ((!p.data && !bf.data) || (!mine.length && !bookings.length)) return null;
   return (
     <section className="g56-panel">
       <h3>{p.tr('feedback')}</h3>
-      <ul className="g56-list">{p.data.feedback.map(f => <li key={f.appointment_id}>{'★'.repeat(f.rating)} · {f.service_name} · {p.time(f.start_time)}{f.feedback_text && ` · ${f.feedback_text}`}
-        {f.follow_up_status && <span className="g56-badge">{p.tr(`fu.${f.follow_up_status}`)}</span>}</li>)}</ul>
+      {mine.length > 0 && <ul className="g56-list">{mine.map(f => <li key={f.appointment_id}>{'★'.repeat(f.rating)} · {f.service_name} · {p.time(f.start_time)}{f.feedback_text && ` · ${f.feedback_text}`}
+        {f.follow_up_status && <span className="g56-badge">{p.tr(`fu.${f.follow_up_status}`)}</span>}</li>)}</ul>}
+      {bookings.length > 0 && <><h4>{p.tr('bookingFeedback')}</h4>
+        <ul className="g56-list">{bookings.map(f => <li key={f.id}>{'★'.repeat(f.rating || 0)} · {f.service_name} · {p.time(f.created_at)}{f.helper_name && ` · ${f.helper_name}`}{f.body && ` · ${f.body}`}</li>)}</ul></>}
     </section>
   );
 }

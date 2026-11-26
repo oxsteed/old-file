@@ -76,6 +76,8 @@ const NOTIFICATION_TYPES = [
   { type: 'household_spending_request', group: 'work' },
   { type: 'household_visit_update', group: 'work' },
   { type: 'booking_transferred', group: 'work' },
+  // G5-11 (260): a pending business booking dispatched to a member.
+  { type: 'booking_dispatched', group: 'work' },
   { type: 'booking_request_new', group: 'work' },
   { type: 'booking_reschedule_accepted', group: 'work' },
   { type: 'booking_reschedule_declined', group: 'work' },
@@ -125,6 +127,9 @@ const NOTIFICATION_TYPES = [
   { type: 'helper_job_support_requested', group: 'work' },
   { type: 'crew_shift_cancelled', group: 'work' },
   { type: 'crew_shift_published', group: 'work' },
+  // G5-13 (279): a published shift that is edited or cancelled notifies
+  // the affected member; publish keeps its own type above.
+  { type: 'crew_shift_changed', group: 'work' },
   { type: 'crew_task_assigned', group: 'work' },
   { type: 'crew_task_completed', group: 'work' },
   { type: 'crew_task_reviewed', group: 'work' },
@@ -206,7 +211,15 @@ const NOTIFICATION_TYPES = [
   { type: 'cart_recovery', group: 'orders' },
   { type: 'delivery:delivery_approaching', group: 'orders' },
   { type: 'driver_document_renewal', group: 'orders' },
+  // Group 9 partials Wave 2 Batch L (451, G9-A8): the driver hears when
+  // ops approves their profile and when a payout is approved or paid.
+  { type: 'driver_approved', group: 'work' },
+  { type: 'driver_payout_approved', group: 'payments' },
+  { type: 'driver_payout_paid', group: 'payments' },
   { type: 'delivery_offer_expired', group: 'orders' },
+  // Group 9 partials Wave 2 Batch M (456, G9-A9): the periodic new-offer
+  // digest for eligible drivers.
+  { type: 'delivery_offer_digest', group: 'orders' },
   { type: 'delivery_window_warning', group: 'orders' },
   { type: 'delivery:delivery_assigned', group: 'orders' },
   // Group 9 Slice E: exceptions dispatch events (localDeliveryNotifications copy).
@@ -235,6 +248,12 @@ const NOTIFICATION_TYPES = [
   { type: 'delivery:delivery_return_in_transit', group: 'orders' },
   { type: 'delivery:delivery_return_requested', group: 'orders' },
   { type: 'delivery:delivery_returned', group: 'orders' },
+  // Group 9 partials Wave 2 Batch O (469/475, G9-A10/G9-A11): the free
+  // waiting notice and the redelivery-attempt request lifecycle.
+  { type: 'delivery:delivery_waiting_notice', group: 'orders' },
+  { type: 'delivery:delivery_redelivery_requested', group: 'orders' },
+  { type: 'delivery:delivery_redelivery_approved', group: 'orders' },
+  { type: 'delivery:delivery_redelivery_rejected', group: 'orders' },
   { type: 'delivery:tracking_stale', group: 'orders' },
   // Group 9 (item 495): driver weekly delivery report ready notice.
   { type: 'delivery:weekly_report_ready', group: 'orders' },
@@ -323,6 +342,12 @@ const NOTIFICATION_TYPES = [
   { type: 'dispute_reopened', group: 'support' },
   { type: 'dispute_resolved', group: 'support' },
   { type: 'dispute_under_review', group: 'support' },
+  // Wave 3 (589, D-572/D-569): rental escalation opened/resolved.
+  { type: 'tool_rental_escalation_opened', group: 'support' },
+  { type: 'tool_rental_escalation_resolved', group: 'support' },
+  // G11-A1/A3 (D-603): payment proof recorded, payment confirmed.
+  { type: 'tool_rental_payment_proof_submitted', group: 'support' },
+  { type: 'tool_rental_payment_confirmed', group: 'support' },
   { type: 'intake_request_received', group: 'support' },
   { type: 'new_review', group: 'support' },
   { type: 'report_resolved', group: 'support' },
@@ -365,6 +390,10 @@ const NOTIFICATION_TYPES = [
   { type: 'draft_recovery', group: 'other' },
   { type: 'growth_offer', group: 'other' },
   { type: 'member_removed', group: 'other' },
+  // Batch E (296, G5-8/G5-33): membership-expiry warning and
+  // role/permission-change notice.
+  { type: 'member_role_changed', group: 'other' },
+  { type: 'membership_expiring', group: 'other' },
   { type: 'metric_threshold_alert', group: 'other' },
   { type: 'reengagement_nudge', group: 'other' },
   { type: 'watchlist_booking', group: 'other' },
@@ -386,6 +415,8 @@ const NOTIFICATION_TYPES = [
   { type: 'business_dispatch_declined', group: 'work' },
   { type: 'business_work_exception_raised', group: 'work' },
   { type: 'business_work_exception_updated', group: 'work' },
+  { type: 'job_exception_raised', group: 'work' },
+  { type: 'job_exception_updated', group: 'work' },
   { type: 'business_crew_allocated', group: 'work' },
   { type: 'business_crew_declined', group: 'work' },
   { type: 'business_team_mention', group: 'work' },
@@ -393,6 +424,7 @@ const NOTIFICATION_TYPES = [
   { type: 'business_coverage_decided', group: 'work' },
   { type: 'business_job_follow_up', group: 'work' },
   { type: 'business_feedback_follow_up', group: 'work' },
+  { type: 'business_feedback_for_you', group: 'work' },
   { type: 'business_shift_handover', group: 'work' },
   { type: 'business_task_assigned_to_you', group: 'work' },
   { type: 'business_delegation_proposed', group: 'work' },
@@ -407,9 +439,11 @@ const NOTIFICATION_TYPES = [
   { type: 'property_approval_decided', group: 'work' },
   { type: 'property_entry_scheduled', group: 'work' },
   { type: 'property_entry_window_selected', group: 'work' },
+  { type: 'property_request_status', group: 'work' },
   { type: 'property_emergency', group: 'work' },
   { type: 'property_incident_summary', group: 'work' },
   { type: 'property_maintenance_due', group: 'work' },
+  { type: 'property_sla_breach', group: 'work' },
   { type: 'property_budget_over', group: 'work' },
   { type: 'restaurant_pickup_unclaimed', group: 'work' },
   { type: 'restaurant_order_transfer_requested', group: 'work' },

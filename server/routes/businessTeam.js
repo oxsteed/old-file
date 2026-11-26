@@ -104,6 +104,16 @@ router.post(
   access.removeMembership
 );
 
+// 297 (G5-34): pending-action summary shown in the remove confirm dialog.
+router.get(
+  '/:businessId/memberships/:membershipId/offboarding-preview',
+  authenticate,
+  rejectImpersonated,
+  requireBusinessAccess({ minRole: 'manager' }),
+  requirePermission('team.remove_member'),
+  access.offboardingPreview
+);
+
 // ── Catalog (for UI: roles + permission groups) ─────────────────────────────
 router.get(
   '/:businessId/team/catalog',

@@ -95,15 +95,22 @@ ddescribe('G-46 logistics.ship driver admission', () => {
     );
   }
 
-  async function makeProfile(userId, { approved = true, active = true } = {}) {
+  // CI fix (Wave 2, run 45720457141): Batch M's claim gates (D-534 service
+  // area, D-536 availability) run before the assignment check, so a
+  // claiming fixture must carry the preconditions a real driver has after
+  // toggling on in Driving: available true and a service area that covers
+  // the job. The pending / no-profile / plain-customer paths still fail
+  // earlier in the chain (approval, onboarding, authorize) and need none
+  // of this.
+  async function makeProfile(userId, { approved = true, active = true, available = false, serviceArea = {} } = {}) {
     const { rows: [profile] } = await pool.query(
       `INSERT INTO delivery_driver_profiles
-         (user_id, approved, active, vehicle_type, max_payload_lbs,
+         (user_id, approved, active, available, vehicle_type, max_payload_lbs,
           cargo_length_in, cargo_width_in, cargo_height_in,
           equipment, service_area, insurance_acknowledged)
-       VALUES ($1, $2, $3, 'car', 200, 40, 40, 40, '{}', '{}', TRUE)
+       VALUES ($1, $2, $3, $4, 'car', 200, 40, 40, 40, '{}', $5, TRUE)
        RETURNING *`,
-      [userId, approved, active],
+      [userId, approved, active, available, JSON.stringify(serviceArea)],
     );
     return profile;
   }
@@ -250,7 +257,11 @@ ddescribe('G-46 logistics.ship driver admission', () => {
     // Approved profile: claim succeeds and assigns the job.
     const approvedDriver = await makeUser('customer');
     await grantLogisticsShip(approvedDriver);
-    await makeProfile(approvedDriver, { approved: true, active: true });
+    await makeProfile(approvedDriver, { approved: true, active: true, available: true,
+      // Center/radius area around the job's origin (40.0,-83.0); covers
+      // the destination (40.1,-83.1) too. A states area cannot cover this
+      // job: it carries no origin_state column.
+      serviceArea: { center: { lat: 40.0, lng: -83.0 }, radiusMiles: 50 } });
     const job1 = await makeMarketplaceJob(customer);
     const claimed = await claimAction({
       params: { id: String(job1.id) },

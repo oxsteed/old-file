@@ -95,7 +95,7 @@ async function notifyWaitlistOffer(entry, appointment) {
         business_id: String(appointment.business_id || ''),
         start_time: appointment.start_time,
       },
-      action_url: `/businesses/${appointment.business_id}/book`,
+      action_url: `/book/business/${appointment.business_id}`,
       idempotencyKey: `waitlist-offer:${entry.id}`,
     });
   } catch (error) {
@@ -1013,7 +1013,7 @@ async function notifyAppointmentParticipants(appointment, notificationType) {
       title: 'Appointment update',
       body: `Appointment ${notificationType.replace(/^appointment_/, '').replace(/_/g, ' ')}.`,
       data: { appointment_id: String(appointmentId), business_id: String(appointment.business_id || '') },
-      action_url: `/businesses/${appointment.business_id}/calendar`,
+      action_url: `/business/${appointment.business_id}/workspace/calendar`,
       idempotencyKey: `business-appointment:${appointmentId}:${notificationType}:${appointment.updated_at || appointment.status || 'created'}`,
     })));
   } catch (error) {

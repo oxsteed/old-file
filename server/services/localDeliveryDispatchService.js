@@ -92,6 +92,57 @@ function areaCovers(area, job) {
   return true;
 }
 
+// Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-534/D-535): an empty
+// service area is no longer "everywhere" for claiming. hasServiceArea
+// reports whether a stored area actually covers somewhere: at least one
+// non-empty states/cities/postalCodes list, or a center with a positive
+// radius. A bare JSON string is parsed first (legacy profiles); anything
+// else unparseable counts as unset.
+function hasServiceArea(area) {
+  let value = area;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    try { value = JSON.parse(trimmed); } catch (_) { return false; }
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  for (const key of ['states', 'cities', 'postalCodes']) {
+    if (Array.isArray(value[key]) && value[key].some((entry) => String(entry).trim())) return true;
+  }
+  const center = value.center;
+  return Boolean(center && Number.isFinite(Number(center.lat)) && Number.isFinite(Number(center.lng))
+    && Number(value.radiusMiles) > 0);
+}
+
+// The stored center of a service area, for the feed's 50-mile filter when
+// the client sends no location (D-535). Null when the area has no usable
+// center, so the caller falls through to an unfiltered feed.
+function serviceAreaCenter(area) {
+  let value = area;
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); } catch (_) { return null; }
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const lat = Number(value.center?.lat);
+  const lng = Number(value.center?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
+
+// Haversine distance in miles, shared by the claim distance sanity
+// (D-535) and the digest eligibility check.
+function haversineMiles(lat1, lng1, lat2, lng2) {
+  const rad = (value) => value * Math.PI / 180;
+  const a = Math.sin(rad(lat2 - lat1) / 2) ** 2
+    + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lng2 - lng1) / 2) ** 2;
+  return 3958.7613 * 2 * Math.asin(Math.sqrt(Math.min(1, a)));
+}
+
+// The feed's discovery window (D-535): jobs farther than this from the
+// driver's location never reach the inbox, and a claim from farther than
+// this is refused when the client sends a location.
+const FEED_MAX_MILES = 50;
+
 // Null availability means no configured hours (legacy profiles). An explicit
 // empty array means unavailable. Windows are absolute UTC intervals.
 function availableDuring(availability, window) {
@@ -244,6 +295,16 @@ function createActionRunner(deps = {}) {
       const job = (await client.query('SELECT * FROM delivery_jobs WHERE id = $1 FOR UPDATE', [jobId])).rows[0];
       if (!job) throw fail('Delivery job not found', 'delivery_not_found', 404);
       await authorize(req, job, access);
+      // Group 9 partials Wave 2 Batch Q (498, G9-B6, D-561): the
+      // 7-day driver access expiry (D-90) applies to the driver-acting
+      // recovery/dispatch actions too — reschedule and return requests
+      // from a driver on a job delivered months ago 410 instead of
+      // opening new work on a closed job. Operator actions skip the
+      // check: ops acts on the job, not as the driver, and an operator
+      // who also happens to be the assigned driver must still be able
+      // to resolve an old exception. The check is driver-only inside
+      // assertDriverJobAccess, so customers are unaffected either way.
+      if (access !== 'operator') integrity.assertDriverJobAccess(job, req.user);
       const { clientRequestId, idempotencyKey, ...body } = req.body || {};
       const input = { jobId: String(job.id), childId: childId || null, action, body };
       const prior = await integrity.actionReplay(client, job, req.user, action, key, input);
@@ -305,11 +366,33 @@ function createDispatchService(deps = {}) {
   const run = createActionRunner(deps);
   const actions = {
     assignInternal: (req) => run(req, { action: 'assignInternal', access: 'operator', persistFailure: true }, async ({ client, job, activity, now }) => {
-      if (!['posted', 'assigned'].includes(job.status) || pickedUp(job) || job.helper_user_id
-        || !['internal_review', 'internal_assignment_attempt', 'internal_assigned', 'exception'].includes(job.dispatch_state)) throw fail('Delivery is not available for internal assignment', 'delivery_dispatch_conflict');
+      // Group 9 partials Wave 2 Batch P (482, G9-B4, D-556): a
+      // marketplace-claimed job (helper_user_id set, dispatch_state
+      // 'assigned', not yet picked up) can be pulled back by assigning
+      // it to an internal driver; the outgoing marketplace driver is
+      // notified through the replacement event below. The picked-up
+      // guard stays: once the package is in the van, only the
+      // mid-route transfer path moves the job.
+      if (!['posted', 'assigned'].includes(job.status) || pickedUp(job)
+        || !['internal_review', 'internal_assignment_attempt', 'internal_assigned', 'exception', 'assigned'].includes(job.dispatch_state)) throw fail('Delivery is not available for internal assignment', 'delivery_dispatch_conflict');
       await ensureNoOpenRecovery(client, job);
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.body?.driverUserId || '')) throw fail('A valid driver is required', 'delivery_driver_invalid', 400);
       const assignment = { driverId: req.body.driverUserId.toLowerCase(), vehicleId: positiveId(req.body.vehicleId) };
+      // Group 9 partials Wave 2 Batch M (459, G9-A3, D-536): operations
+      // cannot assign a driver who is offline. The flag lives on the
+      // profile; a missing profile still falls through to checkAssignment,
+      // which reports it as missing_profile. The gate is here, not in
+      // shared checkAssignment: the recovery service reuses that helper
+      // to re-validate an already-assigned driver on reschedule approval
+      // and exception resume, and gating there would strand in-flight
+      // jobs when a driver toggles off mid-route.
+      const { rows: [targetProfile] } = await client.query(
+        'SELECT available FROM delivery_driver_profiles WHERE user_id = $1',
+        [assignment.driverId],
+      );
+      if (targetProfile && targetProfile.available !== true) {
+        throw new AppError('The driver is offline. Ask the driver to turn on availability in Driving before assigning.', 409, 'delivery_driver_offline', { reasons: ['offline'] });
+      }
       await lockResources(client, assignmentOf(job), assignment);
       const window = windowForJob(job, now);
       await checkAssignment(client, job, assignment, window);
@@ -328,7 +411,10 @@ function createDispatchService(deps = {}) {
       // notifies with the replacement event (who replaced whom) instead
       // of the plain assignment event; a first assignment keeps
       // delivery_coordinated, which the worker maps to delivery_assigned.
-      const previousDriverUserId = job.internal_driver_user_id || null;
+      // Batch P (D-556): the outgoing driver may be a marketplace
+      // claimer (helper_user_id), not only an internal driver; the
+      // event worker fans the replacement out to them too.
+      const previousDriverUserId = job.helper_user_id || job.internal_driver_user_id || null;
       if (previousDriverUserId && !sameId(previousDriverUserId, assignment.driverId)) {
         await recordReplacement(activity, client, job, req.user.id, { previousDriverUserId, newDriverUserId: assignment.driverId, releasedToMarketplace: false });
       } else {
@@ -339,7 +425,10 @@ function createDispatchService(deps = {}) {
     releaseMarketplace: (req) => run(req, { action: 'releaseMarketplace', access: 'operator' }, async ({ client, job, activity, now }) => {
       const reason = cleanText(req.body?.reason, 1000);
       if (reason.length < 3) throw fail('An explicit release reason is required', 'delivery_release_reason_required', 400);
-      if (!['posted', 'assigned'].includes(job.status) || pickedUp(job) || job.helper_user_id) throw fail('Delivery cannot be released', 'delivery_release_conflict');
+      // Group 9 partials Wave 2 Batch P (482, G9-B4, D-556): a
+      // marketplace-claimed job can be pulled back before pickup; the
+      // helper_user_id refusal is gone. The picked-up guard stays.
+      if (!['posted', 'assigned'].includes(job.status) || pickedUp(job)) throw fail('Delivery cannot be released', 'delivery_release_conflict');
       await ensureNoOpenRecovery(client, job);
       // Group 9 Slice B (item 457): re-offering an expired marketplace
       // offer. The job is still posted, but its deadline passed (stamped
@@ -363,6 +452,31 @@ function createDispatchService(deps = {}) {
         return { success: true, job: reoffered };
       }
       if (job.status === 'posted' && job.dispatch_state === 'marketplace_posted' && job.fulfillment_source === 'marketplace' && !job.internal_driver_user_id && !job.vehicle_id) return { success: true, duplicate: true, job };
+      // Group 9 partials Wave 2 Batch P (482, G9-B4, D-556): pull a
+      // marketplace claim back before pickup. The claim is cleared,
+      // the job is re-posted with a fresh offer deadline, the claim
+      // reservation and any tracking session are released, and the
+      // outgoing claimer hears about it through the replacement
+      // event (releasedToMarketplace), not silence.
+      if (job.helper_user_id && job.status === 'assigned' && job.dispatch_state === 'assigned') {
+        await lockResources(client, assignmentOf(job));
+        await client.query(
+          `UPDATE delivery_tracking_assignments SET status = 'revoked', ended_at = NOW(), ended_reason = 'released', updated_at = NOW()
+           WHERE delivery_job_id = $1 AND status IN ('active', 'paused')`,
+          [job.id]
+        );
+        await client.query("UPDATE delivery_assignment_reservations SET status = 'released' WHERE delivery_job_id = $1 AND status = 'active'", [job.id]);
+        const hours = offerDeadlineHours(req);
+        const pulledBack = (await client.query(`UPDATE delivery_jobs SET fulfillment_source = 'marketplace', dispatch_state = 'marketplace_posted', status = 'posted',
+          helper_user_id = NULL, internal_driver_user_id = NULL, vehicle_id = NULL, assigned_by_user_id = NULL, assigned_at = NULL, internal_assigned_at = NULL,
+          marketplace_released_at = NOW(), marketplace_release_reason = $1, marketplace_released_by_user_id = $2,
+          offer_expires_at = NOW() + ($4::int * INTERVAL '1 hour'), offer_deadline_hours = $4, offer_expired_at = NULL, offer_expiry_notice_sent_at = NULL,
+          updated_at = NOW() WHERE id = $3 RETURNING *`, [reason, req.user.id, job.id, hours])).rows[0];
+        await client.query("INSERT INTO delivery_dispatch_attempts (delivery_job_id, source, action, reason, actor_user_id) VALUES ($1,'marketplace','released',$2,$3)", [job.id, reason, req.user.id]);
+        await activity(client, job.id, req.user.id, 'delivery_marketplace_released', { reason }, false);
+        await recordReplacement(activity, client, job, req.user.id, { previousDriverUserId: job.helper_user_id, newDriverUserId: null, releasedToMarketplace: true });
+        return { success: true, job: pulledBack };
+      }
       if (!['internal_review', 'internal_assignment_attempt', 'internal_assigned', 'exception'].includes(job.dispatch_state)) throw fail('Delivery cannot be released', 'delivery_release_conflict');
       await lockResources(client, assignmentOf(job));
       // Stop any prior tracking session (release to marketplace).
@@ -391,6 +505,61 @@ function createDispatchService(deps = {}) {
       if (job.internal_driver_user_id) {
         await recordReplacement(activity, client, job, req.user.id, { previousDriverUserId: job.internal_driver_user_id, newDriverUserId: null, releasedToMarketplace: true });
       }
+      return { success: true, job: updated };
+    }),
+    // Group 9 partials Wave 2 Batch P (482, G9-B4, D-555): mid-route
+    // transfer. A picked-up job (vehicle breakdown, driver emergency)
+    // moves to another internal driver. The new driver passes the
+    // same capability/readiness gate as a fresh claim (offline check,
+    // checkAssignment, reservation conflict); an unqualified
+    // transferee is refused, never handed the job. The custody/proof
+    // record is preserved: picked_up_at and the pickup proof are
+    // never touched, the old tracking session is revoked with
+    // ended_reason 'transferred', and the replacement event notifies
+    // the customer, the new driver, and the outgoing driver. No
+    // open-issue block: the transfer IS the ops escape hatch when the
+    // breakdown was reported as an issue; an open return still blocks
+    // it, because a package already heading back to origin must not
+    // be handed to a new driver.
+    transferAssignment: (req) => run(req, { action: 'transferAssignment', access: 'operator', persistFailure: true }, async ({ client, job, activity, now }) => {
+      if (!pickedUp(job) || !['picked_up', 'in_transit'].includes(job.status)) throw fail('Only a picked-up delivery can be transferred', 'delivery_transfer_conflict');
+      const openReturn = await client.query(`SELECT id FROM delivery_returns WHERE delivery_job_id = $1 AND status IN ('requested','approved','in_transit') LIMIT 1`, [job.id]);
+      if (openReturn.rows.length) throw fail('Resolve the open return before transferring', 'delivery_recovery_pending');
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.body?.driverUserId || '')) throw fail('A valid driver is required', 'delivery_driver_invalid', 400);
+      const assignment = { driverId: req.body.driverUserId.toLowerCase(), vehicleId: positiveId(req.body.vehicleId) };
+      const reason = cleanText(req.body?.reason, 1000);
+      const { rows: [targetProfile] } = await client.query(
+        'SELECT available FROM delivery_driver_profiles WHERE user_id = $1',
+        [assignment.driverId],
+      );
+      if (targetProfile && targetProfile.available !== true) {
+        throw new AppError('The driver is offline. Ask the driver to turn on availability in Driving before assigning.', 409, 'delivery_driver_offline', { reasons: ['offline'] });
+      }
+      await lockResources(client, assignmentOf(job), assignment);
+      // A mid-route handover starts now; the window end is the job's
+      // own delivery window when it is still ahead, else the job's
+      // duration from now. windowForJob would refuse a late job
+      // outright, which is exactly when a transfer is most needed.
+      const nowMs = new Date(now).getTime();
+      const windowEndMs = Math.max(
+        job.delivery_window_end ? new Date(job.delivery_window_end).getTime() : 0,
+        job.estimated_arrival_at ? new Date(job.estimated_arrival_at).getTime() : 0,
+        nowMs + Math.max(60, Number(job.duration_minutes) || 60) * 60000,
+      );
+      const window = { start: new Date(nowMs).toISOString(), end: new Date(windowEndMs).toISOString() };
+      await checkAssignment(client, job, assignment, window);
+      await reserve(client, job, assignment, window);
+      await client.query(
+        `UPDATE delivery_tracking_assignments SET status = 'revoked', ended_at = NOW(), ended_reason = 'transferred', updated_at = NOW()
+         WHERE delivery_job_id = $1 AND status IN ('active', 'paused')`,
+        [job.id]
+      );
+      const previousDriverUserId = job.helper_user_id || job.internal_driver_user_id || null;
+      const updated = (await client.query(`UPDATE delivery_jobs SET fulfillment_source = 'internal', dispatch_state = 'internal_assigned',
+        helper_user_id = NULL, internal_driver_user_id = $1, vehicle_id = $2, assigned_by_user_id = $3,
+        internal_assigned_at = NOW(), updated_at = NOW() WHERE id = $4 RETURNING *`, [assignment.driverId, assignment.vehicleId, req.user.id, job.id])).rows[0];
+      await client.query("INSERT INTO delivery_dispatch_attempts (delivery_job_id, source, driver_user_id, vehicle_id, action, reason, actor_user_id) VALUES ($1,'internal',$2,$3,'transferred',$4,$5)", [job.id, assignment.driverId, assignment.vehicleId, reason || null, req.user.id]);
+      await recordReplacement(activity, client, job, req.user.id, { previousDriverUserId, newDriverUserId: assignment.driverId, releasedToMarketplace: false });
       return { success: true, job: updated };
     }),
     claim: (req) => run(req, { action: 'claim', access: 'helper', persistFailure: true }, async ({ client, job, activity, now }) => {
@@ -422,7 +591,7 @@ function createDispatchService(deps = {}) {
       // approved profile. Fail with a targeted code so the client can route
       // the helper to onboarding instead of a generic capacity error.
       const { rows: [selfProfile] } = await client.query(
-        'SELECT approved, active FROM delivery_driver_profiles WHERE user_id = $1',
+        'SELECT approved, active, available, service_area FROM delivery_driver_profiles WHERE user_id = $1',
         [req.user.id]
       );
       if (!selfProfile) {
@@ -430,6 +599,40 @@ function createDispatchService(deps = {}) {
       }
       if (selfProfile.approved !== true) {
         throw fail('Driver profile is pending operations approval', 'delivery_driver_pending_approval', 409);
+      }
+      // Group 9 partials Wave 2 Batch M (459, G9-A3, D-536): an offline
+      // driver cannot claim, even from a shared job link or the detail
+      // page. The feed already hides offers while offline; this closes
+      // the link hole with the same flag. The refusal names the toggle so
+      // the driver can fix it themselves.
+      if (selfProfile.available !== true) {
+        throw new AppError('You are offline. Turn on availability in Driving to claim deliveries.', 409, 'delivery_driver_offline', { reasons: ['offline'] });
+      }
+      // Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-534): a driver
+      // with no service area set cannot make a claim. An empty area used
+      // to mean "everywhere", which let a driver claim a job a thousand
+      // miles away; the area is now required first. A driver who clears
+      // their area is blocked again, because the area is the only
+      // distance evidence the claim has.
+      if (!hasServiceArea(selfProfile.service_area)) {
+        throw new AppError('Set a service area before claiming deliveries', 409, 'delivery_service_area_required', { reasons: ['service_area'] });
+      }
+      // Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-535): distance
+      // sanity at claim. When the client sends the driver's location, the
+      // pickup origin must be within the 50-mile feed window; when no
+      // location is sent, the service-area coverage enforced by
+      // checkAssignment below is the sanity (a states/cities-only area
+      // has no radius, so no mileage check applies there beyond
+      // membership).
+      const driverLat = Number(req.body?.lat ?? req.body?.latitude);
+      const driverLng = Number(req.body?.lng ?? req.body?.longitude);
+      if (Number.isFinite(driverLat) && Number.isFinite(driverLng)) {
+        const originLat = Number(job.origin_lat);
+        const originLng = Number(job.origin_lng);
+        if (Number.isFinite(originLat) && Number.isFinite(originLng)
+          && haversineMiles(driverLat, driverLng, originLat, originLng) > FEED_MAX_MILES) {
+          throw new AppError('This pickup is more than 50 miles from your location', 409, 'delivery_claim_too_far', { distanceMiles: Math.round(haversineMiles(driverLat, driverLng, originLat, originLng)) });
+        }
       }
       const window = windowForJob(job, now);
       await checkAssignment(client, job, assignment, window);
@@ -470,11 +673,11 @@ function createDispatchService(deps = {}) {
 
 let defaults;
 module.exports = {
-  createDispatchService, createActionRunner, handler, fingerprint, capabilityFailures, areaCovers, availableDuring,
+  createDispatchService, createActionRunner, handler, fingerprint, capabilityFailures, areaCovers, hasServiceArea, serviceAreaCenter, haversineMiles, FEED_MAX_MILES, availableDuring,
   windowForJob, lockResources, assignmentOf, reserve, checkAssignment, recordActivity, ensureNoOpenRecovery,
   DECLINE_REASON_CODES, OFFER_DEADLINE_DEFAULT_HOURS, offerDeadlineHours,
   TERMINAL, fail, sameId, isOperator, isParticipant, pickedUp, cleanText,
-  ...Object.fromEntries(['assignInternal', 'releaseMarketplace', 'claim', 'decline'].map((name) => [name, (...args) => {
+  ...Object.fromEntries(['assignInternal', 'releaseMarketplace', 'transferAssignment', 'claim', 'decline'].map((name) => [name, (...args) => {
     defaults ||= createDispatchService();
     return defaults[name](...args);
   }])),

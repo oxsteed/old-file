@@ -210,11 +210,14 @@ describe('item-photo upload (item 8)', () => {
   });
 });
 
-describe('claiming stays ungated on availability (item 1)', () => {
-  // Availability gates the open-jobs FEED only. The server claim path reads
-  // approved/active from the profile and never consults `available`, so an
-  // offline driver can still claim. The mock below fails loudly if any
-  // claim query ever mentions the availability flag.
+describe('claiming is gated on availability (item 1, D-536)', () => {
+  // Batch M (D-536) gates the server claim path on the driver's
+  // `available` flag, and D-534 requires a set service area first: an
+  // offline driver is refused 409 delivery_driver_offline, and a driver
+  // with no service area 409s delivery_service_area_required. The mock
+  // below answers the claim path's profile query with the flag and a
+  // covering area, so the offline case proves the gate and the online
+  // case proves the claim still succeeds.
   function buildClaimApp() {
     const app = express();
     app.use((req, _res, next) => { req.user = { id: USER_ID, default_mode: 'helper' }; next(); });
@@ -235,6 +238,12 @@ describe('claiming stays ungated on availability (item 1)', () => {
       helper_user_id: null,
       internal_driver_user_id: null,
       vehicle_id: null,
+      // Origin/destination coords the service-area coverage check reads;
+      // the center/radius area below covers both ends of this route.
+      origin_lat: 39.9242,
+      origin_lng: -83.8088,
+      destination_lat: 39.953,
+      destination_lng: -83.81,
       picked_up_at: null,
       delivered_at: null,
       returned_at: null,
@@ -269,9 +278,8 @@ describe('claiming stays ungated on availability (item 1)', () => {
       // the assignment itself is proven from the UPDATE args, not the body.
       captured: { updateArgs: null },
       query: jest.fn(async (sql, args) => {
-        if (/available/i.test(sql)) throw new Error('claim path must not consult the driver availability flag');
-        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'SAVEPOINT delivery_action' || sql === 'RELEASE SAVEPOINT delivery_action') return { rows: [] };
-        if (sql.includes('SELECT approved, active FROM delivery_driver_profiles')) return { rows: [{ approved: true, active: true, available }] };
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'SAVEPOINT delivery_action' || sql === 'RELEASE SAVEPOINT delivery_action' || sql === 'ROLLBACK TO SAVEPOINT delivery_action') return { rows: [] };
+        if (sql.includes('SELECT approved, active, available, service_area FROM delivery_driver_profiles')) return { rows: [{ approved: true, active: true, available, service_area: { center: { lat: 39.9242, lng: -83.8088 }, radiusMiles: 50 } }] };
         if (sql.includes('SELECT * FROM delivery_driver_profiles')) return { rows: [capacityRow] };
         if (sql.includes('SELECT * FROM delivery_jobs WHERE id')) return { rows: [jobRow] };
         if (sql.includes('SELECT id FROM delivery_jobs WHERE id')) return { rows: [{ id: 7 }] };
@@ -298,14 +306,13 @@ describe('claiming stays ungated on availability (item 1)', () => {
 
   afterEach(() => jest.clearAllMocks());
 
-  test('offline driver (available false) can still claim a posted job', async () => {
+  test('offline driver (available false) is refused with delivery_driver_offline', async () => {
     const client = mockClientForClaim(false);
     pool.connect.mockResolvedValue(client);
     const res = await request(app).post('/delivery/jobs/7/claim').send({ clientRequestId: 'claim-offline-0001' });
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.job.status).toBe('assigned');
-    expect(client.captured.updateArgs).toEqual([USER_ID, 7]);
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('delivery_driver_offline');
+    expect(client.captured.updateArgs).toBeNull();
   });
 
   test('online driver (available true) claims the same way', async () => {

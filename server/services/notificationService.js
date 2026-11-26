@@ -520,7 +520,7 @@ exports.sendNotification = async ({
       'payout_destination_changed',
       // Direct booking notifications
       'booking_request_new', 'booking_accepted', 'booking_declined',
-      'booking_cancelled', 'booking_auto_released', 'booking_transferred',
+      'booking_cancelled', 'booking_auto_released', 'booking_transferred', 'booking_dispatched',
       // Consulting: the assigned consultant learns a session was scheduled.
       'consulting_session_scheduled',
       // Agreement/job lifecycle notices respect the participant's email choices.
@@ -545,6 +545,15 @@ exports.sendNotification = async ({
       // agents only learn about these by email.
       'support_follow_up_due',
       'support_sla_breach',
+      // Wave 3 (589, D-572/D-569): rental escalation open/resolve notices
+      // email like the support alerts, so an offline counterparty or admin
+      // learns about the thread without reopening the app.
+      'tool_rental_escalation_opened',
+      'tool_rental_escalation_resolved',
+      // Batch H (322, 330): the occupant's repair-status notice and the
+      // missed-maintenance SLA-breach alert email like the support alerts.
+      'property_request_status',
+      'property_sla_breach',
     ];
     // Transactional: always attempt email when we have an address (cannot opt out of
     // security-relevant account notices via marketing-style toggles).

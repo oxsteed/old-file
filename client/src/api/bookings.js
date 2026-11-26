@@ -232,6 +232,19 @@ export async function confirmSponsorPayment(bookingId, sponsorshipId, paymentInt
   return data?.data ?? data;
 }
 
+// Wave 4 (G3-15): a sponsor voids an invited/accepted sponsorship they no
+// longer stand behind; a paid sponsorship cannot be voided (refund instead).
+export async function voidBookingSponsorship(bookingId, sponsorshipId) {
+  const { data } = await api.post(`/bookings/${bookingId}/sponsorships/${sponsorshipId}/void`);
+  return data?.data ?? data;
+}
+
+// D-601: the caller's own sponsorships, for the My sponsorships tab.
+export async function listMySponsorships() {
+  const { data } = await api.get('/bookings/sponsorships/mine');
+  return data?.data ?? data;
+}
+
 export async function getSponsorReceipt(bookingId, sponsorshipId) {
   const { data } = await api.get(`/bookings/${bookingId}/sponsorships/${sponsorshipId}/receipt`);
   return data?.data ?? data;
@@ -280,6 +293,12 @@ export async function getTokenReceipt(token) {
 
 export async function listTokenSupport(token) {
   const { data } = await api.get(`/bookings/status/${encodeURIComponent(token)}/support`);
+  return data?.data ?? data;
+}
+
+// D-593: the callbacks the token party requested (their own only).
+export async function listTokenCallbacks(token) {
+  const { data } = await api.get(`/bookings/status/${encodeURIComponent(token)}/callbacks`);
   return data?.data ?? data;
 }
 
@@ -372,6 +391,12 @@ export async function createTokenSponsorPaymentIntent(token) {
 
 export async function confirmTokenSponsorPayment(token, paymentIntentId) {
   const { data } = await api.post(`/bookings/status/${encodeURIComponent(token)}/sponsor/confirm-payment`, { paymentIntentId });
+  return data?.data ?? data;
+}
+
+// Wave 4 (G3-15): void from the token page, same rule as the account void.
+export async function voidTokenSponsorship(token) {
+  const { data } = await api.post(`/bookings/status/${encodeURIComponent(token)}/sponsor/void`);
   return data?.data ?? data;
 }
 

@@ -2276,6 +2276,7 @@ exports.diditWebhook = async (req, res, next) => {
             `UPDATE users
              SET identity_verified = TRUE,
                  id_verified = TRUE,
+                 identity_verified_at = NOW(),
                  didit_verified_at = NOW(),
                  didit_status = 'verified'
              WHERE id = $1`,
@@ -2293,7 +2294,7 @@ exports.diditWebhook = async (req, res, next) => {
 
           if (existing.length > 0) {
             await db.query(
-              `UPDATE users SET didit_status = 'duplicate' WHERE id = $1`,
+              `UPDATE users SET didit_status = 'duplicate', identity_verified = FALSE, id_verified = FALSE, identity_verified_at = NULL WHERE id = $1`,
               [userId]
             );
             await require('../services/access/evidence').recordIdentityEvidence(userId, { provider: 'didit', outcome: 'duplicate' });
@@ -2313,6 +2314,7 @@ exports.diditWebhook = async (req, res, next) => {
                 `UPDATE users
                  SET identity_verified = TRUE,
                      id_verified = TRUE,
+                     identity_verified_at = NOW(),
                      didit_identity_hash = $1,
                      didit_verified_at = NOW(),
                      didit_status = 'verified'
@@ -2323,7 +2325,7 @@ exports.diditWebhook = async (req, res, next) => {
             } catch (updateErr) {
               if (updateErr && updateErr.code === '23505') {
                 await db.query(
-                  `UPDATE users SET didit_status = 'duplicate' WHERE id = $1`,
+                  `UPDATE users SET didit_status = 'duplicate', identity_verified = FALSE, id_verified = FALSE, identity_verified_at = NULL WHERE id = $1`,
                   [userId]
                 );
                 logger.warn('[Didit] Duplicate identity detected (concurrent approval)', { userId });
@@ -2371,6 +2373,7 @@ exports.diditWebhook = async (req, res, next) => {
             `UPDATE users
              SET identity_verified = TRUE,
                  id_verified = TRUE,
+                 identity_verified_at = NOW(),
                  didit_verified_at = NOW(),
                  didit_status = 'verified'
              WHERE id = $1`,
@@ -2406,14 +2409,14 @@ exports.diditWebhook = async (req, res, next) => {
       );
       if (rows.length) {
         await db.query(
-          `UPDATE users SET didit_status = 'failed' WHERE id = $1`,
+          `UPDATE users SET didit_status = 'failed', identity_verified = FALSE, id_verified = FALSE, identity_verified_at = NULL WHERE id = $1`,
           [rows[0].user_id]
         );
         await diditEntityLink.linkVerificationToEntity(rows[0].user_id, { sessionId: session_id, status: 'failed' });
       } else {
         // Fallback: check users table directly
         const { rows: failedUsers } = await db.query(
-          `UPDATE users SET didit_status = 'failed' WHERE didit_session_id = $1 RETURNING id`,
+          `UPDATE users SET didit_status = 'failed', identity_verified = FALSE, id_verified = FALSE, identity_verified_at = NULL WHERE didit_session_id = $1 RETURNING id`,
           [session_id]
         );
         for (const u of failedUsers || []) {

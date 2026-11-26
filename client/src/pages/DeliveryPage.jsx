@@ -40,13 +40,15 @@ import {
   getDriverReadiness,
   listDriverVehicles,
   createDriverVehicle,
+  updateDriverVehicle,
   deleteDriverVehicle,
   activateDriverVehicle,
   listDriverDocuments,
   createDriverDocument,
+  updateDriverDocument,
   deleteDriverDocument,
   deliveryDate,
-  deliveryMoney, deliveryUnit, deliveryError,
+  deliveryMoney, deliveryUnit, deliveryError, deliveryClaimReasons,
 } from '../api/delivery';
 import {
   EstimateCard,
@@ -84,12 +86,19 @@ function DeliveryCard({ job, helper, onClaim, onDecline, onStatus, busyId, t }) 
   const offerExpired = isOfferExpired(job, nowMs);
   const isOffer = helper && job.status === 'posted' && job.marketplace_available === true;
   const canClaim = helper && job.status === 'posted' && job.marketplace_available === true && job.is_assigned_operator !== true && !offerExpired;
-  const canDecline = isOffer && !offerExpired;
+  // Group 9 partials Wave 2 Batch M (457/460, G9-A14, D-539): an expired
+  // offer can still be declined (the server accepts it, D-62); only the
+  // claim stays hidden once the deadline passes.
+  const canDecline = isOffer;
   const canUpdate = job.is_assigned_operator === true && ['assigned', 'picked_up', 'in_transit'].includes(job.status);
   const nextStatus = job.status === 'assigned' ? 'picked_up'
     : job.status === 'picked_up' ? 'in_transit' : null;
   const isBusy = busyId !== null;
   const [declineOpen, setDeclineOpen] = useState(false);
+  // Group 9 partials Wave 2 Batch L (455, G9-A15, D-531): the per-job
+  // readiness check. The profile checklist cannot tell the driver whether
+  // this specific offer is claimable; this loads it for this job on demand.
+  const [readinessOpen, setReadinessOpen] = useState(false);
 
   return (
     <article className="delivery-job-card">
@@ -131,18 +140,34 @@ function DeliveryCard({ job, helper, onClaim, onDecline, onStatus, busyId, t }) 
           {helper && job.driver_payout_cents == null && <small>{t('delivery.ui.payoutUnavailable')}</small>}
         </div>
         {canClaim && (
-          <button type="button" className="delivery-button delivery-button--primary" onClick={() => onClaim(job.id)} disabled={isBusy}>
+          <button type="button" className="delivery-button delivery-button--primary" onClick={() => onClaim(job.id)} disabled={isBusy} data-track="ui.2f5c44f3da.1">
             {isBusy ? <Loader2 size={16} className="delivery-spin" aria-hidden="true" /> : <Truck size={16} aria-hidden="true" />}
             {t('delivery.helper.claim')}
           </button>
         )}
+        {canClaim && (
+          <button type="button" className="delivery-button delivery-button--secondary" onClick={() => setReadinessOpen((open) => !open)} disabled={isBusy} data-track="ui.2f5c44f3da.2">
+            {readinessOpen ? t('delivery.driver.readinessHide') : t('delivery.driver.readinessCheckJob')}
+          </button>
+        )}
         {canDecline && !declineOpen && (
-          <button type="button" className="delivery-button delivery-button--secondary" onClick={() => setDeclineOpen(true)} disabled={isBusy}>
+          <button type="button" className="delivery-button delivery-button--secondary" onClick={() => setDeclineOpen(true)} disabled={isBusy} data-track="ui.2f5c44f3da.3">
             {job.my_decline ? t('delivery.driver.declineChange') : t('delivery.driver.decline')}
           </button>
         )}
-        {canUpdate && nextStatus && (
-            <button type="button" className="delivery-button delivery-button--primary" onClick={() => onStatus(job.id, nextStatus)} disabled={isBusy}>
+        {/* Group 9 partials Wave 2 Batch N (467/468, G9-A4, D-540):
+          the picked_up move needs the package-count confirmation and
+          the condition acknowledgment, which the card cannot collect:
+          the bare button 400d every time. The card links to the
+          detail page, where the confirmation form lives, instead. */}
+        {canUpdate && nextStatus === 'picked_up' && (
+          <Link className="delivery-button delivery-button--primary" to={`/delivery/jobs/${job.id}`} data-track="ui.2f5c44f3da.4">
+            <CheckCircle2 size={16} aria-hidden="true" />
+            {t('delivery.detail.pickupConfirmTitle')}
+          </Link>
+        )}
+        {canUpdate && nextStatus && nextStatus !== 'picked_up' && (
+            <button type="button" className="delivery-button delivery-button--primary" onClick={() => onStatus(job.id, nextStatus)} disabled={isBusy} data-track="ui.2f5c44f3da.4">
             {isBusy ? <Loader2 size={16} className="delivery-spin" aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}
             {t('delivery.helper.moveTo', { status: statusLabel(nextStatus, t) })}
           </button>
@@ -158,6 +183,7 @@ function DeliveryCard({ job, helper, onClaim, onDecline, onStatus, busyId, t }) 
           onCancel={() => setDeclineOpen(false)}
         />
       )}
+      {readinessOpen && canClaim && <DriverReadinessChecklist t={t} jobId={job.id} />}
     </article>
   );
 }
@@ -206,10 +232,10 @@ function MyDeliveries({ t, refreshKey, onBook }) {
       <div className="delivery-my__heading">
         <h2 id="delivery-my-title">{t('delivery.helper.myDeliveries')}</h2>
         <div className="delivery-my__tabs" role="tablist" aria-label={t('delivery.helper.myDeliveries')}>
-          <button type="button" role="tab" aria-selected={tab === 'active'} className={tab === 'active' ? 'is-active' : ''} onClick={() => setTab('active')}>
+          <button type="button" role="tab" aria-selected={tab === 'active'} className={tab === 'active' ? 'is-active' : ''} onClick={() => setTab('active')} data-track="ui.2f5c44f3da.5">
             {t('delivery.myDeliveries.active')}
           </button>
-          <button type="button" role="tab" aria-selected={tab === 'completed'} className={tab === 'completed' ? 'is-active' : ''} onClick={() => setTab('completed')}>
+          <button type="button" role="tab" aria-selected={tab === 'completed'} className={tab === 'completed' ? 'is-active' : ''} onClick={() => setTab('completed')} data-track="ui.2f5c44f3da.6">
             {t('delivery.myDeliveries.completed')}
           </button>
         </div>
@@ -222,7 +248,7 @@ function MyDeliveries({ t, refreshKey, onBook }) {
           <div className="delivery-my__van" aria-hidden="true"><Truck size={46} /></div>
           <p>{t(tab === 'active' ? 'delivery.myDeliveries.emptyActive' : 'delivery.myDeliveries.emptyCompleted')}</p>
           {tab === 'active' && (
-            <button type="button" className="delivery-button delivery-button--outline" onClick={onBook}>
+            <button type="button" className="delivery-button delivery-button--outline" onClick={onBook} data-track="ui.2f5c44f3da.7">
               {t('delivery.myDeliveries.bookFirst')}
             </button>
           )}
@@ -397,7 +423,7 @@ function CustomerDelivery({ t, initial, onPosted }) {
             <p>{t('delivery.customer.body')}</p>
           </div>
         </div>
-        <form onSubmit={getQuote} className="delivery-form">
+        <form onSubmit={getQuote} className="delivery-form" data-track="ui.2f5c44f3da.8">
           <fieldset className="delivery-form-fields" disabled={busy}>
           <div className="delivery-stop-grid">
             <label className="delivery-field">
@@ -469,8 +495,8 @@ function CustomerDelivery({ t, initial, onPosted }) {
           <fieldset className="delivery-fieldset">
             <legend>{t('delivery.customer.timingTitle')}</legend>
             <div className="delivery-checkbox-row">
-              <label><input type="radio" name="delivery-timing" checked={timing === 'asap'} onChange={() => { setTiming('asap'); setQuote(null); }} /> {t('delivery.customer.timingAsap')}</label>
-              <label><input type="radio" name="delivery-timing" checked={timing === 'scheduled'} onChange={() => { setTiming('scheduled'); setQuote(null); }} /> {t('delivery.customer.timingScheduled')}</label>
+              <label><input type="radio" name="delivery-timing" checked={timing === 'asap'} onChange={() => { setTiming('asap'); setQuote(null); }} data-track="ui.2f5c44f3da.9" /> {t('delivery.customer.timingAsap')}</label>
+              <label><input type="radio" name="delivery-timing" checked={timing === 'scheduled'} onChange={() => { setTiming('scheduled'); setQuote(null); }} data-track="ui.2f5c44f3da.10" /> {t('delivery.customer.timingScheduled')}</label>
             </div>
             {timing === 'asap' && <p className="delivery-estimate-defaults">{t('delivery.customer.asapNote')}</p>}
           </fieldset>
@@ -483,19 +509,19 @@ function CustomerDelivery({ t, initial, onPosted }) {
           </div>
           )}
           <div className="delivery-options-grid delivery-checkbox-row">
-            <label><input type="checkbox" checked={fragile} onChange={(event) => setFragile(event.target.checked)} /> {t('delivery.operations.fragile')}</label>
-            <label><input type="checkbox" checked={perishable} onChange={(event) => setPerishable(event.target.checked)} /> {t('delivery.operations.perishable')}</label>
+            <label><input type="checkbox" checked={fragile} onChange={(event) => setFragile(event.target.checked)} data-track="ui.2f5c44f3da.11" /> {t('delivery.operations.fragile')}</label>
+            <label><input type="checkbox" checked={perishable} onChange={(event) => setPerishable(event.target.checked)} data-track="ui.2f5c44f3da.12" /> {t('delivery.operations.perishable')}</label>
             <label className="delivery-field"><span>{t('delivery.operations.proof')}</span><select className="delivery-input" value={proofPreference} onChange={(event) => setProofPreference(event.target.value)}><option value="recipient_confirmation">{t('delivery.proofTypes.recipient_confirmation')}</option><option value="pin">{t('delivery.proofTypes.pin')}</option><option value="signature">{t('delivery.proofTypes.signature')}</option><option value="photo">{t('delivery.proofTypes.photo')}</option></select></label>
           </div>
           <fieldset className="delivery-fieldset"><legend>{t('delivery.operations.handling')}</legend><div className="delivery-checkbox-row">
-            {['stairs', 'loadingHelp', 'dolly', 'liftgate', 'parkingRequired', 'temperatureControl'].map((key) => <label key={key}><input type="checkbox" checked={handlingRequirements[key] === true} onChange={(event) => setHandlingRequirements((previous) => ({ ...previous, [key]: event.target.checked }))} /> {t(`delivery.operations.${key}`)}</label>)}
+            {['stairs', 'loadingHelp', 'dolly', 'liftgate', 'parkingRequired', 'temperatureControl'].map((key) => <label key={key}><input type="checkbox" checked={handlingRequirements[key] === true} onChange={(event) => setHandlingRequirements((previous) => ({ ...previous, [key]: event.target.checked }))} data-track="ui.2f5c44f3da.13" /> {t(`delivery.operations.${key}`)}</label>)}
           </div></fieldset>
           <label className="delivery-field">
             <span>{t('delivery.customer.notes')}</span>
             <textarea className="delivery-input delivery-input--textarea" value={notes} maxLength={2000} onChange={(event) => { setNotes(event.target.value); setOriginContact((previous) => ({ ...previous, instructions: event.target.value })); setDestinationContact((previous) => ({ ...previous, instructions: event.target.value })); }} placeholder={t('delivery.customer.notesPlaceholder')} />
           </label>
           {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
-          <button type="submit" className="delivery-button delivery-button--primary delivery-button--wide" disabled={busy}>
+          <button type="submit" className="delivery-button delivery-button--primary delivery-button--wide" disabled={busy} data-track="ui.2f5c44f3da.14">
             {busy ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <DollarSign size={17} aria-hidden="true" />}
             {t('delivery.customer.getQuote')}
           </button>
@@ -531,7 +557,7 @@ function CustomerDelivery({ t, initial, onPosted }) {
               <div><dt>{t('delivery.customer.platformFee')}</dt><dd>{currency(quote.pricing.cents.platformFee, quote.pricing.currency)}</dd></div>
               <div><dt>{t('delivery.customer.tolls')}</dt><dd>{currency(quote.pricing.cents.passThrough, quote.pricing.currency)}</dd></div>
             </dl>
-            <button type="button" className="delivery-button delivery-button--primary delivery-button--wide" onClick={postDelivery} disabled={busy}>
+            <button type="button" className="delivery-button delivery-button--primary delivery-button--wide" onClick={postDelivery} disabled={busy} data-track="ui.2f5c44f3da.15">
               {busy ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <Truck size={17} aria-hidden="true" />}
               {t('delivery.customer.post')}
             </button>
@@ -631,21 +657,21 @@ const READINESS_DETAIL_KEYS = new Set([
   'document_expired', 'document_expiring', 'no_documents', 'no_active_vehicle',
 ]);
 const READINESS_FIX_TARGETS = {
-  profile: 'driver-service-area', vehicles: 'driver-vehicles', documents: 'driver-documents', 'service-area': 'driver-service-area',
+  profile: 'driver-profile', vehicles: 'driver-vehicles', documents: 'driver-documents', 'service-area': 'driver-service-area',
 };
 
-function DriverReadinessChecklist({ t }) {
+export function DriverReadinessChecklist({ t, jobId = null, fixBase = '' }) {
   const [checklist, setChecklist] = useState(null);
   const [error, setError] = useState('');
   const load = useCallback(async () => {
     setError('');
     try {
-      const response = await getDriverReadiness();
+      const response = await getDriverReadiness(jobId || undefined);
       setChecklist(response.checklist || []);
     } catch (requestError) {
       setError(deliveryError(requestError, t, 'delivery.errors.load'));
     }
-  }, [t]);
+  }, [t, jobId]);
   useEffect(() => { load(); }, [load]);
   const statusIcon = (status) => {
     if (status === 'pass') return <CheckCircle2 size={17} aria-hidden="true" />;
@@ -671,12 +697,154 @@ function DriverReadinessChecklist({ t }) {
                 {item.detail && READINESS_DETAIL_KEYS.has(item.detail) && <span>{t(`delivery.driver.readinessDetails.${item.detail}`)}</span>}
               </span>
               {item.status !== 'pass' && item.fix && (
-                <a className="delivery-checklist__fix" href={`#${READINESS_FIX_TARGETS[item.fix] || item.fix}`}>{t('delivery.driver.readinessFix')}</a>
+                <a className="delivery-checklist__fix" href={`${fixBase}#${READINESS_FIX_TARGETS[item.fix] || item.fix}`} data-track="ui.2f5c44f3da.16">{t('delivery.driver.readinessFix')}</a>
               )}
             </li>
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+// Group 9 partials Wave 2 Batch L (451/453/455, G9-A1, D-528): the
+// post-approval capacity editor. The onboarding form renders only
+// pre-approval, and the service-area section patches only the service
+// area, so an approved driver whose insurance expired, whose payload
+// changed, or whose availability window moved had no self-serve fix and
+// kept 409ing on every claim. This reuses PATCH /delivery/driver-profile
+// (updateOwnDriverProfile accepts every field here, including the
+// availability window the onboarding form never collected). Insurance
+// acknowledgement is shown read-only: the PATCH endpoint has no such
+// field. Saving never touches approval.
+function profileFormFromProfile(profile) {
+  const toDateInput = (value) => (value ? String(value).slice(0, 10) : '');
+  return {
+    vehicleType: profile?.vehicle_type || 'car',
+    maxPayloadLbs: profile?.max_payload_lbs ?? '',
+    cargoLengthIn: profile?.cargo_length_in ?? '',
+    cargoWidthIn: profile?.cargo_width_in ?? '',
+    cargoHeightIn: profile?.cargo_height_in ?? '',
+    equipment: {
+      stairs: profile?.equipment?.stairs === true,
+      loadingHelp: profile?.equipment?.loadingHelp === true,
+      dolly: profile?.equipment?.dolly === true,
+      liftgate: profile?.equipment?.liftgate === true,
+      parkingRequired: profile?.equipment?.parkingRequired === true,
+      temperatureControl: profile?.equipment?.temperatureControl === true,
+    },
+    maxPieces: profile?.max_pieces ?? '',
+    fragileSupported: profile?.fragile_supported === true,
+    perishableSupported: profile?.perishable_supported === true,
+    insuranceExpiresAt: toDateInput(profile?.insurance_expires_at),
+    availableFrom: toDateInput(profile?.available_from),
+    availableUntil: toDateInput(profile?.available_until),
+  };
+}
+
+function DriverProfileEditorSection({ t, profile, onChanged }) {
+  const [form, setForm] = useState(() => profileFormFromProfile(profile));
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => { setForm(profileFormFromProfile(profile)); }, [profile?.updated_at]);
+  const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+  const setEquipment = (key, value) => setForm((prev) => ({ ...prev, equipment: { ...prev.equipment, [key]: value } }));
+  const submit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setSaved(false);
+    setError('');
+    try {
+      // Empty fields send null: updateOwnDriverProfile falls back to the
+      // stored value for nulls, so an untouched field is never cleared.
+      await updateDriverProfile({
+        vehicleType: form.vehicleType,
+        maxPayloadLbs: form.maxPayloadLbs === '' ? null : Number(form.maxPayloadLbs),
+        cargoLengthIn: form.cargoLengthIn === '' ? null : Number(form.cargoLengthIn),
+        cargoWidthIn: form.cargoWidthIn === '' ? null : Number(form.cargoWidthIn),
+        cargoHeightIn: form.cargoHeightIn === '' ? null : Number(form.cargoHeightIn),
+        equipment: form.equipment,
+        maxPieces: form.maxPieces === '' ? null : Number(form.maxPieces),
+        fragileSupported: form.fragileSupported,
+        perishableSupported: form.perishableSupported,
+        insuranceExpiresAt: form.insuranceExpiresAt ? new Date(form.insuranceExpiresAt).toISOString() : null,
+        availableFrom: form.availableFrom ? new Date(form.availableFrom).toISOString() : null,
+        availableUntil: form.availableUntil ? new Date(form.availableUntil).toISOString() : null,
+      });
+      setSaved(true);
+      onChanged?.();
+    } catch (requestError) {
+      setError(deliveryError(requestError, t, 'delivery.errors.status'));
+    } finally { setBusy(false); }
+  };
+  return (
+    <section className="delivery-panel" id="driver-profile" aria-labelledby="driver-profile-title">
+      <div className="delivery-panel__heading">
+        <div className="delivery-icon-badge"><ShieldCheck size={20} aria-hidden="true" /></div>
+        <div><h2 id="driver-profile-title">{t('delivery.driver.profileTitle')}</h2><p>{t('delivery.driver.profileBody')}</p></div>
+      </div>
+      <form className="delivery-form" onSubmit={submit} data-track="ui.2f5c44f3da.17">
+        <div className="delivery-options-grid">
+          <label className="delivery-field">{t('delivery.ui.vehicleType')}
+            <select className="delivery-input" value={form.vehicleType} onChange={(event) => set('vehicleType', event.target.value)}>
+              {DRIVER_VEHICLE_TYPES.map((type) => <option key={type} value={type}>{t(`delivery.ui.vehicleTypes.${type}`)}</option>)}
+            </select>
+          </label>
+          <label className="delivery-field">{t('delivery.ui.maxPayloadLbs')}
+            <input className="delivery-input" type="number" min="0" step="any" value={form.maxPayloadLbs} onChange={(event) => set('maxPayloadLbs', event.target.value)} />
+          </label>
+        </div>
+        <div className="delivery-options-grid">
+          <label className="delivery-field">{t('delivery.ui.cargoLengthIn')}
+            <input className="delivery-input" type="number" min="0" step="any" value={form.cargoLengthIn} onChange={(event) => set('cargoLengthIn', event.target.value)} />
+          </label>
+          <label className="delivery-field">{t('delivery.ui.cargoWidthIn')}
+            <input className="delivery-input" type="number" min="0" step="any" value={form.cargoWidthIn} onChange={(event) => set('cargoWidthIn', event.target.value)} />
+          </label>
+          <label className="delivery-field">{t('delivery.ui.cargoHeightIn')}
+            <input className="delivery-input" type="number" min="0" step="any" value={form.cargoHeightIn} onChange={(event) => set('cargoHeightIn', event.target.value)} />
+          </label>
+        </div>
+        <div className="delivery-options-grid">
+          <label className="delivery-field">{t('delivery.driver.maxPieces')}
+            <input className="delivery-input" type="number" min="1" step="1" value={form.maxPieces} onChange={(event) => set('maxPieces', event.target.value)} />
+          </label>
+          <label className="delivery-field">{t('delivery.driver.insuranceExpiresAt')}
+            <input className="delivery-input" type="date" value={form.insuranceExpiresAt} onChange={(event) => set('insuranceExpiresAt', event.target.value)} />
+          </label>
+        </div>
+        <div className="delivery-options-grid">
+          <label className="delivery-field">{t('delivery.ui.availableFrom')}
+            <input className="delivery-input" type="date" value={form.availableFrom} onChange={(event) => set('availableFrom', event.target.value)} />
+          </label>
+          <label className="delivery-field">{t('delivery.ui.availableUntil')}
+            <input className="delivery-input" type="date" value={form.availableUntil} onChange={(event) => set('availableUntil', event.target.value)} />
+          </label>
+        </div>
+        <fieldset className="delivery-fieldset">
+          <legend>{t('delivery.driver.equipment')}</legend>
+          <div className="delivery-checkbox-row">
+            {EQUIPMENT_KEYS.map((key) => (
+              <label key={key}><input type="checkbox" checked={form.equipment[key] === true} onChange={(event) => setEquipment(key, event.target.checked)} data-track="ui.2f5c44f3da.18" /> {t(`delivery.driver.equipmentKeys.${key}`)}</label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="delivery-checkbox-row">
+          <label><input type="checkbox" checked={form.fragileSupported} onChange={(event) => set('fragileSupported', event.target.checked)} data-track="ui.2f5c44f3da.19" /> {t('delivery.ui.fragileSupported')}</label>
+          <label><input type="checkbox" checked={form.perishableSupported} onChange={(event) => set('perishableSupported', event.target.checked)} data-track="ui.2f5c44f3da.20" /> {t('delivery.ui.perishableSupported')}</label>
+        </div>
+        <label className="delivery-check">
+          <input type="checkbox" checked={profile?.insurance_acknowledged === true} disabled data-track="ui.2f5c44f3da.21" />
+          <span>{t('delivery.driver.insuranceAck')}</span>
+        </label>
+        {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
+        {saved && <p className="delivery-alert delivery-alert--success" role="status">{t('delivery.driver.profileSaved')}</p>}
+        <button type="submit" className="delivery-button delivery-button--primary" disabled={busy} data-track="ui.2f5c44f3da.22">
+          {busy ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <ShieldCheck size={17} aria-hidden="true" />}
+          {t('delivery.driver.profileSave')}
+        </button>
+      </form>
     </section>
   );
 }
@@ -687,6 +855,11 @@ function DriverVehiclesSection({ t, onChanged }) {
   const [vehicles, setVehicles] = useState([]);
   const [activeVehicleId, setActiveVehicleId] = useState(null);
   const [form, setForm] = useState({ vehicleType: 'car', maxPayloadLbs: '', plate: '', make: '', model: '', year: '' });
+  // Group 9 partials Wave 2 Batch L (452, G9-A12, D-532): in-place edit.
+  // Fixing a plate typo used to mean delete + re-add, which cleared
+  // active_vehicle_id. The PATCH endpoint preserves it; this form wires it.
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ vehicleType: 'car', maxPayloadLbs: '', plate: '', make: '', model: '', year: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const load = useCallback(async () => {
@@ -700,6 +873,35 @@ function DriverVehiclesSection({ t, onChanged }) {
   }, [t]);
   useEffect(() => { load(); }, [load]);
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+  const setEdit = (key, value) => setEditForm((prev) => ({ ...prev, [key]: value }));
+  const startEdit = (vehicle) => {
+    setEditingId(vehicle.id);
+    setEditForm({
+      vehicleType: vehicle.vehicle_type || 'car',
+      maxPayloadLbs: vehicle.max_payload_lbs ?? '',
+      plate: vehicle.plate || '', make: vehicle.make || '', model: vehicle.model || '',
+      year: vehicle.year ?? '',
+    });
+    setError('');
+  };
+  const submitEdit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      await updateDriverVehicle(editingId, {
+        vehicleType: editForm.vehicleType,
+        maxPayloadLbs: editForm.maxPayloadLbs === '' ? null : Number(editForm.maxPayloadLbs),
+        plate: editForm.plate, make: editForm.make, model: editForm.model,
+        year: editForm.year === '' ? null : Number(editForm.year),
+      });
+      setEditingId(null);
+      await load();
+      onChanged?.();
+    } catch (requestError) {
+      setError(deliveryError(requestError, t, 'delivery.errors.status'));
+    } finally { setBusy(false); }
+  };
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true);
@@ -745,14 +947,51 @@ function DriverVehiclesSection({ t, onChanged }) {
               <span className="delivery-mini-actions">
                 {String(vehicle.id) === String(activeVehicleId)
                   ? <span className="delivery-onboard-badge"><ShieldCheck size={15} aria-hidden="true" />{t('delivery.driver.vehicleActive')}</span>
-                  : <button type="button" className="delivery-button delivery-button--secondary" onClick={() => activate(vehicle.id)} disabled={busy}>{t('delivery.driver.vehicleSetActive')}</button>}
-                <button type="button" className="delivery-button delivery-button--secondary" onClick={() => remove(vehicle.id)} disabled={busy}>{t('delivery.driver.vehicleRemove')}</button>
+                  : <button type="button" className="delivery-button delivery-button--secondary" onClick={() => activate(vehicle.id)} disabled={busy} data-track="ui.2f5c44f3da.23">{t('delivery.driver.vehicleSetActive')}</button>}
+                <button type="button" className="delivery-button delivery-button--secondary" onClick={() => startEdit(vehicle)} disabled={busy} data-track="ui.2f5c44f3da.24">{t('delivery.driver.vehicleEdit')}</button>
+                <button type="button" className="delivery-button delivery-button--secondary" onClick={() => remove(vehicle.id)} disabled={busy} data-track="ui.2f5c44f3da.25">{t('delivery.driver.vehicleRemove')}</button>
               </span>
             </li>
           ))}
         </ul>
       )}
-      <form className="delivery-form" onSubmit={submit}>
+      {editingId !== null && (
+        <form className="delivery-form" onSubmit={submitEdit} data-track="ui.2f5c44f3da.26">
+          <div className="delivery-options-grid">
+            <label className="delivery-field">{t('delivery.ui.vehicleType')}
+              <select className="delivery-input" value={editForm.vehicleType} onChange={(event) => setEdit('vehicleType', event.target.value)}>
+                {DRIVER_VEHICLE_TYPES.map((type) => <option key={type} value={type}>{t(`delivery.ui.vehicleTypes.${type}`)}</option>)}
+              </select>
+            </label>
+            <label className="delivery-field">{t('delivery.ui.maxPayloadLbs')}
+              <input className="delivery-input" type="number" min="0" step="any" value={editForm.maxPayloadLbs} onChange={(event) => setEdit('maxPayloadLbs', event.target.value)} />
+            </label>
+            <label className="delivery-field">{t('delivery.driver.vehiclePlate')}
+              <input className="delivery-input" value={editForm.plate} onChange={(event) => setEdit('plate', event.target.value)} />
+            </label>
+          </div>
+          <div className="delivery-options-grid">
+            <label className="delivery-field">{t('delivery.driver.vehicleMake')}
+              <input className="delivery-input" value={editForm.make} onChange={(event) => setEdit('make', event.target.value)} />
+            </label>
+            <label className="delivery-field">{t('delivery.driver.vehicleModel')}
+              <input className="delivery-input" value={editForm.model} onChange={(event) => setEdit('model', event.target.value)} />
+            </label>
+            <label className="delivery-field">{t('delivery.driver.vehicleYear')}
+              <input className="delivery-input" type="number" min="1900" step="1" value={editForm.year} onChange={(event) => setEdit('year', event.target.value)} />
+            </label>
+          </div>
+          {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
+          <div className="delivery-checkbox-row">
+            <button type="submit" className="delivery-button delivery-button--primary" disabled={busy} data-track="ui.2f5c44f3da.27">
+              {busy ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <Truck size={17} aria-hidden="true" />}
+              {t('delivery.driver.vehicleSave')}
+            </button>
+            <button type="button" className="delivery-button delivery-button--secondary" onClick={() => setEditingId(null)} disabled={busy} data-track="ui.2f5c44f3da.28">{t('delivery.ui.cancel')}</button>
+          </div>
+        </form>
+      )}
+      <form className="delivery-form" onSubmit={submit} data-track="ui.2f5c44f3da.29">
         <div className="delivery-options-grid">
           <label className="delivery-field">{t('delivery.ui.vehicleType')}
             <select className="delivery-input" value={form.vehicleType} onChange={(event) => set('vehicleType', event.target.value)}>
@@ -778,7 +1017,7 @@ function DriverVehiclesSection({ t, onChanged }) {
           </label>
         </div>
         {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
-        <button type="submit" className="delivery-button delivery-button--primary" disabled={busy}>
+        <button type="submit" className="delivery-button delivery-button--primary" disabled={busy} data-track="ui.2f5c44f3da.30">
           {busy ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <Truck size={17} aria-hidden="true" />}
           {t('delivery.driver.vehicleAdd')}
         </button>
@@ -793,6 +1032,12 @@ function DriverDocumentsSection({ t, onChanged }) {
   const { i18n } = useTranslation();
   const [documents, setDocuments] = useState([]);
   const [form, setForm] = useState({ documentType: 'license', title: '', expiresAt: '', notes: '' });
+  // Group 9 partials Wave 2 Batch L (453, G9-A12, D-532): in-place edit.
+  // Fixing a wrong expiry used to mean delete + re-add, which dropped the
+  // reminder stamps, so a re-added document could be re-reminded for a
+  // window already sent. The PATCH endpoint preserves the stamps.
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ documentType: 'license', title: '', expiresAt: '', notes: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const load = useCallback(async () => {
@@ -805,6 +1050,34 @@ function DriverDocumentsSection({ t, onChanged }) {
   }, [t]);
   useEffect(() => { load(); }, [load]);
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+  const setEdit = (key, value) => setEditForm((prev) => ({ ...prev, [key]: value }));
+  const startEdit = (doc) => {
+    setEditingId(doc.id);
+    setEditForm({
+      documentType: doc.document_type || 'license',
+      title: doc.title || '',
+      expiresAt: doc.expires_at ? String(doc.expires_at).slice(0, 10) : '',
+      notes: doc.notes || '',
+    });
+    setError('');
+  };
+  const submitEdit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      await updateDriverDocument(editingId, {
+        documentType: editForm.documentType, title: editForm.title,
+        expiresAt: editForm.expiresAt ? new Date(editForm.expiresAt).toISOString() : null,
+        notes: editForm.notes,
+      });
+      setEditingId(null);
+      await load();
+      onChanged?.();
+    } catch (requestError) {
+      setError(deliveryError(requestError, t, 'delivery.errors.status'));
+    } finally { setBusy(false); }
+  };
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true);
@@ -847,13 +1120,42 @@ function DriverDocumentsSection({ t, onChanged }) {
                 </span>
               </span>
               <span className="delivery-mini-actions">
-                <button type="button" className="delivery-button delivery-button--secondary" onClick={() => remove(doc.id)} disabled={busy}>{t('delivery.driver.documentRemove')}</button>
+                <button type="button" className="delivery-button delivery-button--secondary" onClick={() => startEdit(doc)} disabled={busy} data-track="ui.2f5c44f3da.31">{t('delivery.driver.documentEdit')}</button>
+                <button type="button" className="delivery-button delivery-button--secondary" onClick={() => remove(doc.id)} disabled={busy} data-track="ui.2f5c44f3da.32">{t('delivery.driver.documentRemove')}</button>
               </span>
             </li>
           ))}
         </ul>
       )}
-      <form className="delivery-form" onSubmit={submit}>
+      {editingId !== null && (
+        <form className="delivery-form" onSubmit={submitEdit} data-track="ui.2f5c44f3da.33">
+          <div className="delivery-options-grid">
+            <label className="delivery-field">{t('delivery.driver.documentType')}
+              <select className="delivery-input" value={editForm.documentType} onChange={(event) => setEdit('documentType', event.target.value)}>
+                {DOCUMENT_TYPES.map((type) => <option key={type} value={type}>{t(`delivery.driver.documentTypes.${type}`)}</option>)}
+              </select>
+            </label>
+            <label className="delivery-field">{t('delivery.driver.documentTitle')}
+              <input className="delivery-input" value={editForm.title} onChange={(event) => setEdit('title', event.target.value)} />
+            </label>
+            <label className="delivery-field">{t('delivery.driver.documentExpiresAt')}
+              <input className="delivery-input" type="date" value={editForm.expiresAt} onChange={(event) => setEdit('expiresAt', event.target.value)} />
+            </label>
+          </div>
+          <label className="delivery-field">{t('delivery.driver.documentNotes')}
+            <input className="delivery-input" value={editForm.notes} onChange={(event) => setEdit('notes', event.target.value)} />
+          </label>
+          {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
+          <div className="delivery-checkbox-row">
+            <button type="submit" className="delivery-button delivery-button--primary" disabled={busy} data-track="ui.2f5c44f3da.34">
+              {busy ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <FileText size={17} aria-hidden="true" />}
+              {t('delivery.driver.documentSave')}
+            </button>
+            <button type="button" className="delivery-button delivery-button--secondary" onClick={() => setEditingId(null)} disabled={busy} data-track="ui.2f5c44f3da.35">{t('delivery.ui.cancel')}</button>
+          </div>
+        </form>
+      )}
+      <form className="delivery-form" onSubmit={submit} data-track="ui.2f5c44f3da.36">
         <div className="delivery-options-grid">
           <label className="delivery-field">{t('delivery.driver.documentType')}
             <select className="delivery-input" value={form.documentType} onChange={(event) => set('documentType', event.target.value)}>
@@ -868,7 +1170,7 @@ function DriverDocumentsSection({ t, onChanged }) {
           </label>
         </div>
         {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
-        <button type="submit" className="delivery-button delivery-button--primary" disabled={busy}>
+        <button type="submit" className="delivery-button delivery-button--primary" disabled={busy} data-track="ui.2f5c44f3da.37">
           {busy ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <FileText size={17} aria-hidden="true" />}
           {t('delivery.driver.documentAdd')}
         </button>
@@ -908,11 +1210,11 @@ function DriverServiceAreaSection({ t, profile, onChanged }) {
           <p>{t('delivery.driver.serviceAreaCurrent', { area: serviceAreaSummary(profile?.service_area, t) })}</p>
         </div>
       </div>
-      <form className="delivery-form" onSubmit={submit}>
+      <form className="delivery-form" onSubmit={submit} data-track="ui.2f5c44f3da.38">
         <ServiceAreaFields t={t} area={area} onChange={setArea} />
         {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
         {saved && <p className="delivery-alert delivery-alert--success" role="status">{t('delivery.driver.serviceAreaSaved')}</p>}
-        <button type="submit" className="delivery-button delivery-button--primary" disabled={busy}>
+        <button type="submit" className="delivery-button delivery-button--primary" disabled={busy} data-track="ui.2f5c44f3da.39">
           {busy ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <MapPin size={17} aria-hidden="true" />}
           {t('delivery.driver.serviceAreaSave')}
         </button>
@@ -941,6 +1243,11 @@ function DriverOnboarding({ t, profile, onRegistered, canRegister = true }) {
     fragileSupported: false,
     perishableSupported: false,
     insuranceExpiresAt: '',
+    // Group 9 partials Wave 2 Batch L (451, G9-A1, D-533): the form
+    // never collected the availability window, so a driver could never
+    // set their own window at all. The server leg already persisted it.
+    availableFrom: '',
+    availableUntil: '',
     insuranceAcknowledged: false,
   });
   // Group 9 Slice A (item 454): the service area is a structured object
@@ -981,6 +1288,8 @@ function DriverOnboarding({ t, profile, onRegistered, canRegister = true }) {
         fragileSupported: form.fragileSupported,
         perishableSupported: form.perishableSupported,
         insuranceExpiresAt: form.insuranceExpiresAt ? new Date(form.insuranceExpiresAt).toISOString() : null,
+        availableFrom: form.availableFrom ? new Date(form.availableFrom).toISOString() : null,
+        availableUntil: form.availableUntil ? new Date(form.availableUntil).toISOString() : null,
         insuranceAcknowledged: true,
       });
       setDone(true);
@@ -1009,7 +1318,7 @@ function DriverOnboarding({ t, profile, onRegistered, canRegister = true }) {
         <div className="delivery-icon-badge delivery-icon-badge--green"><Truck size={20} aria-hidden="true" /></div>
         <div><h2>{t('delivery.driver.title')}</h2><p>{t('delivery.driver.body')}</p></div>
       </div>
-      <form className="delivery-form" onSubmit={submit}>
+      <form className="delivery-form" onSubmit={submit} data-track="ui.2f5c44f3da.40">
         {!canRegister && <p className="delivery-alert delivery-alert--error" role="alert">{t('delivery.driver.driverAccessHint')}</p>}
         <fieldset className="delivery-form-fields" disabled={!canRegister}>
         <div className="delivery-options-grid">
@@ -1041,25 +1350,33 @@ function DriverOnboarding({ t, profile, onRegistered, canRegister = true }) {
             <input className="delivery-input" type="date" value={form.insuranceExpiresAt} onChange={(event) => set('insuranceExpiresAt', event.target.value)} />
           </label>
         </div>
+        <div className="delivery-options-grid">
+          <label className="delivery-field">{t('delivery.ui.availableFrom')}
+            <input className="delivery-input" type="date" value={form.availableFrom} onChange={(event) => set('availableFrom', event.target.value)} />
+          </label>
+          <label className="delivery-field">{t('delivery.ui.availableUntil')}
+            <input className="delivery-input" type="date" value={form.availableUntil} onChange={(event) => set('availableUntil', event.target.value)} />
+          </label>
+        </div>
         <fieldset className="delivery-fieldset">
           <legend>{t('delivery.driver.equipment')}</legend>
           <div className="delivery-checkbox-row">
             {EQUIPMENT_KEYS.map((key) => (
-              <label key={key}><input type="checkbox" checked={form.equipment[key] === true} onChange={(event) => setEquipment(key, event.target.checked)} /> {t(`delivery.driver.equipmentKeys.${key}`)}</label>
+              <label key={key}><input type="checkbox" checked={form.equipment[key] === true} onChange={(event) => setEquipment(key, event.target.checked)} data-track="ui.2f5c44f3da.41" /> {t(`delivery.driver.equipmentKeys.${key}`)}</label>
             ))}
           </div>
         </fieldset>
         <div className="delivery-checkbox-row">
-          <label><input type="checkbox" checked={form.fragileSupported} onChange={(event) => set('fragileSupported', event.target.checked)} /> {t('delivery.ui.fragileSupported')}</label>
-          <label><input type="checkbox" checked={form.perishableSupported} onChange={(event) => set('perishableSupported', event.target.checked)} /> {t('delivery.ui.perishableSupported')}</label>
+          <label><input type="checkbox" checked={form.fragileSupported} onChange={(event) => set('fragileSupported', event.target.checked)} data-track="ui.2f5c44f3da.42" /> {t('delivery.ui.fragileSupported')}</label>
+          <label><input type="checkbox" checked={form.perishableSupported} onChange={(event) => set('perishableSupported', event.target.checked)} data-track="ui.2f5c44f3da.43" /> {t('delivery.ui.perishableSupported')}</label>
         </div>
         <ServiceAreaFields t={t} area={area} onChange={setArea} />
         <label className="delivery-check">
-          <input type="checkbox" checked={form.insuranceAcknowledged} onChange={(event) => set('insuranceAcknowledged', event.target.checked)} />
+          <input type="checkbox" checked={form.insuranceAcknowledged} onChange={(event) => set('insuranceAcknowledged', event.target.checked)} data-track="ui.2f5c44f3da.44" />
           <span>{t('delivery.driver.insuranceAck')}</span>
         </label>
         {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
-        <button type="submit" className="delivery-button delivery-button--primary delivery-button--wide" disabled={submitting}>
+        <button type="submit" className="delivery-button delivery-button--primary delivery-button--wide" disabled={submitting} data-track="ui.2f5c44f3da.45">
           {submitting ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <Truck size={17} aria-hidden="true" />}
           {submitting ? t('delivery.driver.submitting') : t('delivery.driver.submit')}
         </button>
@@ -1081,13 +1398,40 @@ function HelperDelivery({ t }) {
   const [canDrive, setCanDrive] = useState(false);
   const [internalDriver, setInternalDriver] = useState(false);
   const [jobs, setJobs] = useState([]);
+  const jobsRef = useRef([]);
+  // Group 9 partials Wave 2 Batch M (456, G9-A19, D-537): the feed is
+  // paged (limit/offset + total, mirroring the driver payout list). The
+  // list mixes the driver's own jobs with marketplace offers in one
+  // created_at order, so "My claimed" only shows loaded pages until the
+  // driver loads more.
+  const [feedTotal, setFeedTotal] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const FEED_PAGE_LIMIT = 100;
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
+  // Group 9 partials Wave 2 Batch L (455, G9-A15, D-531): the server's
+  // reasons for a failed claim, rendered under the error instead of
+  // leaving the driver with a generic capacity message.
+  const [claimReasons, setClaimReasons] = useState([]);
   // P2-4-F10: the helper's driver profile; claiming stays gated until ops
   // approves a profile (self-serve registration below).
   const [driverProfile, setDriverProfile] = useState(null);
   const [activeVehicle, setActiveVehicle] = useState(null);
+  // Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-535): the feed's
+  // 50-mile filter needs a location. Precise device location wins when
+  // the driver grants it; otherwise the service-area center from the
+  // profile applies; otherwise the server falls back to the stored
+  // center, and a driver with no center gets the unfiltered feed.
+  const [feedGeo, setFeedGeo] = useState(null);
+  const profileCenter = useMemo(() => {
+    const center = driverProfile?.service_area && typeof driverProfile.service_area === 'object'
+      ? driverProfile.service_area.center : null;
+    const lat = Number(center?.lat);
+    const lng = Number(center?.lng);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  }, [driverProfile?.service_area]);
+  const feedGeoParams = useCallback(() => feedGeo || profileCenter || {}, [feedGeo, profileCenter]);
   const [onboardingForced, setOnboardingForced] = useState(false);
   const [payouts, setPayouts] = useState(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
@@ -1106,22 +1450,84 @@ function HelperDelivery({ t }) {
 
   useEffect(() => { loadDriverProfile(); }, [loadDriverProfile]);
 
-  const loadJobs = useCallback(async () => {
-    setLoading(true);
+  const loadJobs = useCallback(async (options = {}) => {
+    const append = options.append === true;
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     setError('');
     try {
-      const response = await listDeliveryJobs();
-      setJobs(response.jobs || []);
+      const offset = append ? jobsRef.current.length : 0;
+      const response = await listDeliveryJobs({ ...feedGeoParams(), limit: FEED_PAGE_LIMIT, offset });
+      const nextJobs = response.jobs || [];
+      jobsRef.current = append ? [...jobsRef.current, ...nextJobs] : nextJobs;
+      setJobs(jobsRef.current);
+      setFeedTotal(typeof response.total === 'number' ? response.total : nextJobs.length);
       setCanDrive(response.canDrive === true);
       setInternalDriver(response.internalDriver === true);
     } catch (requestError) {
       setError(deliveryError(requestError, t, 'delivery.errors.load'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, [t]);
+  }, [t, feedGeoParams]);
 
   useEffect(() => { loadJobs(); }, [loadJobs]);
+
+  // Group 9 partials Wave 2 Batch Q (491, G9-B11, D-559): "My claimed"
+  // is its own server-filtered history, not a client-side slice of the
+  // mixed feed. mine=1 + status (active/completed) + limit/offset +
+  // total, the same shape as the customer Active/Completed tabs and
+  // the ops payout list, so a driver with 100+ jobs can page back to
+  // an old completed delivery. The feed above stays the open-jobs
+  // list; the history refreshes with it after a claim, move, or
+  // decline below.
+  const [historyTab, setHistoryTab] = useState('active');
+  const [historyJobs, setHistoryJobs] = useState([]);
+  const [historyTotal, setHistoryTotal] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
+  const historyJobsRef = useRef([]);
+  const loadHistory = useCallback(async (options = {}) => {
+    const append = options.append === true;
+    const tab = options.tab || historyTab;
+    if (append) setHistoryLoadingMore(true);
+    else setHistoryLoading(true);
+    setError('');
+    try {
+      const offset = append ? historyJobsRef.current.length : 0;
+      const response = await listDeliveryJobs({ mine: 1, status: tab, limit: FEED_PAGE_LIMIT, offset });
+      const nextJobs = response.jobs || [];
+      historyJobsRef.current = append ? [...historyJobsRef.current, ...nextJobs] : nextJobs;
+      setHistoryJobs(historyJobsRef.current);
+      setHistoryTotal(typeof response.total === 'number' ? response.total : nextJobs.length);
+    } catch (requestError) {
+      setError(deliveryError(requestError, t, 'delivery.errors.load'));
+    } finally {
+      setHistoryLoading(false);
+      setHistoryLoadingMore(false);
+    }
+  }, [t, historyTab]);
+  useEffect(() => { loadHistory({ tab: historyTab }); }, [loadHistory, historyTab]);
+
+  // Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-535): ask once
+  // for the device location so the feed's 50-mile filter can engage with
+  // precise coordinates. A denial or timeout is silent: the service-area
+  // center (client-side above, server-side in the list endpoint) is the
+  // fallback, and the claim gate is what stops a far claim.
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return undefined;
+    let cancelled = false;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (cancelled) return;
+        setFeedGeo({ lat: position.coords.latitude, lng: position.coords.longitude });
+      },
+      () => {},
+      { timeout: 5000, maximumAge: 600000 },
+    );
+    return () => { cancelled = true; };
+  }, [setFeedGeo]);
 
   // Earnings summary (item 12): totals by payout status, aggregated
   // client-side from the driver's own payout rows. No new queries.
@@ -1137,9 +1543,14 @@ function HelperDelivery({ t }) {
   const claim = async (id) => {
     setBusyId(String(id));
     setError('');
+    setClaimReasons([]);
     try {
-      await claimDeliveryJob(id);
+      // Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-535): send the
+      // feed location with the claim so the server can enforce the
+      // 50-mile distance sanity.
+      await claimDeliveryJob(id, feedGeoParams());
       await loadJobs();
+      await loadHistory();
     } catch (requestError) {
       // P2-4-F10: a driver with no driver profile gets a registration path
       // instead of a dead-end 409.
@@ -1147,6 +1558,13 @@ function HelperDelivery({ t }) {
         setOnboardingForced(true);
         requestAnimationFrame(() => onboardingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
       }
+      // Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-534): a claim
+      // refused for a missing service area scrolls the driver to the
+      // section that fixes it instead of leaving a bare error.
+      if (requestError?.response?.data?.code === 'delivery_service_area_required') {
+        requestAnimationFrame(() => document.getElementById('driver-service-area')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      }
+      setClaimReasons(deliveryClaimReasons(requestError, t));
       setError(deliveryError(requestError, t, 'delivery.errors.claim'));
     } finally { setBusyId(null); }
   };
@@ -1154,7 +1572,8 @@ function HelperDelivery({ t }) {
   const move = async (id, status, proof = {}) => {
     setBusyId(String(id));
     setError('');
-    try { await updateDeliveryStatus(id, status, proof); await loadJobs(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
+    setClaimReasons([]);
+    try { await updateDeliveryStatus(id, status, proof); await loadJobs(); await loadHistory(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
   };
 
   // Group 9 Slice B (item 460): passing on an offer records the reason
@@ -1162,15 +1581,16 @@ function HelperDelivery({ t }) {
   const decline = async (id, payload) => {
     setBusyId(String(id));
     setError('');
-    try { await declineDeliveryJob(id, payload); await loadJobs(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
+    setClaimReasons([]);
+    try { await declineDeliveryJob(id, payload); await loadJobs(); await loadHistory(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
   };
 
-  // Availability gates the open-jobs FEED only: an offline driver sees no
-  // open jobs. Claiming itself stays ungated (canClaim and the server claim
-  // path never read `available`).
+  // Group 9 partials Wave 2 Batch M (459, G9-A3, D-536): availability
+  // gates the open-jobs feed AND claiming AND operations assignment.
+  // An offline driver sees no open jobs and cannot claim (even from a
+  // shared link) or be assigned until they go back online.
   const isOnline = driverProfile?.available === true;
   const openJobs = useMemo(() => selectOpenJobs(jobs, { canDrive, available: isOnline, userId: user?.id }), [jobs, canDrive, isOnline, user?.id]);
-  const myJobs = useMemo(() => jobs.filter((job) => job.is_assigned_operator === true || String(job.customer_user_id) === String(user?.id)), [jobs, user?.id]);
   const isDriver = canDrive || internalDriver;
   const payoutTotals = useMemo(() => {
     const totals = { paid: 0, pending: 0, voided: 0 };
@@ -1200,9 +1620,15 @@ function HelperDelivery({ t }) {
     <div className="delivery-helper-workspace">
       <div className="delivery-helper-toolbar">
         <div><h2>{t(isDriver ? 'delivery.driver.workTitle' : 'delivery.driver.title')}</h2><p>{t(isDriver ? 'delivery.driver.workBody' : 'delivery.driver.body')}</p></div>
-        <button type="button" className="delivery-button delivery-button--secondary" onClick={loadJobs} disabled={loading}><RefreshCw size={16} className={loading ? 'delivery-spin' : ''} aria-hidden="true" />{t('delivery.helper.refresh')}</button>
+        <button type="button" className="delivery-button delivery-button--secondary" onClick={loadJobs} disabled={loading} data-track="ui.2f5c44f3da.46"><RefreshCw size={16} className={loading ? 'delivery-spin' : ''} aria-hidden="true" />{t('delivery.helper.refresh')}</button>
       </div>
       {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
+      {claimReasons.length > 0 && (
+        <div className="delivery-alert delivery-alert--error" role="alert">
+          <p>{t('delivery.errors.claimReasons')}</p>
+          <ul>{claimReasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+        </div>
+      )}
       {loading ? <div className="delivery-loading"><Loader2 className="delivery-spin" size={24} aria-hidden="true" />{t('delivery.helper.loading')}</div> : (
         <>
           {canDrive && (driverProfile?.approved !== true || onboardingForced) && (
@@ -1233,7 +1659,7 @@ function HelperDelivery({ t }) {
                   : t('delivery.driver.noActiveVehicle')}
               </p>
               <label className="delivery-check delivery-availability">
-                <input type="checkbox" checked={driverProfile.available === true} disabled={availabilityBusy} onChange={(event) => toggleAvailability(event.target.checked)} />
+                <input type="checkbox" checked={driverProfile.available === true} disabled={availabilityBusy} onChange={(event) => toggleAvailability(event.target.checked)} data-track="ui.2f5c44f3da.47" />
                 <span>{t('delivery.driver.availability')}</span>
               </label>
               <p className="delivery-estimate-defaults">{t('delivery.driver.availabilityNote')}</p>
@@ -1265,13 +1691,34 @@ function HelperDelivery({ t }) {
           {driverProfile && (
             <>
               <DriverReadinessChecklist t={t} />
+              <DriverProfileEditorSection t={t} profile={driverProfile} onChanged={loadDriverProfile} />
               <DriverServiceAreaSection t={t} profile={driverProfile} onChanged={loadDriverProfile} />
               <DriverVehiclesSection t={t} onChanged={loadDriverProfile} />
               <DriverDocumentsSection t={t} onChanged={loadDriverProfile} />
             </>
           )}
-          {canDrive && <section><div className="delivery-section-title"><h3>{t('delivery.helper.open')}</h3><span>{openJobs.length}</span></div>{driverProfile?.approved === true && !isOnline ? <p className="delivery-empty-copy">{t('delivery.driver.offlineNote')}</p> : openJobs.length ? <div className="delivery-job-grid">{openJobs.map((job) => <DeliveryCard key={job.id} job={job} helper onClaim={claim} onDecline={decline} onStatus={move} busyId={busyId} t={t} />)}</div> : <p className="delivery-empty-copy">{t('delivery.helper.empty')}</p>}</section>}
-          <section><div className="delivery-section-title"><h3>{t(isDriver ? 'delivery.driver.myClaimed' : 'delivery.helper.myDeliveries')}</h3><span>{myJobs.length}</span></div>{myJobs.length ? <div className="delivery-job-grid">{myJobs.map((job) => <DeliveryCard key={job.id} job={job} helper={isDriver && job.is_assigned_operator === true} onClaim={claim} onDecline={decline} onStatus={move} busyId={busyId} t={t} />)}</div> : !error && <p className="delivery-empty-copy">{t('delivery.ui.noDeliveries')}</p>}</section>
+          {canDrive && <section><div className="delivery-section-title"><h3>{t('delivery.helper.open')}</h3><span>{openJobs.length}</span></div>{driverProfile?.approved === true && !isOnline ? <p className="delivery-empty-copy">{t('delivery.driver.offlineNote')}</p> : openJobs.length ? <div className="delivery-job-grid">{openJobs.map((job) => <DeliveryCard key={job.id} job={job} helper onClaim={claim} onDecline={decline} onStatus={move} busyId={busyId} t={t} />)}</div> : <p className="delivery-empty-copy">{t('delivery.helper.empty')}</p>}
+            {feedTotal != null && jobs.length > 0 && <p className="delivery-estimate-defaults">{t('delivery.helper.showingOf', { shown: jobs.length, total: feedTotal })}</p>}
+            {feedTotal != null && jobs.length < feedTotal && <button type="button" className="delivery-button delivery-button--secondary" onClick={() => loadJobs({ append: true })} disabled={loadingMore || loading} data-track="ui.2f5c44f3da.50">{t('delivery.helper.loadMore')}</button>}
+          </section>}
+          {/* Group 9 partials Wave 2 Batch Q (491, G9-B11, D-559): the
+            driver's own history with the same Active/Completed tabs
+            the customer side has, paged server-side (mine + status +
+            total) instead of sliced from the loaded feed. */}
+          <section>
+            <div className="delivery-section-title"><h3>{t(isDriver ? 'delivery.driver.myClaimed' : 'delivery.helper.myDeliveries')}</h3><span>{historyTotal ?? historyJobs.length}</span></div>
+            <div className="delivery-my__tabs" role="tablist" aria-label={t(isDriver ? 'delivery.driver.myClaimed' : 'delivery.helper.myDeliveries')}>
+              <button type="button" role="tab" aria-selected={historyTab === 'active'} className={historyTab === 'active' ? 'is-active' : ''} onClick={() => setHistoryTab('active')} data-track="ui.2f5c44f3da.51">
+                {t('delivery.myDeliveries.active')}
+              </button>
+              <button type="button" role="tab" aria-selected={historyTab === 'completed'} className={historyTab === 'completed' ? 'is-active' : ''} onClick={() => setHistoryTab('completed')} data-track="ui.2f5c44f3da.52">
+                {t('delivery.myDeliveries.completed')}
+              </button>
+            </div>
+            {historyLoading ? <div className="delivery-loading"><Loader2 className="delivery-spin" size={24} aria-hidden="true" />{t('delivery.helper.loading')}</div> : historyJobs.length ? <div className="delivery-job-grid">{historyJobs.map((job) => <DeliveryCard key={job.id} job={job} helper={isDriver && job.is_assigned_operator === true} onClaim={claim} onDecline={decline} onStatus={move} busyId={busyId} t={t} />)}</div> : !error && <p className="delivery-empty-copy">{t(historyTab === 'active' ? 'delivery.myDeliveries.emptyActive' : 'delivery.myDeliveries.emptyCompleted')}</p>}
+            {historyTotal != null && historyJobs.length > 0 && <p className="delivery-estimate-defaults">{t('delivery.helper.showingOf', { shown: historyJobs.length, total: historyTotal })}</p>}
+            {historyTotal != null && historyJobs.length < historyTotal && <button type="button" className="delivery-button delivery-button--secondary" onClick={() => loadHistory({ append: true })} disabled={historyLoadingMore || historyLoading} data-track="ui.2f5c44f3da.53">{t('delivery.helper.loadMore')}</button>}
+          </section>
         </>
       )}
     </div>
@@ -1371,8 +1818,8 @@ export default function DeliveryPage() {
       <PageMeta title={t('delivery.metaTitle')} description={t('delivery.metaDescription')} />
       <div className="delivery-page" dir={i18n.dir()}>
         <nav className="delivery-workspace-tabs" aria-label={t('delivery.title')}>
-          <button type="button" className="delivery-button delivery-button--secondary" aria-pressed={view === 'book'} onClick={() => setView('book')}>{t('delivery.customer.title')}</button>
-          <button type="button" className="delivery-button delivery-button--secondary" aria-pressed={view === 'driving'} onClick={() => setView('driving')}>{t('delivery.tabs.driving')}</button>
+          <button type="button" className="delivery-button delivery-button--secondary" aria-pressed={view === 'book'} onClick={() => setView('book')} data-track="ui.2f5c44f3da.48">{t('delivery.customer.title')}</button>
+          <button type="button" className="delivery-button delivery-button--secondary" aria-pressed={view === 'driving'} onClick={() => setView('driving')} data-track="ui.2f5c44f3da.49">{t('delivery.tabs.driving')}</button>
           {operationsRole && <Link className="delivery-button delivery-button--secondary" to={operations ? '/delivery/operations' : '/logistics/login?mode=operations&next=%2Fdelivery%2Foperations'}>{t(operations ? 'delivery.dispatch.metaTitle' : 'delivery.ui.operationsLogin')}</Link>}
         </nav>
         {view === 'book' ? (

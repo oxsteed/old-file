@@ -36,7 +36,14 @@ const resolveDeposit = async (req, res) => {
     if (booking.deposit_status !== 'held') {
       return res.status(409).json({ error: 'No held deposit to resolve', code: 'deposit_not_held', deposit_status: booking.deposit_status });
     }
-    if (!['payment_confirmed', 'completed'].includes(booking.status)) {
+    // G11-B3 + G11-A7 (D-606): a held deposit resolves only once the
+    // rental is over. 'returned' (tool back) and 'completed' (rental
+    // closed) can resolve; so can 'cancelled' (a paid booking cancelled
+    // before pickup must not leave the deposit held forever, the B3
+    // hole). 'payment_confirmed' is mid-rental and must NOT resolve
+    // (the A7 hole: the owner could withhold the deposit while the
+    // renter still holds the tool).
+    if (!['returned', 'completed', 'cancelled'].includes(booking.status)) {
       return res.status(409).json({ error: 'Booking is not in a state where the deposit can be resolved' });
     }
     const deposit = Number(booking.deposit_amount);
@@ -562,11 +569,23 @@ const generateInvoicePDF = async (req, res) => {
   }
 };
 
-const confirmPayment = async (req, res) => {
+const { notifyRental } = require('../utils/toolRentalNotifications');
+
+// G11-A1/A3 (D-603): step 1 of the two-step payment confirmation. The
+// renter records payment proof (reference + amount) after paying
+// off-platform. Recording proof never flips the booking: it stays
+// invoice_sent until the owner confirms receipt (confirmPayment below).
+// The amount must equal the invoice total, so a partial or mistyped
+// payment cannot pose as the full amount. Re-recording overwrites the
+// proof while the booking is still invoice_sent; the owner is notified
+// (email + in-app) on every record, failure-safe.
+const recordPayment = async (req, res) => {
   const client = await db.connect();
   try {
     const { invoiceId } = req.params;
     const customerId = req.user.id;
+    const reference = typeof req.body?.reference === 'string' ? req.body.reference.trim().slice(0, 200) : '';
+    const amount = Number(req.body?.amount);
 
     const invoiceResult = await client.query(
       `SELECT tri.*, trb.status as booking_status
@@ -574,6 +593,120 @@ const confirmPayment = async (req, res) => {
        JOIN tool_rentals_bookings trb ON tri.booking_id = trb.id
        WHERE tri.id = $1 AND tri.customer_id = $2`,
       [invoiceId, customerId]
+    );
+
+    if (!invoiceResult.rows[0]) {
+      client.release();
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    const invoice = invoiceResult.rows[0];
+
+    if (invoice.status === 'payment_confirmed') {
+      client.release();
+      return res.status(400).json({ error: 'Payment already confirmed. Invoices are immutable after confirmation.' });
+    }
+    if (invoice.booking_status !== 'invoice_sent') {
+      client.release();
+      return res.status(400).json({ error: 'Booking is not in correct state for recording payment' });
+    }
+    if (!reference) {
+      client.release();
+      return res.status(400).json({ error: 'A payment reference is required', code: 'reference_required' });
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      client.release();
+      return res.status(400).json({ error: 'A payment amount over 0 is required', code: 'invalid_amount' });
+    }
+    if (Math.abs(amount - Number(invoice.total_amount)) > 0.009) {
+      client.release();
+      return res.status(400).json({
+        error: 'The recorded amount must equal the invoice total',
+        code: 'amount_mismatch',
+        expected_amount: Number(invoice.total_amount),
+      });
+    }
+
+    await client.query('BEGIN');
+    const { rows: updated } = await client.query(
+      `UPDATE tool_rental_invoices
+          SET payment_proof_reference = $2, payment_proof_amount = $3,
+              payment_proof_submitted_at = CURRENT_TIMESTAMP, payment_proof_submitted_by = $4
+        WHERE id = $1 RETURNING *`,
+      [invoiceId, reference, Math.round(amount * 100) / 100, customerId]
+    );
+    await client.query(
+      `INSERT INTO invoice_audit_log (invoice_id, previous_status, new_status, changed_by, change_reason)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [invoiceId, invoice.status, invoice.status, customerId, `Payment proof recorded (reference ${reference})`]
+    );
+    await client.query('COMMIT');
+    client.release();
+
+    const proofInvoice = updated[0];
+    // Notify the owner (email + in-app, failure-safe): they must confirm
+    // receipt before the booking can leave invoice_sent.
+    try {
+      const ownerData = await db.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [invoice.owner_id]);
+      const toolData = await db.query('SELECT name FROM tool_rentals WHERE id = $1', [invoice.tool_id]);
+      if (ownerData.rows[0] && toolData.rows[0]) {
+        const bookingEmailService = require('../services/bookingEmailService');
+        bookingEmailService.sendPaymentProofReceived(
+          { id: invoice.booking_id, start_date: invoice.start_date, end_date: invoice.end_date, total_price: invoice.total_amount },
+          toolData.rows[0], ownerData.rows[0], { reference, amount: Math.round(amount * 100) / 100 },
+        );
+      }
+    } catch (notifyErr) {
+      logger.warn('recordPayment owner email failed', { invoiceId, error: notifyErr.message });
+    }
+    // Awaited but failure-safe (the helper never throws): the proof
+    // notice must be recorded before the response, or a fast client can
+    // observe the booking before the owner was told. Same shape as the
+    // Wave 3 escalation notices.
+    await notifyRental({
+      userId: invoice.owner_id,
+      type: 'tool_rental_payment_proof_submitted',
+      bookingId: invoice.booking_id,
+      eventKey: `proof:${proofInvoice.payment_proof_submitted_at}`,
+      data: { invoice_id: String(invoiceId), reference },
+    });
+
+    res.json({
+      status: proofInvoice.status,
+      invoiceId,
+      payment_proof_reference: proofInvoice.payment_proof_reference,
+      payment_proof_amount: Number(proofInvoice.payment_proof_amount),
+      payment_proof_submitted_at: proofInvoice.payment_proof_submitted_at,
+      message: 'Payment recorded. The booking stays unpaid until the owner confirms receipt.',
+    });
+    logger.info('Rental payment proof recorded', { invoiceId, bookingId: invoice.booking_id, customerId });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    client.release();
+    logger.error('recordPayment error', { err });
+    res.status(500).json({ error: 'Failed to record payment' });
+  }
+};
+
+// G11-A1/A3 (D-603): step 2 of the two-step payment confirmation. Only
+// the OWNER confirms receipt, and only after the renter recorded proof.
+// Renter self-attestation alone never flips payment_confirmed: the
+// previous renter-only confirmPayment was the G11-A3 hole (a renter
+// could confirm a $180 rental + $200 deposit without paying, and the
+// invoice became immutable). On success the invoice becomes immutable
+// and the deposit due becomes held, exactly as before.
+const confirmPayment = async (req, res) => {
+  const client = await db.connect();
+  try {
+    const { invoiceId } = req.params;
+    const ownerId = req.user.id;
+
+    const invoiceResult = await client.query(
+      `SELECT tri.*, trb.status as booking_status
+       FROM tool_rental_invoices tri
+       JOIN tool_rentals_bookings trb ON tri.booking_id = trb.id
+       WHERE tri.id = $1 AND tri.owner_id = $2`,
+      [invoiceId, ownerId]
     );
 
     if (!invoiceResult.rows[0]) {
@@ -593,6 +726,16 @@ const confirmPayment = async (req, res) => {
     if (invoice.booking_status !== 'invoice_sent') {
       client.release();
       return res.status(400).json({ error: 'Booking is not in correct state for payment confirmation' });
+    }
+
+    // The renter must have recorded proof first: the owner confirms
+    // receipt of a real payment, not an unattested claim.
+    if (!invoice.payment_proof_submitted_at || !invoice.payment_proof_reference) {
+      client.release();
+      return res.status(409).json({
+        error: 'The renter must record payment proof before the owner can confirm receipt',
+        code: 'payment_proof_required',
+      });
     }
 
     // Transaction for atomicity
@@ -619,15 +762,39 @@ const confirmPayment = async (req, res) => {
     await client.query(
       `INSERT INTO invoice_audit_log (invoice_id, previous_status, new_status, changed_by, change_reason)
        VALUES ($1, $2, $3, $4, $5)`,
-      [invoiceId, previousStatus, 'payment_confirmed', customerId, 'Payment confirmed by customer']
+      [invoiceId, previousStatus, 'payment_confirmed', ownerId, 'Payment receipt confirmed by owner']
     );
 
     await client.query('COMMIT');
     client.release();
 
+    // Notify the renter (email + in-app, failure-safe): the booking is
+    // paid and pickup can proceed.
+    try {
+      const customerData = await db.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [invoice.customer_id]);
+      const toolData = await db.query('SELECT name FROM tool_rentals WHERE id = $1', [invoice.tool_id]);
+      if (customerData.rows[0] && toolData.rows[0]) {
+        const bookingEmailService = require('../services/bookingEmailService');
+        bookingEmailService.sendPaymentConfirmed(
+          { id: invoice.booking_id, start_date: invoice.start_date, end_date: invoice.end_date, total_price: invoice.total_amount },
+          toolData.rows[0], customerData.rows[0],
+        );
+      }
+    } catch (notifyErr) {
+      logger.warn('confirmPayment renter email failed', { invoiceId, error: notifyErr.message });
+    }
+    // Awaited but failure-safe, same shape as the proof notice above.
+    await notifyRental({
+      userId: invoice.customer_id,
+      type: 'tool_rental_payment_confirmed',
+      bookingId: invoice.booking_id,
+      eventKey: `confirmed:${invoiceId}`,
+      data: { invoice_id: String(invoiceId) },
+    });
+
     res.json({ status: 'payment_confirmed', invoiceId, message: 'Invoice is now immutable' });
 
-    logger.info('Payment confirmed and invoice immutable', { invoiceId, bookingId: invoice.booking_id, customerId });
+    logger.info('Payment confirmed and invoice immutable', { invoiceId, bookingId: invoice.booking_id, ownerId });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     client.release();
@@ -636,4 +803,4 @@ const confirmPayment = async (req, res) => {
   }
 };
 
-module.exports = { createInvoice, getInvoice, generateInvoicePDF, confirmPayment, resolveDeposit, bookingDepositAmount };
+module.exports = { createInvoice, getInvoice, generateInvoicePDF, confirmPayment, recordPayment, resolveDeposit, bookingDepositAmount };

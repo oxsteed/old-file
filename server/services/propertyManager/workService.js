@@ -8,7 +8,7 @@ const { cents, day, oneOf, property, propertyAccess, requestAccess, propertyPeop
 
 const OPEN = `status NOT IN ('completed','cancelled','rejected')`;
 const TRADES = ['general', 'plumbing', 'electrical', 'hvac', 'appliance', 'roofing', 'pest', 'cleaning', 'landscaping', 'locksmith', 'painting', 'other'];
-const reqUrl = (b, r) => `/business/${b}/hub?tab=properties&request=${r}`;
+const reqUrl = (b, r) => `/business/${b}/workspace?tab=properties&request=${r}`;
 const event = (db, requestId, actor, type, note, metadata) => db.query('INSERT INTO property_maintenance_request_events(request_id, actor_id, event_type, note, metadata) VALUES($1,$2,$3,$4,$5)', [requestId, actor, type, note || null, metadata || {}]);
 
 // 314 duplicate candidates: same property (or unit label) + category, open, within 30 days
@@ -50,15 +50,20 @@ async function requestApproval(businessId, requestId, user, role, body) {
     if (!r.property_id) fail(409, 'request_needs_property');
     if (r.approval_status === 'pending') fail(409, 'approval_pending');
     const p = await property(db, businessId, r.property_id);
+    const ownerUserId = p.owner_user_id || (await ownerOf(db, businessId)).user_id;
+    // D-498: an owner requesting approval of their own spend self-approves;
+    // the approval is recorded (auditable) instead of pending on another
+    // approver. A non-owner manager above the threshold still pends.
+    const isOwner = String(user) === String(ownerUserId);
     const needs = p.approval_threshold_cents != null && amount > p.approval_threshold_cents;
-    const status = needs ? 'pending' : 'approved';
+    const status = needs && !isOwner ? 'pending' : 'approved';
     await db.query(`UPDATE property_maintenance_requests SET approval_status=$2::varchar, approval_amount_cents=$3, approval_requested_at=NOW(), approval_note=$4,
       approval_decided_by=CASE WHEN $2::varchar='approved' THEN $5::uuid END, approval_decided_at=CASE WHEN $2::varchar='approved' THEN NOW() END, updated_at=NOW() WHERE id=$1`, [r.id, status, amount, note, user]);
-    await event(db, r.id, user, needs ? 'approval_requested' : 'approval_within_threshold', note, { amount_cents: amount, threshold_cents: p.approval_threshold_cents });
-    const approver = p.owner_user_id || (await ownerOf(db, businessId)).user_id;
-    return { id: r.id, approval_status: status, threshold_cents: p.approval_threshold_cents, approver: needs ? approver : null, label: p.label, title: r.title };
+    await event(db, r.id, user, needs ? (isOwner ? 'approval_self_approved' : 'approval_requested') : 'approval_within_threshold', note, { amount_cents: amount, threshold_cents: p.approval_threshold_cents });
+    const approver = ownerUserId;
+    return { id: r.id, approval_status: status, threshold_cents: p.approval_threshold_cents, approver: status === 'pending' ? approver : null, label: p.label, title: r.title };
   });
-  if (out.approver) await notify(out.approver, 'property_approval_requested', { property: out.label, title: out.title }, `property_approval_requested:${out.id}:${Date.now()}`, '/property-approvals');
+  if (out.approver) await notify(out.approver, 'property_approval_requested', { property: out.label, title: out.title }, `property_approval_requested:${out.id}:${Date.now()}`, '/business-hub');
   return { id: out.id, approval_status: out.approval_status, threshold_cents: out.threshold_cents };
 }
 const APPROVER_SQL = `(p.owner_user_id=$1 OR (p.owner_user_id IS NULL AND b.user_id=$1))`;
@@ -179,7 +184,17 @@ async function issueWorkOrder(businessId, requestId, user, role, body) {
     const nte = cents(body?.not_to_exceed_cents ?? quote?.amount_cents, 'not_to_exceed_cents', { required: true });
     if (r.property_id) {
       const p = await property(db, businessId, r.property_id);
-      if (p.approval_threshold_cents != null && nte > p.approval_threshold_cents && !(r.approval_status === 'approved' && (r.approval_amount_cents ?? 0) >= nte)) fail(409, 'owner_approval_required');
+      const over = p.approval_threshold_cents != null && nte > p.approval_threshold_cents && !(r.approval_status === 'approved' && (r.approval_amount_cents ?? 0) >= nte);
+      if (over) {
+        // D-498: the converter is an owner of the business/property — record
+        // a self-approval (auditable) instead of blocking on another
+        // approver. A non-owner converter still stops at 409.
+        const ownerUserId = p.owner_user_id || (await ownerOf(db, businessId)).user_id;
+        if (String(user) !== String(ownerUserId)) fail(409, 'owner_approval_required');
+        await db.query(`UPDATE property_maintenance_requests SET approval_status='approved', approval_amount_cents=$2, approval_decided_by=$3, approval_decided_at=NOW(), updated_at=NOW() WHERE id=$1`, [r.id, nte, user]);
+        await event(db, r.id, user, 'approval_self_approved', null, { amount_cents: nte, threshold_cents: p.approval_threshold_cents });
+        r.approval_status = 'approved'; r.approval_amount_cents = nte;
+      }
     }
     if (r.approval_status === 'declined') fail(409, 'owner_approval_declined');
     const { rows: [{ n }] } = await db.query('SELECT COUNT(*)::int + 1 AS n FROM property_work_orders WHERE business_id=$1', [businessId]);
@@ -211,20 +226,37 @@ function windowsOf(list) {
   if (!Array.isArray(list) || list.length > 6) invalid('offered_windows');
   return list.map(w => { const s = isoDate(w?.start, 'start'); const e = isoDate(w?.end, 'end'); if (e <= s) invalid('end'); return { start: s, end: e }; });
 }
-const visibleEntry = (e) => e && ({ ...e, instructions: e.instructions_expire_at && new Date(e.instructions_expire_at) <= new Date() ? null : e.instructions, instructions_expired: Boolean(e.instructions_expire_at && new Date(e.instructions_expire_at) <= new Date()) });
+// D-505: consent authorizes one visit only — the selected window. A
+// granted consent with no selected window authorizes nothing yet, and a
+// consent whose window ended no longer authorizes entry. The stored consent
+// is never rewritten; the read surface reports the effective state.
+const visibleEntry = (e) => e && ({ ...e, instructions: e.instructions_expire_at && new Date(e.instructions_expire_at) <= new Date() ? null : e.instructions, instructions_expired: Boolean(e.instructions_expire_at && new Date(e.instructions_expire_at) <= new Date()),
+  consent_valid_until: e.selected_end || null, consent_expired: Boolean(e.consent === 'granted' && e.selected_end && new Date(e.selected_end) <= new Date()) });
 async function getEntry(businessId, requestId, user, role) {
   const { request: r } = await requestAccess(pool, businessId, requestId, user, role);
   const { rows: [e] } = await pool.query('SELECT * FROM property_entry_records WHERE request_id=$1', [r.id]);
-  return { request_id: r.id, permission_to_enter: r.permission_to_enter, entry: visibleEntry(e) || null };
+  const entry = visibleEntry(e) || null;
+  const entry_authorized = Boolean(entry && entry.consent === 'granted' && entry.selected_end && new Date(entry.selected_end) > new Date());
+  return { request_id: r.id, permission_to_enter: r.permission_to_enter, entry_authorized, entry };
 }
 async function saveEntry(businessId, requestId, user, role, body) {
   const b = body || {};
   const consent = b.consent === undefined ? undefined : oneOf(b.consent, ['granted', 'denied'], 'consent');
   const method = consent ? oneOf(b.consent_method, ['portal', 'phone', 'email', 'in_person', 'written'], 'consent_method') : null;
   const windows = windowsOf(b.offered_windows);
-  const expires = b.instructions_expire_at ? isoDate(b.instructions_expire_at, 'instructions_expire_at') : null;
   return withTransaction(pool, async db => {
     const { request: r } = await requestAccess(db, businessId, requestId, user, role, { lock: true });
+    // D-506: visit instructions expire with the scheduled window. When new
+    // instructions arrive with no explicit expiry, default to the latest
+    // offered window end, else the already-selected window end, else the
+    // previous expiry. An explicit expiry always wins; a save with no new
+    // instructions leaves the expiry untouched.
+    const { rows: [prev] } = await db.query('SELECT selected_end, instructions_expire_at FROM property_entry_records WHERE request_id=$1', [r.id]);
+    const hasInstructions = b.instructions !== undefined && b.instructions !== null && String(b.instructions).trim() !== '';
+    let expires = null;
+    if (b.instructions_expire_at) expires = isoDate(b.instructions_expire_at, 'instructions_expire_at');
+    else if (hasInstructions && windows?.length) expires = windows.reduce((m, w) => (w.end > m ? w.end : m), windows[0].end);
+    else if (hasInstructions) expires = prev?.selected_end || prev?.instructions_expire_at || null;
     const { rows: [e] } = await db.query(`INSERT INTO property_entry_records(business_id, request_id, consent, consent_method, consent_given_by, consent_recorded_by, consent_recorded_at, offered_windows, instructions, instructions_expire_at)
       VALUES($1,$2,$3::varchar,$4,$5,CASE WHEN $3::varchar IS NOT NULL THEN $6::uuid END,CASE WHEN $3::varchar IS NOT NULL THEN NOW() END,COALESCE($7::jsonb,'[]'::jsonb),$8,$9)
       ON CONFLICT (request_id) DO UPDATE SET
@@ -246,7 +278,7 @@ async function notifyOccupant(businessId, requestId, user, role) {
   if (!e || !e.offered_windows.length) fail(409, 'no_entry_windows');
   if (!r.requester_id) fail(409, 'occupant_has_no_account');
   await pool.query('UPDATE property_entry_records SET occupant_notified_at=NOW() WHERE id=$1', [e.id]);
-  await notify(r.requester_id, 'property_entry_scheduled', { title: r.title }, `property_entry_scheduled:${e.id}:${e.updated_at.getTime?.() || Date.now()}`, `/maintenance-requests/${r.id}`);
+  await notify(r.requester_id, 'property_entry_scheduled', { title: r.title }, `property_entry_scheduled:${e.id}:${e.updated_at.getTime?.() || Date.now()}`, `/business/${businessId}/maintenance-request`);
   return { notified: true };
 }
 // Occupant (requester) side
@@ -265,7 +297,9 @@ async function selectWindow(user, requestId, body) {
     const w = e?.offered_windows.find(x => new Date(x.start).getTime() === new Date(start).getTime());
     if (!w) fail(409, 'window_not_offered');
     await db.query(`UPDATE property_entry_records SET selected_start=$2, selected_end=$3, selected_by=$4, consent=COALESCE(consent,'granted'), consent_method=COALESCE(consent_method,'portal'),
-      consent_recorded_at=COALESCE(consent_recorded_at,NOW()), updated_at=NOW() WHERE id=$1`, [e.id, w.start, w.end, user]);
+      consent_recorded_at=COALESCE(consent_recorded_at,NOW()),
+      instructions_expire_at=CASE WHEN instructions IS NULL THEN instructions_expire_at ELSE LEAST(COALESCE(instructions_expire_at, $3::timestamptz), $3::timestamptz) END,
+      updated_at=NOW() WHERE id=$1`, [e.id, w.start, w.end, user]);
     await db.query(`UPDATE property_maintenance_requests SET scheduled_start_at=$2, scheduled_end_at=$3, permission_to_enter=TRUE, updated_at=NOW() WHERE id=$1`, [r.id, w.start, w.end]);
     await event(db, r.id, user, 'entry_window_selected', null, w);
     return { r, w };
@@ -359,7 +393,7 @@ async function createIncident(businessId, propertyId, user, role, body) {
     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`, [businessId, p.id, unit, reqId, text(body?.title, 160), severity, text(body?.relocation_note, 2000, { required: false }), day(body?.relocation_until, 'relocation_until'), day(body?.follow_up_on, 'follow_up_on'), text(body?.category, 80, { required: false }), assignedTo, user]);
   if (severity === 'critical') {
     const owner = (await ownerOf(pool, businessId)).user_id;
-    for (const t of [...new Set([...(await propertyPeople(pool, p.id)), owner].map(String))].filter(x => x !== String(user))) await notify(t, 'property_emergency', { title: i.title }, `property_incident:${i.id}`, `/business/${businessId}/hub?tab=properties&property=${p.id}`);
+    for (const t of [...new Set([...(await propertyPeople(pool, p.id)), owner].map(String))].filter(x => x !== String(user))) await notify(t, 'property_emergency', { title: i.title }, `property_incident:${i.id}`, `/business/${businessId}/workspace?tab=properties&property=${p.id}`);
   }
   return i;
 }
@@ -399,7 +433,7 @@ async function shareWithOwner(businessId, incidentId, user, role) {
   const p = await property(pool, businessId, i.property_id);
   if (!p.owner_user_id) fail(409, 'property_owner_not_linked');
   const { rows: [out] } = await pool.query('UPDATE property_incidents SET owner_shared_at=NOW() WHERE id=$1 RETURNING *', [i.id]);
-  await notify(p.owner_user_id, 'property_incident_summary', { property: p.label, title: i.title }, `property_incident_summary:${i.id}:${out.owner_shared_at.getTime?.() || Date.now()}`, '/property-approvals');
+  await notify(p.owner_user_id, 'property_incident_summary', { property: p.label, title: i.title }, `property_incident_summary:${i.id}:${out.owner_shared_at.getTime?.() || Date.now()}`, '/business-hub');
   return out;
 }
 async function ownerIncidents(user) {
@@ -409,5 +443,27 @@ async function ownerIncidents(user) {
     FROM property_incidents i JOIN properties p ON p.id=i.property_id JOIN businesses b ON b.id=i.business_id LEFT JOIN users au ON au.id=i.assigned_to WHERE p.owner_user_id=$1 AND i.owner_shared_at IS NOT NULL ORDER BY i.owner_shared_at DESC LIMIT 100`, [user]);
   return { incidents: rows };
 }
+// 344 case evidence folder: one incident bundled with the linked request's
+// event trail + intake photos, the incident's own evidence items, and the
+// property's filed compliance documents, so the whole case reads in one
+// place instead of across four surfaces. No new entity: the incident IS
+// the case; this read is the folder.
+async function caseFolder(businessId, incidentId, user, role) {
+  const i = await incidentFor(pool, businessId, incidentId, user, role);
+  let req = null; let events = [];
+  if (i.request_id) {
+    ({ rows: [req] } = await pool.query('SELECT id, title, status, urgency, property_label, unit_label, photo_urls FROM property_maintenance_requests WHERE id=$1', [i.request_id]));
+    if (req) {
+      ({ rows: events } = await pool.query(`SELECT e.id, e.event_type, e.note, e.created_at,
+          NULLIF(TRIM(CONCAT(u.first_name,' ',u.last_name)),'') AS actor_name
+        FROM property_maintenance_request_events e LEFT JOIN users u ON u.id=e.actor_id
+        WHERE e.request_id=$1 ORDER BY e.id`, [req.id]));
+    }
+  }
+  const { rows: documents } = await pool.query(`SELECT c.id, c.title, c.record_type, c.document_url, c.due_date, u.unit_label
+    FROM property_compliance_records c JOIN property_portfolio_units u ON u.id=c.unit_id
+    WHERE c.business_id=$1 AND u.property_id=$2 AND c.document_url IS NOT NULL ORDER BY c.due_date DESC NULLS LAST LIMIT 20`, [businessId, i.property_id]);
+  return { incident: i, request: req ? { ...req, events } : null, evidence: i.evidence || [], documents };
+}
 module.exports = { TRADES, duplicates, linkDuplicate, requestApproval, approvalInbox, approvalEvents, decideApproval, vendors, createVendor, updateVendor, addQuote, quotes, selectQuote, issueWorkOrder, closeWorkOrder, workOrders,
-  getEntry, saveEntry, notifyOccupant, occupantEntry, selectWindow, keys, addKey, keyAction, routeEmergency, incidents, createIncident, updateIncident, addEvidence, shareWithOwner, ownerIncidents };
+  getEntry, saveEntry, notifyOccupant, occupantEntry, selectWindow, keys, addKey, keyAction, routeEmergency, incidents, createIncident, updateIncident, addEvidence, shareWithOwner, ownerIncidents, caseFolder };

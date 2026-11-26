@@ -172,5 +172,17 @@ ddescribe('maintenance requests and property records stay scoped (WP-057, real d
     expect((await request(app).put(`/api/property-operations/business/${siteA}/compliance-records/${okRec.body.record.id}`)
       .set('x-test-user', mgr).send({ unit_id: unitB })).status).toBe(404);
     expect((await pool.query('SELECT COUNT(*)::int AS n FROM property_compliance_records WHERE unit_id = $1', [unitB])).rows[0].n).toBe(0);
+
+    // D-508 (326): compliance record_type is a closed enum going forward.
+    expect((await as(mgr).post(`/api/property-operations/business/${siteA}/compliance-records`,
+      { record_type: 'banana', title: 'Banana check', unit_id: unitA })).status).toBe(400);
+    const upper = await as(mgr).post(`/api/property-operations/business/${siteA}/compliance-records`,
+      { record_type: 'FIRE', title: 'Fire check', unit_id: unitA });
+    expect(upper.status).toBe(201);
+    expect(upper.body.record.record_type).toBe('fire');
+    expect((await request(app).put(`/api/property-operations/business/${siteA}/compliance-records/${upper.body.record.id}`)
+      .set('x-test-user', mgr).send({ record_type: 'banana' })).status).toBe(400);
+    expect((await request(app).put(`/api/property-operations/business/${siteA}/compliance-records/${upper.body.record.id}`)
+      .set('x-test-user', mgr).send({ record_type: 'safety' })).status).toBe(200);
   });
 });

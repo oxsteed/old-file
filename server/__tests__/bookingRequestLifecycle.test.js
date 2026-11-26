@@ -105,10 +105,14 @@ describe('bookingRequestLifecycle', () => {
             customer_name: 'Bob',
           },
         ],
-      });
+      })
+      // G5-39: listIncomingForProvider runs validateBookingSlot per
+      // pending/counter_proposed row (one overlap query each). No overlap.
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const rows = await lifecycle.listIncomingForProvider('h1');
-    expect(pool.query).toHaveBeenCalledTimes(2);
+    expect(pool.query).toHaveBeenCalledTimes(4);
     const bizSql = pool.query.mock.calls[0][0];
     expect(bizSql).toMatch(/businesses/);
     const sql = pool.query.mock.calls[1][0];
@@ -145,6 +149,8 @@ describe('bookingRequestLifecycle', () => {
           },
         ],
       })
+      // G5-39: business slot check for the pending row — no overlap.
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ owner_id: 'owner-h', membership_id: 'member-1', role: 'manager' }] });
 
     const rows = await lifecycle.listIncomingForProvider('member-1');

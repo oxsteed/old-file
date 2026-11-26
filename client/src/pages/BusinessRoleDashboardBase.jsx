@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useBusinessOperations } from '../hooks/useBusinessOperations';
-import { getMyBusinesses } from '../api/vortex';
+import { getMyBusinesses, getMyMembership } from '../api/vortex';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
@@ -90,10 +90,21 @@ function MetricCard({ icon: Icon, label, value, accent }) {
   );
 }
 
-function WorkspaceCard({ business, config, tx, viewerId }) {
+function WorkspaceCard({ business, config, tx, t, viewerId }) {
   const workspaceId = business.business_id || business.id;
   const workspaceBase = `/business/${workspaceId}/workspace`;
   const { data, loading, error, retry } = useBusinessOperations(workspaceId, viewerId, business.role);
+  // G5-40 (252): the member's actual role + effective permissions, from
+  // getMyMembership. A failed lookup leaves the static role context in
+  // place instead of hiding the card.
+  const [membership, setMembership] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    getMyMembership(workspaceId)
+      .then((res) => { if (!cancelled) setMembership(res || null); })
+      .catch(() => { if (!cancelled) setMembership(null); });
+    return () => { cancelled = true; };
+  }, [workspaceId]);
   const restaurant = data?.businessKind === 'restaurant';
   const primaryTab = restaurant ? (data?.sections.messages.available ? 'messages' : 'team')
     : config.primaryTab === 'calendar' && data?.sections.bookings.available ? 'calendar'
@@ -142,6 +153,19 @@ function WorkspaceCard({ business, config, tx, viewerId }) {
             {tx(`businessOperations.tasks.${task.type}`, undefined, { count: task.count })}
           </Link></li>)}
         </ul>}
+        {membership && (
+          <div className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-translucent)] p-3">
+            <div className="text-xs font-semibold">{t('businessRoleDashboard.rolePermissionsTitle')}</div>
+            <p className="text-sm mt-2 text-[var(--color-text-muted)] leading-[1.65]">
+              {t('businessRoleDashboard.roleLabel')} {membership.role || business.role}
+            </p>
+            <p className="text-sm mt-1 text-[var(--color-text-muted)] leading-[1.65]">
+              {t('businessRoleDashboard.permissionsLabel')}: {Array.isArray(membership.permissions) && membership.permissions.length
+                ? membership.permissions.join(', ')
+                : t('businessRoleDashboard.noPermissions')}
+            </p>
+          </div>
+        )}
         <button type="button" onClick={retry} disabled={loading} className="mt-3 min-h-11 text-sm font-semibold" style={{ color: 'var(--color-primary)' }} data-track="business.role.activity.refresh">
           {tx('businessOperations.refresh')}
         </button>
@@ -276,7 +300,7 @@ function BusinessRoleDashboardContent({ mode, viewerId }) {
               </div>
             ) : (
               businesses.map((business) => (
-                <WorkspaceCard key={business.business_id || business.id} business={business} config={config} tx={tx} viewerId={viewerId} />
+                <WorkspaceCard key={business.business_id || business.id} business={business} config={config} tx={tx} t={t} viewerId={viewerId} />
               ))
             )}
           </div>

@@ -2,6 +2,7 @@
 // permission help, inbox, work board + job detail, claim queue, dispatch,
 // day view, end-of-shift review, schedule and leaving (TeamMemberSchedule).
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useBizG56, requestId } from './useBizG56';
 import WorkJobDetail from './WorkJobDetail';
 import TeamMemberSchedule from './TeamMemberSchedule';
@@ -11,9 +12,20 @@ function Overview({ businessId }) {
   const p = useBizG56(`/businesses/${businessId}/work/me`, 'work');
   const ob = useBizG56(`/businesses/${businessId}/work/onboarding`, 'work');
   const pr = useBizG56(`/businesses/${businessId}/work/permission-requests`, 'work');
-  const [code, setCode] = useState(''); const [reason, setReason] = useState('');
+  // G5-35/G5-38 (255): a denied Hub section links here with ?code= so the
+  // permission code is prefilled instead of making the member guess it.
+  const [code, setCode] = useState(() => new URLSearchParams(window.location.search).get('code') || '');
+  const [reason, setReason] = useState('');
   if (!p.data) return p.errorText ? <section className="g56-panel"><p className="g56-error">{p.errorText}</p></section> : null;
   const me = p.data;
+  // G5-24 (254): what a confirm item is confirming. Role renders through
+  // the translated role label; the first task shows its label and time.
+  const confirmDetail = (item) => {
+    if (!item.detail) return null;
+    if (item.key === 'role') return p.tr(`role.${item.detail}`);
+    if (typeof item.detail === 'string') return item.detail;
+    return `${item.detail.label}${item.detail.when ? ` · ${p.time(item.detail.when)}` : ''}`;
+  };
   return (
     <section className="g56-panel">
       <h3>{p.tr('title')}</h3>
@@ -24,9 +36,26 @@ function Overview({ businessId }) {
         <span>{p.tr('locations')}: {me.locations.map(l => l.name).join(', ') || p.common('none')}</span>
         <span>{p.tr('managers')}: {me.managers.map(m => m.name).join(', ')}</span>
       </div>
+      {/* G5-40 (252): the effective permissions, which work/me already
+          returned but no surface rendered. Role + duties (services,
+          locations, tasks on the board) were already here. */}
+      {Array.isArray(me.permissions) && (
+        <p>{p.tr('permissions')}: {me.permissions.length ? me.permissions.join(', ') : p.common('none')}</p>
+      )}
       {ob.data && !ob.data.complete && (<>
         <h4>{p.tr('onboarding')}</h4>
         <ul className="g56-list">{ob.data.items.map(i => <li key={i.key} className={i.done ? 'g56-ok' : 'g56-miss'}>{i.done ? '✓' : '•'} {p.tr(`ob.${i.key}`)}</li>)}</ul></>)}
+      {ob.data?.confirm_items && !ob.data.confirm_complete && (<>
+        <h4>{p.tr('confirmFirstShift')}</h4>
+        <ul className="g56-list">{ob.data.confirm_items.map(i => (
+          <li key={i.key} className={i.done ? 'g56-ok' : 'g56-miss'}>
+            {i.done ? '✓' : '•'} {p.tr(`obConfirm.${i.key}`)}
+            {confirmDetail(i) ? <> — {confirmDetail(i)}</> : null}
+            {!i.done && (
+              <button type="button" disabled={ob.busy || !i.can_confirm} onClick={() => ob.send('post', `/businesses/${businessId}/work/onboarding/confirm`, { item: i.key })} data-track="ui.9ab3b7b94b.11">{p.tr('confirm')}</button>
+            )}
+          </li>))}</ul>
+        {ob.errorText && <p className="g56-error" role="alert">{ob.errorText}</p>}</>)}
       <h4>{p.tr('askAccess')}</h4>
       <p>{p.tr('askAccessHelp')}</p>
       <div className="g56-row">
@@ -62,10 +91,21 @@ function Inbox({ businessId, onOpen }) {
 function Board({ businessId, onOpen }) {
   const p = useBizG56(`/businesses/${businessId}/work/board`, 'work');
   const c = useBizG56(`/businesses/${businessId}/work/conflicts`, 'work');
+  // 292 (G5-21): the member's own exceptions carry the reassignment
+  // categories, and the raise posts through this hook.
+  const ex = useBizG56(`/businesses/${businessId}/work/exceptions`, 'job');
+  const navigate = useNavigate();
   const [note, setNote] = useState('');
+  // D-460 (261, G5-41): the Mine filter narrows the merged requests to
+  // the ones assigned to this member; appointments are already mine-scoped
+  // server-side, so the filter only moves the requests.
+  const [mineOnly, setMineOnly] = useState(false);
+  const [reassignTask, setReassignTask] = useState(null);
+  const [reassignForm, setReassignForm] = useState({ category: '', description: '' });
   if (!p.data) return p.errorText ? <section className="g56-panel"><p className="g56-error">{p.errorText}</p></section> : null;
   const respond = (id, response) => p.send('post', `/businesses/${businessId}/work/appointments/${id}/${response === 'attend' ? 'attendance' : 'dispatch'}`,
     response === 'attend' ? { response: 'confirm' } : { response, note: response === 'decline' ? note : undefined });
+  const requests = (p.data.requests || []).filter((r) => !mineOnly || r.is_mine);
   return (
     <section className="g56-panel">
       <h3>{p.tr('board')}</h3>
@@ -88,7 +128,42 @@ function Board({ businessId, onOpen }) {
               </div>
             </li>))}</ul>
         </div>))}
-      {p.data.tasks.length > 0 && <><h4>{p.tr('tasks')}</h4><ul className="g56-list">{p.data.tasks.map(t => <li key={t.id}>{t.title} · {p.time(t.due_at)}</li>)}</ul></>}
+      {p.data.tasks.length > 0 && <><h4>{p.tr('tasks')}</h4><ul className="g56-list">{p.data.tasks.map(t => (
+        <li key={t.id}>{t.title} · {p.time(t.due_at)}
+          <button type="button" onClick={() => { setReassignTask(reassignTask === t.id ? null : t.id); setReassignForm({ category: '', description: '' }); }} data-track="ui.9ab3b7b94b.15">{p.tr('requestReassign')}</button>
+          {reassignTask === t.id && (
+            <div className="g56-row">
+              <label>{p.tr('reassignCategory')}
+                <select value={reassignForm.category} onChange={e => setReassignForm({ ...reassignForm, category: e.target.value })}>
+                  <option value="">—</option>
+                  {(ex.data?.kinds?.reassignment_request || []).map(cat => <option key={cat} value={cat}>{ex.tr(`cat.${cat}`)}</option>)}
+                </select>
+              </label>
+              <label className="g56-grow">{p.tr('reassignDescribe')}<input value={reassignForm.description} onChange={e => setReassignForm({ ...reassignForm, description: e.target.value })} maxLength={2000} /></label>
+              <button type="button" disabled={ex.busy || !reassignForm.category || reassignForm.description.trim().length < 5} onClick={async () => {
+                if (await ex.send('post', `/businesses/${businessId}/work/exceptions`, { kind: 'reassignment_request', category: reassignForm.category, description: reassignForm.description, task_id: String(t.id), request_id: requestId() })) { setReassignTask(null); setReassignForm({ category: '', description: '' }); }
+              }} data-track="ui.9ab3b7b94b.16">{p.tr('raiseReassign')}</button>
+            </div>
+          )}
+          {ex.errorText && reassignTask === t.id && <p className="g56-error" role="alert">{ex.errorText}</p>}
+        </li>))}</ul></>}
+      {/* D-460 (261, G5-41): the requests half of My work, merged with the
+          appointments above. Open lands on the calendar tab, where the
+          assignment queue panel holds the respond actions. */}
+      <h4>{p.tr('requests')} ({requests.length})</h4>
+      <div className="g56-row">
+        <button type="button" disabled={mineOnly} onClick={() => setMineOnly(true)} data-track="ui.9ab3b7b94b.12">{p.tr('mine')}</button>
+        <button type="button" disabled={!mineOnly} onClick={() => setMineOnly(false)} data-track="ui.9ab3b7b94b.13">{p.tr('all')}</button>
+      </div>
+      {!requests.length ? <p>{p.tr('requestsEmpty')}</p> : (
+        <ul className="g56-list">{requests.map(r => (
+          <li key={r.id}>
+            {r.requested_date}{r.requested_start_time ? ` ${String(r.requested_start_time).slice(0, 5)}` : ''} · {r.service_name} · {r.customer_name || p.common('none')}
+            {r.is_mine && r.dispatch_status === 'pending' && <span className="g56-badge">{p.tr('dispatchedToYou')}</span>}
+            <div className="g56-row">
+              <button type="button" onClick={() => navigate(`/business/${businessId}/workspace/calendar`)} data-track="ui.9ab3b7b94b.14">{p.tr('openQueue')}</button>
+            </div>
+          </li>))}</ul>)}
       {p.errorText && <p className="g56-error" role="alert">{p.errorText}</p>}
     </section>
   );
@@ -136,6 +211,21 @@ function Day({ businessId }) {
   );
 }
 
+function Roster({ businessId }) {
+  const p = useBizG56(`/businesses/${businessId}/work/teammates`, 'work');
+  if (!p.data) return null;
+  return (
+    <section className="g56-panel">
+      <h3>{p.tr('roster')}</h3>
+      <ul className="g56-list">{(p.data.teammates || []).map(m => {
+        const key = `bizG56.work.role.${m.role}`;
+        const label = p.t(key);
+        return (<li key={m.id}>{m.name} — {label === key ? m.role : label}{m.member_type === 'subcontractor' ? ` (${p.tr('subcontractor')})` : ''}</li>);
+      })}</ul>
+    </section>
+  );
+}
+
 export default function TeamMemberWork({ businessId, role }) {
   const [open, setOpen] = useState(null);
   if (!businessId) return null;
@@ -147,6 +237,7 @@ export default function TeamMemberWork({ businessId, role }) {
       <Board businessId={businessId} onOpen={setOpen} />
       <Queue businessId={businessId} />
       <Day businessId={businessId} />
+      <Roster businessId={businessId} />
       <TeamMemberSchedule businessId={businessId} role={role} />
     </div>
   );

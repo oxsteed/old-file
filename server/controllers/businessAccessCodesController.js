@@ -655,6 +655,34 @@ exports.denyMembership = async (req, res, next) => {
 };
 
 /**
+ * GET /api/businesses/:businessId/memberships/:membershipId/offboarding-preview
+ * 297 (G5-34): what removing this member will do — pending counts and
+ * blockers — so the confirm dialog shows the work that will move
+ * instead of asking blind. Read-only; reuses leavePreview.
+ */
+exports.offboardingPreview = async (req, res, next) => {
+  try {
+    const mid = parseInt(req.params.membershipId, 10);
+    if (!Number.isFinite(mid)) {
+      return sendError(res, 400, 'Invalid membership id.', 'invalid_membership_id');
+    }
+    const { rows, rowCount } = await pool.query(
+      `SELECT id, member_id, role FROM business_members
+        WHERE id = $1 AND business_id = $2 AND status = 'active'`,
+      [mid, req.business.id]
+    );
+    if (rowCount === 0) {
+      return sendError(res, 404, 'Active membership not found.', 'membership_not_found');
+    }
+    const { leavePreview } = require('../services/businessOwner/workLeaveService');
+    const preview = await leavePreview(req.business.id, rows[0].member_id);
+    res.json({ data: { membership_id: mid, member_id: rows[0].member_id, role: rows[0].role, ...preview } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * POST /api/businesses/:businessId/memberships/:membershipId/remove
  * Remove (kick) an ACTIVE member. Pending requests use the deny endpoint.
  * The owner cannot remove themselves.
@@ -727,6 +755,8 @@ exports.removeMembership = async (req, res, next) => {
         business_id: req.business.id, membership_id: mid,
         params: { businessName: req.business.business_name, role: rows[0].role },
       },
+      // G5-47 (300): the notice links to the member's remaining access.
+      action_url: '/vortex#remaining-access',
     }).catch(() => {});
   } catch (err) {
     next(err);

@@ -76,7 +76,7 @@ test('multi-location HQ: converted rollup, FX policy, pay-run approval, labor bo
           resolveDir: root,
           contents: {
             api: mockApi,
-            auth: `export const useAuth = () => ({ user: { id: 'synthetic-owner' } });`,
+            auth: `import { createContext } from 'react'; export const AuthContext = createContext({ user: { id: 'synthetic-owner' } }); export const useAuth = () => ({ user: { id: 'synthetic-owner' } });`,
             shell: `import React from 'react'; export default function PageShell({ children }) { return <div>{children}</div>; }`,
             socket: `export const subscribeRestaurantDisplay = () => () => {};`,
           }[args.path],

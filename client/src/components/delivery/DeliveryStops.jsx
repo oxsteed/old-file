@@ -78,10 +78,12 @@ function stopLabel(stop, t) {
   return `${stop.stop_order}. ${t(`delivery.driver.stopTypes.${stop.stop_type}`)}`;
 }
 
-export default function DeliveryStops({ job, stops, warnings, isAssigned, isOwner, t, date, busy, onComplete, onMove, onAdd }) {
-  const [form, setForm] = useState({ stopType: 'dropoff', address: '', city: '', state: '', contactName: '', windowStart: '', windowEnd: '' });
+export default function DeliveryStops({ job, stops, warnings, isAssigned, isOwner, t, date, busy, onComplete, onMove, onAdd, onNote }) {
+  const [form, setForm] = useState({ stopType: 'dropoff', address: '', city: '', state: '', country: '', contactName: '', contactPhone: '', instructions: '', windowStart: '', windowEnd: '' });
+  const [noteDrafts, setNoteDrafts] = useState({});
   const [formOpen, setFormOpen] = useState(false);
   const canAdd = isOwner && ['posted', 'assigned'].includes(job?.status);
+  const canNote = isAssigned && !['delivered', 'cancelled', 'returned'].includes(job?.status);
   const warningByStop = new Map((warnings || []).map((warning) => [String(warning.stopId), warning]));
   const move = (stop, direction) => {
     const ordered = [...stops].sort((a, b) => a.stop_order - b.stop_order);
@@ -100,11 +102,14 @@ export default function DeliveryStops({ job, stops, warnings, isAssigned, isOwne
       address: form.address.trim(),
       city: form.city.trim() || undefined,
       state: form.state.trim() || undefined,
+      country: form.country.trim() || undefined,
       contactName: form.contactName.trim() || undefined,
+      contactPhone: form.contactPhone.trim() || undefined,
+      instructions: form.instructions.trim() || undefined,
       windowStart: form.windowStart ? new Date(form.windowStart).toISOString() : undefined,
       windowEnd: form.windowEnd ? new Date(form.windowEnd).toISOString() : undefined,
     });
-    setForm({ stopType: 'dropoff', address: '', city: '', state: '', contactName: '', windowStart: '', windowEnd: '' });
+    setForm({ stopType: 'dropoff', address: '', city: '', state: '', country: '', contactName: '', contactPhone: '', instructions: '', windowStart: '', windowEnd: '' });
     setFormOpen(false);
   };
   if (!stops?.length) return null;
@@ -121,8 +126,25 @@ export default function DeliveryStops({ job, stops, warnings, isAssigned, isOwne
                 <strong>{stopLabel(stop, t)}</strong>
                 {stop.address && <p>{[stop.address, stop.city, stop.state].filter(Boolean).join(', ')}</p>}
                 {!stop.address && [stop.city, stop.state].filter(Boolean).length > 0 && <p>{[stop.city, stop.state].filter(Boolean).join(', ')}</p>}
-                {stop.contact_name && <p>{stop.contact_name}{stop.contact_phone ? ` ${stop.contact_phone}` : ''}</p>}
+                {/* Group 9 partials Wave 2 Batch O (471, G9-A6, D-546):
+                  the stop phone is masked like the job-level mask
+                  (bullet + last 4); the driver calls through the tel:
+                  link, which carries the number as a dial value only
+                  and never renders it as text. */}
+                {stop.contact_name && <p>{stop.contact_name}{stop.contact_phone ? ` ${stop.contact_phone}` : ''}{stop.contact_phone_tel && <>{' '}<a href={`tel:${stop.contact_phone_tel}`} data-track="ui.68852bb3d7.10">{t('delivery.driver.stopCall')}</a></>}</p>}
                 {stop.instructions && <p>{stop.instructions}</p>}
+                {/* Group 9 partials Wave 2 Batch O (462/464, G9-A13,
+                  D-543): the driver note on the stop, written by the
+                  assigned driver and read by the participants. */}
+                {stop.driver_note && <p>{t('delivery.driver.stopNoteLabel')}: {stop.driver_note}</p>}
+                {canNote && onNote && (
+                  <form onSubmit={(event) => { event.preventDefault(); onNote(stop.id, noteDrafts[stop.id] ?? stop.driver_note ?? ''); }} className="delivery-form" data-track="ui.68852bb3d7.9">
+                    <label className="delivery-field">{t('delivery.driver.stopNote')}
+                      <input className="delivery-input" value={noteDrafts[stop.id] ?? stop.driver_note ?? ''} onChange={(event) => setNoteDrafts({ ...noteDrafts, [stop.id]: event.target.value })} maxLength={500} placeholder={t('delivery.driver.stopNotePlaceholder')} disabled={busy} />
+                    </label>
+                    <button className="delivery-button delivery-button--secondary" disabled={busy} data-track="ui.68852bb3d7.11">{t('delivery.driver.stopNoteSave')}</button>
+                  </form>
+                )}
                 {stop.window_start && stop.window_end && <p>{date(stop.window_start)} – {date(stop.window_end)}</p>}
                 {warning && (
                   <p className="delivery-stops__warning" role="status">
@@ -175,9 +197,23 @@ export default function DeliveryStops({ job, stops, warnings, isAssigned, isOwne
               <label className="delivery-field">{t('delivery.driver.stopState')}
                 <input className="delivery-input" value={form.state} onChange={(event) => setForm({ ...form, state: event.target.value })} maxLength={120} />
               </label>
+              <label className="delivery-field">{t('delivery.driver.stopCountry')}
+                <input className="delivery-input" value={form.country} onChange={(event) => setForm({ ...form, country: event.target.value })} maxLength={3} />
+              </label>
             </div>
             <label className="delivery-field">{t('delivery.driver.stopContact')}
               <input className="delivery-input" value={form.contactName} onChange={(event) => setForm({ ...form, contactName: event.target.value })} maxLength={160} />
+            </label>
+            {/* Group 9 partials Wave 2 Batch O (462/464, G9-A13,
+              D-543): the add-stop form used to drop the contact phone
+              and the instructions although the server accepts both.
+              Both are collected now, so a shipper can attach "leave
+              with the concierge" to a new stop. */}
+            <label className="delivery-field">{t('delivery.driver.stopContactPhone')}
+              <input className="delivery-input" type="tel" value={form.contactPhone} onChange={(event) => setForm({ ...form, contactPhone: event.target.value })} maxLength={40} />
+            </label>
+            <label className="delivery-field">{t('delivery.driver.stopInstructions')}
+              <textarea className="delivery-input" value={form.instructions} onChange={(event) => setForm({ ...form, instructions: event.target.value })} maxLength={2000} />
             </label>
             <div className="delivery-stop-grid">
               <label className="delivery-field">{t('delivery.ui.windowStart')}

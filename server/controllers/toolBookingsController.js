@@ -215,6 +215,24 @@ const createBooking = async (req, res, next) => {
       [toolId, userId, ownerId, startDate, endDate, totalPrice, agreementSnapshot, TOOL_RENTAL_AGREEMENT_VERSION, pickupTime, returnTime]
     );
 
+    // 569 (D-570): the renter ticked the agreement checkbox to book
+    // (renterAgreementAccepted is required above), so the booking-time
+    // acceptance is recorded as a `customer` row in
+    // tool_rental_terms_acceptance, in the same transaction as the
+    // booking. The receipt and the terms-status read only that table,
+    // so without this row they always reported the renter as "not
+    // accepted" even though the renter had agreed to book. The owner
+    // row still comes only from the explicit accept-terms step (the
+    // invoice gate), never from booking. terms_version here is the
+    // agreement-snapshot version the renter actually accepted, not
+    // the accept-terms endpoint's TERMS_VERSION.
+    await client.query(
+      `INSERT INTO tool_rental_terms_acceptance (booking_id, user_id, user_role, terms_version)
+       VALUES ($1, $2, 'customer', $3)
+       ON CONFLICT (booking_id, user_id) DO NOTHING`,
+      [booking.rows[0].id, userId, TOOL_RENTAL_AGREEMENT_VERSION]
+    );
+
     // Log analytics
     await client.query(
       `INSERT INTO tool_rentals_analytics (user_id, tool_id, event_type, metadata)
@@ -254,16 +272,22 @@ const getMyBookings = async (req, res, next) => {
     const userId = req.user.id;
     const result = await db.query(
       `SELECT b.*, tr.name, tr.daily_rate,
+              inv.id AS invoice_id, inv.invoice_number, inv.status AS invoice_status,
+              inv.total_amount AS invoice_total_amount,
+              inv.payment_proof_reference, inv.payment_proof_amount, inv.payment_proof_submitted_at,
               cu.didit_status AS renter_didit_status,
               cu.didit_verified_at AS renter_didit_verified_at,
               cu.identity_verified AS renter_identity_verified,
               cu.id_verified AS renter_id_verified,
+              cu.identity_verified_at AS renter_identity_verified_at,
               ou.didit_status AS owner_didit_status,
               ou.didit_verified_at AS owner_didit_verified_at,
               ou.identity_verified AS owner_identity_verified,
-              ou.id_verified AS owner_id_verified
+              ou.id_verified AS owner_id_verified,
+              ou.identity_verified_at AS owner_identity_verified_at
        FROM tool_rentals_bookings b
        JOIN tool_rentals tr ON b.tool_id = tr.id
+       LEFT JOIN tool_rental_invoices inv ON inv.booking_id = b.id
        JOIN users cu ON b.customer_id = cu.id
        JOIN users ou ON b.owner_id = ou.id
        WHERE b.customer_id = $1
@@ -279,12 +303,14 @@ const getMyBookings = async (req, res, next) => {
         didit_verified_at: row.renter_didit_verified_at,
         identity_verified: row.renter_identity_verified,
         id_verified: row.renter_id_verified,
+        identity_verified_at: row.renter_identity_verified_at,
       }),
       owner_identity: rentalIdentityStatus({
         didit_status: row.owner_didit_status,
         didit_verified_at: row.owner_didit_verified_at,
         identity_verified: row.owner_identity_verified,
         id_verified: row.owner_id_verified,
+        identity_verified_at: row.owner_identity_verified_at,
       }),
     })));
   } catch (err) {
@@ -297,17 +323,23 @@ const getBookingsByOwner = async (req, res, next) => {
     const ownerId = req.user.id;
     const result = await db.query(
       `SELECT b.*, tr.name, u.first_name, u.last_name,
+              inv.id AS invoice_id, inv.invoice_number, inv.status AS invoice_status,
+              inv.total_amount AS invoice_total_amount,
+              inv.payment_proof_reference, inv.payment_proof_amount, inv.payment_proof_submitted_at,
               cu.didit_status AS renter_didit_status,
               cu.didit_verified_at AS renter_didit_verified_at,
               cu.identity_verified AS renter_identity_verified,
               cu.id_verified AS renter_id_verified,
+              cu.identity_verified_at AS renter_identity_verified_at,
               ou.didit_status AS owner_didit_status,
               ou.didit_verified_at AS owner_didit_verified_at,
               ou.identity_verified AS owner_identity_verified,
-              ou.id_verified AS owner_id_verified
+              ou.id_verified AS owner_id_verified,
+              ou.identity_verified_at AS owner_identity_verified_at
        FROM tool_rentals_bookings b
        JOIN tool_rentals tr ON b.tool_id = tr.id
        JOIN users u ON b.customer_id = u.id
+       LEFT JOIN tool_rental_invoices inv ON inv.booking_id = b.id
        JOIN users cu ON b.customer_id = cu.id
        JOIN users ou ON b.owner_id = ou.id
        WHERE b.owner_id = $1
@@ -321,12 +353,14 @@ const getBookingsByOwner = async (req, res, next) => {
         didit_verified_at: row.renter_didit_verified_at,
         identity_verified: row.renter_identity_verified,
         id_verified: row.renter_id_verified,
+        identity_verified_at: row.renter_identity_verified_at,
       }),
       owner_identity: rentalIdentityStatus({
         didit_status: row.owner_didit_status,
         didit_verified_at: row.owner_didit_verified_at,
         identity_verified: row.owner_identity_verified,
         id_verified: row.owner_id_verified,
+        identity_verified_at: row.owner_identity_verified_at,
       }),
     })));
   } catch (err) {
@@ -384,13 +418,21 @@ const updateBookingStatus = async (req, res, next) => {
     }
 
     const returnNote = typeof req.body?.returnNote === 'string' ? req.body.returnNote.trim().slice(0, 2000) : null;
+    // Wave 3 (599, D-574): the new status is passed twice ($1 and $4).
+    // Postgres cannot deduce a parameter's type when the same $n is used
+    // both to set a varchar column and inside a CASE comparison against a
+    // literal ("inconsistent types deduced for parameter $1"), so the
+    // pre-existing single-parameter form 500d every returned/completed
+    // update through this endpoint. $1 is used once (the assignment) and
+    // $4 only inside the CASE comparisons, so each deduces cleanly.
     const result = await db.query(
       `UPDATE tool_rentals_bookings
           SET status = $1,
-              returned_at = CASE WHEN $1 = 'returned' THEN NOW() ELSE returned_at END,
-              return_condition_note = CASE WHEN $1 = 'returned' THEN $3 ELSE return_condition_note END
+              returned_at = CASE WHEN $4 = 'returned' THEN NOW() ELSE returned_at END,
+              completed_at = CASE WHEN $4 = 'completed' THEN NOW() ELSE completed_at END,
+              return_condition_note = CASE WHEN $4 = 'returned' THEN $3 ELSE return_condition_note END
         WHERE id = $2 RETURNING *`,
-      [status, bookingId, returnNote]
+      [status, bookingId, returnNote, status]
     );
 
     const updatedBooking = result.rows[0];
@@ -511,10 +553,12 @@ const getBookingReceipt = async (req, res, next) => {
               cu.didit_verified_at AS renter_didit_verified_at,
               cu.identity_verified AS renter_identity_verified,
               cu.id_verified AS renter_id_verified,
+              cu.identity_verified_at AS renter_identity_verified_at,
               ou.didit_status AS owner_didit_status,
               ou.didit_verified_at AS owner_didit_verified_at,
               ou.identity_verified AS owner_identity_verified,
-              ou.id_verified AS owner_id_verified
+              ou.id_verified AS owner_id_verified,
+              ou.identity_verified_at AS owner_identity_verified_at
          FROM tool_rentals_bookings b
          JOIN tool_rentals tr ON b.tool_id = tr.id
          JOIN users cu ON b.customer_id = cu.id
@@ -537,7 +581,8 @@ const getBookingReceipt = async (req, res, next) => {
     });
     terms.bothAccepted = terms.customerAccepted && terms.ownerAccepted;
     const invoiceResult = await db.query(
-      `SELECT id, invoice_number, status, total_amount, rental_amount, deposit_amount, created_at
+      `SELECT id, invoice_number, status, total_amount, rental_amount, deposit_amount, created_at,
+              payment_proof_reference, payment_proof_amount, payment_proof_submitted_at
          FROM tool_rental_invoices WHERE booking_id = $1`,
       [bookingId]
     );
@@ -561,12 +606,14 @@ const getBookingReceipt = async (req, res, next) => {
         didit_verified_at: booking.renter_didit_verified_at,
         identity_verified: booking.renter_identity_verified,
         id_verified: booking.renter_id_verified,
+        identity_verified_at: booking.renter_identity_verified_at,
       }),
       owner_identity: rentalIdentityStatus({
         didit_status: booking.owner_didit_status,
         didit_verified_at: booking.owner_didit_verified_at,
         identity_verified: booking.owner_identity_verified,
         id_verified: booking.owner_id_verified,
+        identity_verified_at: booking.owner_identity_verified_at,
       }),
     });
   } catch (err) {
@@ -601,7 +648,7 @@ const acknowledgeCheckout = async (req, res, next) => {
       throw new AppError('Pickup can only be confirmed once payment is confirmed', 409, 'state_conflict');
     }
     const identityQuery = await db.query(
-      `SELECT didit_status, didit_verified_at, identity_verified, id_verified
+      `SELECT didit_status, didit_verified_at, identity_verified, id_verified, identity_verified_at
          FROM users WHERE id = $1`,
       [userId]
     );
@@ -684,6 +731,9 @@ const proposeReturnReschedule = async (req, res, next) => {
     const end = parseDateOnlyUTC(proposedEndDate);
     if (!end) fields.proposedEndDate = 'Proposed return date is required and must be a valid date';
     else {
+      // G11-B7 (D-608): a return cannot be rescheduled into the past.
+      const today = parseDateOnlyUTC(new Date().toISOString().slice(0, 10));
+      if (today && end < today) fields.proposedEndDate = 'The new return date cannot be in the past';
       // booking.start_date comes back from pg as a Date, not a string.
       const startRaw = booking.start_date instanceof Date
         ? booking.start_date.toISOString().slice(0, 10)
@@ -726,6 +776,13 @@ const approveReturnReschedule = async (req, res, next) => {
   try {
     const { bookingId } = req.params;
     const booking = await loadBookingForReturnReschedule(bookingId, req.user.id, { ownerOnly: true });
+    // G11-B7 (D-608): a reschedule can only be decided while the
+    // booking is live at payment_confirmed. Without this, an owner
+    // could approve a reschedule on a cancelled or completed booking
+    // and move its end date after the fact.
+    if (booking.status !== 'payment_confirmed') {
+      throw new AppError('The return can only be rescheduled once payment is confirmed', 409, 'state_conflict');
+    }
     if (booking.return_reschedule_status !== 'proposed' || !booking.return_reschedule_proposed_end_date) {
       throw new AppError('There is no return reschedule waiting for a decision', 409, 'state_conflict');
     }
@@ -771,6 +828,10 @@ const declineReturnReschedule = async (req, res, next) => {
       throw new AppError('Decline reason is too long', 400, 'validation_failed', { reason: 'Keep the reason under 2000 characters' });
     }
     const booking = await loadBookingForReturnReschedule(bookingId, req.user.id, { ownerOnly: true });
+    // G11-B7 (D-608): same live-booking guard as approve.
+    if (booking.status !== 'payment_confirmed') {
+      throw new AppError('The return can only be rescheduled once payment is confirmed', 409, 'state_conflict');
+    }
     if (booking.return_reschedule_status !== 'proposed') {
       throw new AppError('There is no return reschedule waiting for a decision', 409, 'state_conflict');
     }
@@ -906,17 +967,36 @@ const confirmRefundSettlement = async (req, res, next) => {
 const settleRefundSettlement = async (req, res, next) => {
   try {
     const { bookingId } = req.params;
-    await loadBookingForRecovery(bookingId, req.user.id);
+    const booking = await loadBookingForRecovery(bookingId, req.user.id);
     const existing = await loadRecoveryRow(bookingId);
     if (!existing || existing.refund_status !== 'agreed') {
       throw new AppError('Only an agreed refund settlement can be marked settled', 409, 'state_conflict');
     }
+    // G11-B6 (D-607): only the paying party marks the settlement
+    // settled. The direction names the payer; a zero-amount settlement
+    // (direction 'none') has no payer, so either party may settle it.
+    const payerId = existing.refund_direction === 'owner_to_renter'
+      ? booking.owner_id
+      : existing.refund_direction === 'renter_to_owner'
+        ? booking.customer_id
+        : null;
+    if (payerId && String(payerId) !== String(req.user.id)) {
+      throw new AppError('Only the party who pays the refund can mark it settled', 403, 'not_payer');
+    }
+    // S-E3: the payer's off-platform payment reference is the evidence
+    // the money moved. Required whenever money is owed; a zero-amount
+    // settlement has no payment to reference.
+    const reference = typeof req.body?.reference === 'string' ? req.body.reference.trim().slice(0, 200) : '';
+    if (Number(existing.refund_amount) > 0 && !reference) {
+      throw new AppError('A payment reference is required to mark the refund settled', 400, 'reference_required');
+    }
     const { rows } = await db.query(
       `UPDATE tool_rental_cancellation_recoveries
-          SET refund_status = 'settled', settled_at = NOW(), updated_at = NOW()
+          SET refund_status = 'settled', settled_at = NOW(),
+              settled_reference = $2, settled_by = $3, updated_at = NOW()
         WHERE booking_id = $1 AND refund_status = 'agreed'
         RETURNING *`,
-      [bookingId]
+      [bookingId, reference || null, req.user.id]
     );
     if (!rows[0]) throw new AppError('Only an agreed refund settlement can be marked settled', 409, 'state_conflict');
     res.json({ recovery: rows[0] });

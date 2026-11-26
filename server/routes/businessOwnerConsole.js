@@ -106,6 +106,8 @@ router.get('/:businessId/owner/reports/recurring', ...biz('manager', 'analytics.
 const ctx = req => ({ role: req.businessRole, permissions: req.permissions });
 router.get('/:businessId/work/me', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workStart.overview(req.business.id, req.user.id, ctx(req)))));
 router.get('/:businessId/work/onboarding', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workStart.onboarding(req.business.id, req.user.id))));
+// G5-24 (254): record one first-shift confirmation (location, contact, role, first task).
+router.post('/:businessId/work/onboarding/confirm', ...write('any', 'business.view'), h(async (req, res) => res.json(await workStart.confirmOnboarding(req.business.id, req.user.id, req.body))));
 router.get('/:businessId/work/access-check', ...biz('any'), h(async (req, res) => res.json(await workStart.accessCheck(req.business.id, req.user.id, ctx(req), req.query.code))));
 router.get('/:businessId/work/permission-requests', ...biz('any'), h(async (req, res) => res.json(await workStart.myPermissionRequests(req.business.id, req.user.id))));
 router.post('/:businessId/work/permission-requests', ...write('any'), h(async (req, res) => res.status(201).json(await workStart.requestPermission(req.business.id, req.user.id, ctx(req), req.body))));
@@ -135,6 +137,8 @@ router.post('/:businessId/work/exceptions', ...write('any'), h(async (req, res) 
 router.post('/:businessId/work/exceptions/:exceptionId/escalate', ...write('any'), h(async (req, res) => res.json(await workJobs.escalate(req.business.id, req.user.id, req.params.exceptionId))));
 router.patch('/:businessId/work/exceptions/:exceptionId', ...write('any'), h(async (req, res) => res.json(await workJobs.updateException(req.business.id, req.user.id, ctx(req), req.params.exceptionId, req.body))));
 router.get('/:businessId/owner/exceptions', ...biz('manager', 'jobs.view_all'), h(async (req, res) => res.json(await workJobs.exceptionQueue(req.business.id, req.query))));
+// 264 (G5-17): manager work report for a date range.
+router.get('/:businessId/owner/work-report', ...biz('manager', 'jobs.view_all'), h(async (req, res) => res.json(await workJobs.workReport(req.business.id, req.query))));
 router.get('/:businessId/work/crews', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workJobs.crews(req.business.id))));
 router.post('/:businessId/owner/crews', ...write('manager', 'jobs.assign'), h(async (req, res) => res.status(201).json(await workJobs.saveCrew(req.business.id, req.user.id, req.body))));
 router.put('/:businessId/owner/crews/:crewId', ...write('manager', 'jobs.assign'), h(async (req, res) => res.json(await workJobs.saveCrew(req.business.id, req.user.id, req.body, req.params.crewId))));
@@ -150,6 +154,7 @@ router.delete('/:businessId/owner/appointment-documents/:documentId', ...write('
 router.get(`${A}/handoff`, ...biz('any', 'business.view'), h(async (req, res) => res.json(await workComms.handoff(req.business.id, req.user.id, ctx(req), req.params.appointmentId))));
 router.post(`${A}/handoff/ack`, ...write('any', 'business.view'), h(async (req, res) => res.json(await workComms.acknowledgeHandoff(req.business.id, req.user.id, req.params.appointmentId))));
 router.post(`${A}/team-notes`, ...write('any', 'business.view'), h(async (req, res) => res.status(201).json(await workComms.addNote(req.business.id, req.user.id, ctx(req), req.params.appointmentId, req.body))));
+router.get(`${A}/notes`, ...biz('any', 'business.view'), h(async (req, res) => res.json(await workComms.notes(req.business.id, req.user.id, ctx(req), req.params.appointmentId))));
 router.get('/:businessId/work/inbox', ...biz('any'), h(async (req, res) => res.json(await workComms.inbox(req.business.id, req.user.id))));
 router.post('/:businessId/work/inbox/seen', ...write('any'), h(async (req, res) => res.json(await workComms.markInboxSeen(req.business.id, req.user.id, req.body))));
 router.get('/:businessId/work/coverage', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workComms.coverage(req.business.id, req.user.id, ctx(req)))));
@@ -168,6 +173,7 @@ router.post(`${A}/materials`, ...write('any', 'business.view'), h(async (req, re
 router.delete('/:businessId/work/materials/:materialId', ...write('any', 'business.view'), h(async (req, res) => res.json(await workOutcomes.removeMaterial(req.business.id, req.user.id, ctx(req), req.params.materialId))));
 router.get(`${A}/assignment-history`, ...biz('any', 'business.view'), h(async (req, res) => res.json(await workOutcomes.assignmentHistory(req.business.id, req.user.id, ctx(req), req.params.appointmentId))));
 router.get('/:businessId/work/feedback', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workOutcomes.myFeedback(req.business.id, req.user.id))));
+router.get('/:businessId/work/booking-feedback', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workOutcomes.bookingFeedback(req.business.id, req.user.id, ctx(req)))));
 router.get('/:businessId/owner/feedback-followups', ...biz('manager'), h(async (req, res) => res.json(await workOutcomes.feedbackQueue(req.business.id, req.user.id, ctx(req), req.query))));
 router.patch('/:businessId/owner/feedback-followups/:followupId', ...write('manager'), h(async (req, res) => res.json(await workOutcomes.updateFollowup(req.business.id, req.user.id, ctx(req), req.params.followupId, req.body))));
 

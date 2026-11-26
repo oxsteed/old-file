@@ -17,6 +17,8 @@
 
 const pool = require('../db');
 const { sendError } = require('../utils/apiError');
+const logger = require('../utils/logger');
+const { sendNotification } = require('../services/notificationService');
 const permissionsService = require('../services/permissionsService');
 const { logBusinessAction } = require('../services/businessAuditLog');
 const { canActOnRole } = require('../utils/teamRanks');
@@ -176,6 +178,21 @@ exports.changeMembershipRole = async (req, res, next) => {
       after_state:  { role: newRole },
       metadata:     { reason },
     });
+    // G5-33 (296): the member hears about the change instead of
+    // discovering it through failed actions. Fire-and-forget: a failed
+    // send must not fail the role change.
+    if (rows[0].member_id) {
+      sendNotification({
+        userId: rows[0].member_id,
+        type: 'member_role_changed',
+        data: {
+          business_id: req.business.id, membership_id: mid,
+          params: { businessName: req.business.business_name, role: newRole },
+        },
+        action_url: '/vortex#remaining-access',
+        idempotencyKey: `member-role-changed:${mid}:${newRole}`,
+      }).catch((err) => logger.warn('Role-change notice failed', { businessId: req.business.id, membershipId: mid, error: err.message }));
+    }
     res.json({ data: rows[0] });
   } catch (err) {
     next(err);
@@ -359,6 +376,20 @@ exports.setMembershipOverrides = async (req, res, next) => {
         before_state: { overrides: before.rows },
         after_state: { overrides },
       });
+      // G5-33 (296): same notice as a role change — the member's
+      // effective access changed, and they should hear it from the
+      // business, not from a failed action.
+      if (target.member_id) {
+        sendNotification({
+          userId: target.member_id,
+          type: 'member_role_changed',
+          data: {
+            business_id: req.business.id, membership_id: mid,
+            params: { businessName: req.business.business_name, role: target.role },
+          },
+          action_url: '/vortex#remaining-access',
+        }).catch((err) => logger.warn('Permissions-change notice failed', { businessId: req.business.id, membershipId: mid, error: err.message }));
+      }
 
       res.json({ data: { ok: true, count: overrides.length } });
     } catch (err) {

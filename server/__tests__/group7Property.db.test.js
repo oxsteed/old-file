@@ -115,8 +115,21 @@ describeDb('Group 7: property manager', () => {
     await request(app).post(`/api/me/property/entry/${reqId}/window`).set(as(tenant)).send({ start }).expect(200);
     await pool.query("UPDATE property_entry_records SET instructions_expire_at=NOW() - INTERVAL '1 minute' WHERE request_id=$1", [reqId]);
     const e = (await request(app).get(`${B()}/requests/${reqId}/entry`).set(as(staff)).expect(200)).body.entry;
-    expect(e).toMatchObject({ instructions: null, instructions_expired: true, consent: 'granted' });
+    expect(e).toMatchObject({ instructions: null, instructions_expired: true, consent: 'granted', consent_expired: false });
     expect(new Date(e.selected_start).toISOString()).toBe(start);
+    // D-505: consent authorizes the selected window only. Before the window
+    // ends the visit is authorized; once the window ends it is not.
+    expect((await request(app).get(`${B()}/requests/${reqId}/entry`).set(as(staff)).expect(200)).body.entry_authorized).toBe(true);
+    await pool.query("UPDATE property_entry_records SET selected_end=NOW() - INTERVAL '1 hour' WHERE request_id=$1", [reqId]);
+    const e2 = (await request(app).get(`${B()}/requests/${reqId}/entry`).set(as(staff)).expect(200)).body;
+    expect(e2.entry_authorized).toBe(false);
+    expect(e2.entry).toMatchObject({ consent_expired: true });
+    // D-506: instructions saved with no explicit expiry default to the
+    // latest offered window end.
+    const req2 = (await pool.query(`INSERT INTO property_maintenance_requests(business_id,owner_id,requester_id,status,urgency,issue_category,title,description,property_id) VALUES($1,$2,$3,'reported','normal','plumbing','Tap','d',$4) RETURNING id`, [bizId, owner, tenant, pid])).rows[0].id;
+    const w2s = new Date(Date.now() + 2 * 864e5).toISOString(); const w2e = new Date(Date.now() + 3 * 864e5).toISOString();
+    const e3 = (await request(app).put(`${B()}/requests/${req2}/entry`).set(as(staff)).send({ consent: 'granted', consent_method: 'portal', offered_windows: [{ start: w2s, end: w2e }], instructions: 'Knock twice' }).expect(200)).body;
+    expect(new Date(e3.instructions_expire_at).toISOString()).toBe(w2e);
     keyId = (await request(app).post(`${B()}/p/${pid}/keys`).set(as(manager)).send({ label: '2A front', unit_id: unitId }).expect(201)).body.id;
     await request(app).post(`${B()}/keys/${keyId}/check-out`).set(as(staff)).send({ holder_user_id: staff, request_id: reqId }).expect(200);
     await request(app).post(`${B()}/keys/${keyId}/check-out`).set(as(staff)).send({ holder_name: 'x' }).expect(409);
@@ -128,9 +141,17 @@ describeDb('Group 7: property manager', () => {
     const s = (await request(app).post(`${B()}/p/${pid}/schedules`).set(as(manager)).send({ kind: 'equipment', title: 'Boiler service', interval_days: 180, next_due_on: '2020-01-01' }).expect(201)).body;
     await request(app).post(`${B()}/p/${pid}/schedules`).set(as(manager)).send({ kind: 'seasonal', title: 'Gutters', interval_days: 30, next_due_on: '2099-01-01' }).expect(400);
     const vb = (await request(app).post(`${B()}/p/${pid}/schedules`).set(as(manager)).send({ kind: 'vendor', title: 'Pest visit', vendor_id: vendorId, interval_days: 30, next_due_on: new Date().toISOString().slice(0, 10) }).expect(201)).body;
+    // D-510 (330): an open request past its SLA target is a breach; a
+    // completed one past its target is not.
+    const slaReq = (await pool.query(`INSERT INTO property_maintenance_requests(business_id,owner_id,requester_id,status,urgency,issue_category,title,description,property_id,sla_target_at) VALUES($1,$2,$3,'reported','urgent','plumbing','Burst pipe','d',$4,NOW() - INTERVAL '2 hours') RETURNING id`, [bizId, owner, tenant, pid])).rows[0].id;
+    const doneReq = (await pool.query(`INSERT INTO property_maintenance_requests(business_id,owner_id,status,urgency,issue_category,title,description,property_id,sla_target_at) VALUES($1,$2,'reported','normal','plumbing','Old tap','d',$3,NOW() - INTERVAL '2 hours') RETURNING id`, [bizId, owner, pid])).rows[0].id;
+    await pool.query("UPDATE property_maintenance_requests SET status='completed' WHERE id=$1", [doneReq]);
     const al = (await request(app).get(`${B()}/alerts`).set(as(staff)).expect(200)).body;
     expect(al.overdue.map(i => i.id)).toContain(s.id);
+    expect(al.sla_breaches.map(i => i.id)).toContain(slaReq);
+    expect(al.sla_breaches.map(i => i.id)).not.toContain(doneReq);
     expect((await request(app).post(`${B()}/alerts/notify`).set(as(manager)).expect(200)).body.notified).toBeGreaterThan(0);
+    expect(sent('property_sla_breach')).toContain(owner);
     expect((await request(app).post(`${B()}/alerts/notify`).set(as(manager)).expect(200)).body.notified).toBe(0);
     const done = (await request(app).post(`${B()}/schedules/${s.id}/done`).set(as(staff)).send({ done_on: '2026-01-10' }).expect(200)).body;
     expect(done.next_due_on.slice(0, 10)).toBe('2026-07-09');
@@ -170,6 +191,24 @@ describeDb('Group 7: property manager', () => {
     await request(app).patch(`${B()}/incidents/${inc.id}`).set(as(manager)).send({ owner_summary: 'Pipe burst; repaired.' }).expect(200);
     await request(app).post(`${B()}/incidents/${inc.id}/share`).set(as(manager)).expect(200);
     expect((await request(app).get('/api/me/property/incidents').set(as(landlord)).expect(200)).body.incidents[0]).toMatchObject({ owner_summary: 'Pipe burst; repaired.', evidence_count: 1 });
+  });
+
+  test('336-340: job-less invoice carries property_id; reserve target PATCH', async () => {
+    // D-513: the panel invoice form used to send no invoice_number (server-
+    // required) and no property, so a direct vendor invoice could never be
+    // filed against a property from the UI. The job-less leg takes the
+    // property straight from the form; approving it counts toward the
+    // property's month spend.
+    await request(app).post(`${B()}/invoices`).set(as(manager)).send({ vendor_id: vendorId, property_id: pid, amount_cents: 25000 }).expect(400);
+    const inv = (await request(app).post(`${B()}/invoices`).set(as(manager)).send({ vendor_id: vendorId, property_id: pid, invoice_number: 'INV-DIRECT-1', amount_cents: 25000 }).expect(201)).body;
+    expect(inv).toMatchObject({ property_id: pid, match_status: 'unmatched' });
+    await request(app).post(`${B()}/invoices/${inv.id}/decision`).set(as(manager)).send({ decision: 'approved' }).expect(200);
+    expect((await request(app).get(`${B()}/invoices`).set(as(manager)).expect(200)).body.invoices.find(i => i.id === inv.id)).toMatchObject({ property: 'Elm Court' });
+    // D-514: reserve_target_cents was accepted by updateProperty but had no
+    // profile-form input, so it could never be set from the UI.
+    await request(app).patch(`${B()}/p/${pid}`).set(as(manager)).send({ reserve_target_cents: 300000 }).expect(200);
+    const row = (await request(app).get(`${B()}/costs`).set(as(manager)).expect(200)).body.properties.find(p => p.id === pid);
+    expect(row).toMatchObject({ month_spend_cents: 115000, over_budget: true, variance_cents: -114000, reserve_funded_pct: 17, reserve_short_cents: 250000 });
   });
 
   test('346-350: handover export, reassignment, occupant notice, revocation', async () => {

@@ -70,7 +70,8 @@ describeDb('job completion stamps final_price_cents', () => {
       transaction_mode TEXT, payment_rail TEXT, metadata JSONB,
       completed_at TIMESTAMPTZ, updated_at TIMESTAMPTZ,
       final_price NUMERIC(10,2), final_price_cents BIGINT, job_value_cents BIGINT,
-      aftercare_instructions TEXT)`);
+      aftercare_instructions TEXT,
+      location_address TEXT, attendance_confirmed_at TIMESTAMPTZ, arrived_at TIMESTAMPTZ)`);
     await db.query(`CREATE TABLE ${schema}.work_agreements (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(), job_id UUID,
       helper_id UUID, customer_id UUID, status TEXT)`);

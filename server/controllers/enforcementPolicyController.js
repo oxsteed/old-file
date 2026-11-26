@@ -486,7 +486,7 @@ exports.reviewAppeal = async (req, res, next) => {
         title: `Your appeal has been ${decision}`,
         body: message,
         data: { appealId },
-        action_url: '/my-enforcement-status'
+        action_url: '/enforcement-policy'
       });
     } catch (notifyErr) {
       logger.warn('Failed to notify appeal decision', { appealId, error: notifyErr.message });

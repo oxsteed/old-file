@@ -59,6 +59,18 @@ router.get('/jobs/:id/stops', requireAuth, controller.listStops);
 router.post('/jobs/:id/stops', requireAuth, rejectImpersonated, controller.addStop);
 router.post('/jobs/:id/stops/reorder', requireAuth, rejectImpersonated, controller.reorderStops);
 router.post('/jobs/:id/stops/:stopId/complete', requireAuth, rejectImpersonated, controller.completeStop);
+// Group 9 partials Wave 2 Batch O (462/464, G9-A13, D-543): the driver
+// note on a stop — route notes are no longer view-only.
+router.post('/jobs/:id/stops/:stopId/note', requireAuth, rejectImpersonated, controller.updateStopNote);
+// Group 9 partials Wave 2 Batch O (469, G9-A10, D-545): the free
+// waiting notice, alongside the chargeable waiting extra.
+router.post('/jobs/:id/waiting-notices', requireAuth, rejectImpersonated, controller.createWaitingNotice);
+// Group 9 partials Wave 2 Batch O (470/475, G9-A7, D-547): the driver
+// resume after ops ack, and the redelivery-attempt request (475,
+// G9-A11, D-548) with ops-or-shipper review.
+router.post('/jobs/:id/resume', requireAuth, rejectImpersonated, controller.resumeDelivery);
+router.post('/jobs/:id/redelivery-requests', requireAuth, rejectImpersonated, controller.requestRedelivery);
+router.patch('/jobs/:id/redelivery-requests/:requestId', requireAuth, rejectImpersonated, controller.reviewRedelivery);
 // Group 9 Slice B (item 460): a driver passes on a marketplace offer
 // with a reason code. Advisory only; it never blocks claiming.
 router.post('/jobs/:id/decline', requireAuth, rejectImpersonated, controller.decline);
@@ -134,9 +146,16 @@ router.patch('/internal/disputes/:disputeId', requireAuth, rejectImpersonated, r
 router.get('/internal/exceptions', requireAuth, requireOperationsWorkspace, controller.getInternalExceptions);
 router.post('/internal/jobs/:id/assign', requireAuth, requireOperationsWorkspace, controller.assignInternal);
 router.post('/internal/jobs/:id/release-marketplace', requireAuth, requireOperationsWorkspace, controller.releaseMarketplace);
+// Group 9 partials Wave 2 Batch P (482, G9-B4, D-555): mid-route transfer
+// of a picked-up job to another internal driver.
+router.post('/internal/jobs/:id/transfer', requireAuth, requireOperationsWorkspace, controller.transferAssignment);
 router.patch('/internal/reschedule-requests/:requestId', requireAuth, requireOperationsWorkspace, controller.reviewReschedule);
 router.patch('/internal/returns/:returnId', requireAuth, requireOperationsWorkspace, controller.reviewReturn);
 router.patch('/internal/issues/:issueId/resolve', requireAuth, requireOperationsWorkspace, controller.resolveIssue);
+// Group 9 partials Wave 2 Batch O (475, G9-A11, D-548): ops reviews a
+// redelivery-attempt request on the internal route; the shipper uses
+// the participant route above. Same handler, same fail-closed checks.
+router.patch('/internal/redelivery-requests/:requestId', requireAuth, requireOperationsWorkspace, controller.reviewRedelivery);
 
 // Customer tracking links: signed, expiring tokens for recipients without an
 // OxSteed account. Management endpoints are owner-or-ops; the public
@@ -166,12 +185,21 @@ router.get('/tracking/devices', requireAuth, trackingController.listDevices);
 // the live tracking assignments and consent to it and revokes the
 // old device. Same /delivery router, not a tenant route.
 router.post('/tracking/devices/transfer', requireAuth, rejectImpersonated, trackingController.transferDevice);
+// Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): the lost-device
+// report. The driver records the stranded queue counts from the
+// device being abandoned, before the revoke (DELETE below) lands.
+router.post('/tracking/devices/strands', requireAuth, rejectImpersonated, trackingController.reportDeviceStrands);
 router.patch('/tracking/devices/:deviceId', requireAuth, trackingController.updateDevice);
 router.delete('/tracking/devices/:deviceId', requireAuth, trackingController.updateDevice);
 
 // ── Delivery tracking: operations API (integration plan) ──
 router.get('/internal/jobs/:id/tracking/exact', requireAuth, requireOperationsWorkspace, trackingOpsController.getExactTracking);
 router.get('/internal/tracking/review-queue', requireAuth, requireOperationsWorkspace, trackingOpsController.getReviewQueue);
+// Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): the ops
+// reconcile queue for stranded device-transfer work, and the
+// per-row reconcile decision.
+router.get('/internal/tracking/device-strands', requireAuth, requireOperationsWorkspace, trackingOpsController.listDeviceStrands);
+router.post('/internal/tracking/device-strands/:strandId/reconcile', requireAuth, requireOperationsWorkspace, trackingOpsController.reconcileDeviceStrand);
 router.patch('/internal/tracking/points/:pointId', requireAuth, requireOperationsWorkspace, trackingOpsController.reviewPoint);
 router.post('/internal/telematics/connections', requireAuth, requireOperationsWorkspace, trackingOpsController.createTelematicsConnection);
 router.get('/internal/telematics/connections', requireAuth, requireOperationsWorkspace, trackingOpsController.listTelematicsConnections);

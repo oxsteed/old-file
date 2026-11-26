@@ -393,6 +393,37 @@ suite('staff membership lifecycle (S-01/S-03/S-09/S-10/S-11/S-13)', () => {
     expect(row.status).toBe('revoked');
   });
 
+  // ── 297 (G5-34) ───────────────────────────────────────────────────────
+  test('297: offboarding preview lists the pending work a removal will move', async () => {
+    await db.query(
+      `INSERT INTO business_team_tasks(business_id,assignee_id,created_by,request_id,kind,title,due_at,status)
+       VALUES($1,$2,$3,gen_random_uuid(),'task','Restock','2030-01-02T10:00:00Z','open')`,
+      [bizId, EMPLOYEE, OWNER]
+    );
+    const { res, error } = await call(accessCtrl.offboardingPreview, {
+      user: { id: OWNER },
+      params: { membershipId: String(employeeMembershipId) },
+      business: { id: bizId, business_name: `Lifecycle Biz ${stamp}`, owner_id: OWNER },
+      businessRole: 'owner',
+      body: {},
+    });
+    expect(error).toBeNull();
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data.member_id).toBe(EMPLOYEE);
+    expect(res.body.data.counts.open_tasks).toBeGreaterThanOrEqual(1);
+    expect(res.body.data).toMatchObject({ can_leave: true, blockers: [] });
+    expect(res.body.data.after_leaving.work_moves_to).toBe('manager');
+    // Unknown membership 404s.
+    const missing = await call(accessCtrl.offboardingPreview, {
+      user: { id: OWNER },
+      params: { membershipId: '999999999' },
+      business: { id: bizId, business_name: `Lifecycle Biz ${stamp}`, owner_id: OWNER },
+      businessRole: 'owner',
+      body: {},
+    });
+    expect(missing.res.statusCode).toBe(404);
+  });
+
   // ── S-11 ────────────────────────────────────────────────────────────────
   test('S-11: removing a member deactivates their PINs and flags their open drawers, atomically', async () => {
     const pinHash = await bcrypt.hash('4321', 4);

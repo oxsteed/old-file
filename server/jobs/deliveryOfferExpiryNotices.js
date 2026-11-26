@@ -8,7 +8,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { sweepExpiredDeliveryOffers } = require('../services/deliveryOfferExpiryService');
+const { sweepExpiredDeliveryOffers, sweepExpiredDeliveryClaims } = require('../services/deliveryOfferExpiryService');
 
 const JOB_NAME = 'delivery-offer-expiry-notices';
 const CRON_EXPRESSION = '7 * * * *'; // hourly, offset from other jobs
@@ -16,10 +16,15 @@ const CRON_EXPRESSION = '7 * * * *'; // hourly, offset from other jobs
 async function runDeliveryOfferExpiryJob(dbClient) {
   const db = dbClient || pool;
   const result = await sweepExpiredDeliveryOffers(db);
-  if (result.expired > 0 || result.notified > 0 || result.failed > 0) {
-    logger.info('Delivery offer expiry sweep completed', { ...result, job: JOB_NAME });
+  // Group 9 partials Wave 2 Batch P (482, G9-B4, D-554): the same
+  // hourly run also expires stale marketplace claims (pickup window
+  // passed, no pickup). One job, two sweeps, one log line.
+  const claims = await sweepExpiredDeliveryClaims(db);
+  const merged = { ...result, claimsExpired: claims.expired, claimsNotified: claims.notified, claimsFailed: claims.failed };
+  if (result.expired > 0 || result.notified > 0 || result.failed > 0 || claims.expired > 0 || claims.failed > 0) {
+    logger.info('Delivery offer expiry sweep completed', { ...merged, job: JOB_NAME });
   }
-  return result;
+  return merged;
 }
 
 function startDeliveryOfferExpiryJob() {
@@ -38,5 +43,6 @@ module.exports = {
   startDeliveryOfferExpiryJob,
   runDeliveryOfferExpiryJob,
   sweepExpiredDeliveryOffers,
+  sweepExpiredDeliveryClaims,
   cronExpression: CRON_EXPRESSION,
 };

@@ -52,12 +52,65 @@ describeDb('Groups 5-6: team member jobs and crews', () => {
     expect(done.done_at).toBeTruthy();
     await request(app).get(`${B()}/work/appointments/${a}/checklist`).set(as(other)).expect(404);
   });
+  test('261: board merges incoming requests with a mine flag', async () => {
+    const mkReq = (helper, svc) => pool.query(
+      "INSERT INTO booking_requests(customer_id, helper_id, business_id, service_name, requested_date, requested_start_time, status) VALUES($1,$2,$3,$4,CURRENT_DATE,'09:00','pending') RETURNING id",
+      [owner, helper, bizId, svc],
+    ).then((r) => r.rows[0].id);
+    const mine = await mkReq(employee, 'Mine job');
+    const theirs = await mkReq(manager, 'Manager job');
+    try {
+      const board = (await request(app).get(`${B()}/work/board`).set(as(employee)).expect(200)).body;
+      expect(board.requests).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: mine, service_name: 'Mine job', is_mine: true }),
+        expect.objectContaining({ id: theirs, service_name: 'Manager job', is_mine: false }),
+      ]));
+    } finally {
+      await pool.query('DELETE FROM booking_requests WHERE id = ANY($1::uuid[])', [[mine, theirs]]);
+    }
+  });
   test('264: progress updates are visible to managers', async () => {
     const a = await mk(employee, 3);
     await request(app).post(`${B()}/work/appointments/${a}/progress`).set(as(employee)).send({ note: 'Halfway there', percent: 50 }).expect(201);
     await request(app).post(`${B()}/work/appointments/${a}/progress`).set(as(employee)).send({ note: 'x', percent: 150 }).expect(400);
     const p = (await request(app).get(`${B()}/work/appointments/${a}/progress`).set(as(manager)).expect(200)).body;
     expect(p.updates[0]).toMatchObject({ percent: 50, note: 'Halfway there' });
+  });
+  test('264: manager work report aggregates status, updates and stalled work', async () => {
+    // The report's default window ends at tomorrow 00:00 UTC, so an
+    // appointment N hours out crosses midnight (and out of the window)
+    // whenever the suite runs after (24-N):00 UTC; at 23:xx UTC the +1h
+    // and +3h appointments from the earlier tests cross too and the
+    // total drops to 1 (CI run 45720457141). A past appointment is inside
+    // the window at every hour, so the report counts it deterministically.
+    const a = await mk(employee, -9);
+    await request(app).post(`${B()}/work/appointments/${a}/progress`).set(as(employee)).send({ note: 'Started', percent: 10 }).expect(201);
+    const stalled = await pool.query("INSERT INTO business_appointments(business_id,service_id,staff_id,start_time,end_time,status) VALUES($1,$2,$3,NOW() - INTERVAL '3 hours',NOW() - INTERVAL '2 hours','in_progress') RETURNING id", [bizId, serviceId, employee]).then((r) => r.rows[0].id);
+    try {
+      const rep = (await request(app).get(`${B()}/owner/work-report`).set(as(manager)).expect(200)).body;
+      expect(rep.appointments.total).toBeGreaterThanOrEqual(2);
+      expect(rep.appointments.byStatus.confirmed).toBeGreaterThanOrEqual(1);
+      expect(rep.appointments.byStatus.in_progress).toBeGreaterThanOrEqual(1);
+      expect(rep.progressUpdates.items.map((i) => i.note)).toContain('Started');
+      expect(rep.stalled.map((s) => s.id)).toContain(stalled);
+      await request(app).get(`${B()}/owner/work-report`).set(as(employee)).expect(403);
+      await request(app).get(`${B()}/owner/work-report?from=bad-date`).set(as(manager)).expect(400);
+    } finally {
+      await pool.query('DELETE FROM business_appointments WHERE id = $1', [stalled]);
+    }
+  });
+  test('266: roster carries roles and member types and includes the caller', async () => {
+    await pool.query("UPDATE business_members SET member_type='subcontractor' WHERE business_id=$1 AND member_id=$2", [bizId, manager]);
+    try {
+      const r = (await request(app).get(`${B()}/work/teammates`).set(as(employee)).expect(200)).body;
+      const byId = Object.fromEntries(r.teammates.map((m) => [m.id, m]));
+      expect(byId[owner]).toMatchObject({ role: 'owner' });
+      expect(byId[manager]).toMatchObject({ role: 'manager', member_type: 'subcontractor' });
+      expect(byId[employee]).toMatchObject({ role: 'employee' });
+      expect(byId[employee].name).toBeTruthy();
+    } finally {
+      await pool.query("UPDATE business_members SET member_type='staff' WHERE business_id=$1 AND member_id=$2", [bizId, manager]);
+    }
   });
   test('265, 286-290: exceptions route, are idempotent, cannot be self-resolved, and escalate when overdue', async () => {
     const a = await mk(employee, 5);

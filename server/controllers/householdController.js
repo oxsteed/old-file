@@ -8,6 +8,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendValidationError, sendError } = require('../utils/apiError');
+const { sendEmail } = require('../utils/email');
 const svc = require('../services/householdDelegationService');
 
 const {
@@ -41,6 +42,55 @@ async function loadDelegation(id) {
 function canSeeDelegation(row, userId) {
   return String(row.owner_id) === String(userId)
     || (row.delegate_user_id && String(row.delegate_user_id) === String(userId));
+}
+
+// Email invite links use the same public base as the other invite flows.
+function safeBaseUrl() {
+  return String(process.env.PUBLIC_APP_URL || process.env.APP_URL || 'https://oxsteed.com').replace(/\/$/, '');
+}
+
+// Compare calendar dates as YYYY-MM-DD strings, never as Date objects:
+// a local-midnight date and a UTC-midnight date disagree near midnight
+// (R59). pg returns DATE columns as Date objects; normalize both shapes.
+function dateOnly(value) {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value || '').slice(0, 10);
+}
+
+function todayString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// D-586: reminders of the same kind wait 24 hours between sends. The
+// stamp column is read before sending; a repeat inside the window sends
+// nothing and reports tooSoon instead of a fresh notification.
+function reminderTooSoon(lastSentAt) {
+  if (!lastSentAt) return false;
+  return new Date(lastSentAt).getTime() > Date.now() - 24 * 60 * 60 * 1000;
+}
+
+function dayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Read the visit-prep row without creating one (R63): a read by a site
+// contact or a recipient just viewing must not INSERT a prep row.
+async function loadPrep(booking) {
+  const { rows } = await pool.query(
+    'SELECT * FROM household_visit_preps WHERE booking_id = $1', [booking.id],
+  );
+  return rows[0] || null;
+}
+
+// D-579: the visit-action endpoints (readiness, summaries, replacements,
+// follow-ups, emergency fallback, reminders) need prepare or schedule
+// scope for delegates. Book-only delegates keep booking, calendar reads,
+// and availability; owners, recipients, and site contacts keep the
+// access their role already grants on each endpoint.
+function delegateMayDoVisitAction(access) {
+  if (!access) return false;
+  if (access.role !== 'delegate') return true;
+  return hasScope(access.delegation, 'prepare') || hasScope(access.delegation, 'schedule');
 }
 
 async function loadBooking(id) {
@@ -174,6 +224,20 @@ exports.inviteDelegation = async (req, res) => {
         idempotencyKey: `household-delegate-invite:${row.id}`,
       });
     }
+    // Item 52 (R28): the invite is emailed with an accept link carrying
+    // the token, so an invitee with no OxSteed account can learn about
+    // the invite at all. The link lands on /household with the token;
+    // acceptance still requires signing in as the invited email
+    // (acceptDelegationByToken), so the email is delivery, not access.
+    try {
+      await sendEmail({
+        to: email,
+        subject: 'You were invited to help manage a household on OxSteed',
+        text: `You were invited to help manage a household on OxSteed. Sign in with this email and open ${safeBaseUrl()}/household?invite=${token} to accept the invitation. The invitation expires in 90 days.`,
+      });
+    } catch (err) {
+      logger.warn('Failed to email household invite', { delegationId: row.id, error: err.message });
+    }
     res.status(201).json({ delegation: serializeDelegation(row, { forOwner: true }) });
   } catch (err) {
     logger.error('inviteDelegation error', { message: err.message });
@@ -190,11 +254,15 @@ exports.listDelegations = async (req, res) => {
     const role = String(req.query.role || 'owner');
     let rows;
     if (role === 'delegate') {
+      // Wave 4, item 61/51: the selector and the booking picker need the
+      // owner's display name, so join it the same way listInvitations does.
       const result = await pool.query(
-        `SELECT * FROM household_delegations
-          WHERE delegate_user_id = $1 OR lower(delegate_email) = (
+        `SELECT d.*, u.first_name AS owner_first_name, u.last_name AS owner_last_name
+           FROM household_delegations d
+           JOIN users u ON u.id = d.owner_id
+          WHERE d.delegate_user_id = $1 OR lower(d.delegate_email) = (
             SELECT lower(email) FROM users WHERE id = $1)
-          ORDER BY created_at DESC`,
+          ORDER BY d.created_at DESC`,
         [userId],
       );
       rows = result.rows;
@@ -206,8 +274,13 @@ exports.listDelegations = async (req, res) => {
       rows = result.rows;
     }
     res.json({
-      delegations: rows.map((row) => serializeDelegation(row, {
-        forOwner: String(row.owner_id) === String(userId),
+      delegations: rows.map((row) => ({
+        ...serializeDelegation(row, {
+          forOwner: String(row.owner_id) === String(userId),
+        }),
+        ownerName: row.owner_first_name !== undefined
+          ? [row.owner_first_name, row.owner_last_name].filter(Boolean).join(' ') || null
+          : null,
       })),
     });
   } catch (err) {
@@ -249,6 +322,7 @@ exports.listInvitations = async (req, res) => {
 
 exports.getDelegation = async (req, res) => {
   try {
+    await markExpiredDelegations(pool);
     const row = await loadDelegation(req.params.id);
     if (!row || !canSeeDelegation(row, req.user.id)) {
       return sendError(res, 404, 'Delegation not found', 'DELEGATION_NOT_FOUND');
@@ -262,6 +336,42 @@ exports.getDelegation = async (req, res) => {
   }
 };
 
+// Shared accept write for acceptDelegation (by id) and
+// acceptDelegationByToken (by invite token): the atomic invited -> accepted
+// transition, activity, and owner notice. Returns the updated row or null
+// when the invite already closed (the caller maps that to a 409).
+async function acceptDelegationRow(row, userId) {
+  const updated = await pool.query(
+    `UPDATE household_delegations
+        SET status = 'accepted', accepted_at = NOW(),
+            delegate_user_id = COALESCE(delegate_user_id, $2), updated_at = NOW()
+      WHERE id = $1 AND status = 'invited'
+      RETURNING *`,
+    [row.id, userId],
+  );
+  if (!updated.rows.length) return null;
+  await logActivity(pool, row.id, userId, 'accepted', { scopes: updated.rows[0].scopes });
+  await notifyHousehold({
+    userId: row.owner_id,
+    type: 'household_delegation_update',
+    body: 'A household delegate accepted your invitation.',
+    data: { delegationId: row.id },
+    actionUrl: '/household',
+    idempotencyKey: `household-delegation-accepted:${row.id}`,
+  });
+  return updated.rows[0];
+}
+
+async function callerEmail(userId) {
+  const { rows: me } = await pool.query('SELECT lower(email) AS email FROM users WHERE id = $1', [userId]);
+  return me[0] ? me[0].email : null;
+}
+
+function isInvitee(row, userId, myEmail) {
+  return (row.delegate_user_id && String(row.delegate_user_id) === String(userId))
+    || (myEmail && String(row.delegate_email).toLowerCase() === myEmail);
+}
+
 // Item 53: consent review — the delegate accepts the invite only after
 // seeing the scope preview (81); acceptance records when and how. A
 // second response is a 409, exactly like the recipient consent flow.
@@ -271,36 +381,47 @@ exports.acceptDelegation = async (req, res) => {
     const row = await loadDelegation(req.params.id);
     if (!row) return sendError(res, 404, 'Delegation not found', 'DELEGATION_NOT_FOUND');
     const userId = req.user.id;
-    const { rows: me } = await pool.query('SELECT lower(email) AS email FROM users WHERE id = $1', [userId]);
-    const myEmail = me[0] ? me[0].email : null;
-    const isInvitee = (row.delegate_user_id && String(row.delegate_user_id) === String(userId))
-      || (myEmail && String(row.delegate_email).toLowerCase() === myEmail);
-    if (!isInvitee) return sendError(res, 403, 'Only the invited delegate can accept', 'NOT_INVITEE');
+    const myEmail = await callerEmail(userId);
+    if (!isInvitee(row, userId, myEmail)) return sendError(res, 403, 'Only the invited delegate can accept', 'NOT_INVITEE');
     if (row.status === 'accepted') return sendError(res, 409, 'Already accepted', 'ALREADY_ACCEPTED');
     if (row.status !== 'invited') {
       return sendError(res, 409, `This invitation is ${row.status}`, 'INVITATION_CLOSED');
     }
-    const updated = await pool.query(
-      `UPDATE household_delegations
-          SET status = 'accepted', accepted_at = NOW(),
-              delegate_user_id = COALESCE(delegate_user_id, $2), updated_at = NOW()
-        WHERE id = $1 AND status = 'invited'
-        RETURNING *`,
-      [row.id, userId],
-    );
-    if (!updated.rows.length) return sendError(res, 409, 'This invitation is no longer open', 'INVITATION_CLOSED');
-    await logActivity(pool, row.id, userId, 'accepted', { scopes: updated.rows[0].scopes });
-    await notifyHousehold({
-      userId: row.owner_id,
-      type: 'household_delegation_update',
-      body: 'A household delegate accepted your invitation.',
-      data: { delegationId: row.id },
-      actionUrl: '/household',
-      idempotencyKey: `household-delegation-accepted:${row.id}`,
-    });
-    res.json({ delegation: serializeDelegation(updated.rows[0]) });
+    const updated = await acceptDelegationRow(row, userId);
+    if (!updated) return sendError(res, 409, 'This invitation is no longer open', 'INVITATION_CLOSED');
+    res.json({ delegation: serializeDelegation(updated) });
   } catch (err) {
     logger.error('acceptDelegation error', { message: err.message });
+    res.status(500).json({ error: 'Failed to accept invitation.' });
+  }
+};
+
+// Item 52 (R28): accept from the emailed invite link. The token is the
+// delivery credential; the caller must still sign in as the invited
+// email (or the bound account), exactly like acceptDelegation — the
+// token alone never grants access to a stranger's account.
+exports.acceptDelegationByToken = async (req, res) => {
+  try {
+    await markExpiredDelegations(pool);
+    const token = String(req.body && req.body.token ? req.body.token : '').trim();
+    if (!token) return sendValidationError(res, { token: 'An invite token is required.' });
+    const { rows } = await pool.query(
+      'SELECT * FROM household_delegations WHERE invite_token = $1', [token],
+    );
+    const row = rows[0];
+    if (!row) return sendError(res, 404, 'Delegation not found', 'DELEGATION_NOT_FOUND');
+    const userId = req.user.id;
+    const myEmail = await callerEmail(userId);
+    if (!isInvitee(row, userId, myEmail)) return sendError(res, 403, 'Only the invited delegate can accept', 'NOT_INVITEE');
+    if (row.status === 'accepted') return sendError(res, 409, 'Already accepted', 'ALREADY_ACCEPTED');
+    if (row.status !== 'invited') {
+      return sendError(res, 409, `This invitation is ${row.status}`, 'INVITATION_CLOSED');
+    }
+    const updated = await acceptDelegationRow(row, userId);
+    if (!updated) return sendError(res, 409, 'This invitation is no longer open', 'INVITATION_CLOSED');
+    res.json({ delegation: serializeDelegation(updated) });
+  } catch (err) {
+    logger.error('acceptDelegationByToken error', { message: err.message });
     res.status(500).json({ error: 'Failed to accept invitation.' });
   }
 };
@@ -346,12 +467,22 @@ exports.revokeDelegation = async (req, res) => {
       return sendError(res, 409, `This delegation is already ${row.status}`, 'ALREADY_CLOSED');
     }
     const reason = req.body && req.body.reason ? String(req.body.reason).trim().slice(0, 500) : null;
+    // D-589: revocation reassigns the delegate's upcoming visit preps to
+    // the owner, and the receipt records what moved, as D-39 promises.
+    const moved = await pool.query(
+      `UPDATE household_visit_preps p
+          SET assigned_delegate_user_id = NULL, updated_at = NOW()
+        WHERE p.owner_id = $1 AND p.assigned_delegate_user_id = $2
+          AND p.booking_id IN (SELECT id FROM booking_requests WHERE requested_date >= CURRENT_DATE)`,
+      [row.owner_id, row.delegate_user_id],
+    );
     const receipt = {
       closedBy: req.user.id,
       closedAt: new Date().toISOString(),
       reason: reason || 'Revoked by the owner',
       scopesHeld: Array.isArray(row.scopes) ? row.scopes : [],
       wasCoordinator: Boolean(row.is_coordinator),
+      upcomingVisitsReassigned: { count: moved.rowCount || 0, reassignedTo: 'owner' },
     };
     const updated = await pool.query(
       `UPDATE household_delegations
@@ -399,6 +530,18 @@ exports.renewDelegation = async (req, res) => {
       [row.id, expiresAt],
     );
     await logActivity(pool, row.id, req.user.id, 'renewed', { expiresAt: expiresAt.toISOString() });
+    // Item 83 (R61/F20): the delegate learns the new expiry, not just
+    // the owner who renewed it.
+    if (row.delegate_user_id) {
+      await notifyHousehold({
+        userId: row.delegate_user_id,
+        type: 'household_delegation_update',
+        body: 'Your household delegation was renewed for another 90 days.',
+        data: { delegationId: row.id },
+        actionUrl: '/household',
+        idempotencyKey: `household-delegation-renewed:${row.id}:${expiresAt.toISOString().slice(0, 10)}`,
+      });
+    }
     res.json({ delegation: serializeDelegation(updated.rows[0], { forOwner: true }) });
   } catch (err) {
     logger.error('renewDelegation error', { message: err.message });
@@ -410,12 +553,18 @@ exports.renewDelegation = async (req, res) => {
 // the other side and stamps the row so reminders do not spam.
 exports.remindDelegation = async (req, res) => {
   try {
+    await markExpiredDelegations(pool);
     const row = await loadDelegation(req.params.id);
     if (!row || !canSeeDelegation(row, req.user.id)) {
       return sendError(res, 404, 'Delegation not found', 'DELEGATION_NOT_FOUND');
     }
     if (row.status !== 'accepted' && row.status !== 'invited') {
       return sendError(res, 409, `This delegation is ${row.status}`, 'NOT_REMINDABLE');
+    }
+    // D-586: at most one reminder per 24 hours; a repeat inside the
+    // window sends nothing.
+    if (reminderTooSoon(row.last_reminder_sent_at)) {
+      return res.json({ reminded: false, tooSoon: true });
     }
     const targetId = String(req.user.id) === String(row.owner_id) ? row.delegate_user_id : row.owner_id;
     await pool.query(
@@ -429,7 +578,7 @@ exports.remindDelegation = async (req, res) => {
       body: 'A household delegation is nearing expiry.',
       data: { delegationId: row.id },
       actionUrl: '/household',
-      idempotencyKey: `household-delegation-reminder:${row.id}:${Date.now()}`,
+      idempotencyKey: `household-delegation-reminder:${row.id}:${dayKey()}`,
     });
     res.json({ reminded: true });
   } catch (err) {
@@ -564,6 +713,11 @@ exports.acknowledgeHandoff = async (req, res) => {
     if (!row.handoff_note && !row.handoff_from_delegation_id) {
       return sendError(res, 409, 'There is no handoff to acknowledge', 'NO_HANDOFF');
     }
+    // R62/F21: an acknowledgment is recorded once; a repeat call returns
+    // the existing acknowledgment instead of re-stamping the time.
+    if (row.handoff_acknowledged_at) {
+      return res.json({ delegation: serializeDelegation(row) });
+    }
     const updated = await pool.query(
       `UPDATE household_delegations
           SET handoff_acknowledged_at = NOW(), updated_at = NOW()
@@ -695,6 +849,28 @@ exports.reinviteDelegation = async (req, res) => {
       ],
     );
     await logActivity(pool, created.rows[0].id, req.user.id, 'reinvited', { fromDelegationId: row.id });
+    // Item 100 (R30/F7): the re-invited delegate is told, in-app when
+    // they hold an account and by email in every case, exactly like a
+    // fresh invite — a re-invite nobody hears about is a dead invite.
+    if (created.rows[0].delegate_user_id) {
+      await notifyHousehold({
+        userId: created.rows[0].delegate_user_id,
+        type: 'household_delegate_invite',
+        body: 'You were invited again to help manage a household.',
+        data: { delegationId: created.rows[0].id },
+        actionUrl: '/household',
+        idempotencyKey: `household-delegate-invite:${created.rows[0].id}`,
+      });
+    }
+    try {
+      await sendEmail({
+        to: created.rows[0].delegate_email,
+        subject: 'You were invited again to help manage a household on OxSteed',
+        text: `You were invited again to help manage a household on OxSteed. Sign in with this email and open ${safeBaseUrl()}/household?invite=${token} to accept the invitation. The invitation expires in 90 days.`,
+      });
+    } catch (err) {
+      logger.warn('Failed to email household re-invite', { delegationId: created.rows[0].id, error: err.message });
+    }
     res.status(201).json({ delegation: serializeDelegation(created.rows[0], { forOwner: true }) });
   } catch (err) {
     logger.error('reinviteDelegation error', { message: err.message });
@@ -799,12 +975,18 @@ exports.remindVisit = async (req, res) => {
     const booking = await loadBooking(req.params.bookingId);
     if (!booking) return sendError(res, 404, 'Booking not found', 'BOOKING_NOT_FOUND');
     const access = await householdBookingAccess(pool, booking, req.user.id);
-    if (!access) return sendError(res, 403, 'Not authorized for this visit', 'NOT_HOUSEHOLD');
+    if (!access || !delegateMayDoVisitAction(access)) return sendError(res, 403, 'Not authorized for this visit', 'NOT_HOUSEHOLD');
     const prep = await ensurePrep(booking);
+    // D-586: at most one visit reminder per 24 hours, and the count
+    // reports only the parties actually notified (never the caller).
+    if (reminderTooSoon(prep.reminder_sent_at)) {
+      return res.json({ reminded: 0, tooSoon: true, reminderSentAt: prep.reminder_sent_at });
+    }
     const targets = new Set();
     if (booking.recipient_user_id) targets.add(String(booking.recipient_user_id));
     if (prep.assigned_delegate_user_id) targets.add(String(prep.assigned_delegate_user_id));
     targets.add(String(booking.customer_id));
+    let notified = 0;
     for (const userId of targets) {
       if (userId === String(req.user.id)) continue;
       await notifyHousehold({
@@ -813,14 +995,15 @@ exports.remindVisit = async (req, res) => {
         body: `Reminder: ${booking.service_name} on ${booking.requested_date}. Please confirm the visit.`,
         data: { bookingId: booking.id },
         actionUrl: '/household',
-        idempotencyKey: `household-visit-reminder:${booking.id}:${userId}:${Date.now()}`,
+        idempotencyKey: `household-visit-reminder:${booking.id}:${userId}:${dayKey()}`,
       });
+      notified += 1;
     }
     await pool.query(
       'UPDATE household_visit_preps SET reminder_sent_at = NOW(), updated_at = NOW() WHERE id = $1',
       [prep.id],
     );
-    res.json({ reminded: [...targets].length, reminderSentAt: new Date().toISOString() });
+    res.json({ reminded: notified, reminderSentAt: new Date().toISOString() });
   } catch (err) {
     logger.error('remindVisit error', { message: err.message });
     res.status(500).json({ error: 'Failed to send reminder.' });
@@ -860,8 +1043,9 @@ exports.getAvailability = async (req, res) => {
     if (!booking) return sendError(res, 404, 'Booking not found', 'BOOKING_NOT_FOUND');
     const access = await householdBookingAccess(pool, booking, req.user.id);
     if (!access) return sendError(res, 403, 'Not authorized for this visit', 'NOT_HOUSEHOLD');
-    const prep = await ensurePrep(booking);
-    res.json({ availability: Array.isArray(prep.availability) ? prep.availability : [] });
+    // R63: reading availability must not create a prep row.
+    const prep = await loadPrep(booking);
+    res.json({ availability: prep && Array.isArray(prep.availability) ? prep.availability : [] });
   } catch (err) {
     logger.error('getAvailability error', { message: err.message });
     res.status(500).json({ error: 'Failed to load availability.' });
@@ -926,8 +1110,9 @@ exports.getPrep = async (req, res) => {
     if (!booking) return sendError(res, 404, 'Booking not found', 'BOOKING_NOT_FOUND');
     const access = await householdBookingAccess(pool, booking, req.user.id);
     if (!access) return sendError(res, 403, 'Not authorized for this visit', 'NOT_HOUSEHOLD');
-    const prep = await ensurePrep(booking);
-    res.json({ prep: serializePrepRow(prep) });
+    // R63: reading a prep must not create one.
+    const prep = await loadPrep(booking);
+    res.json({ prep: prep ? serializePrepRow(prep) : null });
   } catch (err) {
     logger.error('getPrep error', { message: err.message });
     res.status(500).json({ error: 'Failed to load visit preparation.' });
@@ -954,6 +1139,14 @@ exports.updatePrep = async (req, res) => {
       ? String(req.body.arrivalInstructions).trim().slice(0, 2000) || null : undefined;
     const assigned = req.body && req.body.assignedDelegateUserId !== undefined
       ? (isUuid(req.body.assignedDelegateUserId) ? req.body.assignedDelegateUserId : null) : undefined;
+    // R56/F15: the assignee must be a live delegate of this household,
+    // not any UUID the caller invents.
+    if (assigned) {
+      const delegation = await findActiveDelegation(pool, booking.customer_id, assigned);
+      if (!delegation) {
+        return sendError(res, 404, 'That person is not an active delegate', 'DELEGATION_NOT_FOUND');
+      }
+    }
     const updated = await pool.query(
       `UPDATE household_visit_preps
           SET checklist = COALESCE($2, checklist),
@@ -989,6 +1182,11 @@ exports.confirmReadiness = async (req, res) => {
     if (!access || (access.role !== 'owner' && access.role !== 'delegate')) {
       return sendError(res, 403, 'Not authorized for this visit', 'NOT_HOUSEHOLD');
     }
+    // D-579: a book-only delegate cannot confirm readiness; prepare or
+    // schedule scope is required.
+    if (!delegateMayDoVisitAction(access)) {
+      return sendError(res, 403, 'This delegation cannot confirm readiness', 'SCOPE_DENIED');
+    }
     const prep = await ensurePrep(booking);
     const updated = await pool.query(
       `UPDATE household_visit_preps
@@ -1010,14 +1208,20 @@ exports.remindSupplies = async (req, res) => {
     const booking = await loadBooking(req.params.bookingId);
     if (!booking) return sendError(res, 404, 'Booking not found', 'BOOKING_NOT_FOUND');
     const access = await householdBookingAccess(pool, booking, req.user.id);
-    if (!access) return sendError(res, 403, 'Not authorized for this visit', 'NOT_HOUSEHOLD');
+    if (!access || !delegateMayDoVisitAction(access)) return sendError(res, 403, 'Not authorized for this visit', 'NOT_HOUSEHOLD');
     const prep = await ensurePrep(booking);
     const supplies = Array.isArray(prep.supplies) ? prep.supplies : [];
     if (!supplies.length) {
       return sendError(res, 409, 'No supplies are listed for this visit', 'NO_SUPPLIES');
     }
+    // D-586: at most one supplies reminder per 24 hours; the count
+    // reports only the parties actually notified.
+    if (reminderTooSoon(prep.supplies_reminder_sent_at)) {
+      return res.json({ reminded: 0, tooSoon: true, supplies: supplies.length });
+    }
     const targets = new Set([String(booking.customer_id)]);
     if (prep.assigned_delegate_user_id) targets.add(String(prep.assigned_delegate_user_id));
+    let notified = 0;
     for (const userId of targets) {
       if (userId === String(req.user.id)) continue;
       await notifyHousehold({
@@ -1026,14 +1230,15 @@ exports.remindSupplies = async (req, res) => {
         body: `Supplies needed for ${booking.service_name}: ${supplies.map((s) => s.item).join(', ')}.`,
         data: { bookingId: booking.id },
         actionUrl: '/household',
-        idempotencyKey: `household-supplies:${booking.id}:${userId}:${Date.now()}`,
+        idempotencyKey: `household-supplies:${booking.id}:${userId}:${dayKey()}`,
       });
+      notified += 1;
     }
     await pool.query(
       'UPDATE household_visit_preps SET supplies_reminder_sent_at = NOW(), updated_at = NOW() WHERE id = $1',
       [prep.id],
     );
-    res.json({ reminded: [...targets].length, supplies: supplies.length });
+    res.json({ reminded: notified, supplies: supplies.length });
   } catch (err) {
     logger.error('remindSupplies error', { message: err.message });
     res.status(500).json({ error: 'Failed to send supply reminder.' });
@@ -1049,6 +1254,10 @@ exports.shareVisitSummary = async (req, res) => {
     const access = await householdBookingAccess(pool, booking, req.user.id);
     if (!access || (access.role !== 'owner' && access.role !== 'delegate')) {
       return sendError(res, 403, 'Not authorized for this visit', 'NOT_HOUSEHOLD');
+    }
+    // D-579: sharing a visit summary is a prepare/schedule action.
+    if (!delegateMayDoVisitAction(access)) {
+      return sendError(res, 403, 'This delegation cannot share visit summaries', 'SCOPE_DENIED');
     }
     const summary = req.body && req.body.summary ? String(req.body.summary).trim().slice(0, 4000) : '';
     if (!summary) return sendValidationError(res, { summary: 'A summary is required.' });
@@ -1094,6 +1303,10 @@ exports.requestReplacement = async (req, res) => {
     if (!access || (access.role !== 'owner' && access.role !== 'delegate')) {
       return sendError(res, 403, 'Not authorized for this visit', 'NOT_HOUSEHOLD');
     }
+    // D-579: requesting a replacement is a prepare/schedule action.
+    if (!delegateMayDoVisitAction(access)) {
+      return sendError(res, 403, 'This delegation cannot request a replacement', 'SCOPE_DENIED');
+    }
     const reason = req.body && req.body.reason ? String(req.body.reason).trim().slice(0, 1000) : '';
     if (!reason) return sendValidationError(res, { reason: 'A reason is required.' });
     const prep = await ensurePrep(booking);
@@ -1115,8 +1328,20 @@ exports.requestReplacement = async (req, res) => {
       body: `A replacement provider was requested for ${booking.service_name}: ${reason}`,
       data: { bookingId: booking.id },
       actionUrl: '/household',
-      idempotencyKey: `household-replacement:${booking.id}:${Date.now()}`,
+      idempotencyKey: `household-replacement:${booking.id}:${dayKey()}`,
     });
+    // Item 86 (R34/F11): the assigned helper is notified too, as the
+    // comment on this endpoint always promised.
+    if (booking.helper_id) {
+      await notifyHousehold({
+        userId: booking.helper_id,
+        type: 'household_visit_update',
+        body: `A replacement provider was requested for ${booking.service_name}: ${reason}`,
+        data: { bookingId: booking.id },
+        actionUrl: '/my-bookings',
+        idempotencyKey: `household-replacement-helper:${booking.id}:${dayKey()}`,
+      });
+    }
     res.json({ prep: serializePrepRow(updated.rows[0]) });
   } catch (err) {
     logger.error('requestReplacement error', { message: err.message });
@@ -1134,6 +1359,10 @@ exports.missedFollowup = async (req, res) => {
     const access = await householdBookingAccess(pool, booking, req.user.id);
     if (!access || (access.role !== 'owner' && access.role !== 'delegate')) {
       return sendError(res, 403, 'Not authorized for this visit', 'NOT_HOUSEHOLD');
+    }
+    // D-579: filing a missed-visit follow-up is a prepare/schedule action.
+    if (!delegateMayDoVisitAction(access)) {
+      return sendError(res, 403, 'This delegation cannot file a missed-visit follow-up', 'SCOPE_DENIED');
     }
     const action = req.body && req.body.action ? String(req.body.action).trim() : '';
     if (!['reschedule', 'replacement', 'note'].includes(action)) {
@@ -1214,6 +1443,10 @@ exports.emergencyFallback = async (req, res) => {
     const access = await householdBookingAccess(pool, booking, req.user.id);
     if (!access || (access.role !== 'owner' && access.role !== 'delegate')) {
       return sendError(res, 403, 'Not authorized for this visit', 'NOT_HOUSEHOLD');
+    }
+    // D-579: triggering emergency fallback is a prepare/schedule action.
+    if (!delegateMayDoVisitAction(access)) {
+      return sendError(res, 403, 'This delegation cannot trigger emergency fallback', 'SCOPE_DENIED');
     }
     const { rows } = await pool.query(
       `SELECT * FROM household_contacts
@@ -1341,7 +1574,10 @@ exports.reassignVisits = async (req, res) => {
     for (const bookingId of bookingIds.slice(0, 50)) {
       const booking = await loadBooking(bookingId);
       if (!booking || String(booking.customer_id) !== String(ownerId)) continue;
-      if (new Date(`${booking.requested_date}T00:00:00`) < new Date(new Date().toISOString().slice(0, 10))) continue;
+      // R59/F18: compare YYYY-MM-DD strings, never Date objects, so a
+      // same-day visit is never wrongly included or excluded near
+      // midnight by a local-vs-UTC midnight mismatch.
+      if (dateOnly(booking.requested_date) < todayString()) continue;
       const prep = await ensurePrep(booking);
       await pool.query(
         `UPDATE household_visit_preps
@@ -1395,12 +1631,21 @@ exports.acknowledgePrepHandoff = async (req, res) => {
   try {
     const booking = await loadBooking(req.params.bookingId);
     if (!booking) return sendError(res, 404, 'Booking not found', 'BOOKING_NOT_FOUND');
-    const prep = await ensurePrep(booking);
+    // R63: acknowledging a handoff must not create a prep row for a
+    // booking that has none (no prep, no handoff).
+    const prep = await loadPrep(booking);
+    if (!prep) {
+      return sendError(res, 409, 'There is no handoff to acknowledge', 'NO_HANDOFF');
+    }
     if (!prep.assigned_delegate_user_id || String(prep.assigned_delegate_user_id) !== String(req.user.id)) {
       return sendError(res, 403, 'Only the assigned delegate can acknowledge', 'NOT_ASSIGNEE');
     }
     if (!prep.handoff_note) {
       return sendError(res, 409, 'There is no handoff to acknowledge', 'NO_HANDOFF');
+    }
+    // R62/F21: an acknowledgment is recorded once.
+    if (prep.handoff_acknowledged_at) {
+      return res.json({ prep: serializePrepRow(prep) });
     }
     const updated = await pool.query(
       `UPDATE household_visit_preps
@@ -1748,8 +1993,7 @@ exports.listTasks = async (req, res) => {
     const ownerId = req.query.ownerId ? String(req.query.ownerId) : req.user.id;
     const access = await resolveHouseholdAccess(pool, ownerId, req.user.id, null);
     if (!access) return sendError(res, 403, 'Not part of this household', 'NOT_HOUSEHOLD');
-    if (access.role === 'delegate' && !hasScope(access.delegation, 'manage_tasks')
-      && !hasScope(access.delegation, 'view_calendar')) {
+    if (access.role === 'delegate' && !hasScope(access.delegation, 'manage_tasks')) {
       return sendError(res, 403, 'This delegation cannot view maintenance plans', 'SCOPE_DENIED');
     }
     const kind = req.query.kind ? String(req.query.kind) : null;
@@ -1902,6 +2146,11 @@ exports.triageTasks = async (req, res) => {
     const ownerId = req.query.ownerId ? String(req.query.ownerId) : req.user.id;
     const access = await resolveHouseholdAccess(pool, ownerId, req.user.id, null);
     if (!access) return sendError(res, 403, 'Not part of this household', 'NOT_HOUSEHOLD');
+    // R6/F3 (D-38): triage is a maintenance-plan read; a calendar-only
+    // delegate reads no tasks at all.
+    if (access.role === 'delegate' && !hasScope(access.delegation, 'manage_tasks')) {
+      return sendError(res, 403, 'This delegation cannot view maintenance plans', 'SCOPE_DENIED');
+    }
     const { rows } = await pool.query(
       `SELECT * FROM household_tasks WHERE owner_id = $1 AND status = 'open'
         ORDER BY due_date ASC NULLS LAST`,
@@ -1930,6 +2179,11 @@ exports.taskHistory = async (req, res) => {
     const ownerId = req.query.ownerId ? String(req.query.ownerId) : req.user.id;
     const access = await resolveHouseholdAccess(pool, ownerId, req.user.id, null);
     if (!access) return sendError(res, 403, 'Not part of this household', 'NOT_HOUSEHOLD');
+    // R6/F3 (D-38): task history is a maintenance-plan read; a
+    // calendar-only delegate reads no tasks at all.
+    if (access.role === 'delegate' && !hasScope(access.delegation, 'manage_tasks')) {
+      return sendError(res, 403, 'This delegation cannot view maintenance plans', 'SCOPE_DENIED');
+    }
     const { rows } = await pool.query(
       `SELECT * FROM household_tasks WHERE owner_id = $1 AND status = 'done'
         ORDER BY completed_at DESC NULLS LAST, created_at DESC LIMIT 200`,
@@ -1949,7 +2203,25 @@ exports.listDocuments = async (req, res) => {
   try {
     const ownerId = req.query.ownerId ? String(req.query.ownerId) : req.user.id;
     const access = await resolveHouseholdAccess(pool, ownerId, req.user.id, null);
-    if (!access) return sendError(res, 403, 'Not part of this household', 'NOT_HOUSEHOLD');
+    if (!access) {
+      // D-584: a recipient or site contact is not a household member, but
+      // they own the visit: they read the documents linked to a booking
+      // owned by the queried household where they are the recipient or
+      // site contact, and nothing else.
+      const { rows: linked } = await pool.query(
+        `SELECT d.* FROM household_documents d
+          WHERE d.booking_id IN (
+            SELECT id FROM booking_requests
+             WHERE customer_id = $2
+               AND (recipient_user_id = $1 OR site_contact_user_id = $1)
+          )
+            AND d.kind IN ('visit_summary', 'receipt')
+          ORDER BY d.created_at DESC`,
+        [req.user.id, ownerId],
+      );
+      if (!linked.length) return sendError(res, 403, 'Not part of this household', 'NOT_HOUSEHOLD');
+      return res.json({ documents: linked.map(serializeDocument) });
+    }
     let rows;
     if (access.role === 'owner') {
       const result = await pool.query(
@@ -2034,6 +2306,20 @@ exports.forwardDocument = async (req, res) => {
     if (!doc) return sendError(res, 404, 'Document not found', 'DOCUMENT_NOT_FOUND');
     const access = await resolveHouseholdAccess(pool, doc.owner_id, req.user.id, null);
     if (!access) return sendError(res, 403, 'Not part of this household', 'NOT_HOUSEHOLD');
+    // R6/F3 (D-38): forwarding needs view_records, and a delegate may
+    // forward only a document they can already read — never one that was
+    // never shared with them.
+    if (access.role === 'delegate') {
+      if (!hasScope(access.delegation, 'view_records')) {
+        return sendError(res, 403, 'This delegation cannot forward documents', 'SCOPE_DENIED');
+      }
+      const canRead = String(doc.created_by) === String(req.user.id)
+        || (Array.isArray(doc.shared_with_delegation_ids)
+          && doc.shared_with_delegation_ids.includes(access.delegation.id));
+      if (!canRead) {
+        return sendError(res, 403, 'This document was not shared with you', 'SCOPE_DENIED');
+      }
+    }
     const { toDelegationIds } = req.body || {};
     if (!Array.isArray(toDelegationIds) || !toDelegationIds.length) {
       return sendValidationError(res, { toDelegationIds: 'Choose at least one delegation.' });
@@ -2046,26 +2332,40 @@ exports.forwardDocument = async (req, res) => {
     if (!found.rows.length) {
       return sendError(res, 404, 'No live delegation matches', 'DELEGATION_NOT_FOUND');
     }
-    const current = Array.isArray(doc.shared_with_delegation_ids) ? doc.shared_with_delegation_ids : [];
-    const merged = [...new Set([...current, ...found.rows.map((r) => r.id)])];
-    const updated = await pool.query(
-      `UPDATE household_documents SET shared_with_delegation_ids = $2, updated_at = NOW()
-        WHERE id = $1 RETURNING *`,
-      [doc.id, JSON.stringify(merged)],
+    // D-590: forwarding creates a forwarded copy (forwarded_from = the
+    // original) shared with the targets; the original's sharing is
+    // untouched, so forwarding never silently widens the original
+    // document's audience.
+    const { rows: copies } = await pool.query(
+      `INSERT INTO household_documents
+         (owner_id, created_by, booking_id, kind, title, body,
+          shared_with_delegation_ids, forwarded_from)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [
+        doc.owner_id,
+        req.user.id,
+        doc.booking_id,
+        doc.kind,
+        doc.title,
+        doc.body,
+        JSON.stringify(found.rows.map((r) => r.id)),
+        doc.id,
+      ],
     );
+    const forwarded = copies[0];
     for (const row of found.rows) {
       if (row.delegate_user_id) {
         await notifyHousehold({
           userId: row.delegate_user_id,
           type: 'household_visit_update',
           body: `A household document was shared with you: ${doc.title}`,
-          data: { documentId: doc.id },
+          data: { documentId: forwarded.id },
           actionUrl: '/household',
-          idempotencyKey: `household-doc-forward:${doc.id}:${row.id}:${Date.now()}`,
+          idempotencyKey: `household-doc-forward:${forwarded.id}:${row.id}:${dayKey()}`,
         });
       }
     }
-    res.json({ document: serializeDocument(updated.rows[0]) });
+    res.json({ document: serializeDocument(forwarded) });
   } catch (err) {
     logger.error('forwardDocument error', { message: err.message });
     res.status(500).json({ error: 'Failed to forward document.' });

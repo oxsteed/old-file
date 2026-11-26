@@ -21,6 +21,10 @@ export function AppointmentCalendarView({ businessId, initialFilter = 'all', cur
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [reassignStaffId, setReassignStaffId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  // G5-12 (257): ranked candidates for the selected appointment, with
+  // availability / time-off / overlap flags. null = not loaded (or the
+  // viewer cannot see matches); the picker falls back to plain names.
+  const [matchCandidates, setMatchCandidates] = useState(null);
   const [access, setAccess] = useState(null);
   const [loadError, setLoadError] = useState(false);
   const [reload, setReload] = useState(0);
@@ -64,6 +68,21 @@ export function AppointmentCalendarView({ businessId, initialFilter = 'all', cur
     setShowReschedule(false);
     setReassignStaffId(selectedAppointment?.staff_id ? String(selectedAppointment.staff_id) : '');
   }, [selectedAppointment?.id]);
+
+  // G5-12 (257): load the ranked matches for the selected appointment when
+  // the viewer can manage the calendar. A 403 (no jobs.assign) leaves the
+  // picker unannotated instead of breaking the reassign flow.
+  useEffect(() => {
+    if (!selectedAppointment || !access?.canManageAll) {
+      setMatchCandidates(null);
+      return undefined;
+    }
+    let cancelled = false;
+    api.get(`/businesses/${businessId}/owner/appointments/${selectedAppointment.id}/matches`)
+      .then(({ data }) => { if (!cancelled) setMatchCandidates(Array.isArray(data?.candidates) ? data.candidates : []); })
+      .catch(() => { if (!cancelled) setMatchCandidates(null); });
+    return () => { cancelled = true; };
+  }, [selectedAppointment?.id, access?.canManageAll, businessId]);
 
   const loadServices = async () => {
     try {
@@ -279,6 +298,19 @@ export function AppointmentCalendarView({ businessId, initialFilter = 'all', cur
     const svc = services.find((s) => String(s.id) === String(selectedAppointment.service_id));
     return Array.isArray(svc?.staff) ? svc.staff : [];
   })();
+  // G5-12 (257): annotate each reassign option with the member's fit for
+  // this appointment's window. Flags warn; the server still fails closed
+  // on a real overlap, so a flagged member stays selectable.
+  const staffLabel = (st) => {
+    const base = st.name || st.id;
+    const fit = (matchCandidates || []).find((c) => String(c.user_id) === String(st.id));
+    if (!fit) return base;
+    const flags = [];
+    if (fit.time_off) flags.push(t('calendar.candidateTimeOff'));
+    if (fit.conflict) flags.push(t('calendar.candidateOverlap'));
+    if (fit.available === false) flags.push(t('calendar.candidateUnavailable'));
+    return flags.length ? `${base} — ${flags.join(', ')}` : base;
+  };
   const canModify = selectedAppointment && ['pending', 'confirmed', 'in_progress'].includes(selectedAppointment.status)
     && (access?.canManageAll || (access?.canManageSelf && String(selectedAppointment.staff_id) === String(access.userId)));
 
@@ -452,7 +484,7 @@ export function AppointmentCalendarView({ businessId, initialFilter = 'all', cur
                   >
                     <option value="">{t('businessAppointments.anyStaff')}</option>
                     {staffOptions.map((st) => (
-                      <option key={st.id} value={st.id}>{st.name || st.id}</option>
+                      <option key={st.id} value={st.id}>{staffLabel(st)}</option>
                     ))}
                   </select>
                   <button

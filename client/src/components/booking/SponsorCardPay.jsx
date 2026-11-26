@@ -17,21 +17,19 @@ function CardForm({ clientSecret, onConfirmPayment, onPaid, amountLabel }) {
   const elements = useElements();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // G3-17: the last PaymentIntent that already succeeded at Stripe. When
+  // the server confirm fails, the card must not be charged again — the
+  // retry below confirms the same intent instead.
+  const [lastIntentId, setLastIntentId] = useState(null);
+  const [confirmFailed, setConfirmFailed] = useState(false);
 
-  const submit = async (e) => {
-    e.preventDefault();
-    if (!stripe || !elements || busy) return;
+  const confirmExisting = async () => {
+    if (!lastIntentId || busy) return;
     setBusy(true);
     setError('');
     try {
-      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card: elements.getElement(CardElement) },
-      });
-      if (stripeError || paymentIntent?.status !== 'succeeded') {
-        setError(stripeError?.message || t('booking.sponsorPayFailed'));
-        return;
-      }
-      const result = await onConfirmPayment(paymentIntent.id);
+      const result = await onConfirmPayment(lastIntentId);
+      setConfirmFailed(false);
       toast.success(t('booking.sponsorPaid'));
       onPaid?.(result);
     } catch (err) {
@@ -41,13 +39,50 @@ function CardForm({ clientSecret, onConfirmPayment, onPaid, amountLabel }) {
     }
   };
 
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!stripe || !elements || busy) return;
+    setBusy(true);
+    setError('');
+    setConfirmFailed(false);
+    try {
+      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: { card: elements.getElement(CardElement) },
+      });
+      if (stripeError || paymentIntent?.status !== 'succeeded') {
+        setError(stripeError?.message || t('booking.sponsorPayFailed'));
+        return;
+      }
+      try {
+        const result = await onConfirmPayment(paymentIntent.id);
+        toast.success(t('booking.sponsorPaid'));
+        onPaid?.(result);
+      } catch (confirmErr) {
+        // The card already succeeded at Stripe; only the server confirm
+        // failed, so keep the intent id for the retry below.
+        setLastIntentId(paymentIntent.id);
+        setConfirmFailed(true);
+        setError(confirmErr?.response?.data?.error || t('booking.sponsorPayFailed'));
+      }
+    } catch (err) {
+      setError(err?.response?.data?.error || t('booking.sponsorPayFailed'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <form onSubmit={submit} className="sponsor-card-form">
+    <form onSubmit={submit} className="sponsor-card-form" data-track="ui.92a0cf4d94.1">
       <div className="sponsor-card-element">
         <CardElement options={{ style: { base: { fontSize: '16px' } } }} />
       </div>
       {error && <p role="alert" className="sponsor-card-error">{error}</p>}
-      <button type="submit" disabled={busy || !stripe} className="sponsor-card-pay-btn">
+      {confirmFailed && lastIntentId && (
+        <button type="button" onClick={confirmExisting} disabled={busy} className="sponsor-card-pay-btn" data-track="ui.92a0cf4d94.2">
+          {busy ? t('booking.sponsorPaying') : t('booking.sponsorConfirmExisting')}
+        </button>
+      )}
+      <button type="submit" disabled={busy || !stripe} className="sponsor-card-pay-btn" data-track="ui.92a0cf4d94.3">
         {busy ? t('booking.sponsorPaying') : t('booking.sponsorPayNow', { amount: amountLabel })}
       </button>
     </form>
@@ -83,7 +118,7 @@ export default function SponsorCardPay({ amountCents, createIntent, onConfirmPay
 
   if (!intent || !stripePromise) {
     return (
-      <button type="button" onClick={start} disabled={loading} className="sponsor-card-start-btn">
+      <button type="button" onClick={start} disabled={loading} className="sponsor-card-start-btn" data-track="ui.92a0cf4d94.4">
         {t('booking.sponsorPayStart', { amount: amountLabel })}
       </button>
     );

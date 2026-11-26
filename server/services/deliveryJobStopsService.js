@@ -16,7 +16,7 @@
 // is closing or has passed without the stop completing.
 'use strict';
 
-const { roundCoord } = require('./localDeliveryIntegrity');
+const { roundCoord, maskPhone } = require('./localDeliveryIntegrity');
 const AppError = require('../utils/appError');
 
 // Group 9 Slice C (item 463, D-69): a window is "closing" when its end is
@@ -131,10 +131,26 @@ async function ensureJobStops(client, job) {
 // stop sequence with rounded coordinates only: enough to plan the route
 // and open navigation, not enough to pinpoint the addresses. Exact
 // addresses, contacts, and instructions stay participant-only.
+//
+// Group 9 partials Wave 2 Batch O (471, G9-A6, D-546): the stop contact
+// phone is masked the same way the job-level mask does it (customerSafeJob:
+// bullet + last 4), because the raw number used to leak here while the
+// route panel showed it masked. The assigned driver still needs to call
+// the contact, so their projection also carries contact_phone_tel — the
+// full number as a dial value for a tel: link only, never rendered as
+// text. The relay (proxy number / in-app message) replaces that dial
+// value later; until then the number is reachable from the response
+// body, which is the documented trade-off of a tel: link.
 function safeStops(job, user, stops) {
   const own = String(job.customer_user_id) === String(user.id);
   const assigned = [job.helper_user_id, job.internal_driver_user_id].some((id) => id && String(id) === String(user.id));
-  if (own || assigned) return stops;
+  if (own || assigned) {
+    return stops.map((stop) => {
+      const masked = { ...stop, contact_phone: maskPhone(stop.contact_phone) };
+      if (assigned && stop.contact_phone) masked.contact_phone_tel = stop.contact_phone;
+      return masked;
+    });
+  }
   return stops.map((stop) => ({
     id: stop.id,
     delivery_job_id: stop.delivery_job_id,

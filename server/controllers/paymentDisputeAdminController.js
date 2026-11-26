@@ -112,7 +112,7 @@ exports.decidePaymentDispute = async (req, res, next) => {
         userId: result.userId,
         type: 'payment_dispute_updated',
         data: { status: nextStatus },
-        action_url: '/support/my-tickets',
+        action_url: '/support/escalation',
         idempotencyKey: `payment_dispute:${id}:${nextStatus}`,
       }).catch((e) => logger.warn('Payment dispute notification failed', { id, error: e.message }));
     }

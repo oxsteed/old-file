@@ -725,6 +725,277 @@ ddescribe('Group 2 household delegate', () => {
     expect(ack.res.payload.prep.handoffAcknowledgedAt).toBeTruthy();
   });
 
+  // Wave 4 checkpoint A: fresh users for the new-behavior tests below.
+  async function freshUser() {
+    const id = crypto.randomUUID();
+    const email = `g2-w4-${id.slice(0, 8)}@example.invalid`;
+    await pool.query(
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, onboarding_completed)
+       VALUES ($1, $2, 'x', 'Test', 'customer', 'customer', TRUE, TRUE, FALSE)`,
+      [id, email],
+    );
+    return { id, email };
+  }
+
+  test('Wave 4 (52): emailed invite carries an accept token; token accept works', async () => {
+    const email = require('../utils/email');
+    const freshEmail = `g2-token-${crypto.randomUUID().slice(0, 8)}@example.invalid`;
+    const { res } = await invite({ body: { delegateEmail: freshEmail, scopes: ['book'] } });
+    expect(res.statusCode).toBe(201);
+    const token = res.payload.delegation.inviteToken;
+    expect(token).toBeTruthy();
+    expect(email.sendEmail).toHaveBeenCalledWith(expect.objectContaining({
+      to: freshEmail,
+      text: expect.stringContaining(token),
+    }));
+    const strangerTry = await call(householdCtrl.acceptDelegationByToken, {
+      user: { id: stranger }, body: { token },
+    });
+    expect(strangerTry.res.statusCode).toBe(403);
+    const invitee = await freshUser();
+    await pool.query('UPDATE users SET email = $2 WHERE id = $1', [invitee.id, freshEmail]);
+    const accepted = await call(householdCtrl.acceptDelegationByToken, {
+      user: { id: invitee.id }, body: { token },
+    });
+    expect(accepted.res.statusCode).toBe(200);
+    expect(accepted.res.payload.delegation.status).toBe('accepted');
+    const again = await call(householdCtrl.acceptDelegationByToken, {
+      user: { id: invitee.id }, body: { token },
+    });
+    expect(again.res.statusCode).toBe(409);
+  });
+
+  test('Wave 4 (51/61): role=delegate list carries the owner name for the selector and booking picker', async () => {
+    const holder = await freshUser();
+    await makeAcceptedDelegation(holder.id, ['book']);
+    const asDelegate = await call(householdCtrl.listDelegations, {
+      user: { id: holder.id }, query: { role: 'delegate' },
+    });
+    expect(asDelegate.res.statusCode).toBe(200);
+    const held = asDelegate.res.payload.delegations.find((d) => d.ownerId === owner);
+    expect(held).toBeTruthy();
+    // Owner test user is first_name 'Test', last_name 'customer'.
+    expect(held.ownerName).toBe('Test customer');
+    const asOwner = await call(householdCtrl.listDelegations, {
+      user: { id: owner }, query: {},
+    });
+    expect(asOwner.res.statusCode).toBe(200);
+    expect(asOwner.res.payload.delegations.every((d) => d.ownerName === null)).toBe(true);
+  });
+
+  test('Wave 4 (79/80/81): book-only delegates cannot do visit actions; calendar-only reads no tasks', async () => {
+    const bookOnly = await freshUser();
+    await makeAcceptedDelegation(bookOnly.id, ['book']);
+    const booking = await createBooking({});
+    expect(booking.res.statusCode).toBe(201);
+    const bookingId = booking.res.payload.data.id;
+    const ready = await call(householdCtrl.confirmReadiness, {
+      user: { id: bookOnly.id }, params: { bookingId },
+    });
+    expect(ready.res.statusCode).toBe(403);
+    const summary = await call(householdCtrl.shareVisitSummary, {
+      user: { id: bookOnly.id }, params: { bookingId }, body: { summary: 'x' },
+    });
+    expect(summary.res.statusCode).toBe(403);
+    const replacement = await call(householdCtrl.requestReplacement, {
+      user: { id: bookOnly.id }, params: { bookingId }, body: { reason: 'x' },
+    });
+    expect(replacement.res.statusCode).toBe(403);
+    const triage = await call(householdCtrl.triageTasks, {
+      user: { id: calendarOnly }, query: { ownerId: owner },
+    });
+    expect(triage.res.statusCode).toBe(403);
+    const history = await call(householdCtrl.taskHistory, {
+      user: { id: calendarOnly }, query: { ownerId: owner },
+    });
+    expect(history.res.statusCode).toBe(403);
+  });
+
+  test('Wave 4 (62/84): reminders refuse inside 24h and report tooSoon', async () => {
+    const fresh = await freshUser();
+    const delegationId = await makeAcceptedDelegation(fresh.id, ['schedule']);
+    const first = await call(householdCtrl.remindDelegation, {
+      user: { id: owner }, params: { id: delegationId },
+    });
+    expect(first.res.statusCode).toBe(200);
+    expect(first.res.payload.reminded).toBe(true);
+    const second = await call(householdCtrl.remindDelegation, {
+      user: { id: owner }, params: { id: delegationId },
+    });
+    expect(second.res.payload.reminded).toBe(false);
+    expect(second.res.payload.tooSoon).toBe(true);
+    // The visit reminder was already sent once for the shared booking
+    // in the 61-70 test, so a repeat is tooSoon with nothing notified.
+    const visit = await call(householdCtrl.remindVisit, {
+      user: { id: delegate }, params: { bookingId: global.__g2BookingId },
+    });
+    expect(visit.res.payload.tooSoon).toBe(true);
+    expect(visit.res.payload.reminded).toBe(0);
+  });
+
+  test('Wave 4 (93): forwarding creates a copy; the original sharing is untouched', async () => {
+    const a = await freshUser();
+    const b = await freshUser();
+    const delA = await makeAcceptedDelegation(a.id, ['view_records']);
+    const delB = await makeAcceptedDelegation(b.id, ['view_records']);
+    const doc = await call(householdCtrl.createDocument, {
+      user: { id: owner },
+      body: { kind: 'receipt', title: 'Wave4 receipt', body: 'Paid.', sharedWithDelegationIds: [delA] },
+    });
+    expect(doc.res.statusCode).toBe(201);
+    const fwd = await call(householdCtrl.forwardDocument, {
+      user: { id: owner }, params: { id: doc.res.payload.document.id },
+      body: { toDelegationIds: [delB] },
+    });
+    expect(fwd.res.statusCode).toBe(200);
+    expect(fwd.res.payload.document.id).not.toBe(doc.res.payload.document.id);
+    expect(fwd.res.payload.document.forwardedFrom).toBe(doc.res.payload.document.id);
+    expect(fwd.res.payload.document.sharedWithDelegationIds).toEqual([delB]);
+    const { rows } = await pool.query(
+      'SELECT shared_with_delegation_ids FROM household_documents WHERE id = $1',
+      [doc.res.payload.document.id],
+    );
+    expect(rows[0].shared_with_delegation_ids).toEqual([delA]);
+  });
+
+  test('Wave 4 (92): a recipient reads only documents linked to their own bookings', async () => {
+    const recip = await freshUser();
+    const booking = await createBooking({});
+    expect(booking.res.statusCode).toBe(201);
+    const bookingId = booking.res.payload.data.id;
+    await pool.query('UPDATE booking_requests SET recipient_user_id = $2 WHERE id = $1', [bookingId, recip.id]);
+    const linked = await call(householdCtrl.createDocument, {
+      user: { id: owner },
+      body: { kind: 'receipt', title: 'Linked receipt', body: 'For the visit.', bookingId },
+    });
+    expect(linked.res.statusCode).toBe(201);
+    const unlinked = await call(householdCtrl.createDocument, {
+      user: { id: owner },
+      body: { kind: 'document', title: 'Owner private', body: 'Not for the visit.' },
+    });
+    expect(unlinked.res.statusCode).toBe(201);
+    const seen = await call(householdCtrl.listDocuments, {
+      user: { id: recip.id }, query: { ownerId: owner },
+    });
+    expect(seen.res.statusCode).toBe(200);
+    const titles = seen.res.payload.documents.map((d) => d.title);
+    expect(titles).toContain('Linked receipt');
+    expect(titles).not.toContain('Owner private');
+    const wrongHousehold = await call(householdCtrl.listDocuments, {
+      user: { id: recip.id }, query: { ownerId: stranger },
+    });
+    expect(wrongHousehold.res.statusCode).toBe(403);
+  });
+
+  test('Wave 4 (99): revocation reassigns upcoming preps to the owner and records it', async () => {
+    const fresh = await freshUser();
+    const delegationId = await makeAcceptedDelegation(fresh.id, ['schedule', 'prepare']);
+    const booking = await createBooking({});
+    expect(booking.res.statusCode).toBe(201);
+    const bookingId = booking.res.payload.data.id;
+    const prep = await call(householdCtrl.updatePrep, {
+      user: { id: owner }, params: { bookingId },
+      body: { assignedDelegateUserId: fresh.id },
+    });
+    expect(prep.res.statusCode).toBe(200);
+    expect(prep.res.payload.prep.assignedDelegateUserId).toBe(fresh.id);
+    const revoked = await call(householdCtrl.revokeDelegation, {
+      user: { id: owner }, params: { id: delegationId }, body: { reason: 'Wave 4 check' },
+    });
+    expect(revoked.res.statusCode).toBe(200);
+    const receipt = await call(householdCtrl.getClosureReceipt, {
+      user: { id: owner }, params: { id: delegationId },
+    });
+    expect(receipt.res.payload.receipt.upcomingVisitsReassigned.count).toBe(1);
+    expect(receipt.res.payload.receipt.upcomingVisitsReassigned.reassignedTo).toBe('owner');
+    const after = await call(householdCtrl.getPrep, {
+      user: { id: owner }, params: { bookingId },
+    });
+    expect(after.res.payload.prep.assignedDelegateUserId).toBeNull();
+  });
+
+  test('Wave 4 (63): reading a prep or availability creates no prep row', async () => {
+    const booking = await createBooking({});
+    expect(booking.res.statusCode).toBe(201);
+    const bookingId = booking.res.payload.data.id;
+    const prep = await call(householdCtrl.getPrep, {
+      user: { id: owner }, params: { bookingId },
+    });
+    expect(prep.res.statusCode).toBe(200);
+    expect(prep.res.payload.prep).toBeNull();
+    const avail = await call(householdCtrl.getAvailability, {
+      user: { id: owner }, params: { bookingId },
+    });
+    expect(avail.res.payload.availability).toEqual([]);
+    const { rows } = await pool.query(
+      'SELECT COUNT(*)::int AS n FROM household_visit_preps WHERE booking_id = $1', [bookingId],
+    );
+    expect(rows[0].n).toBe(0);
+  });
+
+  test('Wave 4 (72): a lapsed substitute coordinator clears on read', async () => {
+    const fresh = await freshUser();
+    const delegationId = await makeAcceptedDelegation(fresh.id, ['coordinate']);
+    await pool.query(
+      `UPDATE household_delegations
+          SET is_coordinator = TRUE, coordinator_until = NOW() - interval '1 day'
+        WHERE id = $1`,
+      [delegationId],
+    );
+    const read = await call(householdCtrl.getDelegation, {
+      user: { id: owner }, params: { id: delegationId },
+    });
+    expect(read.res.statusCode).toBe(200);
+    expect(read.res.payload.delegation.isCoordinator).toBe(false);
+    const { rows } = await pool.query(
+      'SELECT is_coordinator FROM household_delegations WHERE id = $1', [delegationId],
+    );
+    expect(rows[0].is_coordinator).toBe(false);
+  });
+
+  test('Wave 4 (84): the sweep reminds delegations entering their final 7 days, once', async () => {
+    const svc = require('../services/householdDelegationService');
+    const fresh = await freshUser();
+    const delegationId = await makeAcceptedDelegation(fresh.id, ['view_calendar']);
+    await pool.query(
+      `UPDATE household_delegations SET expires_at = NOW() + interval '3 days' WHERE id = $1`,
+      [delegationId],
+    );
+    const first = await svc.sendDelegationExpiryReminders(pool);
+    expect(first.sent).toBeGreaterThanOrEqual(1);
+    const { rows } = await pool.query(
+      'SELECT last_reminder_sent_at FROM household_delegations WHERE id = $1', [delegationId],
+    );
+    expect(rows[0].last_reminder_sent_at).toBeTruthy();
+    const second = await svc.sendDelegationExpiryReminders(pool);
+    expect(second.sent).toBe(0);
+  });
+
+  test('Wave 4 (75/97): prep handoff acknowledgment records once', async () => {
+    const fresh = await freshUser();
+    await makeAcceptedDelegation(fresh.id, ['schedule', 'prepare']);
+    const booking = await createBooking({});
+    expect(booking.res.statusCode).toBe(201);
+    const bookingId = booking.res.payload.data.id;
+    const handoff = await call(householdCtrl.handoffPrep, {
+      user: { id: owner }, params: { bookingId },
+      body: { toDelegateUserId: fresh.id, note: 'Please take this visit' },
+    });
+    expect(handoff.res.statusCode).toBe(200);
+    const first = await call(householdCtrl.acknowledgePrepHandoff, {
+      user: { id: fresh.id }, params: { bookingId },
+    });
+    expect(first.res.statusCode).toBe(200);
+    const at = first.res.payload.prep.handoffAcknowledgedAt;
+    expect(at).toBeTruthy();
+    const second = await call(householdCtrl.acknowledgePrepHandoff, {
+      user: { id: fresh.id }, params: { bookingId },
+    });
+    expect(second.res.statusCode).toBe(200);
+    expect(new Date(second.res.payload.prep.handoffAcknowledgedAt).getTime())
+      .toBe(new Date(at).getTime());
+  });
+
   test('83/84/85/99/100: renewal, reminder, revocation, receipt, re-invite', async () => {
     const delegationId = global.__g2DelegationId;
     const before = await call(householdCtrl.getDelegation, { user: { id: owner }, params: { id: delegationId } });

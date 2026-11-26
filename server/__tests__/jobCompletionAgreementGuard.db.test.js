@@ -53,6 +53,7 @@ describeDb('job completion agreement guard (P1-3-F14)', () => {
       transaction_mode TEXT, payment_rail TEXT, metadata JSONB,
       final_price NUMERIC, final_price_cents INT, job_value_cents INT,
       aftercare_instructions TEXT,
+      location_address TEXT, attendance_confirmed_at TIMESTAMPTZ, arrived_at TIMESTAMPTZ,
       completed_at TIMESTAMPTZ, updated_at TIMESTAMPTZ)`);
     await db.query(`CREATE TABLE ${schema}.work_agreements (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(), job_id UUID,

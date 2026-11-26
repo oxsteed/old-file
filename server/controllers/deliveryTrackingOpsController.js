@@ -536,4 +536,89 @@ module.exports = {
   refreshEta,
   getGeofences,
   getEtaHistory,
+  listDeviceStrands,
+  reconcileDeviceStrand,
 };
+
+/**
+ * GET /delivery/internal/tracking/device-strands
+ * Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): the ops
+ * reconcile queue for queued offline work stranded on a device the
+ * driver left behind (transfer or lost phone). One row per job, with
+ * the counts the driver's client reported and the driver/device that
+ * left them. `?status=pending` (default) lists open strands;
+ * `?status=all` lists reconciled ones too. Paginated like the review
+ * queue. Reconciling is explicit per row (reconcileDeviceStrand):
+ * ops records what was done about the stranded actions — re-keyed,
+ * confirmed already synced, or confirmed lost — and the row keeps
+ * the note as the record.
+ */
+async function listDeviceStrands(req, res) {
+  try {
+    const status = String(req.query.status || 'pending');
+    if (!['pending', 'reconciled', 'all'].includes(status)) {
+      throw opsError('tracking_strands_status_invalid', 'status must be pending, reconciled, or all');
+    }
+    const { page, limit, offset } = parsePagination(req.query);
+    const where = status === 'all' ? '' : 'WHERE s.status = $1';
+    const params = status === 'all' ? [] : [status];
+    const [{ rows: countRows }, { rows }] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*)::int AS total FROM delivery_device_transfer_strands s ${where}`,
+        params
+      ),
+      pool.query(
+        `SELECT s.id, s.driver_user_id, s.old_device_id, s.new_device_id,
+                s.delivery_job_id, s.job_reference, s.queued_actions,
+                s.unsynced_points, s.source, s.status, s.reconcile_note,
+                s.reconciled_by_user_id, s.reconciled_at, s.created_at,
+                u.first_name AS driver_first_name, u.last_name AS driver_last_name,
+                u.email AS driver_email,
+                j.status AS job_status
+           FROM delivery_device_transfer_strands s
+           LEFT JOIN users u ON u.id = s.driver_user_id
+           LEFT JOIN delivery_jobs j ON j.id = s.delivery_job_id
+          ${where}
+          ORDER BY s.created_at DESC, s.id DESC
+          LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset]
+      ),
+    ]);
+    const total = countRows[0] ? countRows[0].total : 0;
+    return res.status(200).json({
+      success: true,
+      strands: rows,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
+  } catch (err) {
+    return sendError(res, err, { handler: 'listDeviceStrands' });
+  }
+}
+
+/**
+ * POST /delivery/internal/tracking/device-strands/:strandId/reconcile
+ * Mark one stranded row reconciled, with the note naming what ops did
+ * about the queued actions (re-keyed, already synced, or confirmed
+ * lost). Already-reconciled rows 409: a reconcile is a decision, not
+ * a toggle, and the first note is the record.
+ */
+async function reconcileDeviceStrand(req, res) {
+  try {
+    const strandId = req.params.strandId;
+    const note = req.body && req.body.note != null ? String(req.body.note).slice(0, 2000) : null;
+    const { rows } = await pool.query(
+      `UPDATE delivery_device_transfer_strands
+          SET status = 'reconciled', reconcile_note = $2,
+              reconciled_by_user_id = $3, reconciled_at = NOW()
+        WHERE id = $1 AND status = 'pending'
+        RETURNING *`,
+      [strandId, note, req.user.id]
+    );
+    if (!rows[0]) {
+      throw opsError('tracking_strand_unavailable', 'Strand is already reconciled or does not exist', 409);
+    }
+    return res.status(200).json({ success: true, strand: rows[0] });
+  } catch (err) {
+    return sendError(res, err, { handler: 'reconcileDeviceStrand' });
+  }
+}

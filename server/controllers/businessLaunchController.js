@@ -1106,7 +1106,7 @@ async function notifyAdminOfNewRequest(data) {
         <p><strong>Setup Items:</strong> ${setup_items_selected}</p>
 
         <p style="margin-top: 1.5rem;">
-          <a href="https://oxsteed.com/admin/consulting/business-launch/requests/${requestId}" style="background: #F97316; color: white; padding: 0.75rem 1.5rem; text-decoration: none; border-radius: 6px; display: inline-block;">
+          <a href="https://oxsteed.com/admin/consulting/business-launch" style="background: #F97316; color: white; padding: 0.75rem 1.5rem; text-decoration: none; border-radius: 6px; display: inline-block;">
             View Full Request →
           </a>
         </p>
@@ -1130,7 +1130,7 @@ async function notifyAdminOfNewRequest(data) {
       { label: 'Urgency', value: urgency },
       { label: 'Setup items', value: setup_items_selected },
     ],
-    cta: { label: 'View full request', url: `/admin/consulting/business-launch/requests/${requestId}` },
+    cta: { label: 'View full request', url: `/admin/consulting/business-launch` },
     footerText: 'This notification was sent to the OxSteed administration team.',
   });
 

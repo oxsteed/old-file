@@ -3,7 +3,7 @@ const { attributePromotionJobHire } = require('../analytics/promotionAttribution
 const { scoreAndMatch } = require('../services/matchService');
 const { uploadFile, getPublicUrl, deleteFile } = require('../utils/storage');
 const logger = require('../utils/logger');
-const { fuzzCoords } = require('../models/jobModel');
+const { fuzzCoords, confirmAttendance } = require('../models/jobModel');
 const { withTransaction, withJobTransaction } = require('../utils/transaction');
 const { captureAuthorizedPaymentWithClient, reconcileJobAuthorizationFromStripe } = require('../services/paymentCaptureService');
 const { assertNoPendingAdjustment } = require('../services/jobPaymentReauthorizationService');
@@ -13,6 +13,7 @@ const { cancelJobTransaction, finalizeJobCancellation } = require('../services/j
 const { sendNotification, sendBulkNotification } = require('../services/notificationService');
 const { applyJobEdit, listJobRevisions, lockJob } = require('../services/jobEditService');
 const { serializeJob, serializeJobs, jobEtag, parseIfMatch, viewerRole } = require('../services/jobSerializer');
+const { canCrewMessageJob } = require('../services/jobCrewMessaging');
 const jobStatusPolicy = require('../services/jobStatusPolicy');
 const jobSchema = require('../validation/jobSchema');
 const { enqueueJobEvent, EVENT_TYPES } = require('../services/jobEventOutbox');
@@ -610,6 +611,7 @@ exports.getJob = async (req, res, next) => {
         j.created_at, j.updated_at, j.expires_at,
         j.started_at, j.completed_at, j.cancelled_at, j.cancellation_reason,
         j.escrow_status, j.accepted_at, j.completion_requested_at,
+        j.attendance_confirmed_at,
         j.completion_requested_at + make_interval(hours => ${HELPER_COMPLETION_CONFIRM_HOURS_SQL}) AS completion_auto_confirm_at,
         j.payment_rail, j.settlement_currency, j.location_country_code, j.timezone,
         u.first_name || ' ' || u.last_name AS client_name,
@@ -629,6 +631,12 @@ exports.getJob = async (req, res, next) => {
     // details are only for the client, the assigned helper, or an admin.
     const role = viewerRole(job, req.user);
     const result = serializeJob(job, { role });
+    // G5-14 (271): the client sees whether they may open the job's
+    // customer conversation (client/helper, or a crewing business member
+    // with message reply access on the helper's business).
+    result.can_message_job = role === 'owner' || role === 'helper' || role === 'admin'
+      ? true
+      : (req.user?.id ? await canCrewMessageJob(job, req.user.id) : false);
     if (role === 'owner' || role === 'admin') {
       const etag = jobEtag(job);
       if (etag) res.set('ETag', etag);
@@ -1064,11 +1072,15 @@ exports.assignHelper = async (req, res, next) => {
         [bid.job_id, bid_id]
       );
 
-      // 4. Update the job: assign the helper and move to accepted status
+      // 4. Update the job: assign the helper and move to accepted status.
+      // D-474 (283, G5-36): the version bump makes the assignment visible
+      // in the job's revision history (JobDetailPage shows it once
+      // version > 1); the revision row below is the durable audit event.
       const jobResult = await client.query(
         `UPDATE jobs SET
            assigned_helper_id = $1,
            status = 'accepted',
+           version = version + 1,
            updated_at = NOW()
          WHERE id = $2 AND client_id = $3
          AND status::text = ANY($4::text[])
@@ -1079,6 +1091,24 @@ exports.assignHelper = async (req, res, next) => {
       if (jobResult.rows.length === 0) {
         throw new AppError('Job not found or cannot be assigned', 409, 'state_conflict');
       }
+
+      // D-474 (283, G5-36): who held the job, who moved it, and when.
+      // `assignHelper` previously wrote no revision/audit row, so "who
+      // moved this job to me?" had no answer. The row is material, so the
+      // assigned helper (bidder role) sees it through the existing
+      // GET /jobs/:id/revisions read path and JobRevisionHistory; source is
+      // 'owner' (the job's client performed the assignment) because the
+      // job_revisions CHECK admits only
+      // owner/admin/rollback/change_order/system.
+      await client.query(
+        `INSERT INTO job_revisions
+           (job_id, version, revision, is_material, source, actor_id, actor_role, reason, changes, snapshot,
+            request_id, idempotency_key)
+         VALUES ($1, $2, $3, TRUE, 'owner', $4, $5, 'Helper assigned via accepted bid', $6::jsonb, NULL, NULL, NULL)`,
+        [bid.job_id, jobResult.rows[0].version, jobResult.rows[0].revision, req.user.id,
+         req.user.role || 'client',
+         JSON.stringify({ assigned_helper_id: { from: lockedJob.assigned_helper_id || null, to: bid.helper_id } })]
+      );
 
       // 4a. Record (and, with the rail engine on, enforce) the payment rail.
       const railResult = await paymentRails.applyAcceptance(client, {
@@ -1453,6 +1483,41 @@ exports.markJobArrived = async (req, res, next) => {
   }
 };
 
+// D-451 (270, G5-4): the assigned helper confirms attendance on the job.
+// This wires up jobModel.confirmAttendance, which had zero route callers:
+// the exact address stays hidden from the helper (see serializeJob) until
+// this stamp exists. Idempotent only in the sense that a second confirm
+// 409s; the stamp itself is the attendance evidence.
+exports.confirmJobAttendance = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { rows: jobRows } = await pool.query(
+      `SELECT id, client_id, assigned_helper_id, status, attendance_confirmed_at
+         FROM jobs WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    );
+    const job = jobRows[0];
+    if (!job || String(job.assigned_helper_id) !== String(req.user.id)) {
+      throw new AppError('Job not found or you are not the assigned helper', 404, 'job_not_found');
+    }
+    if (job.attendance_confirmed_at) {
+      throw new AppError('Attendance is already confirmed for this job', 409, 'already_confirmed');
+    }
+    if (!['accepted', 'in_progress'].includes(job.status)) {
+      throw new AppError(`Attendance cannot be confirmed in '${job.status}' state`, 400, 'invalid_job_state');
+    }
+    let result;
+    try {
+      result = await confirmAttendance(id, req.user.id);
+    } catch (modelErr) {
+      throw new AppError('Cannot confirm attendance for this job.', 409, 'attendance_not_confirmed');
+    }
+    res.json({ message: 'Attendance confirmed', job: serializeJob(result, { user: req.user }) });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // G-15: no-show is a terminal state for a job (and its linked appointment)
 // when one party never shows. The other party is notified and the client
 // gets a rebook prompt on the job page.
@@ -1576,6 +1641,32 @@ exports.requestJobChanges = async (req, res, next) => {
  * helper-completion auto-confirm job (review P2-478). `asClient` decides
  * whether a Tier-3 escrow authorization is captured in the same transaction.
  */
+// D-472 (281, G5-1): a physical-site job must have attendance evidence
+// before it can complete (and before escrow is captured). Attendance
+// evidence is the Batch B attendance confirmation
+// (attendance_confirmed_at) or a recorded arrival (arrived_at). Scope is
+// physical-site only: a job is physical-site when it carries a location
+// address. Remote / no-location jobs are exempt — there is no site to
+// attend. NOTE: jobs.is_remote exists in migration 012 but is unreferenced
+// in product code and absent from the test database, so the gate keys on
+// location_address alone; a remote job that carries a stale address is
+// still gated, fail closed.
+async function assertJobAttendanceForCompletion(client, jobId) {
+  const { rows: [row] } = await client.query(
+    `SELECT location_address, attendance_confirmed_at, arrived_at FROM jobs WHERE id = $1`,
+    [jobId]
+  );
+  if (!row) return;
+  const hasSite = typeof row.location_address === 'string' && row.location_address.trim().length > 0;
+  if (!hasSite) return;
+  if (row.attendance_confirmed_at || row.arrived_at) return;
+  throw new AppError(
+    'Attendance must be confirmed on site before this job can be completed. Confirm attendance or mark arrival first.',
+    409,
+    'attendance_required'
+  );
+}
+
 async function completeJobCore({ job, jobId, asClient, actorUserId = null, req = null }) {
   // Wrap all state changes in a transaction for atomicity
   return withJobTransaction(pool, async (client) => {
@@ -1597,6 +1688,13 @@ async function completeJobCore({ job, jobId, asClient, actorUserId = null, req =
         'change_order_pending'
       );
     }
+
+    // D-472 (281, G5-1): fail closed on attendance BEFORE any money moves.
+    // The escrow capture and the Credit release below must never run for a
+    // physical-site job nobody attended. Auto-confirm funnels through here
+    // too, so an unanswered completion request cannot capture escrow for
+    // unperformed work when the 72 h window lapses.
+    await assertJobAttendanceForCompletion(client, jobId);
 
     // Tier-3 escrow: when the customer marks complete, capture authorized funds in the same transaction
     // so helpers get paid without a separate "Capture" step (and we roll back if Stripe fails).
@@ -1735,6 +1833,69 @@ async function completeJobCore({ job, jobId, asClient, actorUserId = null, req =
 
 /** Post-commit, non-blocking side effects of a completion. */
 async function afterJobCompleted(result, actorId) {
+  // D-592 (item 105, R17): when a job completes, its linked accepted
+  // bookings flip to completed at once — same flip + notices as the
+  // sweep (booking_auto_completed to booker/helper, visit-completed to
+  // recipient/site contact). Business-appointment completion has no
+  // job-completion hook, so it still relies on the sweep.
+  try {
+    const { rows: linked } = await pool.query(
+      `UPDATE booking_requests
+          SET status = 'completed',
+              helper_response_reason = COALESCE(
+                helper_response_reason,
+                'Service delivered; booking completed automatically'
+              ),
+              updated_at = CURRENT_TIMESTAMP
+        WHERE converted_to_job_id = $1 AND status = 'accepted'
+        RETURNING id, customer_id, helper_id, service_name, requested_date,
+                  recipient_user_id, site_contact_user_id`,
+      [result.id]
+    );
+    for (const row of linked) {
+      try {
+        await pool.query(
+          `INSERT INTO booking_request_audit_log (booking_request_id, action, actor_id, actor_type, old_status, new_status)
+           VALUES ($1, 'auto_completed', NULL, 'system', 'accepted', 'completed')`,
+          [row.id]
+        );
+      } catch (err) {
+        logger.warn('Failed to log job-completion booking audit', { error: err.message });
+      }
+      try {
+        await sendNotification({
+          userId: row.customer_id,
+          type: 'booking_auto_completed',
+          body: `${row.service_name}, ${row.requested_date}`,
+          data: { bookingId: row.id },
+          action_url: '/my-bookings',
+        });
+      } catch (err) {
+        logger.warn('Failed job-completion booking notification', { error: err.message });
+      }
+      try {
+        await sendNotification({
+          userId: row.helper_id,
+          type: 'booking_auto_completed',
+          body: `${row.service_name}, ${row.requested_date}`,
+          data: { bookingId: row.id },
+          action_url: '/calendar',
+        });
+      } catch (err) {
+        logger.warn('Failed job-completion booking notification', { error: err.message });
+      }
+      try {
+        // eslint-disable-next-line global-require
+        const recipientSvc = require('../services/bookingRecipientService');
+        await recipientSvc.notifyVisitCompleted(row);
+      } catch (err) {
+        logger.warn('Failed job-completion visit notification', { error: err.message });
+      }
+    }
+  } catch (err) {
+    logger.warn('Failed to complete linked bookings on job completion', { error: err.message });
+  }
+
   // Phase 5 — Credit Everywhere: release the Credit escrow collateral hold
   // (non-blocking; the hold is collateral, not the payment).
   try {
@@ -1879,6 +2040,23 @@ exports.completeJob = async (req, res, next) => {
 
 
 async function requestHelperCompletion({ job, helperId, aftercareInstructions = null }) {
+  // D-472 (281, G5-1): the helper's completion request is the first step
+  // toward escrow capture, so the same attendance gate applies here. A
+  // missing row falls through to the UPDATE below, which 409s as before.
+  const { rows: [gate] } = await pool.query(
+    `SELECT location_address, attendance_confirmed_at, arrived_at FROM jobs WHERE id = $1 AND assigned_helper_id = $2`,
+    [job.id, helperId]
+  );
+  if (gate) {
+    const hasSite = typeof gate.location_address === 'string' && gate.location_address.trim().length > 0;
+    if (hasSite && !gate.attendance_confirmed_at && !gate.arrived_at) {
+      throw new AppError(
+        'Attendance must be confirmed on site before this job can be completed. Confirm attendance or mark arrival first.',
+        409,
+        'attendance_required'
+      );
+    }
+  }
   const { rows } = await pool.query(
     `UPDATE jobs
         SET completion_requested_at = COALESCE(completion_requested_at, NOW()),
@@ -2058,7 +2236,7 @@ exports.getMyJobs = async (req, res, next) => {
         budget_min_cents, budget_max_cents, currency_code,
         version, revision,
         ${asHelper ? 'NULL::text AS private_notes' : 'private_notes'},
-        accepted_at, completion_requested_at,
+        accepted_at, completion_requested_at, attendance_confirmed_at,
         started_at, completed_at, cancelled_at, cancellation_reason,
         expires_at, created_at, updated_at
       FROM jobs
@@ -2073,6 +2251,14 @@ exports.getMyJobs = async (req, res, next) => {
     if (!asHelper) {
       for (const row of rows) {
         if (String(row.client_id) !== String(req.user.id)) row.private_notes = null;
+      }
+    }
+    // D-451 (270, G5-4): getMyJobs bypasses serializeJob, so the helper
+    // address gate is applied here directly: a helper who has not
+    // confirmed attendance sees no exact address in their own job list.
+    if (asHelper) {
+      for (const row of rows) {
+        if (!row.attendance_confirmed_at) row.location_address = null;
       }
     }
 

@@ -20,6 +20,8 @@ const { getLaborPolicy } = require('../services/restaurantPayrollService');
 // Phase 2 punch integrity (goal goal_a0fc7c0f0394): hours are computed
 // from epoch instants (DST-correct) in one shared module, and the
 // close-of-day sweep lives in restaurantPunchCloseout.js.
+const { applyAcceptedDelegation } = require('../services/businessOwner/workLeaveService');
+const { isStaff } = require('../services/businessOwner/teamCommon');
 const { breakSeconds, computedHours, haversineMeters, finiteCoordinate } = require('../services/restaurantPunchHours');
 const { closeStalePunches } = require('../services/restaurantPunchCloseout');
 const { validateStaffPinForRestaurant } = require('../services/restaurantStaffIdentityService');
@@ -226,6 +228,7 @@ exports.updateShift = async (req, res, next) => {
     if (!row.rows.length) return res.status(404).json({ error: 'Not found' });
     // S-20: a change to a published shift is Fair Workweek evidence.
     const scheduleChange = await recordScheduleChange(req, { businessId, before: beforeRow, after: row.rows[0], changeType: 'edited' });
+    if (scheduleChange) await notifyShiftChanged(req, businessId, beforeRow, 'edited', scheduleChange.id);
     const updated = scheduleChange ? { ...row.rows[0], schedule_change: scheduleChange } : row.rows[0];
     res.json(validation?.warnings?.length ? { ...updated, warnings: validation.warnings } : updated);
   } catch (err) { next(err); }
@@ -255,6 +258,7 @@ exports.deleteShift = async (req, res, next) => {
       if (!rowCount) return res.status(404).json({ error: 'Not found' });
     }
     const scheduleChange = deleted ? await recordScheduleChange(req, { businessId, before: deleted, after: null, changeType: 'deleted' }) : null;
+    if (scheduleChange) await notifyShiftChanged(req, businessId, deleted, 'deleted', scheduleChange.id);
     res.json({ success: true, ...(scheduleChange ? { schedule_change: scheduleChange } : {}) });
   } catch (err) { next(err); }
 };
@@ -1747,6 +1751,43 @@ function shiftStartIso(shift) {
   return new Date(`${d}T${t}Z`).toISOString();
 }
 
+// G5-13 (279): a published shift that is edited or cancelled notifies
+// the affected member. The caller passes the schedule-change row, so a
+// draft edit or a no-op edit (recordScheduleChange returns null) sends
+// nothing. The actor themself is never notified; a failure is logged
+// and never fails the edit/cancel.
+async function notifyShiftChanged(req, businessId, shift, changeType, changeId) {
+  if (!shift?.user_id || String(shift.user_id) === String(req.user.id)) return;
+  const { rows: [biz] } = await pool.query(
+    'SELECT business_name FROM businesses WHERE id = $1', [businessId]
+  );
+  const label = shiftSummaryLabel([shift]);
+  await sendNotification({
+    userId: shift.user_id,
+    type: 'crew_shift_changed',
+    title: 'Your shift changed',
+    body: `Your shift at ${biz?.business_name || 'your business'} changed. ${label}.`,
+    action_url: '/business-hub',
+    data: {
+      business_id: Number(businessId),
+      shift_id: shift.id,
+      change_type: changeType,
+      params: {
+        businessName: biz?.business_name || '',
+        restaurantName: biz?.business_name || '',
+        shiftLabel: label,
+        startsAt: shiftStartIso(shift),
+        changeType,
+      },
+    },
+    idempotencyKey: `shift-changed:${businessId}:${shift.id}:${changeId}`,
+  }).catch((err) => {
+    logger.warn('Shift change: staff notification failed', {
+      businessId, userId: shift.user_id, shiftId: shift.id, error: err.message,
+    });
+  });
+}
+
 exports.publishShifts = async (req, res, next) => {
   const { businessId } = req.params;
   const { from, to, shift_ids, restaurant_id } = req.body || {};
@@ -1866,7 +1907,7 @@ exports.publishShifts = async (req, res, next) => {
         type: 'crew_shift_published',
         title: 'New shifts published',
         body: `${list.length} shift${list.length === 1 ? '' : 's'} at ${biz.business_name}`,
-        action_url: '/business',
+        action_url: '/business-hub',
         data: {
           business_id: biz.id,
           shift_ids: list.map((s) => s.id),
@@ -2417,7 +2458,42 @@ exports.decideTimeOffRequest = async (req, res, next) => {
       );
       if (!pending) return { missing: true };
       let decrement = null;
+      // 293 (G5-9): approving time off must not leave the member's work
+      // uncovered. Count the open work inside the request window (open
+      // team tasks due in it, visits in it), then either reuse an
+      // accepted delegation that already covers the window, require the
+      // manager to name a delegate (409), or record the named delegate
+      // as accepted by manager authority. The move itself runs below,
+      // after the status update, still inside this transaction.
+      let delegation = null;
+      let delegationMoves = null;
       if (decision === 'approved') {
+        const endsExclusive = new Date(new Date(pending.end_date).getTime() + 864e5).toISOString();
+        const { rows: [work] } = await client.query(
+          `SELECT (SELECT COUNT(*)::int FROM business_team_tasks WHERE business_id=$1 AND assignee_id=$2 AND status='open' AND due_at < $4) AS open_tasks,
+                  (SELECT COUNT(*)::int FROM business_appointments WHERE business_id=$1 AND staff_id=$2 AND status IN ('pending','confirmed','in_progress') AND start_time < $4 AND end_time > $3) AS visits`,
+          [businessId, pending.user_id, pending.start_date, endsExclusive]
+        );
+        const openWork = (work.open_tasks || 0) + (work.visits || 0);
+        const { rows: [covering] } = await client.query(
+          `SELECT id, delegate_id FROM business_absence_delegations WHERE business_id=$1 AND user_id=$2 AND status='accepted'
+            AND starts_at <= $3 AND ends_at >= $4 ORDER BY starts_at LIMIT 1`,
+          [businessId, pending.user_id, pending.start_date, pending.end_date]
+        );
+        const wanted = req.body?.delegate_id ? String(req.body.delegate_id) : null;
+        if (covering) {
+          delegation = { id: covering.id, delegate_id: covering.delegate_id, existing: true };
+        } else if (openWork > 0 && !wanted) {
+          return { delegate_required: true, open_tasks: work.open_tasks, visits: work.visits };
+        } else if (wanted) {
+          if (wanted === String(pending.user_id) || !(await isStaff(client, businessId, wanted))) return { delegate_invalid: true };
+          const { rows: [created] } = await client.query(
+            `INSERT INTO business_absence_delegations(business_id,user_id,delegate_id,starts_at,ends_at,note,status,responded_at)
+             VALUES($1,$2,$3,$4,$5,$6,'accepted',NOW()) RETURNING *`,
+            [businessId, pending.user_id, wanted, pending.start_date, pending.end_date, 'Selected at time-off approval']
+          );
+          delegation = { id: created.id, delegate_id: wanted, existing: false };
+        }
         decrement = await pto.decrementForApproval(
           client, Number(businessId), pending.user_id, pending.request_type,
           pending.start_date, pending.end_date, pending.id, req.user.id
@@ -2431,7 +2507,11 @@ exports.decideTimeOffRequest = async (req, res, next) => {
           RETURNING *`,
         [decision, req.user.id, requestId, businessId]
       );
-      return { request: updated, decrement };
+      if (delegation) {
+        delegationMoves = await applyAcceptedDelegation(client, { businessId, userId: pending.user_id, delegateId: delegation.delegate_id, actorId: req.user.id, startsAt: pending.start_date, endsAt: pending.end_date });
+        await client.query('UPDATE business_absence_delegations SET moved_count = moved_count + $2, skipped_count = $3 WHERE id = $1', [delegation.id, delegationMoves.moved, delegationMoves.visits.length]);
+      }
+      return { request: updated, decrement, delegation, delegationMoves };
     }, 'decide_time_off_request');
     if (result.missing) return res.status(404).json({ error: 'Pending time-off request not found' });
     if (result.insufficient) {
@@ -2443,6 +2523,19 @@ exports.decideTimeOffRequest = async (req, res, next) => {
         unit: result.insufficient.unit,
         days: result.insufficient.days,
       });
+    }
+    // 293: open work in the window and no delegate named — approval is
+    // refused and nothing was committed.
+    if (result.delegate_required) {
+      return res.status(409).json({
+        error: 'delegate_required',
+        code: 'delegate_required',
+        open_tasks: result.open_tasks,
+        visits: result.visits,
+      });
+    }
+    if (result.delegate_invalid) {
+      return res.status(400).json({ error: 'delegate_invalid', code: 'delegate_invalid' });
     }
     const request = result.request;
     await logBusinessAction(req, {
@@ -2478,8 +2571,43 @@ exports.decideTimeOffRequest = async (req, res, next) => {
         businessId: Number(businessId), requestId: request.id, decision, error: err.message,
       });
     });
+    // 293: the delegate hears about moved tasks and the business owner
+    // hears about visits a manager must reassign. Both fire-and-forget:
+    // a failed send never fails the decision.
+    if (result.delegation && result.delegationMoves) {
+      if (result.delegationMoves.moved > 0) {
+        sendNotification({
+          userId: result.delegation.delegate_id,
+          type: 'business_task_assigned_to_you',
+          data: { business_id: Number(businessId) },
+          action_url: `/business/${businessId}/workspace/my-work`,
+          idempotencyKey: `timeoff-deleg-tasks:${result.delegation.id}`,
+        }).catch((err) => {
+          logger.warn('Time-off decision: delegate notification failed', {
+            businessId: Number(businessId), requestId: request.id, error: err.message,
+          });
+        });
+      }
+      if (result.delegationMoves.visits.length > 0) {
+        const { rows: [biz] } = await pool.query('SELECT user_id FROM businesses WHERE id=$1', [businessId]);
+        if (biz) {
+          sendNotification({
+            userId: biz.user_id,
+            type: 'business_delegation_visits',
+            data: { business_id: Number(businessId), count: result.delegationMoves.visits.length },
+            action_url: `/business/${businessId}/workspace/owner-console`,
+            idempotencyKey: `timeoff-deleg-visits:${result.delegation.id}`,
+          }).catch((err) => {
+            logger.warn('Time-off decision: owner visit notification failed', {
+              businessId: Number(businessId), requestId: request.id, error: err.message,
+            });
+          });
+        }
+      }
+    }
     return res.json({
       request,
+      ...(result.delegation ? { delegation: result.delegation, delegation_moves: result.delegationMoves } : {}),
       ...(result.decrement?.decremented ? {
         pto_balance: {
           balance: result.decrement.balanceAfter,

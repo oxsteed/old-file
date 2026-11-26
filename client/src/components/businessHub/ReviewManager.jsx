@@ -93,7 +93,11 @@ export function ReviewManager({ businessId }) {
                 <div style={{ display: 'flex', gap: '2px' }}>{renderStars(r.rating)}</div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--muted-text)' }}>{new Date(r.created_at).toLocaleDateString()}</span>
               </div>
-              {r.comment && <p style={{ margin: '0.5rem 0 0', fontSize: '0.9rem', lineHeight: 1.5 }}>{r.comment}</p>}
+              {/* D-475 (285, G5-22): the review is routed to the member the
+                  lead was assigned to. The text field is `testimonial`
+                  (the `comment` read below never matched the API). */}
+              {r.assigned_to_name && <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--muted-text)' }}>{t('businessHub.reviews.assignedTo', { name: r.assigned_to_name })}</p>}
+              {(r.testimonial || r.comment) && <p style={{ margin: '0.5rem 0 0', fontSize: '0.9rem', lineHeight: 1.5 }}>{r.testimonial || r.comment}</p>}
             </div>
           </div>
 

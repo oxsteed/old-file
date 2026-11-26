@@ -14,6 +14,7 @@ import {
   recordTokenSiteAction,
   listTokenSupport,
   submitTokenSupport,
+  listTokenCallbacks,
   listTokenSitePhotos,
   uploadTokenSitePhoto,
   listTokenFeedback,
@@ -29,6 +30,7 @@ import {
   respondTokenSponsorship,
   createTokenSponsorPaymentIntent,
   confirmTokenSponsorPayment,
+  voidTokenSponsorship,
   getTokenSponsorReceipt,
   listTokenSponsorshipCharges,
   respondTokenSponsorshipCharge,
@@ -143,6 +145,9 @@ function SponsorSection({ token, preview, onPreviewChange }) {
   return (
     <div>
       <p>{t('booking.token.sponsorIntro')}</p>
+      {preview.status === 'voided' && (
+        <p className="token-note" role="status">{t('booking.token.sponsorshipVoided')}</p>
+      )}
       <div className="token-detail-row">
         <span className="token-detail-label">{t('booking.service')}:</span>
         <span>{preview.serviceName}</span>
@@ -184,6 +189,27 @@ function SponsorSection({ token, preview, onPreviewChange }) {
               loadCharges();
             }}
           />
+          <div className="token-button-row">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const updated = await voidTokenSponsorship(token);
+                  onPreviewChange((prev) => ({ ...prev, status: updated.status }));
+                  toast.success(t('booking.token.sponsorshipVoided'));
+                } catch {
+                  toast.error(t('booking.token.sponsorshipVoidFailed'));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              data-track="ui.474702b501.25"
+            >
+              {t('booking.token.voidSponsorship')}
+            </button>
+          </div>
         </Section>
       )}
       {preview.status === 'paid' && receipt && (
@@ -249,10 +275,12 @@ export default function PublicBookingStatusPage() {
   const [checklist, setChecklist] = useState(null);
   const [actions, setActions] = useState([]);
   const [tickets, setTickets] = useState([]);
+  const [callbacks, setCallbacks] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [feedbackList, setFeedbackList] = useState([]);
   const [receipt, setReceipt] = useState(null);
   const [receiptNotShared, setReceiptNotShared] = useState(false);
+  const [renewalRequested, setRenewalRequested] = useState(false);
   const [sponsorPreview, setSponsorPreview] = useState(null);
   const [actionType, setActionType] = useState('acknowledge_instructions');
   const [actionDetail, setActionDetail] = useState('');
@@ -290,11 +318,12 @@ export default function PublicBookingStatusPage() {
           }
           return;
         }
-        const [s, c, a, tk, p, f] = await Promise.all([
+        const [s, c, a, tk, cb, p, f] = await Promise.all([
           getTokenParticipantSummary(token).catch(() => null),
           getTokenChecklist(token).catch(() => null),
           listTokenSiteActions(token).catch(() => []),
           listTokenSupport(token).catch(() => []),
+          listTokenCallbacks(token).catch(() => []),
           listTokenSitePhotos(token).catch(() => []),
           listTokenFeedback(token).catch(() => []),
         ]);
@@ -303,16 +332,23 @@ export default function PublicBookingStatusPage() {
         setChecklist(c);
         setActions(a || []);
         setTickets(tk || []);
+        setCallbacks(cb || []);
         setPhotos(p || []);
         setFeedbackList(f || []);
         try {
           setReceipt(await getTokenReceipt(token));
-        } catch {
+        } catch (err) {
           setReceipt(null);
-          setReceiptNotShared(true);
+          // G3-31: only a 403 receipt_not_shared means the booker has not
+          // shared the receipt; any other failure is a load error, and the
+          // receipt section shows nothing instead of a wrong "not shared" note.
+          setReceiptNotShared(err?.response?.status === 403 && err?.response?.data?.code === 'receipt_not_shared');
         }
-      } catch {
-        if (mounted) setError(true);
+      } catch (err) {
+        // D-600 (G3-18): the server names the failure (link_expired /
+        // link_revoked), so the error screen can say which and offer
+        // renewal for an expired link instead of a dead generic message.
+        if (mounted) setError(err?.response?.data?.code || true);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -393,9 +429,28 @@ export default function PublicBookingStatusPage() {
       <h1>{t('booking.publicStatusTitle')}</h1>
       {loading && <p>{t('common.loading')}</p>}
       {!loading && error && (
-        <p role="alert">
-          <AlertCircle size={18} aria-hidden="true" /> {t('booking.publicStatusNotFound')}
-        </p>
+        <div>
+          <p role="alert">
+            <AlertCircle size={18} aria-hidden="true" />{' '}
+            {error === 'link_expired'
+              ? t('booking.token.linkExpired')
+              : error === 'link_revoked'
+                ? t('booking.token.linkRevoked')
+                : t('booking.publicStatusNotFound')}
+          </p>
+          {error === 'link_expired' && (
+            <div className="token-button-row">
+              <button
+                type="button"
+                disabled={busy || renewalRequested}
+                onClick={() => run(async () => { await requestTokenLinkRenewal(token, {}); setRenewalRequested(true); }, 'booking.token.renewalRequested', 'booking.token.renewalFailed')}
+                data-track="ui.474702b501.26"
+              >
+                {t('booking.token.requestRenewal')}
+              </button>
+            </div>
+          )}
+        </div>
       )}
       {!loading && !error && status && (
         <div>
@@ -413,6 +468,9 @@ export default function PublicBookingStatusPage() {
             <CheckCircle2 size={18} aria-hidden="true" />{' '}
             {t(`booking.publicStatus.${status.status}`)}
           </p>
+          {status.archived && (
+            <p role="status">{t('booking.token.archivedNote')}</p>
+          )}
           {status.arrivedAt && (
             <p>{t('booking.publicStatusArrived', { time: new Date(status.arrivedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}</p>
           )}
@@ -531,6 +589,20 @@ export default function PublicBookingStatusPage() {
                 </ul>
               )}
               {actions.length === 0 && <p className="token-note">{t('booking.token.noActions')}</p>}
+            </Section>
+          )}
+
+          {!status.isSponsorPreview && (
+            <Section title={t('booking.token.callbacksTitle')}>
+              {callbacks.length === 0 && <p className="token-note">{t('booking.token.noCallbacks')}</p>}
+              <ul className="token-list">
+                {callbacks.map((c) => (
+                  <li key={c.id}>
+                    {t(`booking.token.callbackTarget.${c.target}`)} — {t(`booking.token.callbackStatus.${c.status}`)}
+                    {c.preferredWindow ? ` · ${c.preferredWindow}` : ''}
+                  </li>
+                ))}
+              </ul>
             </Section>
           )}
 
@@ -668,7 +740,9 @@ export default function PublicBookingStatusPage() {
                   <select value={relayTo} onChange={(e) => setRelayTo(e.target.value)}>
                     <option value="booker">{t('booking.token.relayTo.booker')}</option>
                     <option value="helper">{t('booking.token.relayTo.helper')}</option>
-                    <option value="site_contact">{t('booking.token.relayTo.site_contact')}</option>
+                    {status.hasSiteContactAccount && (
+                      <option value="site_contact">{t('booking.token.relayTo.site_contact')}</option>
+                    )}
                   </select>
                 </label>
                 <label className="token-field">

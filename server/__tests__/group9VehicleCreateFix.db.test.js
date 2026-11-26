@@ -100,7 +100,7 @@ ddescribe('Group 9 follow-up: createVehicle persists capacity fields', () => {
 
   async function makeDriverProfile(userId, patch = {}) {
     const profile = {
-      approved: true, active: true, vehicleType: 'van', maxPayloadLbs: 200,
+      approved: true, active: true, available: true, vehicleType: 'van', maxPayloadLbs: 200,
       cargoLengthIn: 40, cargoWidthIn: 40, cargoHeightIn: 40,
       equipment: {}, serviceArea: {}, maxPieces: 10,
       fragileSupported: true, perishableSupported: true,
@@ -113,14 +113,14 @@ ddescribe('Group 9 follow-up: createVehicle persists capacity fields', () => {
          (user_id, approved, active, vehicle_type, max_payload_lbs,
           cargo_length_in, cargo_width_in, cargo_height_in, equipment,
           service_area, max_pieces, fragile_supported, perishable_supported,
-          insurance_acknowledged, insurance_expires_at, available_from, available_until)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12, $13, $14, $15, $16, $17)`,
+          insurance_acknowledged, insurance_expires_at, available_from, available_until, available)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12, $13, $14, $15, $16, $17, $18)`,
       [userId, profile.approved, profile.active, profile.vehicleType, profile.maxPayloadLbs,
         profile.cargoLengthIn, profile.cargoWidthIn, profile.cargoHeightIn,
         JSON.stringify(profile.equipment), JSON.stringify(profile.serviceArea),
         profile.maxPieces, profile.fragileSupported, profile.perishableSupported,
         profile.insuranceAcknowledged, profile.insuranceExpiresAt,
-        profile.availableFrom, profile.availableUntil],
+        profile.availableFrom, profile.availableUntil, profile.available],
     );
     return profile;
   }

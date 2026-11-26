@@ -534,6 +534,53 @@
   background: rgba(249, 115, 22, 0.08);
 }
 
+/* G5-39: overlap / unavailability badge on queued requests. */
+.booking-conflict-badge {
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.5rem;
+  background: rgba(220, 38, 38, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  color: #b91c1c;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+[data-theme='dark'] .booking-conflict-badge {
+  color: #fca5a5;
+}
+
+/* G5-11 (260): dispatched-to-you badge reads as a go-ahead, not a warning. */
+.booking-dispatched-badge {
+  background: rgba(5, 150, 105, 0.12);
+  border-color: rgba(5, 150, 105, 0.35);
+  color: #047857;
+}
+
+[data-theme='dark'] .booking-dispatched-badge {
+  color: #6ee7b7;
+}
+
+/* G5-12 (257) / G5-11 (260): member selects in the transfer + dispatch rows. */
+.booking-transfer-actions select,
+.booking-dispatch-actions select,
+.booking-transfer-actions input {
+  flex: 1 1 100%;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border, rgba(148, 163, 184, 0.35));
+  border-radius: 0.5rem;
+  background: var(--color-card-bg, transparent);
+  color: var(--color-text, inherit);
+  font-size: 0.85rem;
+}
+
+.booking-dispatch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex: 1 1 100%;
+}
+
 .booking-request-header {
   display: flex;
   justify-content: space-between;

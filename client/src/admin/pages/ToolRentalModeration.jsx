@@ -92,6 +92,76 @@ export default function ToolRentalModeration() {
   const [toggling,   setToggling]   = useState(null);
   const [actionBusy, setActionBusy] = useState(false);
 
+  // ─── Wave 3 (589, D-572): rental escalation queue ─────────────────────
+  // The party thread + admin endpoints existed server-side with no client
+  // caller; this section is the admin leg. Listings stay above; the queue
+  // defaults to open escalations.
+  const [escFilter, setEscFilter] = useState('open');
+  const [selectedEscId, setSelectedEscId] = useState(null);
+  const [escDetail, setEscDetail] = useState(null);
+  const [escDetailLoading, setEscDetailLoading] = useState(false);
+  const [escReply, setEscReply] = useState('');
+  const [escBusy, setEscBusy] = useState(false);
+
+  const { data: escData, loading: escLoading, error: escError, reload: reloadEscalations } = useAbortableFetch(async (signal) => {
+    const params = {};
+    if (escFilter) params.status = escFilter;
+    const { data: res } = await adminApi.get('/tool-rentals/admin/escalations', { params, signal });
+    return { escalations: res.escalations || [] };
+  }, [escFilter]);
+  const escalations = escData?.escalations || [];
+
+  const loadEscalationDetail = async (id) => {
+    setSelectedEscId(id);
+    setEscDetailLoading(true);
+    try {
+      const { data: res } = await adminApi.get(`/tool-rentals/admin/escalations/${id}`);
+      setEscDetail(res.escalation || null);
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminToolRentalModeration.escalationLoadFailedMessage'));
+      setEscDetail(null);
+    } finally {
+      setEscDetailLoading(false);
+    }
+  };
+
+  const handleEscalationReply = async () => {
+    if (!escReply.trim() || !selectedEscId) return;
+    setEscBusy(true);
+    try {
+      await adminApi.post(`/tool-rentals/admin/escalations/${selectedEscId}/messages`, { message: escReply.trim() });
+      setEscReply('');
+      await loadEscalationDetail(selectedEscId);
+      reloadEscalations();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminToolRentalModeration.actionFailed'));
+    } finally {
+      setEscBusy(false);
+    }
+  };
+
+  const handleEscalationStatus = async (status) => {
+    if (!selectedEscId) return;
+    setEscBusy(true);
+    try {
+      const { data: res } = await adminApi.post(`/tool-rentals/admin/escalations/${selectedEscId}/status`, { status });
+      setEscDetail(res.escalation || null);
+      toast.success(t('adminToolRentalModeration.updated'));
+      reloadEscalations();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminToolRentalModeration.actionFailed'));
+    } finally {
+      setEscBusy(false);
+    }
+  };
+
+  const ESC_FILTERS = [
+    { value: '',          label: t('adminToolRentalModeration.escalationFilterAll')      },
+    { value: 'open',      label: t('adminToolRentalModeration.escalationFilterOpen')     },
+    { value: 'in_review', label: t('adminToolRentalModeration.escalationFilterInReview') },
+    { value: 'resolved',  label: t('adminToolRentalModeration.escalationFilterResolved') },
+  ];
+
   // Sequence-guarded + abortable: rapid search/filter paging can no longer
   // clobber the table with a stale response, and a failed fetch surfaces an
   // error panel instead of a misleading "no tool rentals found" empty state.
@@ -271,6 +341,143 @@ export default function ToolRentalModeration() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Wave 3 (589, D-572): rental escalation queue */}
+      <div className="mt-10">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+          {t('adminToolRentalModeration.escalationTitle')}
+        </h2>
+        <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+          {t('adminToolRentalModeration.escalationSubtitle')}
+        </p>
+        <div className="flex gap-2 mb-4">
+          {ESC_FILTERS.map(f => (
+            <button
+              key={f.value}
+              onClick={() => { setEscFilter(f.value); setSelectedEscId(null); setEscDetail(null); }}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${
+                escFilter === f.value
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {escLoading ? (
+          <p className="text-gray-600 dark:text-gray-400 text-sm py-6 text-center">{t('common.loading')}</p>
+        ) : escError ? (
+          <AdminErrorState
+            title={t('adminToolRentalModeration.escalationLoadFailedTitle')}
+            message={escError?.response?.data?.error || t('adminToolRentalModeration.escalationLoadFailedMessage')}
+            onRetry={reloadEscalations}
+          />
+        ) : escalations.length === 0 ? (
+          <p className="text-gray-600 dark:text-gray-400 text-sm py-6 text-center">{t('adminToolRentalModeration.escalationEmpty')}</p>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl overflow-hidden">
+              {escalations.map(esc => (
+                <button
+                  key={esc.id}
+                  onClick={() => loadEscalationDetail(esc.id)}
+                  className={`w-full text-left px-4 py-3 border-b border-gray-300 dark:border-gray-700 last:border-b-0 transition ${
+                    selectedEscId === esc.id ? 'bg-orange-500/10' : 'hover:bg-gray-200/30 dark:hover:bg-gray-700/30'
+                  }`}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="text-gray-900 dark:text-white text-sm font-medium truncate">{esc.tool_name || esc.tool_id}</span>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-500/20 text-gray-600 dark:text-gray-400 shrink-0">
+                      {t(`toolRentals.escalationStatus_${esc.status}`, esc.status)}
+                    </span>
+                  </span>
+                  <span className="block text-gray-500 text-xs mt-0.5 capitalize">
+                    {t(`toolRentals.escalationCategory_${esc.category}`, esc.category)}
+                    {esc.ack_status && esc.status === 'resolved' ? ` · ${t(`toolRentals.escalationAck_${esc.ack_status}`, esc.ack_status)}` : ''}
+                    {esc.created_at ? ` · ${new Date(esc.created_at).toLocaleDateString()}` : ''}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-4">
+              {!selectedEscId ? (
+                <p className="text-gray-600 dark:text-gray-400 text-sm py-6 text-center">{t('adminToolRentalModeration.escalationSelectPrompt')}</p>
+              ) : escDetailLoading ? (
+                <p className="text-gray-600 dark:text-gray-400 text-sm py-6 text-center">{t('common.loading')}</p>
+              ) : !escDetail ? (
+                <p className="text-gray-600 dark:text-gray-400 text-sm py-6 text-center">{t('adminToolRentalModeration.escalationLoadFailedMessage')}</p>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <p className="text-gray-900 dark:text-white text-sm font-semibold">
+                      {t(`toolRentals.escalationCategory_${escDetail.category}`, escDetail.category)}
+                    </p>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-500/20 text-gray-600 dark:text-gray-400">
+                      {t(`toolRentals.escalationStatus_${escDetail.status}`, escDetail.status)}
+                    </span>
+                  </div>
+                  <div className="space-y-2 max-h-72 overflow-y-auto mb-4">
+                    {(escDetail.messages || []).map(m => (
+                      <div key={m.id} className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2">
+                        <p className="text-xs text-gray-500 capitalize">{t(`toolRentals.escalationRole_${m.author_role}`, m.author_role)}</p>
+                        <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{m.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {escDetail.status !== 'resolved' && (
+                    <>
+                      <textarea
+                        rows={2}
+                        value={escReply}
+                        onChange={e => setEscReply(e.target.value)}
+                        placeholder={t('adminToolRentalModeration.escalationReplyPlaceholder')}
+                        className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm p-2.5 placeholder-gray-500 focus:border-orange-500 focus:outline-none resize-none mb-2"
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={handleEscalationReply}
+                          disabled={escBusy || !escReply.trim()}
+                          className="px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-semibold hover:bg-orange-600 transition disabled:opacity-50"
+                        >
+                          {t('adminToolRentalModeration.escalationSend')}
+                        </button>
+                        {escDetail.status !== 'in_review' && (
+                          <button
+                            onClick={() => handleEscalationStatus('in_review')}
+                            disabled={escBusy}
+                            className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition disabled:opacity-50"
+                          >
+                            {t('adminToolRentalModeration.escalationMarkInReview')}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleEscalationStatus('resolved')}
+                          disabled={escBusy}
+                          className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition disabled:opacity-50"
+                        >
+                          {t('adminToolRentalModeration.escalationResolve')}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  {escDetail.status === 'resolved' && (
+                    <button
+                      onClick={() => handleEscalationStatus('open')}
+                      disabled={escBusy}
+                      className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition disabled:opacity-50"
+                    >
+                      {t('adminToolRentalModeration.escalationReopen')}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Pagination */}

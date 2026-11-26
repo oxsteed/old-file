@@ -95,7 +95,7 @@ async function processDueReminders() {
           appointment_id: String(row.appointment_id),
           business_id: String(row.business_id),
         },
-        action_url: `/businesses/${row.business_id}/calendar`,
+        action_url: `/business/${row.business_id}/workspace/calendar`,
         idempotencyKey: `${idempotencyKey}:${userId}`,
       })));
 

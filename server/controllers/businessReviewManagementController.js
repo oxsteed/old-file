@@ -36,9 +36,13 @@ exports.listReviews = async (req, res, next) => {
     const rows = await pool.query(
       `SELECT r.*,
               COALESCE(u.display_name_preference, u.first_name || ' ' || u.last_name, 'Anonymous') AS reviewer_name,
-              u.profile_photo_url AS reviewer_avatar
+              u.profile_photo_url AS reviewer_avatar,
+              l.assigned_to_id,
+              TRIM(CONCAT(a.first_name,' ',a.last_name)) AS assigned_to_name
        FROM business_reviews r
        LEFT JOIN users u ON r.customer_id = u.id
+       LEFT JOIN business_leads l ON l.id = r.lead_id
+       LEFT JOIN users a ON a.id = l.assigned_to_id
        ${where} ORDER BY r.created_at DESC LIMIT $${params.length+1} OFFSET $${params.length+2}`,
       [...params, parseInt(limit), parseInt(offset)]
     );

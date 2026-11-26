@@ -10,7 +10,7 @@ const { getSignedDownloadUrl } = require('../utils/storage');
 const { geocodeAddress } = require('./geoController');
 const { broadcastToUser } = require('../services/socketService');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
-const { canStatusTransition, canInternalAssign, canReleaseToMarketplace } = require('../services/localDeliveryState');
+const { canStatusTransition, canInternalAssign, canReleaseToMarketplace, TERMINAL_STATUSES } = require('../services/localDeliveryState');
 const { accrueDriverPayout, approvePayout, markPayoutPaid, voidPayout, getPayout } = require('../services/deliveryDriverPayoutService');
 // Group 9 Slice C (items 462/463): multi-stop sequence + window warnings.
 const { loadJobStops, ensureJobStops, safeStops, normalizeStopInput, computeWindowWarnings, TERMINAL_STATUSES: STOP_TERMINAL_STATUSES } = require('../services/deliveryJobStopsService');
@@ -18,6 +18,10 @@ const { loadJobStops, ensureJobStops, safeStops, normalizeStopInput, computeWind
 // and recipient-unavailable issue codes.
 const { normalizeIssueMetadata } = require('../services/deliveryIssueMetadata');
 const { canDriveMarketplace, isAdmittedDriver, hasApprovedActiveDriverProfile } = require('../services/deliveryDriverAdmission');
+// Group 9 partials Wave 2 Batch O (470/475, G9-A7/G9-A11, D-547/D-548):
+// the driver resume and the redelivery approval restore a job through
+// the recovery service's dispatch-state map, never by hand.
+const { normalDispatch } = require('../services/localDeliveryRecoveryService');
 // Group 9 Slice F (items 488-495): exception summary, documents,
 // receipt, payout adjustments, disputes, weekly reports.
 const { getJobExceptionSummary, getOpsExceptionSummary } = require('../services/deliveryExceptionSummaryService');
@@ -29,6 +33,23 @@ const { buildWeeklyReport, driverTimezone } = require('../services/deliveryWeekl
 const { renderWeeklyReportPdf } = require('../services/deliveryWeeklyReportPdf');
 // Group 9 Slice G (item 500): driver shifts and shift closeout.
 const shiftService = require('../services/deliveryDriverShiftService');
+// Group 9 partials Wave 2 Batch Q (498, G9-B3, D-560): ending the live
+// tracking sessions inside the delivered/cancelled transition. The
+// tracking service never touches delivery_jobs, so there is no import
+// cycle with this controller.
+const trackingService = require('../services/deliveryTrackingService');
+
+// Group 9 partials Wave 2 Batch L (451, G9-A8, D-529): driver approval
+// and payout notices. Fire-and-forget after the transition commits;
+// sendNotification never throws (it returns { success: false } and logs),
+// and the try/catch here guards the require itself, so a notice can never
+// block an approval or a payout transition.
+async function notifyDriver(userId, type, data, actionUrl, idempotencyKey) {
+  try {
+    const { sendNotification } = require('../services/notificationService');
+    await sendNotification({ userId, type, data, action_url: actionUrl, idempotencyKey });
+  } catch (_) { /* the notice is lost; the transition already happened */ }
+}
 
 const HELPER_MODES = new Set([
   'helper', 'helper_pro', 'business_owner', 'business_manager',
@@ -683,7 +704,7 @@ exports.create = async (req, res, next) => {
 exports.list = async (req, res, next) => {
   try {
     const helper = isDeliveryHelper(req.user);
-    const driver = await pool.query('SELECT approved,active FROM delivery_driver_profiles WHERE user_id=$1',[req.user.id]);
+    const driver = await pool.query('SELECT approved,active,service_area FROM delivery_driver_profiles WHERE user_id=$1',[req.user.id]);
     const internalDriver = driver.rows[0]?.approved === true && driver.rows[0]?.active === true;
     // G-46: marketplace visibility is driver admission, not legacy helper
     // state alone. A logistics.ship holder with no helper history sees the
@@ -692,22 +713,66 @@ exports.list = async (req, res, next) => {
     // (operations assigns them; they do not take marketplace jobs).
     const canDrive = await canDriveMarketplace(req.user);
     // Geo filter for marketplace: only show jobs within 50 miles of helper's location (if provided).
-    const lat = parseFloat(req.query.lat);
-    const lng = parseFloat(req.query.lng);
-    const hasGeo = Number.isFinite(lat) && Number.isFinite(lng);
-    const maxMiles = 50;
-    let marketplaceClause = `($2::boolean AND status='posted' AND dispatch_state='marketplace_posted' AND fulfillment_source='marketplace' AND helper_user_id IS NULL AND internal_driver_user_id IS NULL)`;
-    const params = [req.user.id, canDrive];
-    if (hasGeo) {
-      // Haversine distance filter (approximate).
-      marketplaceClause += ` AND (
-        3959 * acos(cos(radians($3)) * cos(radians(origin_lat)) * cos(radians(origin_lng - $4)) + sin(radians($3)) * sin(radians(origin_lat)))
-      ) <= $5`;
-      params.push(lat, lng, maxMiles);
+    let lat = parseFloat(req.query.lat);
+    let lng = parseFloat(req.query.lng);
+    let hasGeo = Number.isFinite(lat) && Number.isFinite(lng);
+    // Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-535): when the
+    // client sends no location, fall back to the driver's stored
+    // service-area center so the 50-mile filter still engages instead of
+    // silently showing the whole country. A driver with no center gets
+    // the unfiltered feed, as before; the claim gate (service area
+    // required) is what stops a far claim.
+    if (!hasGeo) {
+      const { serviceAreaCenter } = require('../services/localDeliveryDispatchService');
+      const center = serviceAreaCenter(driver.rows[0]?.service_area);
+      if (center) { lat = center.lat; lng = center.lng; hasGeo = true; }
     }
-    const {rows} = await pool.query(`SELECT * FROM delivery_jobs WHERE customer_user_id=$1 OR helper_user_id=$1 OR internal_driver_user_id=$1
-      OR ${marketplaceClause}
-      ORDER BY created_at DESC LIMIT 100`, params);
+    const maxMiles = 50;
+    // Group 9 partials Wave 2 Batch Q (491, G9-B11, D-559): the driver
+    // history filter. `mine=1` restricts to jobs the caller participates
+    // in (no marketplace offers); `status=active` keeps non-terminal
+    // jobs, `status=completed` keeps delivered/cancelled/returned. The
+    // marketplace feed is unchanged when neither is sent. The status
+    // values are fixed literals, so no new query params are introduced
+    // and the geo param numbering is untouched. When mine=1 the
+    // marketplace clause (and its $2..$5 params) is not referenced at
+    // all, so those params are not sent either: Postgres rejects a
+    // supplied parameter the query text never uses.
+    const mineOnly = req.query.mine === '1' || req.query.mine === 'true';
+    const historyStatus = req.query.status === 'active' || req.query.status === 'completed' ? req.query.status : null;
+    let marketplaceClause = `($2::boolean AND status='posted' AND dispatch_state='marketplace_posted' AND fulfillment_source='marketplace' AND helper_user_id IS NULL AND internal_driver_user_id IS NULL)`;
+    const params = [req.user.id];
+    if (!mineOnly) {
+      params.push(canDrive);
+      if (hasGeo) {
+        // Haversine distance filter (approximate).
+        marketplaceClause += ` AND (
+          3959 * acos(cos(radians($3)) * cos(radians(origin_lat)) * cos(radians(origin_lng - $4)) + sin(radians($3)) * sin(radians(origin_lat)))
+        ) <= $5`;
+        params.push(lat, lng, maxMiles);
+      }
+    }
+    // Group 9 partials Wave 2 Batch M (456, G9-A19, D-537): paginate the
+    // feed like the driver payout list (D-524) instead of silently
+    // capping at 100 rows. The default page stays 100 (the old cap); the
+    // COUNT total lets the client page through the full list.
+    const participantClause = `customer_user_id=$1 OR helper_user_id=$1 OR internal_driver_user_id=$1`;
+    // The participant OR-group is parenthesised in both branches: the
+    // status AND-clause must apply to the whole group, not just the
+    // last OR term (AND binds tighter than OR).
+    const baseClause = mineOnly ? `(${participantClause})` : `(${participantClause} OR ${marketplaceClause})`;
+    const statusClause = historyStatus === 'completed'
+      ? ` AND status IN ('delivered','cancelled','returned')`
+      : historyStatus === 'active' ? ` AND status NOT IN ('delivered','cancelled','returned')` : '';
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 100));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const pageParams = [...params, limit, offset];
+    const {rows} = await pool.query(`SELECT * FROM delivery_jobs WHERE ${baseClause}${statusClause}
+      ORDER BY created_at DESC LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`, pageParams);
+    const { rows: [countRow] } = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM delivery_jobs WHERE ${baseClause}${statusClause}`,
+      params,
+    );
     // Group 9 Slice B (item 460): the driver's own decline on each job,
     // so the inbox card can show the passed state persistently.
     const jobIds = rows.map((job) => job.id);
@@ -719,7 +784,7 @@ exports.list = async (req, res, next) => {
       );
       myDeclines = new Map(declines.map((decline) => [String(decline.delivery_job_id), decline]));
     }
-    res.json({success:true,jobs:rows.map(job=>({...customerSafeJob(job,req.user), my_decline: myDeclines.get(String(job.id)) || null})),helper,internalDriver,canDrive});
+    res.json({success:true,jobs:rows.map(job=>({...customerSafeJob(job,req.user), my_decline: myDeclines.get(String(job.id)) || null})),helper,internalDriver,canDrive,total:countRow?.total ?? rows.length,limit,offset});
   } catch(error) {next(error);}
 };
 
@@ -734,7 +799,7 @@ exports.get = async (req,res,next) => {
     // signed URLs), just the offer itself plus their own decline.
     const participant = own || [job.helper_user_id, job.internal_driver_user_id].some((id) => id && String(id) === String(req.user.id));
     const empty = Promise.resolve({ rows: [] });
-    const [activity,proofs,extras,issues,payments,reschedules,returns,itemPhotoRows,myDecline]=await Promise.all([
+    const [activity,proofs,extras,issues,payments,reschedules,returns,redeliveries,itemPhotoRows,myDecline]=await Promise.all([
       participant ? pool.query('SELECT id,event_type,payload,created_at FROM delivery_activity WHERE delivery_job_id=$1 AND customer_visible=TRUE ORDER BY created_at,id',[job.id]) : empty,
       participant ? pool.query('SELECT id,proof_type,recipient_name,verification_status,verified_at,created_at FROM delivery_proofs WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
       participant ? pool.query('SELECT id,category,amount_cents,notes,status,payment_status,approved_amount_cents,created_at FROM delivery_extras WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
@@ -742,6 +807,11 @@ exports.get = async (req,res,next) => {
       own ? pool.query('SELECT id,delivery_extra_id,amount_cents,currency,status,receipt_url,refunded_amount_cents,created_at,updated_at FROM delivery_payments WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
       participant ? pool.query('SELECT id,pickup_window_start,pickup_window_end,delivery_window_start,delivery_window_end,reason,status,reviewed_at,created_at FROM delivery_reschedule_requests WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
       participant ? pool.query('SELECT id,reason,status,completed_at,created_at FROM delivery_returns WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
+      // Group 9 partials Wave 2 Batch O (475, G9-A11, D-548): the
+      // redelivery-attempt requests ride the detail read with the
+      // reschedules and returns, so the driver and the shipper follow
+      // the retry in the same requests section.
+      participant ? pool.query('SELECT id,delivery_window_start,delivery_window_end,reason,status,reviewed_at,created_at FROM delivery_redelivery_requests WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
       participant ? pool.query('SELECT id,object_key,content_type,size_bytes,created_at FROM delivery_job_item_photos WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
       pool.query('SELECT * FROM delivery_job_declines WHERE delivery_job_id=$1 AND driver_user_id=$2', [job.id, req.user.id]),
     ]);
@@ -763,7 +833,7 @@ exports.get = async (req,res,next) => {
     const stops = await loadJobStops(pool, job);
     const windowWarnings = computeWindowWarnings(stops);
     res.set('Cache-Control','no-store');
-    res.json({success:true,job:{...customerSafeJob(job,req.user), my_decline: myDecline.rows[0] || null},stops:safeStops(job,req.user,stops),windowWarnings,activity:activity.rows,proofs:proofs.rows,extras:extras.rows,issues:issues.rows,payments:payments.rows,rescheduleRequests:reschedules.rows,returns:returns.rows,itemPhotos});
+    res.json({success:true,job:{...customerSafeJob(job,req.user), my_decline: myDecline.rows[0] || null},stops:safeStops(job,req.user,stops),windowWarnings,activity:activity.rows,proofs:proofs.rows,extras:extras.rows,issues:issues.rows,payments:payments.rows,rescheduleRequests:reschedules.rows,redeliveryRequests:redeliveries.rows,returns:returns.rows,itemPhotos});
   } catch(error) {next(error);}
 };
 
@@ -876,10 +946,30 @@ exports.completeStop = async (req, res, next) => {
     await client.query('BEGIN');
     const { rows: [locked] } = await client.query('SELECT status FROM delivery_jobs WHERE id = $1 FOR UPDATE', [job.id]);
     if (!locked || STOP_TERMINAL_STATUSES.has(locked.status)) throw new AppError('Stops cannot be completed on a finished job', 409, 'delivery_stop_unavailable');
-    const { rows: [stop] } = await client.query(
-      'SELECT * FROM delivery_job_stops WHERE id = $1 AND delivery_job_id = $2 FOR UPDATE',
-      [req.params.stopId, job.id],
-    );
+    // Group 9 partials Wave 2 Batch O (462, G9-A18, D-544): materialize
+    // the stops first, and translate a virtual id to its stored row. A
+    // job with no stored stops reads its two legacy stops with string
+    // ids (virtual-pickup / virtual-dropoff); sending one of those to
+    // the bigint id column 500d with Postgres 22P02. After
+    // materialization the virtual id resolves to the stored stop of
+    // that type, and any other non-numeric id 404s cleanly instead of
+    // reaching the bigint column at all.
+    await ensureJobStops(client, job);
+    let stop;
+    const virtualType = req.params.stopId === 'virtual-pickup' ? 'pickup'
+      : req.params.stopId === 'virtual-dropoff' ? 'dropoff' : null;
+    if (virtualType) {
+      ({ rows: [stop] } = await client.query(
+        `SELECT * FROM delivery_job_stops WHERE delivery_job_id = $1 AND stop_type = $2
+          ORDER BY stop_order ASC, id ASC LIMIT 1 FOR UPDATE`,
+        [job.id, virtualType],
+      ));
+    } else if (/^\d+$/.test(String(req.params.stopId))) {
+      ({ rows: [stop] } = await client.query(
+        'SELECT * FROM delivery_job_stops WHERE id = $1 AND delivery_job_id = $2 FOR UPDATE',
+        [req.params.stopId, job.id],
+      ));
+    }
     if (!stop) throw new AppError('Delivery stop not found', 404, 'delivery_stop_not_found');
     if (stop.status !== 'pending') throw new AppError('This stop is already done', 409, 'delivery_stop_conflict');
     const { rows: [completed] } = await client.query(
@@ -890,6 +980,273 @@ exports.completeStop = async (req, res, next) => {
     );
     await client.query('COMMIT');
     res.json({ success: true, stop: completed });
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    next(error);
+  } finally { client?.release(); }
+};
+
+// ── Group 9 partials Wave 2 Batch O (462/464, G9-A13, D-543) ──────
+// The driver note on a stop: route notes are no longer view-only. The
+// assigned driver writes a short note per stop (gate code, where to
+// leave the parcel, who to ask for); the note rides the stop read for
+// the participants. Empty clears it. A virtual stop materializes
+// first, so a note can land on a stored row.
+exports.updateStopNote = async (req, res, next) => {
+  let client;
+  try {
+    const job = await loadAuthorizedJob(req.params.id, req.user);
+    if (!stopAssigned(job, req.user)) throw new AppError('Only the assigned driver can add a stop note', 403, 'delivery_stop_forbidden');
+    if (STOP_TERMINAL_STATUSES.has(job.status)) throw new AppError('Stop notes cannot be changed on a finished job', 409, 'delivery_stop_unavailable');
+    const note = text(req.body?.note, 500) || null;
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows: [locked] } = await client.query('SELECT status FROM delivery_jobs WHERE id = $1 FOR UPDATE', [job.id]);
+    if (!locked || STOP_TERMINAL_STATUSES.has(locked.status)) throw new AppError('Stop notes cannot be changed on a finished job', 409, 'delivery_stop_unavailable');
+    const stops = await loadStoredStops(client, job);
+    const stop = stops.find((entry) => String(entry.id) === String(req.params.stopId));
+    if (!stop) throw new AppError('Delivery stop not found', 404, 'delivery_stop_not_found');
+    const { rows: [updated] } = await client.query(
+      `UPDATE delivery_job_stops SET driver_note = $1, driver_note_updated_at = NOW(),
+         driver_note_updated_by_user_id = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
+      [note, req.user.id, stop.id],
+    );
+    await client.query('COMMIT');
+    res.json({ success: true, stop: updated });
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    next(error);
+  } finally { client?.release(); }
+};
+
+// ── Group 9 partials Wave 2 Batch O (469, G9-A10, D-545) ───────────
+// The free waiting notice: the assigned driver tells the shipper /
+// customer they are waiting, with no amount and no approval. The
+// chargeable waiting extra is untouched — the notice is the free
+// signal next to it, not a replacement. One notice per job per
+// WAITING_NOTICE_THROTTLE_MINUTES, so a stuck driver cannot spam the
+// shipper; the notice rides the existing event worker as a
+// delivery_waiting_notice notification (catalog + i18n in
+// localDeliveryNotifications.js), so it reaches the customer the same
+// way every other delivery event does.
+const WAITING_NOTICE_THROTTLE_MINUTES = 15;
+exports.createWaitingNotice = async (req, res, next) => {
+  let client;
+  try {
+    const job = await loadAuthorizedJob(req.params.id, req.user);
+    if (!stopAssigned(job, req.user)) throw new AppError('Only the assigned driver can send a waiting notice', 403, 'delivery_waiting_forbidden');
+    if (STOP_TERMINAL_STATUSES.has(job.status)) throw new AppError('Waiting notices cannot be sent on a finished job', 409, 'delivery_waiting_unavailable');
+    const note = text(req.body?.note, 500) || null;
+    const stopId = req.body?.stopId !== undefined && req.body?.stopId !== null ? String(req.body.stopId) : null;
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows: [locked] } = await client.query('SELECT status FROM delivery_jobs WHERE id = $1 FOR UPDATE', [job.id]);
+    if (!locked || STOP_TERMINAL_STATUSES.has(locked.status)) throw new AppError('Waiting notices cannot be sent on a finished job', 409, 'delivery_waiting_unavailable');
+    const { rows: [recent] } = await client.query(
+      `SELECT id FROM delivery_events WHERE delivery_job_id = $1 AND event_type = 'delivery_waiting_notice'
+        AND created_at > NOW() - ($2 * INTERVAL '1 minute') ORDER BY created_at DESC LIMIT 1`,
+      [job.id, WAITING_NOTICE_THROTTLE_MINUTES],
+    );
+    if (recent) throw new AppError('A waiting notice was already sent recently', 409, 'delivery_waiting_throttled');
+    await recordActivity(client, job.id, req.user.id, 'delivery_waiting_notice', { note, stopId });
+    await client.query('COMMIT');
+    res.status(201).json({ success: true });
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    next(error);
+  } finally { client?.release(); }
+};
+
+// ── Group 9 partials Wave 2 Batch O (470/475, G9-A7, D-547) ────────
+// The driver resume: after ops has acked the exception (resolved the
+// last open issue), a failed job the driver still holds can be resumed
+// by the driver — back to in_transit, with the parcel still in
+// custody. Fail closed on every precondition: only a failed job, only
+// with pickup evidence, only with no open issues, no active return,
+// and out of exception. Ops still resolves; this never auto-resolves
+// and never moves a job that is still frozen.
+exports.resumeDelivery = async (req, res, next) => {
+  let client;
+  try {
+    const key = idempotencyKey(req);
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows: [job] } = await client.query(
+      'SELECT * FROM delivery_jobs WHERE id = $1 AND (helper_user_id = $2 OR internal_driver_user_id = $2) FOR UPDATE',
+      [req.params.id, req.user.id],
+    );
+    if (!job) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
+    const replay = await actionReplay(client, job, req.user, 'resume', key, {});
+    if (replay) { await client.query('COMMIT'); return res.json(replay); }
+    if (job.status !== 'failed') throw new AppError('Only a failed delivery can be resumed', 409, 'delivery_resume_conflict');
+    if (!job.picked_up_at) throw new AppError('A delivery cannot resume without pickup evidence', 409, 'delivery_resume_conflict');
+    // No dispatch_state check here on purpose: ops resolving an issue
+    // without a resume state leaves a failed job in exception (see
+    // resolveIssue), so requiring "out of exception" would make this
+    // endpoint unreachable exactly when it is needed. The open-issues
+    // check below is the ack: no open issue means ops has acked.
+    const { rows: [open] } = await client.query(
+      "SELECT id FROM delivery_issues WHERE delivery_job_id = $1 AND status = 'open' LIMIT 1", [job.id],
+    );
+    if (open) throw new AppError('Resolve the active exception before continuing', 409, 'delivery_recovery_pending');
+    const { rows: [activeReturn] } = await client.query(
+      "SELECT id FROM delivery_returns WHERE delivery_job_id = $1 AND status IN ('requested','approved','in_transit') LIMIT 1", [job.id],
+    );
+    if (activeReturn) throw new AppError('A return is pending', 409, 'delivery_recovery_pending');
+    const dispatch = normalDispatch(job, 'in_transit');
+    const { rows: [updated] } = await client.query(
+      "UPDATE delivery_jobs SET status = 'in_transit', dispatch_state = $2, exception_code = NULL, updated_at = NOW() WHERE id = $1 RETURNING *",
+      [job.id, dispatch],
+    );
+    await recordActivity(client, job.id, req.user.id, 'delivery_resumed', {});
+    const response = { success: true, job: customerSafeJob(updated, req.user) };
+    await saveAction(client, job, req.user, 'resume', key, {}, response);
+    await client.query('COMMIT');
+    res.json(response);
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    next(error);
+  } finally { client?.release(); }
+};
+
+// ── Group 9 partials Wave 2 Batch O (475, G9-A11, D-548) ───────────
+// The redelivery-attempt request: its own path for a failed drop-off,
+// not a reopening of the general reschedule path (assertReschedulable
+// still 409s rescheduling after pickup). The driver requests a new
+// delivery window; ops or the shipper approves or rejects it.
+// Approval applies the new window and, for a failed job the driver
+// still holds, restores it to in_transit — in the same transaction as
+// the review, so the window and the job state can never disagree.
+async function activeReturnRow(client, jobId) {
+  return (await client.query(
+    "SELECT id FROM delivery_returns WHERE delivery_job_id = $1 AND status IN ('requested','approved','in_transit') LIMIT 1",
+    [jobId],
+  )).rows[0];
+}
+
+exports.requestRedelivery = async (req, res, next) => {
+  let client;
+  try {
+    const job = await loadAuthorizedJob(req.params.id, req.user);
+    const own = String(job.customer_user_id) === String(req.user.id);
+    const assigned = stopAssigned(job, req.user);
+    if (!own && !assigned) throw new AppError('Only a participant can request a redelivery', 403, 'delivery_redelivery_forbidden');
+    if (!['failed', 'in_transit', 'picked_up'].includes(job.status)) throw new AppError('A redelivery can only be requested on a failed drop-off', 409, 'delivery_redelivery_conflict');
+    const start = isoDate(req.body?.deliveryWindowStart, 'delivery window start');
+    const end = isoDate(req.body?.deliveryWindowEnd, 'delivery window end');
+    if (!start || !end || new Date(end) <= new Date(start) || new Date(start) <= new Date()) throw new AppError('A future redelivery window is required', 400, 'delivery_redelivery_window_invalid');
+    const reason = text(req.body?.reason, 1000) || '';
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows: [locked] } = await client.query('SELECT * FROM delivery_jobs WHERE id = $1 FOR UPDATE', [job.id]);
+    if (!locked || !['failed', 'in_transit', 'picked_up'].includes(locked.status)) throw new AppError('A redelivery can only be requested on a failed drop-off', 409, 'delivery_redelivery_conflict');
+    // Failed-drop-off evidence: the job is failed, or a
+    // recipient_unavailable issue was recorded for it. A redelivery is
+    // a retry of a failed drop-off, not a free reschedule.
+    const { rows: [failed] } = await client.query(
+      "SELECT id FROM delivery_issues WHERE delivery_job_id = $1 AND code = 'recipient_unavailable' LIMIT 1", [job.id],
+    );
+    if (locked.status !== 'failed' && !failed) throw new AppError('A redelivery needs a failed drop-off first', 409, 'delivery_redelivery_evidence_required');
+    if (await activeReturnRow(client, job.id)) throw new AppError('A return is pending', 409, 'delivery_recovery_pending');
+    const { rows: [pending] } = await client.query(
+      "SELECT id FROM delivery_redelivery_requests WHERE delivery_job_id = $1 AND status = 'pending' LIMIT 1", [job.id],
+    );
+    if (pending) throw new AppError('A redelivery request is already pending', 409, 'delivery_redelivery_pending');
+    const { rows: [request] } = await client.query(
+      `INSERT INTO delivery_redelivery_requests
+         (delivery_job_id, requested_by_user_id, delivery_window_start, delivery_window_end, reason)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [job.id, req.user.id, start, end, reason],
+    );
+    await recordActivity(client, job.id, req.user.id, 'delivery_redelivery_requested', { requestId: request.id });
+    await client.query('COMMIT');
+    res.status(201).json({ success: true, request });
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    next(error);
+  } finally { client?.release(); }
+};
+
+exports.reviewRedelivery = async (req, res, next) => {
+  let client;
+  try {
+    const decision = req.body?.decision;
+    if (!['approved', 'rejected'].includes(decision)) throw new AppError('Decision must be approved or rejected', 400, 'delivery_redelivery_decision_invalid');
+    client = await pool.connect();
+    await client.query('BEGIN');
+    // Two routes share this handler: the participant route carries the
+    // job id, the internal ops route carries only the request id, so
+    // the job is resolved from the request there. Ops reads the job
+    // directly (loadAuthorizedJob is participant-only and would 404
+    // an operator); the own-or-ops check below is the authorization.
+    let jobId = req.params.id;
+    if (!jobId) {
+      const { rows: [owner] } = await client.query(
+        'SELECT delivery_job_id FROM delivery_redelivery_requests WHERE id = $1', [req.params.requestId],
+      );
+      if (!owner) throw new AppError('Redelivery request not found', 404, 'delivery_redelivery_not_found');
+      jobId = owner.delivery_job_id;
+    }
+    const { rows: [lockedJob] } = await client.query('SELECT * FROM delivery_jobs WHERE id = $1 FOR UPDATE', [jobId]);
+    if (!lockedJob) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
+    const own = String(lockedJob.customer_user_id) === String(req.user.id);
+    if (!own && !isInternalOperator(req.user)) throw new AppError('Only the shipper or operations can review a redelivery', 403, 'delivery_redelivery_forbidden');
+    const job = lockedJob;
+    const { rows: [request] } = await client.query(
+      'SELECT * FROM delivery_redelivery_requests WHERE id = $1 AND delivery_job_id = $2 FOR UPDATE',
+      [req.params.requestId, job.id],
+    );
+    if (!request) throw new AppError('Redelivery request not found', 404, 'delivery_redelivery_not_found');
+    if (request.status !== 'pending') throw new AppError('Redelivery request is unavailable', 409, 'delivery_redelivery_conflict');
+    let updated = lockedJob;
+    if (decision === 'approved') {
+      if (TERMINAL_STATUSES.has(lockedJob.status)) throw new AppError('A redelivery cannot be approved on a finished job', 409, 'delivery_redelivery_conflict');
+      if (await activeReturnRow(client, job.id)) throw new AppError('A return is pending', 409, 'delivery_recovery_pending');
+      if (new Date(request.delivery_window_start) <= new Date()) throw new AppError('The requested redelivery window has passed', 409, 'delivery_redelivery_window_expired');
+      const { rows: [open] } = await client.query(
+        "SELECT id FROM delivery_issues WHERE delivery_job_id = $1 AND status = 'open' LIMIT 1", [job.id],
+      );
+      // A pending reschedule proposes a different window; the approved
+      // redelivery supersedes it.
+      await client.query("UPDATE delivery_reschedule_requests SET status = 'cancelled' WHERE delivery_job_id = $1 AND status = 'pending'", [job.id]);
+      if (lockedJob.status === 'failed') {
+        if (!open && lockedJob.picked_up_at) {
+          const dispatch = normalDispatch(lockedJob, 'in_transit');
+          updated = (await client.query(
+            `UPDATE delivery_jobs SET status = 'in_transit', dispatch_state = $2, exception_code = NULL,
+               delivery_window_start = $3, delivery_window_end = $4, updated_at = NOW() WHERE id = $1 RETURNING *`,
+            [job.id, dispatch, request.delivery_window_start, request.delivery_window_end],
+          )).rows[0];
+        } else {
+          // An open issue still freezes the job: the window is stored,
+          // the job stays failed until ops resolves the issue.
+          updated = (await client.query(
+            'UPDATE delivery_jobs SET delivery_window_start = $2, delivery_window_end = $3, updated_at = NOW() WHERE id = $1 RETURNING *',
+            [job.id, request.delivery_window_start, request.delivery_window_end],
+          )).rows[0];
+        }
+      } else {
+        const dispatch = !open && lockedJob.dispatch_state === 'exception'
+          ? normalDispatch(lockedJob, lockedJob.status) : lockedJob.dispatch_state;
+        // Compute the exception code in JS: a CASE WHEN $4 = '...' in
+        // the same statement makes Postgres deduce inconsistent types
+        // for $4 (column value vs comparison literal).
+        const exceptionCode = dispatch === 'exception' ? lockedJob.exception_code : null;
+        updated = (await client.query(
+          `UPDATE delivery_jobs SET delivery_window_start = $2, delivery_window_end = $3,
+             dispatch_state = $4, exception_code = $5,
+             updated_at = NOW() WHERE id = $1 RETURNING *`,
+          [job.id, request.delivery_window_start, request.delivery_window_end, dispatch, exceptionCode],
+        )).rows[0];
+      }
+    }
+    const { rows: [reviewed] } = await client.query(
+      "UPDATE delivery_redelivery_requests SET status = $1, reviewed_by_user_id = $2, reviewed_at = NOW(), updated_at = NOW() WHERE id = $3 RETURNING *",
+      [decision, req.user.id, request.id],
+    );
+    await recordActivity(client, job.id, req.user.id, `delivery_redelivery_${decision}`, { requestId: request.id });
+    await client.query('COMMIT');
+    res.json({ success: true, decision, request: reviewed, job: customerSafeJob(updated, req.user) });
   } catch (error) {
     if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
     next(error);
@@ -1020,6 +1377,13 @@ exports.updateStatus = async (req,res,next) => {
       await client.query("UPDATE delivery_assignment_reservations SET status=$2 WHERE delivery_job_id=$1 AND status='active'",[job.id,requested==='delivered'?'completed':'cancelled']);
       await client.query("UPDATE delivery_reschedule_requests SET status='cancelled' WHERE delivery_job_id=$1 AND status='pending'",[job.id]);
       await client.query("UPDATE delivery_extras SET status='voided' WHERE delivery_job_id=$1 AND status='pending'",[job.id]);
+      // Group 9 partials Wave 2 Batch Q (498, G9-B3, D-560): the live
+      // tracking session ends with the job, in this same transaction.
+      // Delivered ends the assignment as completed; cancelled revokes
+      // it. A driver who forgets to stop tracking stops broadcasting
+      // here, and ingest is refused on the terminal job (see
+      // deliveryTrackingController.ingestLocations).
+      await trackingService.endTrackingForJob(client, job.id, requested);
     }
     // Group 9 Slice D (item 467): a mismatched pickup count rides in the
     // delivery_picked_up activity payload, so the existing picked_up
@@ -1048,6 +1412,14 @@ exports.createIssue = async (req, res, next) => {
     );
     const job = jobRows[0];
     if (!job) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
+    // Group 9 partials Wave 2 Batch Q (498, G9-B6, D-561): a driver's
+    // access to a job ends 7 days after it reaches a terminal state
+    // (D-90). The write paths never enforced that, so an issue (and
+    // its support ticket) could be filed on a job delivered months
+    // ago. The check is driver-only: the shipper can still report a
+    // problem on a delivered job, and a driver inside the 7-day
+    // window can still report one too.
+    assertDriverJobAccess(job, req.user);
     const code = text(req.body.code, 64);
     const description = text(req.body.description, 2000);
     if (!code || !description) throw new AppError('Issue code and description are required', 400, 'delivery_issue_invalid');
@@ -1123,6 +1495,14 @@ exports.createExtra = async (req, res, next) => {
     );
     const job = jobRows[0];
     if (!job) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
+    // Group 9 partials Wave 2 Batch Q (498, G9-B6, D-561): same
+    // 7-day driver access expiry as createIssue above. An extra of
+    // up to $500 could otherwise be filed on a job delivered months
+    // ago and land as a pending charge request on the customer. The
+    // extra still cannot charge without customer approval; this keeps
+    // the request itself from being created on a closed job. The
+    // shipper is unaffected (the check is driver-only).
+    assertDriverJobAccess(job, req.user);
     const category = text(req.body.category, 48);
     const amountCents = Number(req.body.amountCents);
     const notes = text(req.body.notes, 2000);
@@ -1177,14 +1557,30 @@ exports.internalQueue = async (_req, res, next) => {
     // to dispatch attention here (posted + expired marker), so an
     // unclaimed offer is never stranded off the board. decline_count
     // rides along so the board shows how many drivers passed per job.
-    const { rows } = await pool.query(`SELECT dj.*, u.email AS customer_email,
-      (SELECT COUNT(*) FROM delivery_job_declines d WHERE d.delivery_job_id = dj.id) AS decline_count
-      FROM delivery_jobs dj JOIN users u ON u.id = dj.customer_user_id
-      WHERE dj.dispatch_state IN ('internal_review','internal_assigned','exception')
+    // Group 9 partials Wave 2 Batch P (481, G9-B5, D-553): marketplace-
+    // claimed jobs (dispatch_state 'assigned') are on the board too,
+    // with the claiming driver's name joined in, and the queue is
+    // paginated (page/limit + total) instead of silently dropping
+    // everything past the 200 oldest-first rows.
+    const query = _req.query || {};
+    const limit = Math.min(200, Math.max(1, parseInt(query.limit, 10) || 200));
+    const page = Math.max(1, parseInt(query.page, 10) || 1);
+    const offset = (page - 1) * limit;
+    const where = `WHERE dj.dispatch_state IN ('internal_review','internal_assigned','exception')
          OR (dj.status = 'posted' AND dj.dispatch_state = 'marketplace_posted' AND dj.offer_expired_at IS NOT NULL)
          OR (dj.delay_escalated_at IS NOT NULL AND dj.status IN ('assigned','picked_up','in_transit'))
-      ORDER BY dj.created_at ASC LIMIT 200`);
-    res.json({ success: true, jobs: rows.map(operatorSafeJob) });
+         OR (dj.status = 'assigned' AND dj.dispatch_state = 'assigned')`;
+    const { rows } = await pool.query(`SELECT dj.*, u.email AS customer_email,
+      hu.first_name AS helper_first_name, hu.last_name AS helper_last_name, hu.email AS helper_email,
+      iu.first_name AS internal_first_name, iu.last_name AS internal_last_name, iu.email AS internal_email,
+      (SELECT COUNT(*) FROM delivery_job_declines d WHERE d.delivery_job_id = dj.id) AS decline_count
+      FROM delivery_jobs dj JOIN users u ON u.id = dj.customer_user_id
+      LEFT JOIN users hu ON hu.id = dj.helper_user_id
+      LEFT JOIN users iu ON iu.id = dj.internal_driver_user_id
+      ${where}
+      ORDER BY dj.created_at ASC LIMIT $1 OFFSET $2`, [limit, offset]);
+    const count = await pool.query(`SELECT COUNT(*)::int AS total FROM delivery_jobs dj ${where}`);
+    res.json({ success: true, jobs: rows.map(operatorSafeJob), total: Number(count.rows[0]?.total || 0), page, limit });
   } catch (error) {
     next(error);
   }
@@ -1270,12 +1666,20 @@ exports.upsertDriver = async (req, res, next) => {
   try {
     const driverId = text(req.body.userId, 80);
     if (!driverId) throw new AppError('Driver userId is required', 400, 'delivery_driver_invalid');
+    const { rows: [prior] } = await pool.query('SELECT approved FROM delivery_driver_profiles WHERE user_id = $1', [driverId]);
     // Group 9 Slice A (item 454b): the dispatch ResourceForm collects
     // serviceArea, maxPieces, fragile/perishable support, insurance
     // expiry and the availability window, but upsertDriver persisted
     // none of them; the columns exist (migration 572) and the values
     // were silently dropped. They are written now.
     const { rows } = await pool.query(`INSERT INTO delivery_driver_profiles (user_id, approved, active, vehicle_type, max_payload_lbs, cargo_length_in, cargo_width_in, cargo_height_in, equipment, service_area, max_pieces, fragile_supported, perishable_supported, insurance_expires_at, available_from, available_until, insurance_acknowledged, updated_by_user_id) VALUES ($1, TRUE, TRUE, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) ON CONFLICT (user_id) DO UPDATE SET approved = TRUE, active = TRUE, vehicle_type = EXCLUDED.vehicle_type, max_payload_lbs = EXCLUDED.max_payload_lbs, cargo_length_in = EXCLUDED.cargo_length_in, cargo_width_in = EXCLUDED.cargo_width_in, cargo_height_in = EXCLUDED.cargo_height_in, equipment = EXCLUDED.equipment, service_area = EXCLUDED.service_area, max_pieces = EXCLUDED.max_pieces, fragile_supported = EXCLUDED.fragile_supported, perishable_supported = EXCLUDED.perishable_supported, insurance_expires_at = EXCLUDED.insurance_expires_at, available_from = EXCLUDED.available_from, available_until = EXCLUDED.available_until, insurance_acknowledged = EXCLUDED.insurance_acknowledged, updated_by_user_id = EXCLUDED.updated_by_user_id, updated_at = NOW() RETURNING *`, [driverId, text(req.body.vehicleType, 32) || null, positiveNumber(req.body.maxPayloadLbs), positiveNumber(req.body.cargoLengthIn), positiveNumber(req.body.cargoWidthIn), positiveNumber(req.body.cargoHeightIn), JSON.stringify(normalizeHandling(req.body.equipment)), JSON.stringify(normalizeServiceArea(req.body.serviceArea ?? req.body.service_area)), Math.max(1, nonNegativeInteger(req.body.maxPieces ?? req.body.max_pieces, 1)), req.body.fragileSupported === true || req.body.fragile_supported === true, req.body.perishableSupported === true || req.body.perishable_supported === true, isoDate(req.body.insuranceExpiresAt ?? req.body.insurance_expires_at, 'insuranceExpiresAt'), isoDate(req.body.availableFrom ?? req.body.available_from, 'availableFrom'), isoDate(req.body.availableUntil ?? req.body.available_until, 'availableUntil'), req.body.insuranceAcknowledged === true, req.user.id]);
+    // Group 9 partials Wave 2 Batch L (451, G9-A8, D-529): tell the
+    // driver they were approved, but only on the transition into
+    // approval. Repeat upserts (ops updating capacity fields on an
+    // already-approved profile) stay silent.
+    if (prior?.approved !== true) {
+      await notifyDriver(driverId, 'driver_approved', { driver_user_id: driverId }, '/delivery', `driver-approved:${driverId}:${new Date(rows[0].updated_at).getTime()}`);
+    }
     res.status(201).json({ success: true, driver: rows[0] });
   } catch (error) {
     next(error);
@@ -1713,7 +2117,7 @@ exports.getDriverReadiness = async (req, res, next) => {
       'fragile', 'perishable', 'hazmat', 'equipment', 'serviceArea', 'availability',
       'availableFrom', 'availableUntil', 'documents', 'vehicle'];
     const FIX_TARGET = {
-      approval: 'profile', insurance: 'profile', insuranceExpiry: 'documents', pieces: 'profile',
+      approval: 'profile', insurance: 'profile', insuranceExpiry: 'profile', pieces: 'profile',
       payload: 'profile', dimensions: 'profile', fragile: 'profile', perishable: 'profile',
       hazmat: 'profile', equipment: 'profile', serviceArea: 'service-area', availability: 'profile',
       availableFrom: 'profile', availableUntil: 'profile', documents: 'documents', vehicle: 'vehicles',
@@ -1744,7 +2148,7 @@ exports.getDriverReadiness = async (req, res, next) => {
       if (!profile.cargo_length_in || !profile.cargo_width_in || !profile.cargo_height_in) {
         checklist.dimensions = { key: 'dimensions', status: 'warn', detail: 'no_dimensions_recorded', fix: 'profile' };
       }
-      if (!profile.insurance_expires_at) checklist.insuranceExpiry = { key: 'insuranceExpiry', status: 'warn', detail: 'no_expiry_recorded', fix: 'documents' };
+      if (!profile.insurance_expires_at) checklist.insuranceExpiry = { key: 'insuranceExpiry', status: 'warn', detail: 'no_expiry_recorded', fix: 'profile' };
     }
     // Documents: an expired document fails readiness; one expiring within
     // 30 days warns. No documents at all warns (nothing on file to renew).
@@ -1789,17 +2193,39 @@ exports.listDriverPayouts = async (req, res, next) => {
       throw new AppError('Driver access required', 403, 'delivery_driver_required');
     }
     const status = text(req.query.status, 24);
+    // G9-B1 (item 492, D-524): paginate like the ops list instead of
+    // silently capping at 100 rows. The default page stays 100 (the
+    // old cap), the COUNT total lets the client page through the full
+    // filtered list, and the totals below are server-side over the
+    // full set so the earnings header stops understating past 100.
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 100));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
     const params = [req.user.id];
     let filter = '';
-    if (status) { params.push(status); filter = ` AND status = $2`; }
+    if (status) { params.push(status); filter = ` AND p.status = $2`; }
+    const pageParams = [...params, limit, offset];
     const { rows } = await pool.query(
       `SELECT p.*, j.reference AS job_reference, j.status AS job_status
          FROM delivery_driver_payouts p
          LEFT JOIN delivery_jobs j ON j.id = p.delivery_job_id
         WHERE p.driver_user_id = $1${filter}
         ORDER BY p.created_at DESC
-        LIMIT 100`,
+        LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`,
+      pageParams
+    );
+    const count = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM delivery_driver_payouts p WHERE p.driver_user_id = $1${filter}`,
       params
+    );
+    // Lifetime earnings totals over the driver's full set, ignoring
+    // the list's status filter and the page: the header is the
+    // earnings summary, not a page summary. A voided payout is
+    // neither paid nor pending, so it lands in neither bucket.
+    const { rows: [totals] } = await pool.query(
+      `SELECT COALESCE(SUM(payout_cents) FILTER (WHERE status = 'paid'), 0)::int AS paid_cents,
+              COALESCE(SUM(payout_cents) FILTER (WHERE status IN ('accrued', 'approved')), 0)::int AS pending_cents
+         FROM delivery_driver_payouts WHERE driver_user_id = $1`,
+      [req.user.id]
     );
     // Group 9 Slice F (items 493/494): the explanation for any payout
     // adjustment (what changed, why, by whom, before/after) and any
@@ -1830,6 +2256,13 @@ exports.listDriverPayouts = async (req, res, next) => {
         adjustments: adjustments.get(String(row.id)) || [],
         disputes: disputesByJob.get(String(row.delivery_job_id)) || [],
       })),
+      total: Number(count.rows[0]?.total || 0),
+      limit,
+      offset,
+      totals: {
+        paidCents: Number(totals?.paid_cents || 0),
+        pendingCents: Number(totals?.pending_cents || 0),
+      },
     });
   } catch (error) {
     next(error);
@@ -1882,6 +2315,11 @@ exports.approveDriverPayout = async (req, res, next) => {
     await client.query('BEGIN');
     const payout = await approvePayout(client, req.params.payoutId, req.user.id, req.body.note);
     await client.query('COMMIT');
+    // Group 9 partials Wave 2 Batch L (451, G9-A8, D-529): tell the
+    // driver their payout was approved. After COMMIT, never blocking.
+    // Re-approving an already-approved row reuses the same key, so the
+    // driver is not notified twice for one approval.
+    await notifyDriver(payout.driver_user_id, 'driver_payout_approved', { payout_id: String(payout.id), delivery_job_id: payout.delivery_job_id ? String(payout.delivery_job_id) : null, payout_cents: payout.payout_cents }, '/delivery/payouts', `driver-payout-approved:${payout.id}`);
     res.json({ success: true, payout });
   } catch (error) {
     if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
@@ -1896,6 +2334,9 @@ exports.markDriverPayoutPaid = async (req, res, next) => {
     await client.query('BEGIN');
     const payout = await markPayoutPaid(client, req.params.payoutId, req.user.id, req.body.paymentReference ?? req.body.payment_reference, req.body.note);
     await client.query('COMMIT');
+    // Group 9 partials Wave 2 Batch L (451, G9-A8, D-529): tell the
+    // driver their payout was paid. After COMMIT, never blocking.
+    await notifyDriver(payout.driver_user_id, 'driver_payout_paid', { payout_id: String(payout.id), delivery_job_id: payout.delivery_job_id ? String(payout.delivery_job_id) : null, payout_cents: payout.payout_cents }, '/delivery/payouts', `driver-payout-paid:${payout.id}`);
     res.json({ success: true, payout });
   } catch (error) {
     if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
@@ -2313,7 +2754,7 @@ exports.internalDriverHandoffs = async (req, res, next) => {
 exports.isInternalOperator = isInternalOperator;
 
 Object.assign(exports, {
-  ...Object.fromEntries(['claim','decline','assignInternal','releaseMarketplace'].map(name => [name, require('../services/localDeliveryDispatchService')[name]])),
+  ...Object.fromEntries(['claim','decline','assignInternal','releaseMarketplace','transferAssignment'].map(name => [name, require('../services/localDeliveryDispatchService')[name]])),
   ...Object.fromEntries(['requestReschedule','reviewReschedule','requestReturn','reviewReturn','resolveIssue'].map(name => [name, require('../services/localDeliveryRecoveryService')[name]])),
 });
 const deliveryPayments = require('../services/localDeliveryPaymentService');

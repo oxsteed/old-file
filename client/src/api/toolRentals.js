@@ -156,6 +156,18 @@ export const toolRentalsApi = {
     window.URL.revokeObjectURL(url);
   },
 
+  // G11-A1/A3 (D-603): two-step payment confirmation. The renter records
+  // payment proof (reference + amount); the owner confirms receipt.
+  recordInvoicePayment: async (invoiceId, { reference, amount }) => {
+    const response = await api.post(`/tool-rentals/invoices/${invoiceId}/record-payment`, { reference, amount });
+    return response.data;
+  },
+
+  confirmInvoicePayment: async (invoiceId) => {
+    const response = await api.post(`/tool-rentals/invoices/${invoiceId}/confirm-payment`);
+    return response.data;
+  },
+
   // Group 11 item 575: checkout acknowledgment at pickup.
   acknowledgeCheckout: async (bookingId) => {
     const response = await api.post(`/tool-rentals/bookings/${bookingId}/checkout-acknowledge`);
@@ -205,8 +217,8 @@ export const toolRentalsApi = {
     return response.data;
   },
 
-  settleRefundSettlement: async (bookingId) => {
-    const response = await api.post(`/tool-rentals/bookings/${bookingId}/recovery/settle`);
+  settleRefundSettlement: async (bookingId, { reference } = {}) => {
+    const response = await api.post(`/tool-rentals/bookings/${bookingId}/recovery/settle`, { reference });
     return response.data;
   },
 
@@ -249,6 +261,13 @@ export const toolRentalsApi = {
 
   postEscalationMessage: async (escalationId, message) => {
     const response = await api.post(`/tool-rentals/escalations/${escalationId}/messages`, { message });
+    return response.data;
+  },
+
+  // Wave 3 (589, D-569): either party accepts or disputes an admin-closed
+  // escalation; a dispute reopens the thread.
+  acknowledgeEscalation: async (escalationId, decision) => {
+    const response = await api.post(`/tool-rentals/escalations/${escalationId}/acknowledge`, { decision });
     return response.data;
   },
 

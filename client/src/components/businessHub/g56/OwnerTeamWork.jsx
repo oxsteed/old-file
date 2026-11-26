@@ -76,7 +76,11 @@ function Dispatch({ businessId }) {
 function Issues({ businessId }) {
   const [closed, setClosed] = useState(false);
   const p = useBizG56(`/businesses/${businessId}/owner/exceptions${closed ? '?status=closed' : ''}`, 'team');
+  const tm = useBizG56(`/businesses/${businessId}/work/teammates`, 'team');
   const [res, setRes] = useState({});
+  // 292 (G5-21): the member a task-linked reassignment request moves
+  // to, keyed by exception id.
+  const [reassignTo, setReassignTo] = useState({});
   if (!p.data) return null;
   return (
     <section className="g56-panel">
@@ -87,8 +91,16 @@ function Issues({ businessId }) {
           {e.escalation_level > 0 && <span className="g56-badge">{p.tr('escalated')}</span>}
           {!closed && <div className="g56-row">
             <input aria-label={p.tr('resolution')} placeholder={p.tr('resolution')} value={res[e.id] || ''} onChange={ev => setRes({ ...res, [e.id]: ev.target.value })} maxLength={1000} />
+            {e.kind === 'reassignment_request' && e.task_id && (
+              <label>{p.tr('reassignTo')}
+                <select aria-label={p.tr('reassignTo')} value={reassignTo[e.id] || ''} onChange={ev => setReassignTo({ ...reassignTo, [e.id]: ev.target.value })}>
+                  <option value="">—</option>
+                  {(tm.data?.teammates || []).filter(m => String(m.id) !== String(e.raised_by)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </label>
+            )}
             {e.status === 'open' && <button type="button" disabled={p.busy} onClick={() => p.send('patch', `/businesses/${businessId}/work/exceptions/${e.id}`, { status: 'acknowledged', expectedVersion: e.version })} data-track="ui.234c9937d9.10">{p.tr('acknowledge')}</button>}
-            <button type="button" disabled={p.busy || !(res[e.id] || '').trim()} onClick={() => p.send('patch', `/businesses/${businessId}/work/exceptions/${e.id}`, { status: 'resolved', resolution: res[e.id], expectedVersion: e.version })} data-track="ui.234c9937d9.11">{p.tr('resolve')}</button>
+            <button type="button" disabled={p.busy || !(res[e.id] || '').trim()} onClick={() => p.send('patch', `/businesses/${businessId}/work/exceptions/${e.id}`, { status: 'resolved', resolution: res[e.id], expectedVersion: e.version, ...(reassignTo[e.id] ? { reassign_to_user_id: reassignTo[e.id] } : {}) })} data-track="ui.234c9937d9.11">{p.tr('resolve')}</button>
             <button type="button" disabled={p.busy || !(res[e.id] || '').trim()} onClick={() => p.send('patch', `/businesses/${businessId}/work/exceptions/${e.id}`, { status: 'dismissed', resolution: res[e.id], expectedVersion: e.version })} data-track="ui.234c9937d9.12">{p.tr('dismiss')}</button>
           </div>}</li>))}</ul>}
       {p.errorText && <p className="g56-error" role="alert">{p.errorText}</p>}
@@ -155,6 +167,34 @@ function Checklists({ businessId }) {
   );
 }
 
+function Report({ businessId }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const weekAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+  const [from, setFrom] = useState(weekAgo);
+  const [to, setTo] = useState(today);
+  const p = useBizG56(`/businesses/${businessId}/owner/work-report?from=${from}&to=${to}`, 'team');
+  const d = p.data;
+  const statusKey = { confirmed: 'stConfirmed', in_progress: 'stInProgress', completed: 'stCompleted', cancelled: 'stCancelled' };
+  return (
+    <section className="g56-panel">
+      <h3>{p.tr('report')}</h3>
+      <div className="g56-row">
+        <label>{p.tr('fromDate')} <input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
+        <label>{p.tr('toDate')} <input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
+      </div>
+      {d && (<>
+        <p>{p.tr('totalAppointments')}: {d.appointments.total} · {p.tr('progressUpdates')}: {d.progressUpdates.count} · {p.tr('openExceptions')}: {d.openExceptions}</p>
+        <ul className="g56-list">{Object.keys(statusKey).filter(s => d.appointments.byStatus[s]).map(s => (<li key={s}>{p.tr(statusKey[s])}: {d.appointments.byStatus[s]}</li>))}</ul>
+        <h4>{p.tr('stalled')}</h4>
+        {d.stalled.length === 0 ? <p>{p.tr('noStalled')}</p> : <ul className="g56-list">{d.stalled.map(a => (<li key={a.id}>{a.service_name} — {p.time(a.start_time)} ({p.tr('lastProgress')}: {a.last_progress ? p.time(a.last_progress) : '—'})</li>))}</ul>}
+        <h4>{p.tr('progressUpdates')}</h4>
+        {d.progressUpdates.items.length === 0 ? <p>{p.tr('noRecentUpdates')}</p> : <ul className="g56-list">{d.progressUpdates.items.map((u, i) => (<li key={i}>{u.service_name} — {u.percent}%{u.note ? ` — ${u.note}` : ''} · {u.author || ''} {p.time(u.created_at)}</li>))}</ul>}
+      </>)}
+      {p.errorText && <p className="g56-error" role="alert">{p.errorText}</p>}
+    </section>
+  );
+}
+
 export default function OwnerTeamWork({ businessId, role }) {
   if (!businessId || !['owner', 'manager'].includes(role)) return null;
   return (<>
@@ -165,5 +205,6 @@ export default function OwnerTeamWork({ businessId, role }) {
     <FollowUps businessId={businessId} />
     <Crews businessId={businessId} />
     <Checklists businessId={businessId} />
+    <Report businessId={businessId} />
   </>);
 }

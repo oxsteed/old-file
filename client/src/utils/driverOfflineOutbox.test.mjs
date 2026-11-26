@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import {
   buildOutboxExecutors,
   checklistItems,
+  countStrandedOutbox,
   discardEntry,
   enqueueAction,
   flushOutbox,
@@ -20,11 +21,14 @@ import {
 
 function stubStorage() {
   const map = new Map();
-  return {
+  const storage = {
     getItem: (key) => (map.has(key) ? map.get(key) : null),
     setItem: (key, value) => { map.set(key, value); },
     removeItem: (key) => { map.delete(key); },
+    key: (index) => [...map.keys()][index] ?? null,
   };
+  Object.defineProperty(storage, 'length', { get: () => map.size });
+  return storage;
 }
 
 function networkError() {
@@ -195,4 +199,41 @@ test('checklistItems derives done / queued / failed / pending from the job, stop
   assert.deepEqual(Object.fromEntries(delivered.map((item) => [item.key, item.state])), {
     pickup: 'done', in_transit: 'done', proof: 'done',
   });
+});
+
+// Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): the stranded
+// count a device change sends with the transfer (or the lost-device
+// report) — queued offline actions and unsent GPS points, per job.
+test('countStrandedOutbox counts queued actions and unsent points per job', () => {
+  const storage = stubStorage();
+  enqueueAction(storage, '101', 'status', { status: 'picked_up' });
+  enqueueAction(storage, '101', 'proof', { proofType: 'pin' });
+  storage.setItem('tracking-queue:101', JSON.stringify([
+    { latitude: 40.1, longitude: -83.1, recordedAt: '2026-11-26T00:00:00Z' },
+    { latitude: 40.2, longitude: -83.2, recordedAt: '2026-11-26T00:01:00Z' },
+    { latitude: 40.3, longitude: -83.3, recordedAt: '2026-11-26T00:02:00Z' },
+  ]));
+  // A failed entry is not stranded: it stays visible on the checklist
+  // for the driver to retry or discard, it is not lost with the device.
+  const failed = enqueueAction(storage, '102', 'issue', { code: 'delay', description: 'Late' });
+  storage.setItem('delivery-outbox:102', JSON.stringify([{ ...readOutbox(storage, '102')[0], id: failed.id, state: 'failed' }]));
+  // A GPS-only job still strands its points.
+  storage.setItem('tracking-queue:103', JSON.stringify([
+    { latitude: 40.1, longitude: -83.1, recordedAt: '2026-11-26T00:00:00Z' },
+    { latitude: 40.2, longitude: -83.2, recordedAt: '2026-11-26T00:01:00Z' },
+  ]));
+
+  const counted = countStrandedOutbox(storage);
+  assert.deepEqual(counted.jobs, [
+    { jobId: '101', queuedActions: 2, unsyncedPoints: 3 },
+    { jobId: '103', queuedActions: 0, unsyncedPoints: 2 },
+  ]);
+  assert.equal(counted.totalQueuedActions, 2);
+  assert.equal(counted.totalUnsyncedPoints, 5);
+  assert.equal(counted.totalJobs, 2);
+});
+
+test('countStrandedOutbox is empty when nothing is queued', () => {
+  const counted = countStrandedOutbox(stubStorage());
+  assert.deepEqual(counted, { jobs: [], totalQueuedActions: 0, totalUnsyncedPoints: 0, totalJobs: 0 });
 });

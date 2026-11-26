@@ -506,6 +506,10 @@ describe('decideTimeOffRequest balance decrement', () => {
       if (s.includes('FROM business_time_off_requests') && s.includes('FOR UPDATE')) {
         return { rows: [{ id: 41, user_id: STAFF, request_type: 'vacation', start_date: '2026-11-02', end_date: '2026-11-04', status: 'pending' }] };
       }
+      // 293 (G5-9): decideTimeOffRequest counts open work in the window
+      // before approving. This fixture has no open work, so no delegate
+      // is required and the flow reaches the balance decrement.
+      if (s.includes('FROM business_team_tasks')) return { rows: [{ open_tasks: 0, visits: 0 }] };
       if (s.includes('FROM business_time_off_policies')) return { rows: [{ accrual_unit: 'days' }] };
       if (s.includes('UPDATE business_time_off_balances')) {
         return { rows: balanceAfter == null ? [] : [{ balance: balanceAfter }] };

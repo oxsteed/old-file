@@ -1339,8 +1339,28 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
 });
 
 // DELETE /api/tool-rentals/:id
+// G11-A2 (D-604): a listing with a live booking cannot be deleted.
+// Deleting would cascade the bookings, invoices, reports and claims
+// (FKs ON DELETE CASCADE) and strand the renter mid-rental with no
+// record. Live = pending / invoice_sent / payment_confirmed / returned
+// (the live booking-status CHECK); completed / cancelled bookings do
+// not block. Deliberately no toolOwnerCapabilityGate here: a revoked
+// owner must still be able to remove their own listings.
 router.delete('/:id', authenticate, async (req, res) => {
   try {
+    const { rows: live } = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM tool_rentals_bookings
+        WHERE tool_id = $1 AND owner_id = $2
+          AND status IN ('pending', 'invoice_sent', 'payment_confirmed', 'returned')`,
+      [req.params.id, req.user.id]
+    );
+    if (live[0]?.count > 0) {
+      return res.status(409).json({
+        error: 'This listing has active bookings and cannot be deleted',
+        code: 'active_bookings',
+        active_bookings: live[0].count,
+      });
+    }
     const result = await pool.query(
       'DELETE FROM tool_rentals WHERE id = $1 AND user_id = $2 RETURNING id',
       [req.params.id, req.user.id]
@@ -1389,6 +1409,9 @@ router.post('/bookings/:bookingId/damage-claims/:claimId/acknowledge', authentic
 router.get('/bookings/:bookingId/escalations', authenticate, toolRentalDisputesController.listEscalations);
 router.post('/bookings/:bookingId/escalations', authenticate, toolRentalDisputesController.openEscalation);
 router.post('/escalations/:escalationId/messages', authenticate, toolRentalDisputesController.postEscalationMessage);
+// Wave 3 (589, D-569): either party accepts or disputes an admin-closed
+// escalation; a dispute reopens the thread.
+router.post('/escalations/:escalationId/acknowledge', authenticate, toolRentalDisputesController.acknowledgeEscalation);
 router.get('/admin/escalations', authenticate, requireAdmin, requirePermission('moderate_content'), toolRentalDisputesController.adminListEscalations);
 router.get('/admin/escalations/:escalationId', authenticate, requireAdmin, requirePermission('moderate_content'), toolRentalDisputesController.adminGetEscalation);
 router.post('/admin/escalations/:escalationId/messages', authenticate, requireAdmin, requirePermission('moderate_content'), toolRentalDisputesController.adminPostEscalationMessage);
@@ -1506,6 +1529,7 @@ router.post('/invoices', authenticate, invoiceLimiter, invoiceController.createI
 router.get('/invoices/:invoiceId', authenticate, invoiceController.getInvoice);
 router.get('/invoices/:invoiceId/pdf', authenticate, invoiceController.generateInvoicePDF);
 router.post('/invoices/:invoiceId/confirm-payment', authenticate, invoiceLimiter, invoiceController.confirmPayment);
+router.post('/invoices/:invoiceId/record-payment', authenticate, invoiceLimiter, invoiceController.recordPayment);
 router.post('/bookings/:bookingId/deposit/resolve', authenticate, invoiceLimiter, invoiceController.resolveDeposit);
 
 // USER REPORTS (Option C)

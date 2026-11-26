@@ -9,7 +9,8 @@ import PageShell from '../components/PageShell';
 import { useAuth } from '../hooks/useAuth';
 import { toolRentalsApi } from '../api/toolRentals';
 import api from '../api/axios';
-import { cancelBookingRequest, fetchBookingPrefillForJob } from '../api/bookings';
+import { cancelBookingRequest, fetchBookingPrefillForJob, listMySponsorships } from '../api/bookings';
+import BookingParticipantView from '../components/booking/BookingParticipantView';
 import BookingRescheduleBox from '../components/calendar/BookingRescheduleBox';
 import { prefillBookingDraft } from '../components/booking/BookingFlow';
 import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag, Clock, CheckCircle, XCircle, Briefcase, Wrench } from 'lucide-react';
@@ -32,6 +33,10 @@ function formatTime(hhmm: string | null | undefined, locale: string): string {
 interface HelperBooking {
   id: string;
   helperId: string;
+  // G-6: the customer is the booker; a row whose customerId is not the
+  // viewer is a visit the viewer attends as recipient or site contact,
+  // and mounts the participant view instead of the booker's card.
+  customerId?: string | number;
   serviceName: string;
   requestedDate: string;
   requestedStartTime: string;
@@ -92,6 +97,15 @@ interface Booking {
   owner_identity?: { status: string; verified: boolean; verifiedAt?: string | null };
   checkout_acknowledged_at?: string | null;
   checkout_report_id?: string | null;
+  // G11-A1/A3 (D-603): invoice + payment proof ride the booking lists
+  // so the payment section renders without opening the receipt.
+  invoice_id?: number | null;
+  invoice_number?: string | null;
+  invoice_status?: string | null;
+  invoice_total_amount?: number | string | null;
+  payment_proof_reference?: string | null;
+  payment_proof_amount?: number | string | null;
+  payment_proof_submitted_at?: string | null;
 }
 
 const MyBookingsPageContent = () => {
@@ -99,10 +113,12 @@ const MyBookingsPageContent = () => {
   const locale = i18n.language || 'en';
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'my-rentals' | 'my-tools' | 'helper-bookings'>('helper-bookings');
+  const [activeTab, setActiveTab] = useState<'my-rentals' | 'my-tools' | 'helper-bookings' | 'my-sponsorships'>('helper-bookings');
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
   const [ownerBookings, setOwnerBookings] = useState<Booking[]>([]);
   const [helperBookings, setHelperBookings] = useState<HelperBooking[]>([]);
+  // D-601: the caller's own sponsorships, for the My sponsorships tab.
+  const [mySponsorships, setMySponsorships] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
@@ -118,9 +134,13 @@ const MyBookingsPageContent = () => {
   const [receiptLoading, setReceiptLoading] = useState<Record<number, boolean>>({});
   // Group 11 item 576: renter return-reschedule draft per booking.
   const [rescheduleDraft, setRescheduleDraft] = useState<Record<number, { date: string; time: string }>>({});
+  // G11-A1/A3 (D-603): renter payment-proof draft per booking.
+  const [paymentDraft, setPaymentDraft] = useState<Record<number, { reference: string; amount: string }>>({});
   // Group 11 item 583: cancellation recovery record per cancelled booking.
   const [recoveries, setRecoveries] = useState<Record<number, any>>({});
   const [recoveryDraft, setRecoveryDraft] = useState<Record<number, { amount: string; direction: string; note: string }>>({});
+  // G11-B6 (D-607): payer's payment-reference draft per agreed settlement.
+  const [settleReference, setSettleReference] = useState<Record<number, string>>({});
   // Group 11 item 584: replacement suggestions per cancelled booking.
   const [bookingAlternatives, setBookingAlternatives] = useState<Record<number, any[]>>({});
 
@@ -133,15 +153,17 @@ const MyBookingsPageContent = () => {
       setLoading(true);
       setError(null);
 
-      const [myRentals, toolBookings, hbResponse] = await Promise.all([
+      const [myRentals, toolBookings, hbResponse, sponsorships] = await Promise.all([
         toolRentalsApi.getMyBookings().catch(() => []),
         toolRentalsApi.getBookingsByOwner().catch(() => []),
         api.get('/bookings').catch(() => ({ data: { data: [] } })),
+        listMySponsorships().catch(() => []),
       ]);
 
       setMyBookings(myRentals);
       setOwnerBookings(toolBookings);
       setHelperBookings(Array.isArray(hbResponse.data?.data) ? hbResponse.data.data : []);
+      setMySponsorships(Array.isArray(sponsorships) ? sponsorships : []);
       // Group 11 items 583/584: for every cancelled rental, load the
       // recovery record (if any) and replacement suggestions for the
       // original dates, so the recovery panel is ready on the card.
@@ -272,6 +294,41 @@ const MyBookingsPageContent = () => {
       loadBookings();
     } catch (err) {
       toast.error(t('booking.cancelFailed') || 'Failed to cancel booking');
+    }
+  };
+
+  // G11-A1/A3 (D-603): two-step payment confirmation. The renter records
+  // the off-platform payment (reference + amount equal to the invoice
+  // total); the owner then confirms receipt. Recording proof never flips
+  // the booking — the server enforces that.
+  const handleRecordPayment = async (booking: Booking) => {
+    const draft = paymentDraft[booking.id] || { reference: '', amount: String(booking.invoice_total_amount ?? '') };
+    if (!draft.reference.trim()) {
+      toast.error(t('toolRentals.paymentReferenceRequired') || 'Enter the payment reference.');
+      return;
+    }
+    const amount = Number(draft.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error(t('toolRentals.paymentAmountRequired') || 'Enter the amount you paid.');
+      return;
+    }
+    try {
+      await toolRentalsApi.recordInvoicePayment(booking.invoice_id, { reference: draft.reference.trim(), amount });
+      toast.success(t('toolRentals.paymentRecorded') || 'Payment recorded. The owner will confirm receipt.');
+      setPaymentDraft((prev) => ({ ...prev, [booking.id]: { reference: '', amount: '' } }));
+      loadBookings();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || t('toolRentals.paymentRecordFailed') || 'Could not record the payment');
+    }
+  };
+
+  const handleConfirmInvoicePayment = async (booking: Booking) => {
+    try {
+      await toolRentalsApi.confirmInvoicePayment(booking.invoice_id);
+      toast.success(t('toolRentals.paymentConfirmed') || 'Payment confirmed. The booking is paid.');
+      loadBookings();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || t('toolRentals.paymentConfirmFailed') || 'Could not confirm the payment');
     }
   };
 
@@ -463,10 +520,19 @@ const MyBookingsPageContent = () => {
   };
 
   const handleSettleRefund = async (booking: Booking) => {
+    const recovery = recoveries[booking.id];
+    const reference = (settleReference[booking.id] || '').trim();
+    // G11-B6 (D-607): the payer's reference is the evidence the money
+    // moved; the server requires it whenever money is owed.
+    if (Number(recovery?.refund_amount || 0) > 0 && !reference) {
+      toast.error(t('toolRentals.recoveryReferenceRequired') || 'Add the payment reference for this refund first');
+      return;
+    }
     if (!window.confirm(t('toolRentals.recoverySettleConfirm') || 'Confirm the refund money has already moved between you off-platform?')) return;
     try {
-      const { recovery } = await toolRentalsApi.settleRefundSettlement(booking.id);
-      setRecoveries((prev) => ({ ...prev, [booking.id]: recovery }));
+      const { recovery: settled } = await toolRentalsApi.settleRefundSettlement(booking.id, { reference: reference || undefined });
+      setRecoveries((prev) => ({ ...prev, [booking.id]: settled }));
+      setSettleReference((prev) => ({ ...prev, [booking.id]: '' }));
       toast.success(t('toolRentals.recoverySettled') || 'Refund marked settled');
       loadBookings();
     } catch (err: any) {
@@ -625,17 +691,44 @@ const MyBookingsPageContent = () => {
             {recovery.refund_status === 'proposed' && isProposer && (
               <p>{t('toolRentals.recoveryWaitingOther') || 'Waiting for the other party to agree.'}</p>
             )}
-            {recovery.refund_status === 'agreed' && (
-              <div className="booking-card-actions">
-                <button
-                  type="button"
-                  onClick={() => handleSettleRefund(booking)}
-                  className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.27"
-                >
-                  {t('toolRentals.recoverySettle') || 'Mark refund settled'}
-                </button>
-              </div>
+            {recovery.refund_status === 'settled' && recovery.settled_reference && (
+              <p>{t('toolRentals.recoverySettledReference', { reference: recovery.settled_reference }) || `Payment reference: ${recovery.settled_reference}`}</p>
             )}
+            {recovery.refund_status === 'agreed' && (() => {
+              // G11-B6 (D-607): only the paying party settles. The
+              // direction names the payer; a zero-amount settlement
+              // (direction 'none') has no payer, so either party may.
+              const isPayer = recovery.refund_direction === 'owner_to_renter'
+                ? String(booking.owner_id) === String(user?.id)
+                : recovery.refund_direction === 'renter_to_owner'
+                  ? String(booking.customer_id) === String(user?.id)
+                  : true;
+              if (!isPayer) {
+                return <p>{t('toolRentals.recoveryWaitingPayer') || 'Waiting for the party who pays to mark the refund settled.'}</p>;
+              }
+              return (
+                <div className="booking-card-actions">
+                  {Number(recovery.refund_amount || 0) > 0 && (
+                    <label>
+                      {t('toolRentals.recoverySettleReference') || 'Payment reference'}
+                      <input
+                        type="text"
+                        value={settleReference[booking.id] || ''}
+                        onChange={(e) => setSettleReference((prev) => ({ ...prev, [booking.id]: e.target.value }))}
+                        placeholder={t('toolRentals.recoverySettleReferencePlaceholder') || 'e.g. VENMO-1234'}
+                      />
+                    </label>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleSettleRefund(booking)}
+                    className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.27"
+                  >
+                    {t('toolRentals.recoverySettle') || 'Mark refund settled'}
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         ) : (
           <div>
@@ -736,6 +829,17 @@ const MyBookingsPageContent = () => {
             <div><dt>{t('toolRentals.receiptFulfillment') || 'How you get it'}</dt><dd>{t(`toolRentals.receiptFulfillment_${fulfillment}`) || fulfillment}</dd></div>
           )}
           <div><dt>{t('toolRentals.receiptTotal') || 'Total'}</dt><dd>${Number(booking.total_price || 0).toFixed(2)}</dd></div>
+          {(Number(receipt.invoice?.deposit_amount || 0) > 0 || Number(booking.deposit_amount || 0) > 0) && (
+            <div>
+              <dt>{t('toolRentals.receiptDeposit') || 'Deposit'}</dt>
+              <dd>
+                ${Number(receipt.invoice?.deposit_amount ?? booking.deposit_amount ?? 0).toFixed(2)}
+                {booking.deposit_status && booking.deposit_status !== 'none' && (
+                  <> · {t(`toolRentals.depositStatus_${booking.deposit_status}`) || booking.deposit_status}</>
+                )}
+              </dd>
+            </div>
+          )}
           <div>
             <dt>{t('toolRentals.receiptApproval') || 'Owner approval'}</dt>
             <dd>{t(`toolRentals.receiptApproval_${booking.owner_approval || 'pending'}`) || booking.owner_approval || 'pending'}</dd>
@@ -762,6 +866,11 @@ const MyBookingsPageContent = () => {
                   >
                     {t('toolRentals.receiptInvoiceDownload') || 'Download invoice PDF'}
                   </button>
+                  {receipt.invoice.payment_proof_reference && (
+                    <div>
+                      {t('toolRentals.paymentProofLabel', { reference: receipt.invoice.payment_proof_reference, amount: Number(receipt.invoice.payment_proof_amount || 0).toFixed(2) })}
+                    </div>
+                  )}
                 </>
               ) : (
                 t('toolRentals.receiptNoInvoice') || 'No invoice sent yet.'
@@ -795,6 +904,72 @@ const MyBookingsPageContent = () => {
           <span>
             {`${t('toolRentals.identityOwner') || 'Owner identity'}: ${identityStatusLabel(booking.owner_identity?.status || 'not_started')}`}
           </span>
+        )}
+      </div>
+    );
+  };
+
+  // G11-A1/A3 (D-603): two-step payment confirmation on invoice_sent
+  // bookings. The renter records the off-platform payment (reference +
+  // amount); the owner confirms receipt. Nothing here flips the booking
+  // — the server flips it only on the owner's confirmation.
+  const renderPaymentSection = (booking: Booking, isOwner: boolean) => {
+    if (booking.status !== 'invoice_sent' || !booking.invoice_id) return null;
+    const draft = paymentDraft[booking.id] || { reference: '', amount: String(booking.invoice_total_amount ?? '') };
+    const proofRecorded = !!booking.payment_proof_submitted_at;
+    return (
+      <div className="booking-card-payment" data-testid={`booking-payment-${booking.id}`}>
+        <h4>{t('toolRentals.paymentTitle') || 'Payment'}</h4>
+        <p className="booking-card-note">
+          {t('toolRentals.paymentInvoiceLine', { number: booking.invoice_number || '', amount: Number(booking.invoice_total_amount || 0).toFixed(2) })}
+        </p>
+        {!isOwner && !proofRecorded && (
+          <div className="booking-card-actions">
+            <label>
+              {t('toolRentals.paymentReference') || 'Payment reference'}
+              <input
+                type="text" maxLength={200} value={draft.reference}
+                placeholder={t('toolRentals.paymentReferencePlaceholder') || 'e.g. Venmo transaction ID'}
+                onChange={(e) => setPaymentDraft((prev) => ({ ...prev, [booking.id]: { ...draft, reference: e.target.value } }))}
+              />
+            </label>
+            <label>
+              {t('toolRentals.paymentAmount') || 'Amount paid'}
+              <input
+                type="number" step="0.01" min="0" value={draft.amount}
+                onChange={(e) => setPaymentDraft((prev) => ({ ...prev, [booking.id]: { ...draft, amount: e.target.value } }))}
+              />
+            </label>
+            <button type="button" onClick={() => handleRecordPayment(booking)} className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.23" data-track-private>
+              {t('toolRentals.paymentRecordSubmit') || 'I paid — record payment'}
+            </button>
+          </div>
+        )}
+        {!isOwner && !proofRecorded && (
+          <p className="booking-card-note">{t('toolRentals.paymentRecordHint') || 'Pay the owner using the payment details on the invoice, then record the reference and amount here.'}</p>
+        )}
+        {!isOwner && proofRecorded && (
+          <p className="booking-card-note">
+            {t('toolRentals.paymentWaitingOwner') || 'Payment recorded. Waiting for the owner to confirm receipt.'}
+            {' '}
+            {t('toolRentals.paymentProofLabel', { reference: booking.payment_proof_reference || '', amount: Number(booking.payment_proof_amount || 0).toFixed(2) })}
+          </p>
+        )}
+        {isOwner && !proofRecorded && (
+          <p className="booking-card-note">{t('toolRentals.paymentWaitingRenter') || 'Waiting for the renter to record the payment.'}</p>
+        )}
+        {isOwner && proofRecorded && (
+          <div>
+            <p className="booking-card-note">
+              {t('toolRentals.paymentProofLabel', { reference: booking.payment_proof_reference || '', amount: Number(booking.payment_proof_amount || 0).toFixed(2) })}
+            </p>
+            <div className="booking-card-actions">
+              <button type="button" onClick={() => handleConfirmInvoicePayment(booking)} className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.24" data-track-private>
+                {t('toolRentals.paymentConfirmReceipt') || 'Confirm receipt'}
+              </button>
+            </div>
+            <p className="booking-card-note">{t('toolRentals.paymentConfirmHint') || 'Confirm only when the money has arrived. This makes the invoice immutable and holds the deposit.'}</p>
+          </div>
         )}
       </div>
     );
@@ -901,6 +1076,9 @@ const MyBookingsPageContent = () => {
       {/* Group 11 item 571: identity status for both parties. */}
       {renderIdentityLine(booking, isOwner)}
 
+      {/* G11-A1/A3 (D-603): two-step payment confirmation. */}
+      {renderPaymentSection(booking, isOwner)}
+
       {/* Group 11 item 576: return time + reschedule. Group 11 item 580:
           cleaning instructions at return, frozen in the snapshot. */}
       {renderReturnSection(booking, isOwner)}
@@ -946,7 +1124,7 @@ const MyBookingsPageContent = () => {
           {booking.deposit_withheld_amount != null && Number(booking.deposit_withheld_amount) > 0 && (
             <p>{t('toolRentals.depositWithheldDetail', { amount: Number(booking.deposit_withheld_amount).toFixed(2), reason: booking.deposit_resolution_note || '' })}</p>
           )}
-          {isOwner && booking.deposit_status === 'held' && (
+          {isOwner && booking.deposit_status === 'held' && ['returned', 'completed', 'cancelled'].includes(booking.status) && (
             <div className="booking-card-actions">
               <button onClick={() => handleResolveDeposit(booking, 'return')} className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.3">
                 {t('toolRentals.depositReturn')}
@@ -1246,6 +1424,12 @@ const MyBookingsPageContent = () => {
           >
             {t('toolRentals.toolsLent') || 'My Tools Rented'} ({myToolsCount})
           </button>
+          <button
+            onClick={() => setActiveTab('my-sponsorships')}
+            className={`my-bookings-tab ${activeTab === 'my-sponsorships' ? 'active' : ''}`} data-track="ui.5655b990ea.18"
+          >
+            {t('myBookings.sponsorshipsTab') || 'My Sponsorships'} ({mySponsorships.length})
+          </button>
         </div>
 
         {/* Content */}
@@ -1265,7 +1449,17 @@ const MyBookingsPageContent = () => {
           ) : activeTab === 'helper-bookings' ? (
             <div className="my-bookings-list">
               {helperBookings.length > 0 ? (
-                helperBookings.map((b) => renderHelperBookingCard(b))
+                helperBookings.map((b) => (
+                  // G3-2: a row the viewer did not book is a visit they
+                  // attend as recipient or site contact — the participant
+                  // view, not the booker's card with its book-again and
+                  // post-as-job actions.
+                  b.customerId != null && user?.id != null && String(b.customerId) !== String(user.id) ? (
+                    <BookingParticipantView key={b.id} booking={b} onReload={loadBookings} />
+                  ) : (
+                    renderHelperBookingCard(b)
+                  )
+                ))
               ) : (
                 renderEmptyState(
                   t('booking.noBookingsYet') || 'No service booking requests yet',
@@ -1274,6 +1468,26 @@ const MyBookingsPageContent = () => {
                   '/helpers',
                   t('myBookings.postPublicJob'),
                   '/post-job'
+                )
+              )}
+            </div>
+          ) : activeTab === 'my-sponsorships' ? (
+            <div className="my-bookings-list">
+              {mySponsorships.length > 0 ? (
+                mySponsorships.map((s) => (
+                  <BookingParticipantView
+                    key={s.sponsorshipId}
+                    booking={{ id: s.bookingId, serviceName: s.serviceName, status: s.bookingStatus, requestedDate: s.requestedDate, requestedStartTime: s.requestedStartTime, requestedEndTime: s.requestedEndTime, serviceLocation: s.serviceLocation } as HelperBooking}
+                    sponsorshipId={s.sponsorshipId}
+                    onReload={loadBookings}
+                  />
+                ))
+              ) : (
+                renderEmptyState(
+                  t('myBookings.noSponsorships') || 'No sponsorships yet',
+                  t('myBookings.sponsorshipsEmptyBody'),
+                  t('booking.backToDirectory') || 'Browse helpers',
+                  '/helpers'
                 )
               )}
             </div>

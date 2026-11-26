@@ -477,13 +477,14 @@ async function enrollParticipant({ actorUserId, participantType, businessId, sub
 async function listMyParticipants(userId) {
   await assertCreditParticipantsReady(pool);
   const { rows } = await pool.query(
-    `SELECT cp.* FROM credit_participants cp
+    `SELECT cp.*, p.status AS partner_status FROM credit_participants cp
+      LEFT JOIN oxsteed_credit_partners p ON p.id = cp.partner_id
       WHERE cp.user_id = $1::uuid
          OR cp.business_id IN (SELECT id FROM businesses WHERE user_id = $1::uuid)
       ORDER BY cp.created_at DESC`,
     [userId],
   );
-  const participants = rows.map(formatParticipant);
+  const participants = rows.map((row) => ({ ...formatParticipant(row), partnerStatus: row.partner_status || null }));
   if (!participants.length) return participants;
   // Maker-checker state (655, D-359): an open
   // credit_participant_activation pending action means a maker has filed
@@ -496,12 +497,28 @@ async function listMyParticipants(userId) {
       WHERE action_type = 'credit_participant_activation' AND status = 'pending'`
   );
   const awaitingChecker = new Set(openApprovals.map((r) => String(r.participant_id)));
-  return participants.map((participant) => ({
-    ...participant,
-    activationChecklist: buildActivationChecklist(participant, {
-      approvalRequested: awaitingChecker.has(participant.participantId),
-    }),
-  }));
+  // 700 (D-576): a suspended/terminated partner's removal reason + date,
+  // derived read-only from the latest transition audit event (one query
+  // for all closed partners). The participant row itself is untouched.
+  const closed = participants.filter((p) => p.partnerStatus === 'suspended' || p.partnerStatus === 'terminated');
+  const changes = await getPartnerStatusChanges(closed.map((p) => p.partnerId));
+  return participants.map((participant) => {
+    const base = {
+      ...participant,
+      activationChecklist: buildActivationChecklist(participant, {
+        approvalRequested: awaitingChecker.has(participant.participantId),
+      }),
+    };
+    if (participant.partnerStatus !== 'suspended' && participant.partnerStatus !== 'terminated') {
+      return { ...base, partnerStatusChangedAt: null, partnerStatusReason: null };
+    }
+    const change = changes.get(participant.partnerId);
+    return {
+      ...base,
+      partnerStatusChangedAt: change?.created_at || null,
+      partnerStatusReason: change?.reason || null,
+    };
+  });
 }
 
 async function getParticipant(participantId) {
@@ -514,7 +531,53 @@ async function getParticipant(participantId) {
     [participantId]
   );
   if (!rows.length) throw new AppError('Credit participant not found', 404, 'credit_participant_not_found');
-  return { ...formatParticipant(rows[0]), partnerStatus: rows[0].partner_status };
+  const participant = { ...formatParticipant(rows[0]), partnerStatus: rows[0].partner_status };
+  // 700 (D-576): same read-only derivation as listMyParticipants.
+  if (participant.partnerStatus !== 'suspended' && participant.partnerStatus !== 'terminated') {
+    return { ...participant, partnerStatusChangedAt: null, partnerStatusReason: null };
+  }
+  const change = await getPartnerStatusChange({ partnerId: participant.partnerId });
+  return {
+    ...participant,
+    partnerStatusChangedAt: change?.created_at || null,
+    partnerStatusReason: change?.reason || null,
+  };
+}
+
+// Group 13 Slice 4j (700, display-only, D-576): the latest partner
+// transition for a partner. The audit event is the only place the
+// removal reason is stored (the partner row carries status + updated_at
+// only). Read-only: the caller scope is the participant's own partner_id,
+// so another participant's reason cannot leak. Mirrors
+// getAccountStatusChange (oxsteedCreditService.js); no transition is
+// built here, and the participant suspend/revoke transition stays HELD.
+async function getPartnerStatusChange({ partnerId }) {
+  const { rows } = await pool.query(
+    `SELECT reason, created_at FROM oxsteed_credit_audit_events
+      WHERE action_type = 'credit.partner.transitioned'
+        AND resource_type = 'credit_partner'
+        AND resource_id = $1
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1`,
+    [String(partnerId)],
+  );
+  return rows[0] || null;
+}
+
+// Batch form of getPartnerStatusChange: the latest transition per partner
+// id, in one query.
+async function getPartnerStatusChanges(partnerIds) {
+  if (!partnerIds.length) return new Map();
+  const { rows } = await pool.query(
+    `SELECT DISTINCT ON (resource_id) resource_id, reason, created_at
+       FROM oxsteed_credit_audit_events
+      WHERE action_type = 'credit.partner.transitioned'
+        AND resource_type = 'credit_partner'
+        AND resource_id = ANY($1::text[])
+      ORDER BY resource_id, created_at DESC, id DESC`,
+    [partnerIds.map(String)],
+  );
+  return new Map(rows.map((row) => [String(row.resource_id), row]));
 }
 
 async function listParticipants({ status, participantType, search, limit = 100, offset = 0 } = {}) {

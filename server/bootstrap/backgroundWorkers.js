@@ -10,6 +10,7 @@ const { startRestaurantScreenSync } = require('../jobs/restaurantScreenSync');
 const logger = require('../utils/logger');
 const bookingController = require('../controllers/bookingController');
 const bookingRecipientService = require('../services/bookingRecipientService');
+const householdDelegationService = require('../services/householdDelegationService');
 const cleanupOldMessagesJob = require('../jobs/cleanupOldMessages');
 const guestChatRetention = require('../jobs/guestChatRetentionCleanup');
 const { cleanupExpiredSupportMessages } = require('../jobs/supportConversationRetentionCleanup');
@@ -46,10 +47,12 @@ const { startQuoteDeadlineNoticesJob } = require('../jobs/quoteDeadlineNotices')
 const { startBidDeadlineNoticesJob } = require('../jobs/bidDeadlineNotices'); // Group 4 Slice B (164)
 const { startDriverDocumentRenewalNoticesJob } = require('../jobs/driverDocumentRenewalNotices'); // Group 9 Slice A (453)
 const { startDeliveryOfferExpiryJob } = require('../jobs/deliveryOfferExpiryNotices'); // Group 9 Slice B (457)
+const { startDeliveryOfferDigestJob } = require('../jobs/deliveryOfferDigest'); // Group 9 partials Wave 2 Batch M (456)
 const { startDeliveryWindowWarningsJob } = require('../jobs/deliveryWindowWarnings'); // Group 9 Slice C (463)
 const { startDeliveryDelayEscalationJob } = require('../jobs/deliveryDelayEscalation'); // Group 9 Slice E (485)
 const { startDeliveryWeeklyReportJob } = require('../jobs/deliveryWeeklyReport'); // Group 9 Slice F (495)
 const { startSupportTicketSlaJob } = require('../jobs/supportTicketSlaJob');
+const { startPropertySlaBreachEscalationJob } = require('../jobs/propertySlaBreachEscalation'); // Batch J (341)
 const { startHelperCompletionAutoConfirmJob } = require('../jobs/helperCompletionAutoConfirm');
 const { startScheduledDeletionJob } = require('../jobs/scheduledDeletionJob');
 const { startWorkAgreementProposalTimeoutJob } = require('../jobs/workAgreementProposalTimeout');
@@ -233,10 +236,12 @@ class BackgroundWorkers {
       startBidDeadlineNoticesJob();
       startDriverDocumentRenewalNoticesJob();
       startDeliveryOfferExpiryJob();
+      startDeliveryOfferDigestJob();
       startDeliveryWindowWarningsJob();
       startDeliveryDelayEscalationJob();
       startDeliveryWeeklyReportJob();
       startSupportTicketSlaJob();
+      startPropertySlaBreachEscalationJob(); // Batch J (341)
       startHelperCompletionAutoConfirmJob();
       startWorkAgreementProposalTimeoutJob();
       startRecurringJobScheduler();
@@ -345,6 +350,13 @@ class BackgroundWorkers {
           await bookingRecipientService.sendVisitReminders();
         } catch (err) {
           this.log.warn('Visit reminder job failed', { error: err.message });
+        }
+        // Group 2 (item 84, D-585): delegation expiry reminders when a
+        // live delegation enters its final 7 days, once per delegation.
+        try {
+          await householdDelegationService.sendDelegationExpiryReminders(require('../db'));
+        } catch (err) {
+          this.log.warn('Delegation expiry reminder job failed', { error: err.message });
         }
         try {
           await cancelAbandonedPayNowOrders();

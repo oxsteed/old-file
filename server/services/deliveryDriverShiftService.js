@@ -109,9 +109,13 @@ async function buildShiftSummary(db, driverUserId, startedAt, endedAt) {
     [driverUserId, startedAt, endedAt],
   );
   const { rows: [payouts] } = await db.query(
+    // G9-B2 (item 500, D-525): only live payouts accrue. A voided
+    // payout will never be paid, so it must not land in the closeout
+    // earnings or the payout count.
     `SELECT COALESCE(SUM(payout_cents), 0)::int AS cents, COUNT(*)::int AS count
        FROM delivery_driver_payouts
       WHERE driver_user_id = $1
+        AND status IN ('accrued', 'approved', 'paid')
         AND created_at >= $2 AND created_at <= $3`,
     [driverUserId, startedAt, endedAt],
   );

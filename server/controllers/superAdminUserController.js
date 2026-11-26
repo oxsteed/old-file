@@ -639,7 +639,7 @@ exports.editUserFull = async (req, res) => {
                 new:   safeDisplay(c.field, c.newValue),
               })),
             },
-            action_url: '/settings/security',
+            action_url: '/settings?tab=security',
           });
           notificationSent = true;
           // Best-effort: mark recent log rows as notified

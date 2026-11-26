@@ -207,7 +207,7 @@ exports.checkrWebhook = async (req, res, next) => {
             type: 'background_check_passed',
             title: passedNotif.title,
             body: passedNotif.body,
-            action_url: '/dashboard/helper',
+            action_url: '/helper-dashboard',
             idempotencyKey: `checkr-report:${reportId}`,
           });
         } else {
@@ -376,7 +376,7 @@ exports.identityWebhook = async (req, res, next) => {
         // (helper_profiles.is_identity_verified) read by the directory's
         // verified filter.
         await db.query(
-          'UPDATE users SET identity_verified = TRUE, id_verified = TRUE WHERE id = $1', [transitioned[0].user_id]
+          'UPDATE users SET identity_verified = TRUE, id_verified = TRUE, identity_verified_at = NOW() WHERE id = $1', [transitioned[0].user_id]
         );
         await require('../services/access/evidence').recordIdentityEvidence(transitioned[0].user_id, { provider: 'stripe_identity', outcome: 'verified' });
         try {

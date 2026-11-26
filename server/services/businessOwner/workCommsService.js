@@ -13,7 +13,7 @@ const readable = (db, b, a, u, ctx) => workedAppointment(db, b, a, u, { allowMan
 // 273 + 284: everything the next person needs before touching the job.
 async function handoff(businessId, userId, ctx, appointmentId) {
   const { appt } = await readable(pool, businessId, appointmentId, userId, ctx);
-  const [notes, checklist, progress, exceptions, docs, crew, ack] = await Promise.all([
+  const [notes, checklist, progress, exceptions, docs, crew, ack, booking] = await Promise.all([
     pool.query(`SELECT n.id, n.note_type, n.content, n.is_pinned, n.created_at, TRIM(CONCAT(u.first_name,' ',u.last_name)) AS author
       FROM business_appointment_notes n LEFT JOIN users u ON u.id=n.created_by_id WHERE n.appointment_id=$1 ORDER BY n.is_pinned DESC, n.created_at DESC LIMIT 20`, [appt.id]),
     pool.query(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE done_at IS NOT NULL)::int AS done,
@@ -24,10 +24,14 @@ async function handoff(businessId, userId, ctx, appointmentId) {
     pool.query(`SELECT c.user_id, c.role, c.task_note, c.attendance, TRIM(CONCAT(u.first_name,' ',u.last_name)) AS name FROM business_appointment_crew c JOIN users u ON u.id=c.user_id
       WHERE c.appointment_id=$1 ORDER BY c.role, u.first_name`, [appt.id]),
     pool.query('SELECT acknowledged_at FROM business_handoff_acknowledgments WHERE user_id=$1 AND appointment_id=$2 AND handover_id IS NULL', [userId, appt.id]),
+    // D-461 (262, G5-25): the booking behind this appointment, so the
+    // detail view can show the booking's visit checklist to the provider.
+    pool.query('SELECT id FROM booking_requests WHERE business_appointment_id = $1 LIMIT 1', [appt.id]),
   ]);
   return {
     appointment: { id: appt.id, service_name: appt.service_name, start_time: appt.start_time, end_time: appt.end_time, status: appt.status,
-      customer_name: appt.customer_name, customer_notes: appt.customer_notes || appt.notes || null, staff_id: appt.staff_id },
+      customer_name: appt.customer_name, customer_notes: appt.customer_notes || appt.notes || null, staff_id: appt.staff_id,
+      booking_id: booking.rows[0]?.id || null },
     notes: notes.rows, checklist: checklist.rows[0], latest_progress: progress.rows[0] || null, open_exceptions: exceptions.rows,
     document_count: docs.rows[0].n, crew: crew.rows, acknowledged_at: ack.rows[0]?.acknowledged_at || null,
   };
@@ -191,9 +195,18 @@ async function cancelCoverage(businessId, userId, requestId) {
 
 // Teammates a member can hand work to (active staff, never contact details).
 async function teammates(businessId, userId) {
+  // D-463 (266, G5-42): the roster carries each teammate's role and
+  // member type, and includes the caller themself. The owner has no
+  // membership row, so their role resolves to 'owner'; members without a
+  // member_type resolve to 'staff'. Callers of this list that offer
+  // @mentions still reject mentioning oneself server-side (274, Batch C).
   const { STAFF_SQL } = require('./teamCommon');
-  const { rows } = await pool.query(`SELECT u.id, TRIM(CONCAT(u.first_name,' ',u.last_name)) AS name FROM (${STAFF_SQL}) s JOIN users u ON u.id=s.user_id
-    WHERE u.id <> $2 ORDER BY u.first_name, u.last_name LIMIT 500`, [businessId, userId]);
+  const { rows } = await pool.query(`SELECT u.id, TRIM(CONCAT(u.first_name,' ',u.last_name)) AS name,
+      CASE WHEN u.id = (SELECT user_id FROM businesses WHERE id=$1) THEN 'owner' ELSE COALESCE(bm.role, 'representative') END AS role,
+      COALESCE(bm.member_type, 'staff') AS member_type
+    FROM (${STAFF_SQL}) s JOIN users u ON u.id=s.user_id
+    LEFT JOIN business_members bm ON bm.business_id=$1 AND bm.member_id=u.id AND bm.status='active'
+    ORDER BY u.first_name, u.last_name LIMIT 500`, [businessId]);
   return { teammates: rows };
 }
 
@@ -221,4 +234,14 @@ async function day(businessId, userId, query) {
   };
 }
 
-module.exports = { teammates, handoff, acknowledgeHandoff, addNote, inbox, markInboxSeen, coverage, requestCoverage, claimCoverage, decideCoverage, cancelCoverage, day };
+// 272: the team-visible job-note list. The handoff carries the latest 20
+// as a summary excerpt; this is the direct read path the
+// appointment-note route lacked (it was POST-only).
+async function notes(businessId, userId, ctx, appointmentId) {
+  const { appt } = await readable(pool, businessId, appointmentId, userId, ctx);
+  const { rows } = await pool.query(`SELECT n.id, n.note_type, n.content, n.is_pinned, n.created_at, TRIM(CONCAT(u.first_name,' ',u.last_name)) AS author
+      FROM business_appointment_notes n LEFT JOIN users u ON u.id=n.created_by_id WHERE n.appointment_id=$1 ORDER BY n.is_pinned DESC, n.created_at DESC LIMIT 50`, [appt.id]);
+  return { appointment_id: appt.id, notes: rows };
+}
+
+module.exports = { teammates, handoff, acknowledgeHandoff, addNote, notes, inbox, markInboxSeen, coverage, requestCoverage, claimCoverage, decideCoverage, cancelCoverage, day };

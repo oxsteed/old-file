@@ -31,6 +31,8 @@ export default function BookingConfirmation({
   onBack,
   loading,
   initialAgreed = false,
+  initialRecipientName = '',
+  initialRecipientPhone = '',
   onAgreementChange,
 }) {
   const { t, i18n } = useTranslation();
@@ -38,9 +40,10 @@ export default function BookingConfirmation({
   const [agreed, setAgreed] = useState(initialAgreed);
   const [confirmationHours, setConfirmationHours] = useState(24);
   // G-6: book for another person (recipient name + phone, no account needed).
-  const [forSomeoneElse, setForSomeoneElse] = useState(false);
-  const [recipientName, setRecipientName] = useState('');
-  const [recipientPhone, setRecipientPhone] = useState('');
+  // Wave 4, item 64: a household template prefill names the recipient.
+  const [forSomeoneElse, setForSomeoneElse] = useState(Boolean(initialRecipientName));
+  const [recipientName, setRecipientName] = useState(initialRecipientName);
+  const [recipientPhone, setRecipientPhone] = useState(initialRecipientPhone);
   // G-6: an email links an existing OxSteed account as the recipient, so
   // they get the invite in-app instead of only through a shared link.
   const [recipientEmail, setRecipientEmail] = useState('');

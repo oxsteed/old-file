@@ -43,6 +43,51 @@ describeDb('scoped team guides, policy history, due reminders and offboarding',(
   const published=await Promise.allSettled([service.publish(businessId,owner,input),service.publish(businessId,owner,input)]);expect(published.filter(row=>row.status==='fulfilled')).toHaveLength(1);
   const todo=task({title:'Concurrent task'}),created=await Promise.all([service.createTask(businessId,owner,todo),service.createTask(businessId,owner,todo)]);expect(created[0].id).toBe(created[1].id);
  });
+ test('267: a manager can allocate a task to someone else and link it to a job',async()=>{
+  await db.query("UPDATE business_members SET role='manager',role_updated_by=$3 WHERE business_id=$1 AND member_id=$2",[businessId,coworker,owner]);
+  const jobId=(await db.query("INSERT INTO jobs(client_id,title,description) VALUES($1,'Fix sink','Replace the kitchen tap') RETURNING id",[owner])).rows[0].id;
+  try{
+   const created=await service.createTask(businessId,coworker,task({assignee_id:member,job_id:jobId}));
+   expect(created.job_id).toBe(jobId);
+   const read=await service.read(businessId,coworker);
+   expect(read.canAllocate).toBe(true);
+   expect(read.tasks.some((row)=>row.id===created.id)).toBe(true);
+   expect(read.tasks.find((row)=>row.id===created.id)?.job_title).toBe('Fix sink');
+   await expect(service.createTask(businessId,coworker,task({job_id:crypto.randomUUID()}))).rejects.toMatchObject({statusCode:404});
+   await expect(service.createTask(businessId,coworker,task({job_id:'not-a-uuid'}))).rejects.toMatchObject({statusCode:400});
+   await expect(service.createTask(businessId,member,task({assignee_id:coworker}))).rejects.toMatchObject({statusCode:403});
+  }finally{
+   await db.query('DELETE FROM business_team_tasks WHERE job_id=$1',[jobId]);
+   await db.query('DELETE FROM jobs WHERE id=$1',[jobId]);
+   await db.query("UPDATE business_members SET role='employee',role_updated_by=$3 WHERE business_id=$1 AND member_id=$2",[businessId,coworker,owner]);
+  }
+ });
+ test('269: team documents can be scoped to a job or a member, and are hidden from everyone else',async()=>{
+  const jobId=(await db.query("INSERT INTO jobs(client_id,title,description,assigned_helper_id) VALUES($1,'Fix sink','Replace the kitchen tap',$2) RETURNING id",[owner,member])).rows[0].id;
+  const ver=async(kind,job,assignee)=>(await db.query('SELECT COALESCE(MAX(version),0)::int AS n FROM business_team_documents WHERE business_id=$1 AND kind=$2 AND job_id IS NOT DISTINCT FROM $3 AND assignee_id IS NOT DISTINCT FROM $4',[businessId,kind,job||null,assignee||null])).rows[0].n;
+  try{
+   const wide=await service.publish(businessId,owner,{kind:'guide',title:'Wide guide',body:'For everyone on the team.',expectedVersion:await ver('guide')});
+   const jobDoc=await service.publish(businessId,owner,{kind:'guide',title:'Gate code',body:'Side door code 1234.',expectedVersion:await ver('guide',jobId),job_id:jobId});
+   const memberDoc=await service.publish(businessId,owner,{kind:'policy',title:'For one member',body:'Only for the named member.',expectedVersion:await ver('policy',null,member),assignee_id:member});
+   expect(jobDoc.version).toBe(1);
+   // The wide chain is untouched by the scoped publish: its next version follows the wide one.
+   const wide2=await service.publish(businessId,owner,{kind:'guide',title:'Wide guide v2',body:'Updated.',expectedVersion:await ver('guide')});
+   expect(wide2.version).toBe(wide.version+1);
+   const memberRead=await service.read(businessId,member);
+   expect(memberRead.documents.map((row)=>row.id)).toEqual(expect.arrayContaining([wide2.id,jobDoc.id,memberDoc.id]));
+   expect(memberRead.documents.find((row)=>row.id===jobDoc.id)?.job_title).toBe('Fix sink');
+   const coworkerRead=await service.read(businessId,coworker);
+   expect(coworkerRead.documents.map((row)=>row.id)).toEqual(expect.arrayContaining([wide2.id]));
+   expect(coworkerRead.documents.map((row)=>row.id)).not.toEqual(expect.arrayContaining([jobDoc.id,memberDoc.id]));
+   await expect(service.acknowledge(businessId,coworker,jobDoc.id)).rejects.toMatchObject({statusCode:404});
+   await service.acknowledge(businessId,member,jobDoc.id);
+   await expect(service.publish(businessId,owner,{kind:'guide',title:'Ghost',body:'No such job.',expectedVersion:await ver('guide',crypto.randomUUID()),job_id:crypto.randomUUID()})).rejects.toMatchObject({statusCode:404});
+   await expect(service.publish(businessId,owner,{kind:'guide',title:'Ghost',body:'Bad job id.',expectedVersion:0,job_id:'not-a-uuid'})).rejects.toMatchObject({statusCode:400});
+  }finally{
+   await db.query('DELETE FROM business_team_documents WHERE job_id=$1 OR assignee_id=$2',[jobId,member]);
+   await db.query('DELETE FROM jobs WHERE id=$1',[jobId]);
+  }
+ });
  test('offboarding reassigns open team work and exposes a scoped outcome, retaining completed history',async()=>{
   const client=await db.connect();try{await client.query('BEGIN');await client.query("UPDATE business_members SET status='revoked' WHERE id=$1",[membershipId]);const result=await applyStaffOffboarding(client,{businessId,userId:member,membershipId,removedBy:owner,reassignToUserId:owner,reason:'End temporary assignment'});expect(result.teamTasksReassigned).toBeGreaterThan(0);await client.query('COMMIT');}catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
   await expect(service.read(businessId,member)).rejects.toMatchObject({statusCode:404});

@@ -516,6 +516,7 @@ describe('POST /api/jobs/:id/complete', () => {
         }],
       },
       { rows: [] }, // no proposed work-agreement change order
+      { rows: [{ location_address: null, attendance_confirmed_at: null, arrived_at: null }] }, // D-472 gate: no site, exempt
       { rows: [{ id: 10, status: 'completed', client_id: 1, assigned_helper_id: 2 }] },
     );
     const res = await auth(
@@ -570,6 +571,7 @@ describe('POST /api/jobs/:id/complete', () => {
         }],
       },
       { rows: [] }, // no proposed work-agreement change order
+      { rows: [{ location_address: null, attendance_confirmed_at: null, arrived_at: null }] }, // D-472 gate: no site, exempt
       { rows: [{ id: 10, status: 'completed', client_id: 1, assigned_helper_id: 2 }] },
     );
     const res = await auth(request(buildApp()).post('/api/jobs/10/complete').send({}));

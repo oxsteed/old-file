@@ -34,8 +34,17 @@ export const estimateDelivery = (payload) => api.post('/delivery/estimate', payl
 export const getDeliveryPublicCaptchaConfig = () => api.get('/delivery/public/captcha-config').then((response) => response.data?.captcha || null);
 export const estimateDeliveryPublic = (payload) => api.post('/delivery/public/estimate', payload).then((response) => response.data);
 export const createDelivery = (payload) => mutate('post', '/delivery/jobs', payload);
-export const listDeliveryJobs = () => api.get('/delivery/jobs').then((response) => response.data);
-export const claimDeliveryJob = (id) => mutate('post', `/delivery/jobs/${id}/claim`);
+// Group 9 partials Wave 2 Batch M (454/456, G9-A2/A19, D-535/D-537): the
+// feed takes the driver's location (lat/lng, for the 50-mile filter) and
+// page parameters (limit/offset, with a total in the response). Callers
+// that pass nothing get the first page, unfiltered client-side; the
+// server falls back to the stored service-area center.
+export const listDeliveryJobs = (params) => api.get('/delivery/jobs', params ? { params } : undefined).then((response) => response.data);
+// Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-535): the claim may
+// carry the driver's location so the server can enforce the 50-mile
+// distance sanity. No location is fine too: the service-area coverage
+// check is the sanity then.
+export const claimDeliveryJob = (id, geo) => mutate('post', `/delivery/jobs/${id}/claim`, geo && (Number.isFinite(Number(geo.lat)) || Number.isFinite(Number(geo.lng))) ? { lat: geo.lat, lng: geo.lng } : {});
 // Group 9 Slice B (item 460): a driver passes on a marketplace offer
 // with a reason code and an optional note. Advisory only.
 export const declineDeliveryJob = (id, payload) => mutate('post', `/delivery/jobs/${id}/decline`, payload);
@@ -46,6 +55,16 @@ export const listDeliveryStops = (id) => api.get(`/delivery/jobs/${id}/stops`).t
 export const addDeliveryStop = (id, payload) => mutate('post', `/delivery/jobs/${id}/stops`, payload);
 export const reorderDeliveryStops = (id, stopIds) => mutate('post', `/delivery/jobs/${id}/stops/reorder`, { stopIds });
 export const completeDeliveryStop = (id, stopId) => mutate('post', `/delivery/jobs/${id}/stops/${stopId}/complete`);
+// Group 9 partials Wave 2 Batch O (462/464/469/470/475): the driver
+// note on a stop (G9-A13), the free waiting notice (G9-A10), the
+// driver resume after ops ack (G9-A7), and the redelivery-attempt
+// request with ops-or-shipper review (G9-A11).
+export const updateDeliveryStopNote = (id, stopId, note) => mutate('post', `/delivery/jobs/${id}/stops/${stopId}/note`, { note });
+export const sendDeliveryWaitingNotice = (id, payload = {}) => mutate('post', `/delivery/jobs/${id}/waiting-notices`, payload);
+export const resumeDeliveryJob = (id) => mutate('post', `/delivery/jobs/${id}/resume`);
+export const requestDeliveryRedelivery = (id, payload) => mutate('post', `/delivery/jobs/${id}/redelivery-requests`, payload);
+export const reviewDeliveryRedelivery = (id, requestId, decision) => mutate('patch', `/delivery/jobs/${id}/redelivery-requests/${requestId}`, { decision });
+export const reviewInternalDeliveryRedelivery = (requestId, decision) => mutate('patch', `/delivery/internal/redelivery-requests/${requestId}`, { decision });
 export const updateDeliveryStatus = (id, status, details = {}) => mutate('patch', `/delivery/jobs/${id}/status`, { status, ...details });
 export const getDelivery = (id) => api.get(`/delivery/jobs/${id}`).then((response) => response.data);
 export const reportDeliveryIssue = (id, payload) => mutate('post', `/delivery/jobs/${id}/issues`, payload);
@@ -89,6 +108,12 @@ export const registerTrackingDevice = (payload) => mutate('post', '/delivery/tra
 // old device. Buffered unsynced points stay on the old device (D-92).
 export const transferTrackingDevice = (payload) => mutate('post', '/delivery/tracking/devices/transfer', payload);
 export const revokeTrackingDevice = (id) => api.delete(`/delivery/tracking/devices/${id}`).then((response) => response.data);
+// Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): the lost-device
+// report (stranded queue counts from the device being abandoned) and
+// the ops reconcile queue for stranded transfer work.
+export const reportDeviceStrands = (deviceId, strandedOutbox) => mutate('post', '/delivery/tracking/devices/strands', { deviceId, strandedOutbox });
+export const listDeviceStrands = (status = 'pending', page = 1, limit = 25) => api.get('/delivery/internal/tracking/device-strands', { params: { status, page, limit } }).then((response) => response.data);
+export const reconcileDeviceStrand = (strandId, note) => mutate('post', `/delivery/internal/tracking/device-strands/${strandId}/reconcile`, { note });
 // Group 9 Slice G (item 500): driver shifts and shift closeout.
 export const startDriverShift = () => mutate('post', '/delivery/driver-shifts');
 export const getOpenDriverShift = () => api.get('/delivery/driver-shifts/open').then((response) => response.data);
@@ -144,8 +169,12 @@ export const revokeTrackingLink = (id, linkId, reason) => mutate('post', `/deliv
 // Weekly self-audit 2026-11-04 item 9: driver-facing payout history.
 // Read-only and scoped server-side to the signed-in driver; ops approval
 // and payment stay on the internal endpoints below.
-export const listMyDriverPayouts = (status) => {
-  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+export const listMyDriverPayouts = (status, { limit, offset } = {}) => {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (limit != null) params.set('limit', String(limit));
+  if (offset != null) params.set('offset', String(offset));
+  const query = params.toString() ? `?${params.toString()}` : '';
   return api.get(`/delivery/driver-payouts${query}`).then((response) => response.data);
 };
 
@@ -209,7 +238,7 @@ export const markInternalDriverPayoutPaid = (payoutId, paymentReference, note) =
 export const voidInternalDriverPayout = (payoutId, note) =>
   api.post(`/delivery/internal/driver-payouts/${payoutId}/void`, { note }).then((response) => response.data);
 
-export const listInternalDeliveryQueue = () => api.get('/delivery/internal/queue').then((response) => response.data);
+export const listInternalDeliveryQueue = (page = 1, limit = 50) => api.get('/delivery/internal/queue', { params: { page, limit } }).then((response) => response.data);
 export const getInternalDelivery = (id) => api.get(`/delivery/internal/jobs/${id}`).then((response) => response.data);
 // Group 9 Slice E (item 484): the handoff state record, per job and per driver.
 export const getInternalDeliveryHandoffs = (id) => api.get(`/delivery/internal/jobs/${id}/handoffs`).then((response) => response.data);
@@ -220,6 +249,9 @@ export const listDeliveryDrivers = () => api.get('/delivery/internal/drivers').t
 export const saveDeliveryDriver = (payload) => mutate('post', '/delivery/internal/drivers', payload);
 export const assignInternalDelivery = (id, payload) => mutate('post', `/delivery/internal/jobs/${id}/assign`, payload);
 export const releaseDeliveryToMarketplace = (id, reason, offerDeadlineHours) => mutate('post', `/delivery/internal/jobs/${id}/release-marketplace`, { reason, offerDeadlineHours });
+// Group 9 partials Wave 2 Batch P (482, G9-B4, D-555): mid-route transfer
+// of a picked-up job to another internal driver.
+export const transferInternalDelivery = (id, payload) => mutate('post', `/delivery/internal/jobs/${id}/transfer`, payload);
 
 export const reviewDeliveryReschedule = (id, decision) => mutate('patch', `/delivery/internal/reschedule-requests/${id}`, { decision });
 export const reviewDeliveryReturn = (id, decision, details = {}) => mutate('patch', `/delivery/internal/returns/${id}`, { decision, ...details });
@@ -268,6 +300,19 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
     stopInvalid: ['delivery_stop_type_invalid', 'delivery_stop_address_required', 'delivery_stop_order_invalid', 'delivery_stop_not_found'],
     stopForbidden: ['delivery_stop_forbidden'],
     stopUnavailable: ['delivery_stop_unavailable', 'delivery_stop_conflict'],
+    // Group 9 partials Wave 2 Batch O (469/470/475, G9-A10/A7/A11):
+    // the waiting-notice throttle, the resume refusals, and the
+    // redelivery refusals. The resume and redelivery 409s share the
+    // recovery-pending message: the job is frozen until ops acts.
+    waitingThrottled: ['delivery_waiting_throttled'],
+    waitingForbidden: ['delivery_waiting_forbidden'],
+    waitingUnavailable: ['delivery_waiting_unavailable'],
+    resumeConflict: ['delivery_resume_conflict'],
+    redeliveryInvalid: ['delivery_redelivery_window_invalid', 'delivery_redelivery_decision_invalid'],
+    redeliveryUnavailable: ['delivery_redelivery_evidence_required', 'delivery_redelivery_window_expired'],
+    redeliveryPending: ['delivery_redelivery_pending'],
+    redeliveryConflict: ['delivery_redelivery_conflict', 'delivery_redelivery_not_found'],
+    redeliveryForbidden: ['delivery_redelivery_forbidden'],
     recoveryPending: ['delivery_recovery_pending', 'delivery_reschedule_pending', 'delivery_return_pending'],
     proofInvalid: ['delivery_proof_mismatch', 'delivery_proof_rejected', 'delivery_proof_upload_required', 'delivery_recipient_confirmation_required', 'delivery_return_proof_required', 'delivery_return_proof_unavailable'],
     pinInvalid: ['delivery_proof_pin_invalid'],
@@ -279,6 +324,18 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
     conflict: ['delivery_idempotency_conflict'],
     onboardingRequired: ['delivery_driver_onboarding_required'],
     approvalPending: ['delivery_driver_pending_approval'],
+    // Group 9 partials Wave 2 Batch M (454/456/459, G9-A2/A3, D-534/D-536):
+    // the claim refusals. serviceAreaRequired points at the editor;
+    // offline points at the Driving toggle; claimTooFar is the 50-mile
+    // distance sanity.
+    serviceAreaRequired: ['delivery_service_area_required'],
+    offline: ['delivery_driver_offline'],
+    claimTooFar: ['delivery_claim_too_far'],
+    // Group 9 partials Wave 2 Batch N (467/468, G9-A4, D-540): the
+    // inbox card no longer offers a bare picked_up move, but any
+    // caller that still hits the confirmation 400 gets pointed at
+    // the detail page instead of the generic status error.
+    pickupConfirmationRequired: ['delivery_pickup_confirmation_required'],
     // Group 9 Slice G (item 498): the driver's job access expired
     // 7 days after the job reached a terminal state (D-90).
     accessExpired: ['delivery_access_expired'],
@@ -297,4 +354,42 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
   if (status === 401 || status === 403) return t('delivery.ui.permission');
   if (status === 409) return t('delivery.ui.conflict');
   return t(fallback);
+}
+
+// Group 9 partials Wave 2 Batch L (455, G9-A15, D-531): a failed claim
+// carries the server's capability reasons in error.fields.reasons
+// (delivery_capacity_mismatch from checkAssignment). Map each reason to
+// its readiness label so the driver sees what actually blocks the claim
+// instead of a generic capacity message.
+const CLAIM_REASON_LABELS = {
+  missing_profile: 'approval',
+  not_approved_or_active: 'approval',
+  insurance: 'insurance',
+  insurance_expired: 'insuranceExpiry',
+  pieces: 'pieces',
+  payload: 'payload',
+  dimension_length: 'dimensions',
+  dimension_width: 'dimensions',
+  dimension_height: 'dimensions',
+  fragile: 'fragile',
+  perishable: 'perishable',
+  hazmat: 'hazmat',
+  service_area: 'serviceArea',
+  availability: 'availability',
+  available_from: 'availableFrom',
+  available_until: 'availableUntil',
+  // Group 9 partials Wave 2 Batch M (459, G9-A3, D-536): the offline
+  // refusal carries reasons ['offline'] so the claim-reasons list can
+  // name the toggle instead of rendering a raw code.
+  offline: 'offline',
+};
+export function deliveryClaimReasons(error, t) {
+  const fields = error?.response?.data?.fields || error?.response?.data?.error?.fields || {};
+  const reasons = Array.isArray(fields.reasons) ? fields.reasons : [];
+  return reasons.map((reason) => {
+    if (typeof reason === 'string' && reason.startsWith('equipment_')) return t('delivery.driver.readiness.equipment');
+    if (typeof reason === 'string' && reason.startsWith('vehicle_')) return t('delivery.driver.readiness.vehicle');
+    const key = CLAIM_REASON_LABELS[reason];
+    return key ? t(`delivery.driver.readiness.${key}`) : String(reason);
+  });
 }

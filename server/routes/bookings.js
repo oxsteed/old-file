@@ -57,6 +57,7 @@ router.get('/status/:token/checklist', bookingRecipientController.getTokenCheckl
 router.get('/status/:token/receipt', bookingRecipientController.getTokenReceipt);
 router.get('/status/:token/site-actions', bookingRecipientController.listTokenSiteActions);
 router.get('/status/:token/support', bookingRecipientController.listTokenSupportIntake);
+router.get('/status/:token/callbacks', bookingRecipientController.listTokenCallbacks);
 router.post('/status/:token/site-actions', bookingRecipientController.recordTokenSiteAction);
 router.post('/status/:token/renewal-request', bookingRecipientController.requestTokenLinkRenewal);
 router.post('/status/:token/update-email', bookingRecipientController.registerUpdateEmail);
@@ -72,6 +73,7 @@ router.post('/status/:token/contact-correction', bookingRecipientController.subm
 router.post('/status/:token/relay-message', bookingRecipientController.relayTokenMessage);
 router.get('/status/:token/sponsor', bookingRecipientController.getSponsorPreviewByToken);
 router.post('/status/:token/sponsor/respond', bookingRecipientController.respondToSponsorshipByToken);
+router.post('/status/:token/sponsor/void', bookingRecipientController.voidSponsorshipByToken);
 // Group 3: the token sponsor pays with their own card, no account needed.
 // Same money path as the account handlers; only the credential differs.
 router.post('/status/:token/sponsor/payment-intent', bookingRecipientController.createSponsorPaymentIntentByToken);
@@ -104,10 +106,18 @@ router.post('/:bookingId/helper-cancel', requireAuth, requireBookingProviderCapa
 // No activation gate for the caller: a revoked helper can still hand
 // existing work to someone who can do it, like decline/cancel.
 router.post('/:bookingId/transfer', requireAuth, requireBookingProviderCapability, bookingController.transferBookingRequest);
+// G5-11 (260): dispatch a pending business booking to a member (manager-gated).
+// No activation gate for the caller: dispatch is a business management action.
+router.post('/:bookingId/dispatch', requireAuth, requireBookingProviderCapability, bookingController.dispatchBookingRequest);
+// G5-12 (257): dispatch + transfer candidates for one booking (manager-gated).
+router.get('/:bookingId/transfer-candidates', requireAuth, bookingController.listTransferCandidates);
 router.post('/:bookingId/counter-propose', requireAuth, requireBookingProviderCapability, requireBookingProviderActivation, bookingController.counterProposeBooking);
 router.post('/:bookingId/counter-propose/respond', requireAuth, bookingController.respondToCounterPropose);
 router.post('/:bookingId/convert-to-job', requireAuth, bookingController.convertBookingToJob);
 // Group 3 (Recipient and sponsor): account participant surfaces.
+// D-601: static before the :bookingId block — a sponsor's own list must
+// never be shadowed by a parametric booking route.
+router.get('/sponsorships/mine', requireAuth, bookingRecipientController.listMySponsorships);
 router.get('/:bookingId/participant-summary', requireAuth, bookingRecipientController.getParticipantSummary);
 router.get('/:bookingId/sharing-preview', requireAuth, bookingRecipientController.getSharingPreview);
 router.get('/:bookingId/checklist', requireAuth, bookingRecipientController.getChecklist);
@@ -140,6 +150,7 @@ router.get('/:bookingId/payment-breakdown', requireAuth, bookingRecipientControl
 router.post('/:bookingId/sponsorships', requireAuth, bookingRecipientController.createSponsorship);
 router.get('/:bookingId/sponsorships', requireAuth, bookingRecipientController.listSponsorships);
 router.post('/:bookingId/sponsorships/:sponsorshipId/respond', requireAuth, bookingRecipientController.respondToSponsorship);
+router.post('/:bookingId/sponsorships/:sponsorshipId/void', requireAuth, bookingRecipientController.voidSponsorship);
 router.post('/:bookingId/sponsorships/:sponsorshipId/payment-intent', requireAuth, bookingRecipientController.createSponsorPaymentIntent);
 router.post('/:bookingId/sponsorships/:sponsorshipId/confirm-payment', requireAuth, bookingRecipientController.confirmSponsorPayment);
 router.get('/:bookingId/sponsorships/:sponsorshipId/receipt', requireAuth, bookingRecipientController.getSponsorReceipt);

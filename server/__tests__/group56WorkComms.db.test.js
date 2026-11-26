@@ -56,6 +56,12 @@ describeDb('Groups 5-6: team member comms and schedule', () => {
     expect(ib.unread).toBeGreaterThan(0);
     const after = (await request(app).post(`${B()}/work/inbox/seen`).set(as(manager)).send({}).expect(200)).body;
     expect(after.items.find(i => i.kind === 'mention')).toBeUndefined();
+    // 272: the dedicated notes read lists the pinned note first and the
+    // just-posted team note; a member not on the job gets nothing.
+    const notes = (await request(app).get(`${B()}/work/appointments/${a}/notes`).set(as(employee)).expect(200)).body;
+    expect(notes.notes.map((x) => x.content)).toEqual(expect.arrayContaining(['Dog in yard', 'Can you bring a ladder?']));
+    expect(notes.notes[0].is_pinned).toBe(true);
+    await request(app).get(`${B()}/work/appointments/${a}/notes`).set(as(other)).expect(404);
   });
   test('277: coverage request -> claim -> manager approval moves the shift', async () => {
     const { rows: [s] } = await pool.query("INSERT INTO business_staff_shifts(business_id,user_id,shift_date,start_time,end_time) VALUES($1,$2,CURRENT_DATE+3,'09:00','17:00') RETURNING id", [bizId, employee]);

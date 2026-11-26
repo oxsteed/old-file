@@ -10,6 +10,7 @@ router.get('/delegations', authenticate, ctrl.listDelegations);
 router.get('/invitations', authenticate, ctrl.listInvitations);
 router.get('/delegations/:id', authenticate, ctrl.getDelegation);
 router.post('/delegations/:id/accept', authenticate, ctrl.acceptDelegation);
+router.post('/delegations/accept-by-token', authenticate, ctrl.acceptDelegationByToken);
 router.post('/delegations/:id/decline', authenticate, ctrl.declineDelegation);
 router.post('/delegations/:id/revoke', authenticate, ctrl.revokeDelegation);
 router.post('/delegations/:id/renew', authenticate, ctrl.renewDelegation);

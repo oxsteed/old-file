@@ -48,7 +48,7 @@ test('notifyAdmins still sends career_ranking_disabled for a block by default', 
   expect(notifyUser).toHaveBeenCalledWith(db, expect.objectContaining({
     userId: 'admin-1',
     type: 'career_ranking_disabled',
-    actionUrl: '/admin/careers/fairness',
+    actionUrl: '/admin/super/careers',
   }));
   expect(notifyUser.mock.calls[0][1].deliveryKey).toBe('career_ranking_block:9:admin-1');
 });

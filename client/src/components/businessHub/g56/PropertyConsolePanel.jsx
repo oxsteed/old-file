@@ -4,6 +4,7 @@
 // permission; the panel only renders what the API returns.
 import { useState } from 'react';
 import { useBizG56 } from './useBizG56';
+import api from '../../../api/axios';
 import './g56.css';
 
 const TYPES = ['single_family', 'multi_family', 'condo', 'commercial', 'mixed_use', 'other'];
@@ -34,6 +35,7 @@ function Notice({ p }) {
 export default function PropertyConsolePanel({ businessId }) {
   const [selectedId, setSelectedId] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [transferReceipt, setTransferReceipt] = useState(null);
   const base = `/businesses/${businessId}/properties`;
   return (
     <section className="g56-panel" aria-label="property console">
@@ -42,11 +44,17 @@ export default function PropertyConsolePanel({ businessId }) {
         showArchived={showArchived}
         setShowArchived={setShowArchived}
         selectedId={selectedId}
-        onSelect={setSelectedId}
+        onSelect={(id) => { setSelectedId(id); setTransferReceipt(null); }}
       />
-      {selectedId && (
-        <PropertyDetail base={base} propertyId={selectedId} onBack={() => setSelectedId(null)} />
+      {transferReceipt && (
+        <p role="status" className="g56-ok">
+          {transferReceipt.label} · {transferReceipt.movedRequests} · {transferReceipt.movedUnits} · {transferReceipt.vendorsCarried}
+        </p>
       )}
+      {selectedId && (
+        <PropertyDetail base={base} propertyId={selectedId} onBack={() => setSelectedId(null)} onTransferred={setTransferReceipt} />
+      )}
+      <EmergencySection base={base} />
       <AccessReviewSection base={base} />
       <UpkeepSection base={base} />
       <VendorsSection base={base} />
@@ -60,6 +68,25 @@ export default function PropertyConsolePanel({ businessId }) {
 function PortfolioSection({ base, showArchived, setShowArchived, selectedId, onSelect }) {
   const p = useBizG56(`${base}${showArchived ? '?archived=1' : ''}`, 'properties');
   const [form, setForm] = useState({ label: '', property_type: 'single_family', address: '', address_city: '' });
+  const [exportError, setExportError] = useState('');
+  // 346 (Batch J): portfolio export download. The API returns JSON or a
+  // CSV attachment; a blob download keeps it a file, not a panel payload.
+  const downloadExport = async (format, section) => {
+    setExportError('');
+    try {
+      const res = await api.get(`${base}/export`, { params: { format, ...(section ? { section } : {}) }, responseType: 'blob' });
+      const url = window.URL.createObjectURL(res.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = section === 'vendors'
+        ? `portfolio-vendors-${new Date().toISOString().slice(0, 10)}.csv`
+        : `portfolio-export-${new Date().toISOString().slice(0, 10)}.${format}`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setExportError(p.t('bizG56.errors.saveError'));
+    }
+  };
   const create = async (e) => {
     e.preventDefault();
     if (!form.label.trim()) return;
@@ -88,6 +115,14 @@ function PortfolioSection({ base, showArchived, setShowArchived, selectedId, onS
           <span className="g56-badge">{p.tr('incidents')}: {p.data.totals.open_incidents}</span>
         </div>
       )}
+      {p.data?.can_manage && (
+        <div className="g56-row">
+          <button type="button" disabled={p.busy} onClick={() => downloadExport('json')} data-track="ui.e96cf59a5b.78">{p.tr('exportJson')}</button>
+          <button type="button" disabled={p.busy} onClick={() => downloadExport('csv')} data-track="ui.e96cf59a5b.79">{p.tr('exportCsv')}</button>
+          <button type="button" disabled={p.busy} onClick={() => downloadExport('csv', 'vendors')} data-track="ui.e96cf59a5b.80">{p.tr('exportVendorsCsv')}</button>
+        </div>
+      )}
+      {exportError && <p role="alert" className="g56-error">{exportError}</p>}
       <form onSubmit={create} className="g56-row" data-track="ui.e96cf59a5b.1">
         <label>{p.tr('label')}<input value={form.label} maxLength={160} onChange={(e) => setForm({ ...form, label: e.target.value })} /></label>
         <label>{p.tr('type')}<select value={form.property_type} onChange={(e) => setForm({ ...form, property_type: e.target.value })}>{TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></label>
@@ -119,6 +154,12 @@ function PortfolioSection({ base, showArchived, setShowArchived, selectedId, onS
                     {r.archived_at ? p.tr('restore') : p.tr('archive')}
                   </button>
                 )}
+                {' '}
+                {p.data.can_manage && (
+                  <button type="button" disabled={p.busy} onClick={async () => { if (!window.confirm(p.tr('deletePropertyConfirm', { label: r.label }))) return; await p.send('delete', `${base}/p/${r.id}`); }} data-track="ui.e96cf59a5b.73">
+                    {p.tr('deleteProperty')}
+                  </button>
+                )}
               </td>
             </tr>
           ))}</tbody>
@@ -129,8 +170,36 @@ function PortfolioSection({ base, showArchived, setShowArchived, selectedId, onS
   );
 }
 
-function PropertyDetail({ base, propertyId, onBack }) {
-  const p = useBizG56(`${base}/p/${propertyId}/profile`, 'properties');
+// 341 (Batch J): emergency triage. Open emergency/urgent requests surface
+// first, ahead of routine work, with the SLA target and breach state; the
+// Route button escalates one request through the existing emergency route.
+function EmergencySection({ base }) {
+  const e = useBizG56(`${base}/emergencies`, 'properties');
+  if (!e.data) return e.errorText ? <p className="g56-error">{e.errorText}</p> : null;
+  return (
+    <div>
+      <h3>{e.tr('emergencyTriage')}</h3>
+      <Notice p={e} />
+      {e.data.emergencies.length === 0 ? <p>{e.common('empty')}</p> : (
+        <ul className="g56-list">{e.data.emergencies.map((row) => (
+          <li key={row.id}>
+            {row.urgency} · {row.title}{row.property ? ` · ${row.property}` : ''}{row.unit_label ? ` · ${row.unit_label}` : ''}
+            {row.sla_target_at ? ` · ${e.tr('slaTarget')}: ${e.time(row.sla_target_at)}` : ''}
+            {row.breached ? ` · ${e.tr('breached')}${row.hours_overdue != null ? ` (${Math.round(Number(row.hours_overdue))} ${e.tr('hoursOverdue')})` : ''}` : ''}
+            {' '}
+            <button type="button" disabled={e.busy} onClick={() => e.send('post', `${base}/requests/${row.id}/emergency`, {})} data-track="ui.e96cf59a5b.77">{e.tr('routeEmergency')}</button>
+          </li>
+        ))}</ul>
+      )}
+    </div>
+  );
+}
+
+function PropertyDetail({ base, propertyId, onBack, onTransferred }) {
+  // Batch G: the profile route is GET/PATCH /p/:propertyId — the /profile
+  // suffix never existed server-side, so the detail view 404'd and the
+  // assignments/requests/keys/transfer sections never loaded.
+  const p = useBizG56(`${base}/p/${propertyId}`, 'properties');
   const money = useMoney();
   const [requestId, setRequestId] = useState(null);
   if (!p.data) return p.errorText ? <p className="g56-error">{p.errorText}</p> : null;
@@ -143,11 +212,11 @@ function PropertyDetail({ base, propertyId, onBack }) {
       const v = String(fd.get(key) || '').trim();
       if (v) body[key] = v;
     }
-    for (const key of ['monthly_budget_cents', 'approval_threshold_cents', 'reserve_balance_cents']) {
+    for (const key of ['monthly_budget_cents', 'approval_threshold_cents', 'reserve_target_cents', 'reserve_balance_cents']) {
       const v = toCents(fd.get(key));
       if (v != null) body[key] = v;
     }
-    if (Object.keys(body).length) await p.send('patch', `${base}/p/${propertyId}/profile`, body);
+    if (Object.keys(body).length) await p.send('patch', `${base}/p/${propertyId}`, body);
   };
   return (
     <div>
@@ -160,6 +229,7 @@ function PropertyDetail({ base, propertyId, onBack }) {
           <label>{p.tr('owner')}<input name="owner_name" defaultValue={property.owner_name || ''} maxLength={160} /></label>
           <label>{p.tr('monthlyBudget')}<input name="monthly_budget_cents" inputMode="decimal" defaultValue={dollars(property.monthly_budget_cents)} dir="ltr" /></label>
           <label>{p.tr('approvalThreshold')}<input name="approval_threshold_cents" inputMode="decimal" defaultValue={dollars(property.approval_threshold_cents)} dir="ltr" /></label>
+          <label>{p.tr('reserveTarget')}<input name="reserve_target_cents" inputMode="decimal" defaultValue={dollars(property.reserve_target_cents)} dir="ltr" /></label>
           <label>{p.tr('reserveBalance')}<input name="reserve_balance_cents" inputMode="decimal" defaultValue={dollars(property.reserve_balance_cents)} dir="ltr" /></label>
           <label>{p.common('notes')}<input name="notes" defaultValue={property.notes || ''} maxLength={4000} /></label>
           <button type="submit" disabled={p.busy} data-track="ui.e96cf59a5b.8">{p.tr('saveProfile')}</button>
@@ -168,6 +238,7 @@ function PropertyDetail({ base, propertyId, onBack }) {
       <p className="g56-muted">
         {[property.address, property.address_city, property.property_type].filter(Boolean).join(' · ')}
         {property.monthly_budget_cents != null && <> · {p.tr('budget')}: {money(property.monthly_budget_cents)}</>}
+        {property.reserve_target_cents != null && <> · {p.tr('reserveTarget')}: {money(property.reserve_target_cents)}</>}
         {property.reserve_balance_cents != null && <> · {p.tr('reserve')}: {money(property.reserve_balance_cents)}</>}
       </p>
       <UnitsSection base={base} propertyId={propertyId} units={units} p={p} />
@@ -176,7 +247,7 @@ function PropertyDetail({ base, propertyId, onBack }) {
       <RequestsSection base={base} history={history} p={p} requestId={requestId} setRequestId={setRequestId} />
       <IncidentsSection base={base} propertyId={propertyId} p={p} />
       <KeysSection base={base} propertyId={propertyId} p={p} />
-      <TransferSection base={base} propertyId={propertyId} p={p} />
+      <TransferSection base={base} propertyId={propertyId} p={p} onBack={onBack} onTransferred={onTransferred} />
       <TurnoverStartSection base={base} propertyId={propertyId} units={units} p={p} />
       <UnitSpendSection base={base} propertyId={propertyId} p={p} />
       <ScheduleCreateSection base={base} propertyId={propertyId} units={units} p={p} />
@@ -221,14 +292,15 @@ function AreasSection({ base, propertyId, areas, p }) {
   const add = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    const created = await p.send('post', `${base}/p/${propertyId}/areas`, { ...form, name: form.name.trim() });
+    // Batch H: the route is POST /p/:propertyId/common-areas, not /areas.
+    const created = await p.send('post', `${base}/p/${propertyId}/common-areas`, { ...form, name: form.name.trim() });
     if (created) setForm({ name: '', kind: 'other', access_notes: '' });
   };
   return (
     <div>
       <h4>{p.tr('areas')}</h4>
       {areas.length === 0 ? <p>{p.common('empty')}</p> : (
-        <ul className="g56-list">{areas.map((a) => <li key={a.id}>{a.name} · {a.kind}{a.access_notes ? ` · ${a.access_notes}` : ''}</li>)}</ul>
+        <ul className="g56-list">{areas.map((a) => <li key={a.id}>{a.name} · {a.kind}{a.access_notes ? ` · ${a.access_notes}` : ''}{p.data.can_manage && <> <button type="button" disabled={p.busy} onClick={() => p.send('delete', `${base}/common-areas/${a.id}`)} data-track="ui.e96cf59a5b.74">{p.tr('archive')}</button></>}</li>)}</ul>
       )}
       {p.data.can_manage && (
         <form onSubmit={add} className="g56-row" data-track="ui.e96cf59a5b.11">
@@ -257,7 +329,7 @@ function AssignmentsSection({ base, propertyId, assignments, units, p }) {
     }
     if (form.starts_at) body.starts_at = form.starts_at;
     if (form.ends_at) body.ends_at = form.ends_at;
-    const created = await p.send('post', `${base}/p/${propertyId}/assign`, body);
+    const created = await p.send('post', `${base}/p/${propertyId}/assignments`, body);
     if (created) setForm({ role: 'manager', user_id: '', contact_name: '', contact_email: '', contact_phone: '', unit_id: '', starts_at: '', ends_at: '' });
   };
   return (
@@ -273,7 +345,9 @@ function AssignmentsSection({ base, propertyId, assignments, units, p }) {
               <td>
                 <button type="button" disabled={p.busy} onClick={() => p.send('post', `${base}/assignments/${a.id}/review`, { decision: 'keep' })} data-track="ui.e96cf59a5b.13">{p.tr('keep')}</button>
                 {' '}
-                <button type="button" disabled={p.busy} onClick={() => p.send('post', `${base}/assignments/${a.id}/end`, {})} data-track="ui.e96cf59a5b.14">{p.tr('endAssignment')}</button>
+                {/* Batch G: no POST /assignments/:id/end route exists; ending
+                    goes through the review endpoint, like AccessReviewSection. */}
+                <button type="button" disabled={p.busy} onClick={() => p.send('post', `${base}/assignments/${a.id}/review`, { decision: 'end' })} data-track="ui.e96cf59a5b.14">{p.tr('endAssignment')}</button>
               </td>
             </tr>
           ))}</tbody>
@@ -329,7 +403,7 @@ function DuplicatesSection({ base, requestId, dup }) {
       <Notice p={dup} />
       {dup.data.duplicate_of_id && <p className="g56-muted">{dup.tr('duplicateOf')}: {dup.data.duplicate_of_id}</p>}
       {dup.data.candidates.length === 0 ? <p>{dup.common('empty')}</p> : (
-        <form onSubmit={async (ev) => { ev.preventDefault(); if (target) await dup.send('post', `${base}/requests/${requestId}/link-duplicate`, { duplicate_of_id: target }); }} className="g56-row" data-track="ui.e96cf59a5b.58">
+        <form onSubmit={async (ev) => { ev.preventDefault(); if (target) await dup.send('post', `${base}/requests/${requestId}/duplicate`, { duplicate_of_id: target }); }} className="g56-row" data-track="ui.e96cf59a5b.58">
           <label>{dup.tr('duplicateOf')}
             <select value={target} onChange={(ev) => setTarget(ev.target.value)}>
               <option value="">—</option>
@@ -352,7 +426,7 @@ function RequestDetail({ base, requestId, onClose }) {
   const [quoteForm, setQuoteForm] = useState({ vendor_id: '', amount: '', scope: '', available_on: '' });
   const [woForm, setWoForm] = useState({ vendor_id: '', quote_id: '', nte: '', scope: '' });
   const [approvalForm, setApprovalForm] = useState({ amount: '', note: '' });
-  const [entryForm, setEntryForm] = useState({ consent: 'granted', method: 'portal', start: '', end: '', instructions: '' });
+  const [entryForm, setEntryForm] = useState({ consent: 'granted', method: 'portal', start: '', end: '', instructions: '', instructionsExpireAt: '' });
   if (!q.data) return q.errorText ? <p className="g56-error">{q.errorText}</p> : null;
   const addQuote = async (ev) => {
     ev.preventDefault();
@@ -385,9 +459,11 @@ function RequestDetail({ base, requestId, onClose }) {
     ev.preventDefault();
     const windows = (entryForm.start && entryForm.end)
       ? [{ start: new Date(entryForm.start).toISOString(), end: new Date(entryForm.end).toISOString() }] : [];
-    await e.send('post', `${base}/requests/${requestId}/entry`, {
+    // Batch H: the entry route is PUT, not POST (server/routes/propertyManager.js).
+    await e.send('put', `${base}/requests/${requestId}/entry`, {
       consent: entryForm.consent, consent_method: entryForm.method,
       offered_windows: windows, instructions: entryForm.instructions.trim() || undefined,
+      instructions_expire_at: entryForm.instructionsExpireAt ? new Date(entryForm.instructionsExpireAt).toISOString() : undefined,
     });
   };
   return (
@@ -435,7 +511,8 @@ function RequestDetail({ base, requestId, onClose }) {
         <button type="submit" disabled={q.busy} data-track="ui.e96cf59a5b.25">{q.tr('requestApproval')}</button>
       </form>
       <div className="g56-row">
-        <button type="button" disabled={q.busy} onClick={() => q.send('post', `${base}/requests/${requestId}/notify-occupant`, {})} data-track="ui.e96cf59a5b.26">{q.tr('notifyOccupant')}</button>
+        {/* Batch H: the route is POST /requests/:id/entry/notify, not /notify-occupant. */}
+        <button type="button" disabled={q.busy} onClick={() => q.send('post', `${base}/requests/${requestId}/entry/notify`, {})} data-track="ui.e96cf59a5b.26">{q.tr('notifyOccupant')}</button>
         <button type="button" disabled={q.busy} onClick={() => q.send('post', `${base}/requests/${requestId}/emergency`, {})} data-track="ui.e96cf59a5b.27">{q.tr('routeEmergency')}</button>
       </div>
       <h5>{q.tr('entry')}</h5>
@@ -444,6 +521,8 @@ function RequestDetail({ base, requestId, onClose }) {
           {q.tr('permissionToEnter')}: {String(e.data.permission_to_enter ?? '—')}
           {e.data.entry?.instructions ? ` · ${q.tr('entryInstructions')}: ${e.data.entry.instructions}` : ''}
           {e.data.entry?.instructions_expired ? ` · ${q.tr('instructionsExpired')}` : ''}
+          {e.data.entry?.consent_expired ? ` · ${q.tr('consentExpired')}` : ''}
+          {e.data.entry?.consent_valid_until && !e.data.entry?.consent_expired ? ` · ${q.tr('consentValidUntil')}: ${q.time(e.data.entry.consent_valid_until)}` : ''}
         </p>
       )}
       <form onSubmit={saveEntry} className="g56-row" data-track="ui.e96cf59a5b.28">
@@ -451,6 +530,7 @@ function RequestDetail({ base, requestId, onClose }) {
         <label>{q.tr('windowStart')}<input type="datetime-local" value={entryForm.start} onChange={(ev) => setEntryForm({ ...entryForm, start: ev.target.value })} /></label>
         <label>{q.tr('windowEnd')}<input type="datetime-local" value={entryForm.end} onChange={(ev) => setEntryForm({ ...entryForm, end: ev.target.value })} /></label>
         <label>{q.tr('entryInstructions')}<input value={entryForm.instructions} maxLength={2000} onChange={(ev) => setEntryForm({ ...entryForm, instructions: ev.target.value })} /></label>
+        <label>{q.tr('instructionsExpireAt')}<input type="datetime-local" value={entryForm.instructionsExpireAt} onChange={(ev) => setEntryForm({ ...entryForm, instructionsExpireAt: ev.target.value })} /></label>
         <button type="submit" disabled={e.busy} data-track="ui.e96cf59a5b.29">{q.tr('saveEntry')}</button>
       </form>
     </div>
@@ -462,6 +542,9 @@ function IncidentsSection({ base, propertyId, p }) {
   const [form, setForm] = useState({ title: '', severity: 'major', relocation_note: '', category: '', assigned_to: '' });
   const [evForm, setEvForm] = useState({ incident_id: '', url: '', label: '', kind: 'photo' });
   const [fuForm, setFuForm] = useState({ incident_id: '', follow_up_on: '' });
+  // 344 (Batch J): case folder for the selected incident.
+  const [caseId, setCaseId] = useState('');
+  const c = useBizG56(caseId ? `${base}/incidents/${caseId}/case` : null, 'properties');
   const create = async (ev) => {
     ev.preventDefault();
     if (!form.title.trim()) return;
@@ -489,7 +572,13 @@ function IncidentsSection({ base, propertyId, p }) {
       <h4>{i.tr('incidentsTitle')}</h4>
       <Notice p={i} />
       {i.data.incidents.length === 0 ? <p>{i.common('empty')}</p> : (
-        <ul className="g56-list">{i.data.incidents.map((row) => <li key={row.id}>{row.title} · {row.severity} · {row.status} · {row.category || i.tr('uncategorised')} · {row.assignee_name || i.tr('unassigned')}{row.unit_label ? ` · ${row.unit_label}` : ''}{row.follow_up_overdue ? ` · ${i.tr('overdue')}` : ''}</li>)}</ul>
+        <ul className="g56-list">{i.data.incidents.map((row) => (
+          <li key={row.id}>
+            {row.title} · {row.severity} · {row.status} · {row.category || i.tr('uncategorised')} · {row.assignee_name || i.tr('unassigned')}{row.unit_label ? ` · ${row.unit_label}` : ''}{row.follow_up_overdue ? ` · ${i.tr('overdue')}` : ''}
+            {' '}
+            <button type="button" disabled={i.busy} onClick={() => setCaseId(String(row.id))} data-track="ui.e96cf59a5b.83">{i.tr('viewCase')}</button>
+          </li>
+        ))}</ul>
       )}
       <form onSubmit={create} className="g56-row" data-track="ui.e96cf59a5b.30">
         <label>{i.common('title')}<input value={form.title} maxLength={160} onChange={(ev) => setForm({ ...form, title: ev.target.value })} /></label>
@@ -511,6 +600,34 @@ function IncidentsSection({ base, propertyId, p }) {
         <label>{i.tr('followUpOn')}<input type="date" value={fuForm.follow_up_on} onChange={(ev) => setFuForm({ ...fuForm, follow_up_on: ev.target.value })} /></label>
         <button type="submit" disabled={i.busy || !fuForm.incident_id || !fuForm.follow_up_on} data-track="ui.e96cf59a5b.63">{i.tr('setFollowUp')}</button>
       </form>
+      {c.data && (
+        <div>
+          <h5>{c.tr('caseFolder')}: {c.data.incident.title}</h5>
+          <Notice p={c} />
+          {c.data.incident.relocation_note && (
+            <p className="g56-muted">{c.tr('relocationNote')}: {c.data.incident.relocation_note}{c.data.incident.relocation_until ? ` · ${c.tr('relocationUntil')}: ${c.data.incident.relocation_until}` : ''}</p>
+          )}
+          {c.data.request ? (
+            <p className="g56-muted">{c.tr('linkedRequest')}: {c.data.request.title} · {c.data.request.status}</p>
+          ) : <p className="g56-muted">{c.tr('noLinkedRequest')}</p>}
+          <h6>{c.tr('caseEvents')}</h6>
+          {c.data.request?.events?.length ? (
+            <ul className="g56-list">{c.data.request.events.map((ev) => <li key={ev.id}>{ev.event_type}{ev.actor_name ? ` · ${ev.actor_name}` : ''} · {c.time(ev.created_at)}{ev.note ? ` · ${ev.note}` : ''}</li>)}</ul>
+          ) : <p>{c.common('empty')}</p>}
+          <h6>{c.tr('casePhotos')}</h6>
+          {c.data.request?.photo_urls?.length ? (
+            <ul className="g56-list">{c.data.request.photo_urls.map((url) => <li key={url}><a href={url} target="_blank" rel="noopener noreferrer" data-track="ui.e96cf59a5b.84">{url}</a></li>)}</ul>
+          ) : <p>{c.common('empty')}</p>}
+          <h6>{c.tr('evidence')}</h6>
+          {c.data.evidence.length ? (
+            <ul className="g56-list">{c.data.evidence.map((item, idx) => <li key={`${item.url}-${idx}`}>{item.kind} · {item.label || item.url} · <a href={item.url} target="_blank" rel="noopener noreferrer" data-track="ui.e96cf59a5b.85">{item.url}</a></li>)}</ul>
+          ) : <p>{c.common('empty')}</p>}
+          <h6>{c.tr('caseDocuments')}</h6>
+          {c.data.documents.length ? (
+            <ul className="g56-list">{c.data.documents.map((doc) => <li key={doc.id}>{doc.title} · {doc.record_type}{doc.unit_label ? ` · ${doc.unit_label}` : ''} · <a href={doc.document_url} target="_blank" rel="noopener noreferrer" data-track="ui.e96cf59a5b.86">{doc.document_url}</a></li>)}</ul>
+          ) : <p>{c.common('empty')}</p>}
+        </div>
+      )}
     </div>
   );
 }
@@ -556,17 +673,43 @@ function KeysSection({ base, propertyId, p }) {
         <label>{k.tr('contactName')}<input value={holder} maxLength={160} onChange={(ev) => setHolder(ev.target.value)} /></label>
         <button type="submit" disabled={k.busy || !label.trim()} data-track="ui.e96cf59a5b.36">{k.tr('addKey')}</button>
       </form>
+      {k.data.keys.some((row) => (row.events || []).length > 0) && (
+        <div>
+          <h5>{k.tr('keyHistory')}</h5>
+          <ul className="g56-list">{k.data.keys.flatMap((row) => (row.events || []).map((ev, idx) => <li key={`${row.id}-${idx}`}>{row.label} · {ev.action} · {ev.holder_name || '—'} · {k.time(ev.at)}</li>))}</ul>
+        </div>
+      )}
     </div>
   );
 }
 
-function TransferSection({ base, propertyId, p }) {
+function TransferSection({ base, propertyId, p, onBack, onTransferred }) {
   const [toUser, setToUser] = useState('');
   const [revokeUser, setRevokeUser] = useState('');
   const [handover, setHandover] = useState(null);
+  const [toBusiness, setToBusiness] = useState('');
   const showHandover = async () => {
     const v = await p.send('get', `${base}/p/${propertyId}/handover`);
     if (v) setHandover(v);
+  };
+  // 347 (Batch J): property transfer to another business. The server is
+  // fail-closed (caller must own both businesses); on success the detail
+  // view closes and the receipt stays at the top of the console, because
+  // the property no longer belongs to this business.
+  const transferProperty = async (ev) => {
+    ev.preventDefault();
+    if (!toBusiness.trim()) return;
+    const v = await p.send('post', `${base}/p/${propertyId}/transfer`, { to_business_id: toBusiness.trim() });
+    if (v) {
+      onTransferred({
+        label: `${p.tr('transferDone')}: ${v.handover?.property?.label || ''}`,
+        movedRequests: `${p.tr('movedRequests')}: ${v.moved?.requests ?? '—'}`,
+        movedUnits: `${p.tr('movedUnits')}: ${v.moved?.units ?? '—'}`,
+        vendorsCarried: `${p.tr('vendorsCarried')}: ${v.vendors_carried ?? '—'}`,
+      });
+      setToBusiness('');
+      onBack();
+    }
   };
   return (
     <div>
@@ -576,14 +719,30 @@ function TransferSection({ base, propertyId, p }) {
         <button type="button" disabled={p.busy} onClick={() => p.send('post', `${base}/p/${propertyId}/notify-occupants`, {})} data-track="ui.e96cf59a5b.38">{p.tr('notifyOccupants')}</button>
       </div>
       {handover && (
-        <p className="g56-muted">
-          {handover.property?.label} · {handover.property?.address || ''} · {handover.property?.owner_name || ''}
-          {handover.generated_at ? ` · ${p.time(handover.generated_at)}` : ''}
-        </p>
+        <>
+          <p className="g56-muted">
+            {handover.property?.label} · {handover.property?.address || ''} · {handover.property?.owner_name || ''}
+            {handover.generated_at ? ` · ${p.time(handover.generated_at)}` : ''}
+          </p>
+          {handover.vendor_contacts?.length > 0 && (
+            <div>
+              <h5>{p.tr('vendorContacts')}</h5>
+              <ul className="g56-list">{handover.vendor_contacts.map((v) => (
+                <li key={`${v.name}-${v.email || ''}`}>
+                  {v.name}{v.trade ? ` · ${v.trade}` : ''}{v.contact_name ? ` · ${v.contact_name}` : ''}{v.phone ? ` · ${v.phone}` : ''}{v.email ? ` · ${v.email}` : ''}
+                </li>
+              ))}</ul>
+            </div>
+          )}
+        </>
       )}
       <form onSubmit={async (ev) => { ev.preventDefault(); if (!toUser.trim()) return; const v = await p.send('post', `${base}/p/${propertyId}/reassign`, { to_user_id: toUser.trim() }); if (v) setToUser(''); }} className="g56-row" data-track="ui.e96cf59a5b.39">
         <label>{p.tr('userId')}<input value={toUser} onChange={(ev) => setToUser(ev.target.value)} dir="ltr" /></label>
         <button type="submit" disabled={p.busy || !toUser.trim()} data-track="ui.e96cf59a5b.40">{p.tr('reassign')}</button>
+      </form>
+      <form onSubmit={transferProperty} className="g56-row" data-track="ui.e96cf59a5b.81">
+        <label>{p.tr('transferBusinessId')}<input value={toBusiness} onChange={(ev) => setToBusiness(ev.target.value)} dir="ltr" /></label>
+        <button type="submit" disabled={p.busy || !toBusiness.trim()} data-track="ui.e96cf59a5b.82">{p.tr('transferBusiness')}</button>
       </form>
       <form onSubmit={async (ev) => { ev.preventDefault(); if (!revokeUser.trim()) return; const v = await p.send('post', `${base}/p/${propertyId}/revoke`, { user_id: revokeUser.trim() }); if (v) setRevokeUser(''); }} className="g56-row" data-track="ui.e96cf59a5b.41">
         <label>{p.tr('userId')}<input value={revokeUser} onChange={(ev) => setRevokeUser(ev.target.value)} dir="ltr" /></label>
@@ -655,16 +814,18 @@ function UpkeepSection({ base }) {
   const co = useBizG56(`${base}/costs`, 'properties');
   const inv = useBizG56(`${base}/invoices`, 'properties');
   const money = useMoney();
-  const [invoiceForm, setInvoiceForm] = useState({ vendor_id: '', amount: '', work_order_id: '' });
+  const [invoiceForm, setInvoiceForm] = useState({ vendor_id: '', amount: '', invoice_number: '', work_order_id: '', property_id: '' });
   const addInvoice = async (ev) => {
     ev.preventDefault();
     const cents = toCents(invoiceForm.amount);
-    if (!invoiceForm.vendor_id || cents == null) return;
+    if (!invoiceForm.vendor_id || cents == null || !invoiceForm.invoice_number.trim()) return;
     const created = await inv.send('post', `${base}/invoices`, {
       vendor_id: invoiceForm.vendor_id, amount_cents: cents,
+      invoice_number: invoiceForm.invoice_number.trim(),
       work_order_id: invoiceForm.work_order_id.trim() || undefined,
+      property_id: invoiceForm.property_id || undefined,
     });
-    if (created) setInvoiceForm({ vendor_id: '', amount: '', work_order_id: '' });
+    if (created) setInvoiceForm({ vendor_id: '', amount: '', invoice_number: '', work_order_id: '', property_id: '' });
   };
   return (
     <div>
@@ -678,26 +839,34 @@ function UpkeepSection({ base }) {
         <>
           <p className="g56-muted">{al.tr('overdue')}: {al.data.overdue.length}</p>
           {al.data.overdue.length > 0 && <ul className="g56-list">{al.data.overdue.map((row, idx) => <li key={row.id || idx}>{row.title || row.kind} · {row.due_on || ''}</li>)}</ul>}
+          {al.data.sla_breaches?.length > 0 && (
+            <>
+              <p className="g56-muted">{al.tr('slaBreaches')}: {al.data.sla_breaches.length}</p>
+              <ul className="g56-list">{al.data.sla_breaches.map((row, idx) => <li key={row.id || idx}>{row.title}{row.property ? ` · ${row.property}` : ''}{row.sla_target_at ? ` · ${al.time(row.sla_target_at)}` : ''}</li>)}</ul>
+            </>
+          )}
           <button type="button" disabled={al.busy} onClick={() => al.send('post', `${base}/alerts/notify`, {})} data-track="ui.e96cf59a5b.47">{al.tr('notifyNow')}</button>
           <Notice p={al} />
         </>
       )}
       <h4>{tv.tr('turnovers')}</h4>
+      <Notice p={tv} />
       {!tv.data ? (tv.errorText && <p className="g56-error">{tv.errorText}</p>) : tv.data.turnovers.length === 0 ? <p>{tv.common('empty')}</p> : (
         <table className="g56-table">
-          <thead><tr><th scope="col">{tv.tr('label')}</th><th scope="col">{tv.tr('unitLabel')}</th><th scope="col">{tv.common('status')}</th><th scope="col">{tv.tr('due')}</th><th scope="col"><span className="g56-sr">{tv.tr('closeWorkOrder')}</span></th></tr></thead>
+          <thead><tr><th scope="col">{tv.tr('label')}</th><th scope="col">{tv.tr('unitLabel')}</th><th scope="col">{tv.common('status')}</th><th scope="col">{tv.tr('due')}</th><th scope="col"><span className="g56-sr">{tv.tr('completeTurnover')}</span></th></tr></thead>
           <tbody>{tv.data.turnovers.map((row) => (
             <tr key={row.id}>
-              <td>{row.property}</td><td>{row.unit_label}</td><td>{row.status} · {row.done_steps}/{row.total_steps}{row.at_risk ? ` · ${tv.tr('overdue')}` : ''}</td>
+              <td>{row.property}</td><td>{row.unit_label}</td><td>{row.status} · {row.done_steps}/{row.total_steps}{row.at_risk ? ` · ${tv.tr('overdue')}` : ''}{row.keys_out ? ` · ${tv.tr('keysOut')}: ${row.keys_out}` : ''}</td>
               <td>{row.move_in_on || '—'}</td>
               <td>
                 {row.steps?.map((s) => (
                   <span key={s.key}>
-                    <button type="button" disabled={tv.busy} onClick={() => tv.send('post', `${base}/turnovers/${row.id}/steps/${s.key}`, { status: s.status === 'done' ? 'pending' : 'done' })} data-track="ui.e96cf59a5b.48">{s.key}: {s.status}</button>
+                    <button type="button" disabled={tv.busy} onClick={() => tv.send('post', `${base}/turnovers/${row.id}/steps/${s.key}`, { status: s.status === 'done' ? 'pending' : 'done' })} data-track="ui.e96cf59a5b.48">{s.key}: {s.status}{s.key === 'repairs' && s.request_ids?.length ? ` (${s.request_ids.length})` : ''}</button>
                     {' '}
                   </span>
                 ))}
-                <button type="button" disabled={tv.busy} onClick={() => tv.send('post', `${base}/turnovers/${row.id}/close`, {})} data-track="ui.e96cf59a5b.49">{tv.tr('closeWorkOrder')}</button>
+                <TurnoverRepairLink base={base} row={row} tv={tv} />
+                <button type="button" disabled={tv.busy || row.status !== 'ready'} onClick={() => tv.send('post', `${base}/turnovers/${row.id}/close`, { status: 'completed' })} data-track="ui.e96cf59a5b.49">{tv.tr('completeTurnover')}</button>
               </td>
             </tr>
           ))}</tbody>
@@ -710,9 +879,9 @@ function UpkeepSection({ base }) {
           <button type="button" disabled={co.busy} onClick={() => co.send('post', `${base}/costs/alerts`, {})} data-track="ui.e96cf59a5b.65">{co.tr('sendBudgetAlerts')}</button>
           <Notice p={co} />
           <table className="g56-table">
-            <thead><tr><th scope="col">{co.tr('label')}</th><th scope="col">{co.tr('monthSpend')}</th><th scope="col">{co.tr('budget')}</th><th scope="col">{co.tr('reserve')}</th></tr></thead>
+            <thead><tr><th scope="col">{co.tr('label')}</th><th scope="col">{co.tr('monthSpend')}</th><th scope="col">{co.tr('budget')}</th><th scope="col">{co.tr('variance')}</th><th scope="col">{co.tr('reserve')}</th><th scope="col">{co.tr('reserveTarget')}</th></tr></thead>
             <tbody>{co.data.properties.map((row) => (
-              <tr key={row.id}><td>{row.label}</td><td>{money(row.month_spend_cents)}</td><td>{row.monthly_budget_cents == null ? '—' : money(row.monthly_budget_cents)}</td><td>{row.reserve_balance_cents == null ? '—' : money(row.reserve_balance_cents)}</td></tr>
+              <tr key={row.id}><td>{row.label}</td><td>{money(row.month_spend_cents)}</td><td>{row.monthly_budget_cents == null ? '—' : money(row.monthly_budget_cents)}</td><td>{row.variance_cents == null ? '—' : money(row.variance_cents)}{row.over_budget ? ` · ${co.tr('overdue')}` : ''}</td><td>{row.reserve_balance_cents == null ? '—' : money(row.reserve_balance_cents)}</td><td>{row.reserve_target_cents == null ? '—' : money(row.reserve_target_cents)}{row.reserve_funded_pct != null ? ` · ${row.reserve_funded_pct}%` : ''}</td></tr>
             ))}</tbody>
           </table>
         </>
@@ -737,20 +906,44 @@ function UpkeepSection({ base }) {
           ))}</tbody>
         </table>
       )}
-      <VendorsInvoiceForm base={base} inv={inv} invoiceForm={invoiceForm} setInvoiceForm={setInvoiceForm} addInvoice={addInvoice} />
+      <VendorsInvoiceForm base={base} inv={inv} invoiceForm={invoiceForm} setInvoiceForm={setInvoiceForm} addInvoice={addInvoice} properties={co.data?.properties || []} />
     </div>
   );
 }
 
-function VendorsInvoiceForm({ base, inv, invoiceForm, setInvoiceForm, addInvoice }) {
+function TurnoverRepairLink({ base, row, tv }) {
+  const [requestId, setRequestId] = useState('');
+  if (!['open', 'ready'].includes(row.status)) return null;
+  const repairs = row.steps?.find((s) => s.key === 'repairs');
+  if (!repairs) return null;
+  const link = async (ev) => {
+    ev.preventDefault();
+    const id = requestId.trim();
+    if (!id) return;
+    const linked = await tv.send('post', `${base}/turnovers/${row.id}/steps/repairs`, {
+      status: repairs.status, request_ids: [...(repairs.request_ids || []), id],
+    });
+    if (linked) setRequestId('');
+  };
+  return (
+    <form onSubmit={link} className="g56-row" data-track="ui.e96cf59a5b.75">
+      <label>{tv.tr('linkRepairRequest')}<input value={requestId} maxLength={40} onChange={(ev) => setRequestId(ev.target.value)} placeholder={tv.tr('requestId')} dir="ltr" /></label>
+      <button type="submit" disabled={tv.busy || !requestId.trim()} data-track="ui.e96cf59a5b.76">{tv.tr('linkRepairRequest')}</button>
+    </form>
+  );
+}
+
+function VendorsInvoiceForm({ base, inv, invoiceForm, setInvoiceForm, addInvoice, properties }) {
   const v = useBizG56(`${base}/vendors`, 'properties');
   if (!v.data) return v.errorText ? <p className="g56-error">{v.errorText}</p> : null;
   return (
     <form onSubmit={addInvoice} className="g56-row" data-track="ui.e96cf59a5b.52">
       <label>{inv.common('vendor')}<select value={invoiceForm.vendor_id} onChange={(ev) => setInvoiceForm({ ...invoiceForm, vendor_id: ev.target.value })}><option value="">—</option>{v.data.vendors.map((vendor) => <option key={vendor.id} value={vendor.id}>{vendor.name}</option>)}</select></label>
+      <label>{inv.tr('invoiceNumber')}<input value={invoiceForm.invoice_number} maxLength={60} onChange={(ev) => setInvoiceForm({ ...invoiceForm, invoice_number: ev.target.value })} dir="ltr" /></label>
       <label>{inv.common('amount')}<input inputMode="decimal" value={invoiceForm.amount} onChange={(ev) => setInvoiceForm({ ...invoiceForm, amount: ev.target.value })} dir="ltr" /></label>
       <label>{inv.tr('workOrders')}<input value={invoiceForm.work_order_id} onChange={(ev) => setInvoiceForm({ ...invoiceForm, work_order_id: ev.target.value })} dir="ltr" /></label>
-      <button type="submit" disabled={inv.busy || !invoiceForm.vendor_id} data-track="ui.e96cf59a5b.53">{inv.tr('addInvoice')}</button>
+      <label>{inv.tr('label')}<select value={invoiceForm.property_id} onChange={(ev) => setInvoiceForm({ ...invoiceForm, property_id: ev.target.value })}><option value="">—</option>{properties.map((property) => <option key={property.id} value={property.id}>{property.label}</option>)}</select></label>
+      <button type="submit" disabled={inv.busy || !invoiceForm.vendor_id || !invoiceForm.invoice_number.trim()} data-track="ui.e96cf59a5b.53">{inv.tr('addInvoice')}</button>
     </form>
   );
 }
@@ -960,28 +1153,44 @@ function UnitSpendSection({ base, propertyId, p }) {
 }
 
 function ScheduleCreateSection({ base, propertyId, units, p }) {
-  const [form, setForm] = useState({ kind: 'inspection', interval_days: '', months: '', unit_id: '' });
+  const v = useBizG56(`${base}/vendors`, 'properties');
+  const [form, setForm] = useState({ kind: 'inspection', title: '', interval_days: '', months: '', unit_id: '', equipment_name: '', vendor_id: '', next_due_on: '' });
   const create = async (ev) => {
     ev.preventDefault();
-    const body = { kind: form.kind };
+    // D-509: title and next_due_on are server-required; the old form sent
+    // neither, so every schedule create 400'd. Equipment schedules carry
+    // the equipment name; vendor schedules carry the vendor.
+    if (!form.title.trim() || !form.next_due_on) return;
+    if (form.kind === 'vendor' && !form.vendor_id) return;
+    const body = { kind: form.kind, title: form.title.trim(), next_due_on: form.next_due_on };
     if (form.interval_days !== '') body.interval_days = Number(form.interval_days);
     if (form.months.trim()) {
       const months = form.months.split(',').map((s) => Number(s.trim())).filter((n) => Number.isInteger(n) && n >= 1 && n <= 12);
       if (months.length) body.months = [...new Set(months)];
     }
     if (form.unit_id) body.unit_id = form.unit_id;
+    if (form.kind === 'equipment' && form.equipment_name.trim()) body.equipment_name = form.equipment_name.trim();
+    if (form.kind === 'vendor') body.vendor_id = form.vendor_id;
     if (body.interval_days == null && !body.months) return;
     const created = await p.send('post', `${base}/p/${propertyId}/schedules`, body);
-    if (created) setForm({ kind: 'inspection', interval_days: '', months: '', unit_id: '' });
+    if (created) setForm({ kind: 'inspection', title: '', interval_days: '', months: '', unit_id: '', equipment_name: '', vendor_id: '', next_due_on: '' });
   };
   return (
     <div>
       <h4>{p.tr('calendar')}</h4>
       <form onSubmit={create} className="g56-row" data-track="ui.e96cf59a5b.66">
         <label>{p.tr('scheduleKind')}<select value={form.kind} onChange={(ev) => setForm({ ...form, kind: ev.target.value })}>{SCHEDULE_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}</select></label>
+        <label>{p.tr('scheduleTitle')}<input value={form.title} maxLength={160} onChange={(ev) => setForm({ ...form, title: ev.target.value })} /></label>
+        <label>{p.tr('nextDueOn')}<input type="date" value={form.next_due_on} onChange={(ev) => setForm({ ...form, next_due_on: ev.target.value })} /></label>
         <label>{p.tr('intervalDays')}<input type="number" min="1" max="3660" value={form.interval_days} onChange={(ev) => setForm({ ...form, interval_days: ev.target.value })} dir="ltr" /></label>
         <label>{p.tr('months')}<input value={form.months} onChange={(ev) => setForm({ ...form, months: ev.target.value })} dir="ltr" /></label>
         <label>{p.tr('unitLabel')}<select value={form.unit_id} onChange={(ev) => setForm({ ...form, unit_id: ev.target.value })}><option value="">—</option>{units.map((u) => <option key={u.id} value={u.id}>{u.unit_label}</option>)}</select></label>
+        {form.kind === 'equipment' && (
+          <label>{p.tr('equipmentName')}<input value={form.equipment_name} maxLength={160} onChange={(ev) => setForm({ ...form, equipment_name: ev.target.value })} /></label>
+        )}
+        {form.kind === 'vendor' && (
+          <label>{p.common('vendor')}<select value={form.vendor_id} onChange={(ev) => setForm({ ...form, vendor_id: ev.target.value })}><option value="">—</option>{(v.data?.vendors || []).map((vendor) => <option key={vendor.id} value={vendor.id}>{vendor.name}</option>)}</select></label>
+        )}
         <button type="submit" disabled={p.busy} data-track="ui.e96cf59a5b.67">{p.tr('createSchedule')}</button>
       </form>
     </div>

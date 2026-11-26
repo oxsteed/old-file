@@ -1052,6 +1052,7 @@ exports.verifyUser = async (req, res) => {
              is_verified = TRUE,
              identity_verified = TRUE,
              id_verified = TRUE,
+             identity_verified_at = NOW(),
              didit_verified_at = COALESCE(didit_verified_at, NOW()),
              didit_enforcement_required = FALSE,
              updated_at = NOW()

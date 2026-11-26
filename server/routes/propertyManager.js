@@ -29,6 +29,7 @@ router.get(`${P}/p/:propertyId`, ...member, h(req => portfolio.profile(B(req), r
 router.patch(`${P}/p/:propertyId`, ...adminW, h(req => portfolio.updateProperty(B(req), req.params.propertyId, req.body)));
 router.post(`${P}/p/:propertyId/archive`, ...adminW, h(req => portfolio.archive(B(req), req.params.propertyId, U(req), req.body)));
 router.post(`${P}/p/:propertyId/restore`, ...adminW, h(req => portfolio.restore(B(req), req.params.propertyId)));
+router.delete(`${P}/p/:propertyId`, ...adminW, h(req => portfolio.deleteProperty(B(req), req.params.propertyId)));
 router.post(`${P}/p/:propertyId/units`, ...adminW, h(made(req => portfolio.addUnit(B(req), req.params.propertyId, req.body))));
 router.post(`${P}/p/:propertyId/common-areas`, ...adminW, h(made(req => portfolio.addArea(B(req), req.params.propertyId, req.body))));
 router.delete(`${P}/common-areas/:areaId`, ...adminW, h(req => portfolio.archiveArea(B(req), req.params.areaId)));
@@ -65,6 +66,8 @@ router.post(`${P}/schedules/:scheduleId/done`, ...memberW, h(req => upkeep.compl
 router.post(`${P}/schedules/:scheduleId/book`, ...memberW, h(req => upkeep.bookOccurrence(B(req), req.params.scheduleId, U(req), R(req))));
 router.get(`${P}/alerts`, ...member, h(req => upkeep.alerts(B(req), U(req), R(req))));
 router.post(`${P}/alerts/notify`, ...adminW, h(req => upkeep.alerts(B(req), U(req), R(req), { notifyNow: true })));
+// 341 emergency triage: open emergency/urgent requests, emergencies first.
+router.get(`${P}/emergencies`, ...member, h(req => upkeep.emergencies(B(req), U(req), R(req))));
 // 331-335 turnover
 router.get(`${P}/turnovers`, ...member, h(req => upkeep.turnoverBoard(B(req), U(req), R(req))));
 router.post(`${P}/p/:propertyId/turnovers`, ...adminW, h(made(req => upkeep.startTurnover(B(req), req.params.propertyId, U(req), req.body))));
@@ -83,9 +86,20 @@ router.get(`${P}/p/:propertyId/incidents`, ...member, h(req => work.incidents(B(
 router.post(`${P}/p/:propertyId/incidents`, ...memberW, h(made(req => work.createIncident(B(req), req.params.propertyId, U(req), R(req), req.body))));
 router.patch(`${P}/incidents/:incidentId`, ...memberW, h(req => work.updateIncident(B(req), req.params.incidentId, U(req), R(req), req.body)));
 router.post(`${P}/incidents/:incidentId/evidence`, ...memberW, h(req => work.addEvidence(B(req), req.params.incidentId, U(req), R(req), req.body)));
+router.get(`${P}/incidents/:incidentId/case`, ...member, h(req => work.caseFolder(B(req), req.params.incidentId, U(req), R(req))));
 router.post(`${P}/incidents/:incidentId/share`, ...adminW, h(req => work.shareWithOwner(B(req), req.params.incidentId, U(req), R(req))));
 // 346-350 transfer
+router.get(`${P}/export`, ...admin, async (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const out = await portfolio.portfolioExport(B(req), req.query);
+    if (out.contentType === 'text/csv') {
+      res.set('Content-Disposition', `attachment; filename="${out.filename}"`).type('text/csv').send(out.body);
+    } else res.status(200).json(out.body);
+  } catch (e) { next(e); }
+});
 router.get(`${P}/p/:propertyId/handover`, ...admin, h(req => portfolio.handoverExport(B(req), req.params.propertyId)));
+router.post(`${P}/p/:propertyId/transfer`, ...adminW, h(req => portfolio.transferProperty(B(req), req.params.propertyId, U(req), req.body)));
 router.post(`${P}/p/:propertyId/reassign`, ...adminW, h(req => portfolio.reassign(B(req), req.params.propertyId, U(req), req.body)));
 router.post(`${P}/p/:propertyId/notify-occupants`, ...adminW, h(req => portfolio.notifyOccupants(B(req), req.params.propertyId, U(req))));
 router.post(`${P}/p/:propertyId/revoke`, ...adminW, h(req => portfolio.revokeAccess(B(req), req.params.propertyId, U(req), req.body)));

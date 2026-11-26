@@ -19,6 +19,18 @@
 //   3. the delivery_jobs.delay_escalated_at stamp — the dispatch-board
 //      flag (internalQueue surfaces stamped jobs while still active).
 //
+// Group 9 partials Wave 2 Batch P (485, G9-B9, D-557): a second
+// trigger — pickup no-show. An 'assigned' job whose pickup window
+// end passes with no pickup escalates at once, with the same three
+// signals and metadata.trigger 'pickup_no_show'. No 30-minute grace:
+// the pickup window end is itself the deadline the driver accepted,
+// and waiting for delivery-window-end + 30 min is the gap this
+// fixes. The ETA trigger below is unchanged for picked-up and
+// in-transit jobs, and still catches an assigned job at
+// delivery-window-end + 30 min when it has no pickup window at all;
+// the open-issue guard means a job escalates once per episode
+// whichever trigger fires first.
+//
 // Once per job per delay episode: a re-run skips any job with an open
 // auto-detected delay issue. Resolving that issue closes the episode,
 // so a job that is still late afterwards escalates again on the next
@@ -56,8 +68,12 @@ async function sweepDelayedDeliveries(db, { now = new Date() } = {}) {
        ) snap ON TRUE
       WHERE j.status = ANY($1::local_delivery_status[])
         AND (j.helper_user_id IS NOT NULL OR j.internal_driver_user_id IS NOT NULL)
-        AND COALESCE(snap.eta_at, j.estimated_arrival_at, j.delivery_window_end) IS NOT NULL
-        AND COALESCE(snap.eta_at, j.estimated_arrival_at, j.delivery_window_end) <= $2::timestamptz
+        AND (
+          (COALESCE(snap.eta_at, j.estimated_arrival_at, j.delivery_window_end) IS NOT NULL
+           AND COALESCE(snap.eta_at, j.estimated_arrival_at, j.delivery_window_end) <= $2::timestamptz)
+          OR (j.status = 'assigned' AND j.picked_up_at IS NULL AND j.pickup_window_end IS NOT NULL
+              AND j.pickup_window_end <= $4::timestamptz)
+        )
         AND NOT EXISTS (
           SELECT 1 FROM delivery_issues i
            WHERE i.delivery_job_id = j.id AND i.code = 'delay' AND i.status = 'open'
@@ -65,20 +81,30 @@ async function sweepDelayedDeliveries(db, { now = new Date() } = {}) {
         )
       ORDER BY COALESCE(snap.eta_at, j.estimated_arrival_at, j.delivery_window_end) ASC
       LIMIT $3`,
-    [ACTIVE_STATUSES, thresholdIso, BATCH_SIZE],
+    [ACTIVE_STATUSES, thresholdIso, BATCH_SIZE, nowIso],
   );
   let escalated = 0;
   let failed = 0;
   for (const job of jobs) {
     try {
-      const etaAt = new Date(job.snapshot_eta_at || job.estimated_arrival_at || job.delivery_window_end);
+      // Pickup no-show takes precedence when both clocks have passed:
+      // the missed pickup is the more specific, earlier signal.
+      const pickupNoShow = job.status === 'assigned' && !job.picked_up_at && job.pickup_window_end
+        && new Date(job.pickup_window_end).getTime() <= nowMs;
+      const etaAt = pickupNoShow
+        ? new Date(job.pickup_window_end)
+        : new Date(job.snapshot_eta_at || job.estimated_arrival_at || job.delivery_window_end);
       const minutesLate = Math.max(0, Math.floor((nowMs - etaAt.getTime()) / 60000));
       const metadata = {
         autoDetected: true,
+        trigger: pickupNoShow ? 'pickup_no_show' : 'eta',
         etaAt: etaAt.toISOString(),
         minutesLate,
         episodeStartedAt: nowIso,
       };
+      const description = pickupNoShow
+        ? `Delivery ${job.reference} missed its pickup window ${minutesLate} minutes ago and has been escalated to dispatch.`
+        : `Delivery ${job.reference} is ${minutesLate} minutes past its estimated arrival and has been escalated to dispatch.`;
       const { rowCount } = await db.query(
         `INSERT INTO delivery_issues (delivery_job_id, code, description, reported_by_user_id, metadata)
            SELECT $1, 'delay', $2, NULL, $3::jsonb
@@ -87,7 +113,7 @@ async function sweepDelayedDeliveries(db, { now = new Date() } = {}) {
                WHERE i.delivery_job_id = $1 AND i.code = 'delay' AND i.status = 'open'
                  AND i.metadata->>'autoDetected' = 'true'
             )`,
-        [job.id, `Delivery ${job.reference} is ${minutesLate} minutes past its estimated arrival and has been escalated to dispatch.`, JSON.stringify(metadata)],
+        [job.id, description, JSON.stringify(metadata)],
       );
       if (!rowCount) continue;
       await db.query(
@@ -95,7 +121,7 @@ async function sweepDelayedDeliveries(db, { now = new Date() } = {}) {
         [job.id, nowIso],
       );
       const { recordActivity } = require('./localDeliveryIntegrity');
-      await recordActivity(db, job.id, null, 'delivery_delay_escalated', { etaAt: etaAt.toISOString(), minutesLate }, true);
+      await recordActivity(db, job.id, null, 'delivery_delay_escalated', { etaAt: etaAt.toISOString(), minutesLate, trigger: metadata.trigger }, true);
       escalated += 1;
     } catch (err) {
       failed += 1;

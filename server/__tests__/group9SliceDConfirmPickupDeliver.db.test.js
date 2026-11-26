@@ -22,6 +22,11 @@
  *       note), stored with who/when on the job and the origin stop, and
  *       shown on the detail read. No per-item acknowledgment exists: the
  *       item-photo model has no per-item condition record.
+ *   Batch N (467/468, G9-A4/G9-A5): the blank-count regression — an
+ *       empty, zero, or non-integer count 400s and stores nothing, so
+ *       the booked count can never slip through as the confirmation.
+ *       The card-button and photos changes are client-side and covered
+ *       by build:ci + the i18n gate.
  *   469 (verify only): the waiting extra still holds — the assigned
  *       driver requests a waiting extra and it appears on the detail
  *       read for customer review.
@@ -227,6 +232,32 @@ ddescribe('Group 9 Slice D: confirm pickup + deliver goods (466-475)', () => {
     const stillAssigned = await pool.query('SELECT status, pickup_confirmed_pieces FROM delivery_jobs WHERE id = $1', [job.id]);
     expect(stillAssigned.rows[0].status).toBe('assigned');
     expect(stillAssigned.rows[0].pickup_confirmed_pieces).toBeNull();
+  });
+
+  test('467 (Batch N): a blank, zero, or non-integer count 400s and stores nothing', async () => {
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    const customerId = await makeUser('customer');
+    const job = await makeJob(customerId, { driverId });
+
+    // The blank-count regression: the old client substituted the booked
+    // count (job.pieces) whenever the field was empty, so an empty
+    // submission recorded a rubber-stamp 3 with no flag. The server
+    // must refuse an empty count outright and never store the booked
+    // value in its place.
+    for (const badCount of ['', 0, 2.5, 'three']) {
+      const attempt = await call(localDelivery.updateStatus, {
+        params: { id: String(job.id) }, user: helperUser(driverId),
+        headers: { 'idempotency-key': key('g9d-pickup') },
+        body: { status: 'picked_up', pickupConfirmedPieces: badCount, conditionAcknowledged: true },
+      });
+      expect(attempt.next).toHaveBeenCalled();
+      expect(attempt.next.error).toMatchObject({ code: 'delivery_pickup_confirmation_required', status: 400 });
+    }
+
+    const stillAssigned = await pool.query('SELECT status, pickup_confirmed_pieces, pickup_pieces_mismatch FROM delivery_jobs WHERE id = $1', [job.id]);
+    expect(stillAssigned.rows[0].status).toBe('assigned');
+    expect(stillAssigned.rows[0].pickup_confirmed_pieces).toBeNull();
+    expect(stillAssigned.rows[0].pickup_pieces_mismatch).toBe(false);
   });
 
   test('467 + 468: a matching confirmation stores the count on the job and the origin stop', async () => {

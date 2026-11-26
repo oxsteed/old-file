@@ -32,6 +32,9 @@ const fixtureApi = `export default {
 test('manager time tab reviews punch corrections and runs close-of-day', { timeout: 120_000 }, async () => {
   const mocks = {
     '../../api/axios': fixtureApi,
+    // StaffScheduler reads the current user (Wave 1: access-change work).
+    // The fixture renders it without an AuthProvider, so mock the hook.
+    '../../hooks/useAuth': `export const useAuth = () => ({ user: { id: 'manager-1' } });`,
     '../../admin/lib/ConfirmDialog': `export default () => null;`,
     './StaffLaborRulesPanel': `export default () => null;`,
   };

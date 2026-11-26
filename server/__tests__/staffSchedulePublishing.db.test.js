@@ -174,6 +174,59 @@ suite('S-04 schedule publishing + time-off (DB)', () => {
     expect(empList.res.body.some((s) => s.id === c1.res.body.id && s.published === true)).toBe(true);
   });
 
+  test('G5-13 (279): editing or cancelling a published shift notifies the assignee; draft edits do not', async () => {
+    sendNotification.mockClear();
+    const mk = (date) => call(ctrl.createShift, {
+      ...asManager(MANAGER),
+      body: { user_id: EMPLOYEE, shift_start: `${date}T09:00`, shift_end: `${date}T17:00`, role: 'Cashier' },
+    });
+    const pub = await mk('2026-11-05');
+    expect(pub.error).toBeNull();
+    const shiftId = pub.res.body.id;
+    const published = await call(ctrl.publishShifts, {
+      ...asManager(MANAGER),
+      body: { from: '2026-11-05', to: '2026-11-05' },
+    });
+    expect(published.error).toBeNull();
+    sendNotification.mockClear();
+
+    // A draft edit sends nothing: recordScheduleChange returns null.
+    const draft = await mk('2026-11-07');
+    const draftEdit = await call(ctrl.updateShift, {
+      ...asManager(MANAGER),
+      params: { businessId: String(bizId), shiftId: String(draft.res.body.id) },
+      body: { shift_start: '2026-11-07T10:00', shift_end: '2026-11-07T18:00' },
+    });
+    expect(draftEdit.error).toBeNull();
+    expect(sendNotification.mock.calls.filter((c) => c[0].type === 'crew_shift_changed')).toEqual([]);
+
+    // Editing the published shift notifies the assignee once.
+    const edited = await call(ctrl.updateShift, {
+      ...asManager(MANAGER),
+      params: { businessId: String(bizId), shiftId: String(shiftId) },
+      body: { shift_start: '2026-11-05T10:00', shift_end: '2026-11-05T18:00' },
+    });
+    expect(edited.error).toBeNull();
+    expect(edited.res.body.schedule_change).toBeTruthy();
+    const changed = sendNotification.mock.calls.filter((c) => c[0].type === 'crew_shift_changed');
+    expect(changed.length).toBe(1);
+    expect(String(changed[0][0].userId)).toBe(EMPLOYEE);
+    expect(changed[0][0].data.change_type).toBe('edited');
+    expect(changed[0][0].data.params.businessName).toBeTruthy();
+    expect(changed[0][0].idempotencyKey).toMatch(/^shift-changed:\d+:\d+:\d+$/);
+
+    // Cancelling the published shift notifies again, as a deletion.
+    const removed = await call(ctrl.deleteShift, {
+      ...asManager(MANAGER),
+      params: { businessId: String(bizId), shiftId: String(shiftId) },
+    });
+    expect(removed.error).toBeNull();
+    const cancelled = sendNotification.mock.calls.filter((c) => c[0].type === 'crew_shift_changed');
+    expect(cancelled.length).toBe(2);
+    expect(cancelled[1][0].data.change_type).toBe('deleted');
+    expect(cancelled[1][0].idempotencyKey).not.toBe(cancelled[0][0].idempotencyKey);
+  });
+
   test('publishShifts rejects non-managers', async () => {
     const { res } = await call(ctrl.publishShifts, { ...asEmployee(EMPLOYEE), body: {} });
     expect(res.statusCode).toBe(403);
@@ -228,6 +281,52 @@ suite('S-04 schedule publishing + time-off (DB)', () => {
       body: { decision: 'denied' },
     });
     expect(again.res.statusCode).toBe(404);
+  });
+
+  test('293: approving time off with open work requires a delegate; a named delegate is accepted and tasks move', async () => {
+    await db.query(
+      `INSERT INTO business_team_tasks(business_id,assignee_id,created_by,request_id,kind,title,due_at,status)
+       VALUES($1,$2,$3,gen_random_uuid(),'task','Restock','2026-12-11T10:00:00Z','open')`,
+      [bizId, EMPLOYEE2, MANAGER]
+    );
+    const created = await call(ctrl.createTimeOffRequest, {
+      ...asEmployee(EMPLOYEE2),
+      body: { request_type: 'unpaid', start_date: '2026-12-10', end_date: '2026-12-12', reason: 'Away' },
+    });
+    expect(created.res.statusCode).toBe(201);
+    const requestId = created.res.body.request.id;
+    // No delegate named: approval is refused and the request stays pending.
+    const blocked = await call(ctrl.decideTimeOffRequest, {
+      ...asManager(MANAGER),
+      params: { businessId: String(bizId), requestId: String(requestId) },
+      body: { decision: 'approved' },
+    });
+    expect(blocked.res.statusCode).toBe(409);
+    expect(blocked.res.body.code).toBe('delegate_required');
+    expect(blocked.res.body.open_tasks).toBe(1);
+    // With a delegate: approval goes through, the task moves, the cover is recorded as accepted.
+    sendNotification.mockClear();
+    const approved = await call(ctrl.decideTimeOffRequest, {
+      ...asManager(MANAGER),
+      params: { businessId: String(bizId), requestId: String(requestId) },
+      body: { decision: 'approved', delegate_id: EMPLOYEE },
+    });
+    expect(approved.res.statusCode).toBe(200);
+    expect(approved.res.body.request.status).toBe('approved');
+    expect(approved.res.body.delegation.delegate_id).toBe(EMPLOYEE);
+    expect(approved.res.body.delegation_moves.moved).toBe(1);
+    const { rows: [moved] } = await db.query(
+      `SELECT assignee_id FROM business_team_tasks WHERE business_id=$1 AND assignee_id=$2 AND title='Restock'`,
+      [bizId, EMPLOYEE]
+    );
+    expect(moved).toBeTruthy();
+    const { rows: [del] } = await db.query(
+      `SELECT * FROM business_absence_delegations WHERE business_id=$1 AND user_id=$2 AND delegate_id=$3`,
+      [bizId, EMPLOYEE2, EMPLOYEE]
+    );
+    expect(del.status).toBe('accepted');
+    expect(del.moved_count).toBe(1);
+    expect(sendNotification.mock.calls.map(([a]) => a.type)).toContain('business_task_assigned_to_you');
   });
 
   test('Domain 8 #26: a failed decision notice is logged and does not fail the decision', async () => {

@@ -3049,7 +3049,7 @@ exports.bookServiceSlot = async (req, res) => {
               quote_request_id: String(booked.id),
               reference: publicReferenceFromRow(booked) || String(booked.id),
             },
-            action_url: `/direct/requests/${booked.id}`,
+            action_url: `/direct/quotes/${booked.id}`,
             idempotencyKey: `direct:book:crew:inapp:${booked.id}:${memberId}`,
           });
         } catch (notifErr) {

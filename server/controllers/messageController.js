@@ -11,6 +11,7 @@ const { bookingSiteContactClause } = require('../services/chatThreadAccess');
 const { AppError } = require('../middleware/errorHandler');
 const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 const { enqueueMessageNotifications } = require('../services/messageNotificationService');
+const { canCrewMessageJob, isCrewMessengerForJobConversation } = require('../services/jobCrewMessaging');
 
 function normalizeMessageAttachments(value, { conversationId } = {}) {
   if (!Array.isArray(value)) return [];
@@ -415,7 +416,10 @@ const getOrCreateJobConversation = async (req, res) => {
     );
     if (!job) return res.status(404).json({ error: 'Job not found' });
     if (!job.assigned_helper_id) return res.status(409).json({ error: 'This job has no helper yet', code: 'no_helper' });
-    if (userId !== String(job.client_id) && userId !== String(job.assigned_helper_id)) {
+    // G5-14 (271): a crew member of the assigned helper's business with
+    // message reply access may open the job conversation, scoped to it.
+    if (userId !== String(job.client_id) && userId !== String(job.assigned_helper_id)
+      && !(await canCrewMessageJob(job, userId))) {
       return res.status(403).json({ error: 'Not a participant in this job' });
     }
     const params = [job.client_id, job.assigned_helper_id, job.id];
@@ -566,7 +570,8 @@ const getMessages = async (req, res, next) => {
        )`,
       [conversationId, userId]
     );
-    if (conv.rows.length === 0) {
+    if (conv.rows.length === 0
+      && !(await isCrewMessengerForJobConversation(pool, conversationId, userId))) {
       throw new AppError('Access denied', 403, 'access_denied');
     }
 
@@ -613,14 +618,10 @@ const getMessages = async (req, res, next) => {
   }
 };
 
-// Get metadata for a single conversation (name, business name, job title)
-const getConversationMeta = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { conversationId } = req.params;
-
-    const result = await pool.query(
-      `SELECT
+// G5-14 (271): the meta select is shared with the crew fallback below,
+// which re-runs it without the participant filter once admission to a
+// job conversation is established.
+const CONVERSATION_META_SELECT = `SELECT
          c.id, c.job_id, c.customer_id, c.helper_id, c.business_id, c.status,
          c.archived_at,
          CASE
@@ -642,7 +643,16 @@ const getConversationMeta = async (req, res) => {
        LEFT JOIN users cu ON c.customer_id = cu.id
        LEFT JOIN jobs j   ON c.job_id      = j.id
        LEFT JOIN businesses hb ON hb.user_id = c.helper_id AND hb.is_primary = TRUE AND hb.is_active = TRUE
-       LEFT JOIN businesses cb ON cb.id = c.business_id AND cb.is_active = TRUE
+       LEFT JOIN businesses cb ON cb.id = c.business_id AND cb.is_active = TRUE`;
+
+// Get metadata for a single conversation (name, business name, job title)
+const getConversationMeta = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId } = req.params;
+
+    let result = await pool.query(
+      `${CONVERSATION_META_SELECT}
        WHERE c.id = $1 AND (
          c.customer_id = $2
          OR c.helper_id = $2
@@ -654,6 +664,15 @@ const getConversationMeta = async (req, res) => {
        )`,
       [conversationId, userId]
     );
+
+    // G5-14 (271): a crew member admitted to the job conversation reads
+    // its meta too; re-run without the participant filter.
+    if (result.rows.length === 0) {
+      if (!(await isCrewMessengerForJobConversation(pool, conversationId, userId))) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+      result = await pool.query(`${CONVERSATION_META_SELECT} WHERE c.id = $1`, [conversationId, userId]);
+    }
 
     if (result.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
     res.json(result.rows[0]);
@@ -674,7 +693,7 @@ const searchMessages = async (req, res) => {
     const offset = Math.max(parseInt(req.query.offset) || 0, 0);
 
     // Verify user is part of conversation
-    const conv = await pool.query(
+    let conv = await pool.query(
       `SELECT c.customer_id, c.helper_id FROM conversations c
        WHERE c.id = $1 AND (
          c.customer_id = $2
@@ -686,6 +705,17 @@ const searchMessages = async (req, res) => {
        )`,
       [conversationId, userId]
     );
+    // G5-14 (271): a crew member admitted to the job conversation may
+    // search it too; re-read the parties without the filter.
+    if (conv.rows.length === 0) {
+      if (!(await isCrewMessengerForJobConversation(pool, conversationId, userId))) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+      conv = await pool.query(
+        'SELECT c.customer_id, c.helper_id FROM conversations c WHERE c.id = $1',
+        [conversationId]
+      );
+    }
     if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
 
     const { customer_id, helper_id } = conv.rows[0];
@@ -803,11 +833,27 @@ const sendMessage = async (req, res, next) => {
         [conversationId, userId]
       );
 
+      // G5-14 (271): a crew member admitted to the job conversation may
+      // send into it; re-read the row without the participant filter so
+      // the rest of the send flow (masking, blocks, counterpart) runs.
+      let conv;
       if (convResult.rows.length === 0) {
-        throw new AppError('Access denied', 403, 'access_denied');
+        if (!(await isCrewMessengerForJobConversation(client, conversationId, userId))) {
+          throw new AppError('Access denied', 403, 'access_denied');
+        }
+        const full = await client.query(
+          `SELECT c.customer_id, c.helper_id, c.business_id, c.job_id,
+                  c.status, c.archived_at, b.business_name
+           FROM conversations c
+           LEFT JOIN businesses b ON b.id = c.business_id AND b.is_active = TRUE
+           WHERE c.id = $1`,
+          [conversationId]
+        );
+        if (full.rows.length === 0) throw new AppError('Access denied', 403, 'access_denied');
+        conv = full.rows[0];
+      } else {
+        conv = convResult.rows[0];
       }
-
-      const conv = convResult.rows[0];
       if (conv.status === 'archived' || conv.archived_at) {
         throw new AppError('Conversation is archived', 409, 'conversation_archived');
       }

@@ -16,8 +16,9 @@ const baseJob = () => ({ id: '1', status: 'posted', dispatch_state: 'internal_re
   customer_user_id: 'customer', helper_user_id: null, internal_driver_user_id: null, vehicle_id: null,
   pieces: 1, weight_lbs: 20, pickup_window_start: START, pickup_window_end: END,
   delivery_window_start: START, delivery_window_end: END, proof_pin_digest: 'must-not-leak',
+  origin_state: 'NY', destination_state: 'NY',
   origin_contact_phone: '2125550100', destination_contact_phone: '2125550111' });
-const capacity = () => ({ user_id: DRIVER, id: '10', approved: true, active: true, insurance_acknowledged: true,
+const capacity = () => ({ user_id: DRIVER, id: '10', approved: true, active: true, available: true, insurance_acknowledged: true,
   max_pieces: 10, max_payload_lbs: 200, cargo_length_in: 40, cargo_width_in: 40, cargo_height_in: 40,
   fragile_supported: true, perishable_supported: true, equipment: { dolly: true, temperatureControl: true }, service_area: {} });
 const request = (body = {}, params = { id: '1' }, user = operator, key = 'request-0001') => ({ params, body, user, headers: { 'idempotency-key': key } });
@@ -52,6 +53,17 @@ function fixture(jobPatch = {}, options = {}) {
       }
       if (q.startsWith('SELECT * FROM delivery_jobs')) return rows(String(args[0]) === String(db().job.id) ? [db().job] : []);
       if (q.startsWith('SELECT * FROM delivery_driver_profiles')) return rows(options.noDriver ? [] : [{ ...capacity(), ...options.driver }]);
+      // Batch M (D-534/D-536): the claim loads the caller's profile with
+      // its availability flag and service area, and assignInternal reads
+      // the target driver's availability. The mock driver is online with
+      // a New York service area covering the mock job's NY endpoints.
+      if (q.startsWith('SELECT approved, active, available, service_area FROM delivery_driver_profiles')) {
+        const profile = options.noDriver ? null : { approved: true, active: true, available: true, service_area: { states: ['NY'] }, ...options.driver };
+        return rows(profile ? [profile] : []);
+      }
+      if (q.startsWith('SELECT available FROM delivery_driver_profiles')) {
+        return rows(options.noDriver ? [] : [{ available: options.driver?.available ?? true }]);
+      }
       // F10: claim checks the caller's onboarding profile explicitly.
       if (q.startsWith('SELECT approved, active FROM delivery_driver_profiles')) {
         const profile = options.noDriver ? null : { approved: true, active: true, ...options.driver };
@@ -219,7 +231,12 @@ describe('transactional dispatch', () => {
     const f = fixture({ status: 'assigned', picked_up_at: START });
     await expect(f.dispatch.actions.releaseMarketplace(request({ reason: 'Capacity unavailable' }))).rejects.toMatchObject({ code: 'delivery_release_conflict' });
   });
-  test('release clears assignment and helper claim reserves the helper', async () => {
+  // Group 9 partials Wave 2 Batch P (482, G9-B4, D-556): a marketplace
+  // claim is no longer a dead end — ops can pull it back by reassigning
+  // the job to an internal driver before pickup. The old refusal
+  // (assignInternal 409s a helper-claimed job) is replaced by the
+  // pull-back: the claim clears and the replacement is recorded.
+  test('release clears assignment and a helper claim can be pulled back by reassigning', async () => {
     const f = fixture({ status: 'assigned', dispatch_state: 'internal_assigned', internal_driver_user_id: OTHER, vehicle_id: '10' },
       { reservations: [{ delivery_job_id: '1', driver_user_id: OTHER, vehicle_id: '10', starts_at: START, ends_at: END, status: 'active' }] });
     await f.dispatch.actions.releaseMarketplace(request({ reason: 'Capacity unavailable' }));
@@ -229,7 +246,10 @@ describe('transactional dispatch', () => {
     expect(f.state.job.helper_user_id).toBe(DRIVER);
     expect(f.state.reservations.filter((row) => row.status === 'active')).toHaveLength(1);
     expect(claimed.response.job.internal_driver_user_id).toBeUndefined();
-    await expect(f.dispatch.actions.assignInternal(request({ driverUserId: OTHER, vehicleId: '10' }, { id: '1' }, operator, 'assign-0002'))).rejects.toMatchObject({ code: 'delivery_dispatch_conflict' });
+    const reassigned = await f.dispatch.actions.assignInternal(request({ driverUserId: OTHER, vehicleId: '10' }, { id: '1' }, operator, 'assign-0002'));
+    expect(reassigned.response.job).toMatchObject({ status: 'assigned', dispatch_state: 'internal_assigned', helper_user_id: null, internal_driver_user_id: OTHER });
+    expect(f.state.reservations.filter((row) => row.status === 'active')).toHaveLength(1);
+    expect(f.state.reservations.find((row) => row.status === 'active').driver_user_id).toBe(OTHER);
   });
   test('release requires an explicit reason', async () => {
     const f = fixture();

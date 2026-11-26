@@ -102,20 +102,80 @@ async function calendar(businessId, user, role, { from, to, property_id: propert
     ORDER BY due_on`, args);
   return { from: f, to: t, items: rows.filter(r => r.overdue || (r.due_on && new Date(r.due_on) >= new Date(`${f}T00:00:00Z`))) };
 }
+// 341 emergency triage: open emergency/urgent requests first, then SLA.
+// Same assignment scope as slaBreaches (admins see all, other members only
+// their assigned properties). `breached` is derived from sla_target_at;
+// the SLA-breach escalation job (server/jobs/propertySlaBreachEscalation.js)
+// is what notifies on it.
+async function emergencies(businessId, user, role) {
+  const admin = ['owner', 'manager'].includes(role);
+  const { rows } = await pool.query(`SELECT r.id, r.title, r.status, r.urgency, r.unit_label, r.sla_target_at, r.sla_alerted_at, p.id AS property_id, p.label AS property,
+      EXTRACT(EPOCH FROM (NOW() - r.sla_target_at))/3600 AS hours_overdue
+    FROM property_maintenance_requests r LEFT JOIN properties p ON p.id=r.property_id
+    WHERE r.business_id=$1 AND r.urgency IN ('emergency','urgent') AND r.status NOT IN ('completed','cancelled','rejected')
+      AND ($2::boolean OR EXISTS (SELECT 1 FROM property_staff_assignments a WHERE a.property_id=r.property_id AND a.user_id=$3 AND a.status='active' AND (a.ends_at IS NULL OR a.ends_at > NOW())))
+    ORDER BY CASE r.urgency WHEN 'emergency' THEN 0 WHEN 'urgent' THEN 1 ELSE 2 END, r.sla_target_at ASC NULLS LAST, r.created_at DESC`,
+  [businessId, admin, user]);
+  return { emergencies: rows.map(r => ({ ...r, breached: r.sla_target_at ? new Date(r.sla_target_at) < new Date() : false })) };
+}
 // 330 missed maintenance alerts (notify once per due date)
 async function alerts(businessId, user, role, { notifyNow = false } = {}) {
   const cal = await calendar(businessId, user, role, { from: addDays(today(), -365), to: today() });
   const overdue = cal.items.filter(i => i.overdue);
+  const sla_breaches = await slaBreaches(businessId, user, role);
   let notified = 0;
   if (notifyNow) {
     const { rows } = await pool.query(`UPDATE property_maintenance_schedules SET alerted_for=next_due_on WHERE business_id=$1 AND active AND next_due_on < CURRENT_DATE AND alerted_for IS DISTINCT FROM next_due_on RETURNING id, property_id, title, next_due_on`, [businessId]);
     const owner = (await ownerOf(pool, businessId)).user_id;
     for (const s of rows) {
       const people = await propertyPeople(pool, s.property_id, ['manager', 'coverage']);
-      for (const t of people.length ? people : [owner]) { await notify(t, 'property_maintenance_due', { title: s.title }, `property_maintenance_due:${s.id}:${String(s.next_due_on)}`, `/business/${businessId}/hub?tab=properties&property=${s.property_id}`); notified++; }
+      for (const t of people.length ? people : [owner]) { await notify(t, 'property_maintenance_due', { title: s.title }, `property_maintenance_due:${s.id}:${String(s.next_due_on)}`, `/business/${businessId}/workspace?tab=properties&property=${s.property_id}`); notified++; }
     }
+    notified += (await sendSlaBreachAlerts(businessId)).notified;
   }
-  return { overdue, notified };
+  return { overdue, sla_breaches, notified };
+}
+// 330 missed-maintenance SLA breaches: open requests past their SLA target.
+// sla_target_at is set once at intake and never recomputed, so a request has
+// one breach episode; sla_alerted_at stamps it once alerted.
+async function slaBreachRows(businessId) {
+  const { rows } = await pool.query(`SELECT r.id, r.title, r.status, r.urgency, r.unit_label, r.sla_target_at, r.sla_alerted_at, p.id AS property_id, p.label AS property,
+      EXTRACT(EPOCH FROM (NOW() - r.sla_target_at))/3600 AS hours_overdue
+    FROM property_maintenance_requests r LEFT JOIN properties p ON p.id=r.property_id
+    WHERE r.business_id=$1 AND r.sla_target_at IS NOT NULL AND r.sla_target_at < NOW() AND r.status NOT IN ('completed','cancelled','rejected')
+    ORDER BY r.sla_target_at`, [businessId]);
+  return rows;
+}
+// Endpoint read: same assignment scope as the calendar (admins see all,
+// other members only their assigned properties).
+async function slaBreaches(businessId, user, role) {
+  const admin = ['owner', 'manager'].includes(role);
+  if (admin) return slaBreachRows(businessId);
+  const { rows } = await pool.query(`SELECT r.id, r.title, r.status, r.urgency, r.unit_label, r.sla_target_at, r.sla_alerted_at, p.id AS property_id, p.label AS property,
+      EXTRACT(EPOCH FROM (NOW() - r.sla_target_at))/3600 AS hours_overdue
+    FROM property_maintenance_requests r LEFT JOIN properties p ON p.id=r.property_id
+    WHERE r.business_id=$1 AND r.sla_target_at IS NOT NULL AND r.sla_target_at < NOW() AND r.status NOT IN ('completed','cancelled','rejected')
+      AND EXISTS (SELECT 1 FROM property_staff_assignments a WHERE a.property_id=r.property_id AND a.user_id=$2 AND a.status='active' AND (a.ends_at IS NULL OR a.ends_at > NOW()))
+    ORDER BY r.sla_target_at`, [businessId, user]);
+  return rows;
+}
+// 330 alert leg, shared with Batch J's breach escalation job (341): notify
+// once per breach and stamp the row. Job context (no caller user/role), so
+// it alerts every un-alerted breach in the business; the delivery key also
+// dedupes on (request, sla_target_at) if two runs race.
+async function sendSlaBreachAlerts(businessId) {
+  const breaches = (await slaBreachRows(businessId)).filter(b => !b.sla_alerted_at);
+  const owner = (await ownerOf(pool, businessId)).user_id;
+  let notified = 0;
+  for (const b of breaches) {
+    const people = b.property_id ? await propertyPeople(pool, b.property_id, ['manager', 'coverage']) : [];
+    for (const t of people.length ? people : [owner]) {
+      await notify(t, 'property_sla_breach', { title: b.title }, `property_sla_breach:${b.id}:${new Date(b.sla_target_at).getTime()}`, `/business/${businessId}/workspace?tab=properties&request=${b.id}`);
+      notified++;
+    }
+    await pool.query('UPDATE property_maintenance_requests SET sla_alerted_at=NOW() WHERE id=$1', [b.id]);
+  }
+  return { breaches: breaches.length, notified };
 }
 // 331-335 turnover
 const stepState = steps => Object.fromEntries(steps.map(s => [s.key, s]));
@@ -238,7 +298,7 @@ async function budgetAlerts(businessId, { month } = {}) {
   let notified = 0;
   for (const p of c.properties.filter(x => x.over_budget)) {
     const people = await propertyPeople(pool, p.id, ['manager']);
-    for (const t of [...new Set([...people, owner].map(String))]) { await notify(t, 'property_budget_over', { property: p.label }, `property_budget_over:${p.id}:${c.month}:${t}`, `/business/${businessId}/hub?tab=properties`); notified++; }
+    for (const t of [...new Set([...people, owner].map(String))]) { await notify(t, 'property_budget_over', { property: p.label }, `property_budget_over:${p.id}:${c.month}:${t}`, `/business/${businessId}/workspace?tab=properties`); notified++; }
   }
   return { over_budget: c.over_budget, notified };
 }
@@ -277,4 +337,4 @@ async function invoices(businessId, { status } = {}) {
   [businessId, ['unmatched', 'matched', 'over', 'approved', 'rejected'].includes(status) ? status : null]);
   return { invoices: rows };
 }
-module.exports = { STEPS, createSchedule, completeSchedule, updateSchedule, bookOccurrence, calendar, alerts, startTurnover, updateStep, closeTurnover, turnoverBoard, costs, unitSpend, budgetAlerts, addInvoice, decideInvoice, invoices, nextSeasonal };
+module.exports = { STEPS, createSchedule, completeSchedule, updateSchedule, bookOccurrence, calendar, alerts, slaBreaches, sendSlaBreachAlerts, emergencies, startTurnover, updateStep, closeTurnover, turnoverBoard, costs, unitSpend, budgetAlerts, addInvoice, decideInvoice, invoices, nextSeasonal };

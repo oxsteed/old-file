@@ -396,7 +396,7 @@ ddescribe('Track C preference toggles (DB)', () => {
       // can actually reach sendNotification through the site.
       const VARIABLE_SITES = [
         // Groups 5-6: notify() in services/businessOwner/common.js.
-        { file: 'services/businessOwner/common.js', name: 'type', expansions: ['business_listing_claim_approved', 'business_listing_claim_rejected', 'business_service_issue_reported', 'business_service_issue_resolved', 'business_ownership_transfer_requested', 'business_ownership_transfer_completed', 'business_ownership_transfer_declined', 'business_deputy_designated', 'business_work_transferred', 'business_permission_requested', 'business_permission_decided', 'business_work_released', 'business_dispatch_declined', 'business_work_exception_raised', 'business_work_exception_updated', 'business_crew_allocated', 'business_crew_declined', 'business_team_mention', 'business_coverage_claimed', 'business_coverage_decided', 'business_job_follow_up', 'business_feedback_follow_up', 'business_shift_handover', 'business_task_assigned_to_you', 'business_delegation_proposed', 'business_delegation_answered', 'business_delegation_visits', 'business_member_left', 'property_assigned', 'property_manager_changed', 'property_contact_updated', 'property_access_revoked', 'property_approval_requested', 'property_approval_decided', 'property_entry_scheduled', 'property_entry_window_selected', 'property_emergency', 'property_incident_summary', 'property_maintenance_due', 'property_budget_over', 'restaurant_pickup_unclaimed', 'restaurant_order_transfer_requested', 'restaurant_order_transfer_decided', 'restaurant_order_moved', 'restaurant_equipment_down', 'restaurant_location_emergency_closed', 'restaurant_closure_customer_notice', 'restaurant_stock_notice', 'restaurant_ticket_transferred', 'restaurant_substitution_request', 'restaurant_order_issue_escalated', 'restaurant_order_late', 'restaurant_incident_assigned', 'restaurant_access_change_handoff'] },
+        { file: 'services/businessOwner/common.js', name: 'type', expansions: ['business_listing_claim_approved', 'business_listing_claim_rejected', 'business_service_issue_reported', 'business_service_issue_resolved', 'business_ownership_transfer_requested', 'business_ownership_transfer_completed', 'business_ownership_transfer_declined', 'business_deputy_designated', 'business_work_transferred', 'business_permission_requested', 'business_permission_decided', 'business_work_released', 'business_dispatch_declined', 'business_work_exception_raised', 'business_work_exception_updated', 'business_crew_allocated', 'business_crew_declined', 'business_team_mention', 'business_coverage_claimed', 'business_coverage_decided', 'business_job_follow_up', 'business_feedback_follow_up', 'business_feedback_for_you', 'business_shift_handover', 'business_task_assigned_to_you', 'business_delegation_proposed', 'business_delegation_answered', 'business_delegation_visits', 'business_member_left', 'property_assigned', 'property_manager_changed', 'property_contact_updated', 'property_access_revoked', 'property_approval_requested', 'property_approval_decided', 'property_entry_scheduled', 'property_entry_window_selected', 'property_emergency', 'property_incident_summary', 'property_maintenance_due', 'property_sla_breach', 'property_budget_over', 'restaurant_pickup_unclaimed', 'restaurant_order_transfer_requested', 'restaurant_order_transfer_decided', 'restaurant_order_moved', 'restaurant_equipment_down', 'restaurant_location_emergency_closed', 'restaurant_closure_customer_notice', 'restaurant_stock_notice', 'restaurant_ticket_transferred', 'restaurant_substitution_request', 'restaurant_order_issue_escalated', 'restaurant_order_late', 'restaurant_incident_assigned', 'restaurant_access_change_handoff'] },
         // Group 4 rest items 179-180: tellCustomer in the helper work service.
         { file: 'services/helperWorkService.js', name: 'type', expansions: ['helper_progress_update', 'helper_handover_updated'] },
         // Group 4 rest item 183: notify() in the job change request service.
@@ -435,6 +435,9 @@ ddescribe('Track C preference toggles (DB)', () => {
         // negotiation service; the seven types are the only ones its
         // callers pass.
         { file: 'services/helperQuoteNegotiation.js', name: 'type', expansions: ['helper_quote_received', 'helper_quote_revised', 'helper_quote_counter_proposed', 'helper_quote_counter_accepted', 'helper_quote_counter_declined', 'helper_quote_accepted', 'helper_quote_declined'] },
+        // Group 5 item 265: notifySafe fan-out in the job exception
+        // service; the two types are the only ones its callers pass.
+        { file: 'services/jobExceptionService.js', name: 'type', expansions: ['job_exception_raised', 'job_exception_updated'] },
         // Group 2: household notifyHousehold fan-out; the four types are
         // the only ones its callers pass.
         { file: 'services/householdDelegationService.js', name: 'type', expansions: ['household_delegate_invite', 'household_delegation_update', 'household_spending_request', 'household_visit_update'] },
@@ -453,7 +456,17 @@ ddescribe('Track C preference toggles (DB)', () => {
         // payout_draft_created (manager draft, line 265); the expansions
         // omitted it, so the N3 diff never enforced its catalog entry.
         { file: 'services/restaurantPayoutService.js', name: 'type', expansions: ['payout_requested', 'payout_failed', 'payout_approved', 'payout_deposited', 'payout_reversed', 'payout_rejected', 'payout_draft_created'] },
+        // Group 9 partials Wave 2 Batch L (451, G9-A8, D-529): notifyDriver
+        // fan-out in the delivery controller; the three types are the only
+        // ones its callers pass (approval, payout approved, payout paid).
+        { file: 'controllers/localDeliveryController.js', name: 'type', expansions: ['driver_approved', 'driver_payout_approved', 'driver_payout_paid'] },
         { file: 'services/supportNotificationService.js', name: 'type', expansions: ['support_sla_breach'] },
+        // G11 checkpoint 1 (D-603): notifyRental fan-out in the
+        // tool-rental notifications helper; the two types are the only
+        // ones its callers pass (payment proof submitted / confirmed).
+        // Later G11 checkpoints that send more types through it must
+        // extend this list, or N3 fails on purpose.
+        { file: 'utils/toolRentalNotifications.js', name: 'type', expansions: ['tool_rental_payment_proof_submitted', 'tool_rental_payment_confirmed'] },
         // Redis job-data replay: the queued payload is a full
         // notification object produced by a sendNotification caller
         // upstream, so the type already passed through the central

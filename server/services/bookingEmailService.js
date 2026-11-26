@@ -304,8 +304,103 @@ async function sendBookingDeclined(booking, tool, customer, ownerLanguage = DEFA
   }
 }
 
+// G11-A1/A3 (D-603): the renter recorded payment proof. The owner is told
+// there is a proof waiting, with the reference and amount, so they can
+// confirm receipt. The booking stays invoice_sent until they do.
+async function sendPaymentProofReceived(booking, tool, owner, proof) {
+  try {
+    const language = normalizeLanguage(resolveLanguage(owner));
+    const startDate = formatDate(booking.start_date, language);
+    const endDate = formatDate(booking.end_date, language);
+    const totalPrice = `${formatMoney(booking.total_price)}`;
+    const subject = `${translateTitle('tool_rental_payment_proof_submitted', language)} - ${escape(tool.name)}`;
+    const body = translateBody('tool_rental_payment_proof_submitted', language, {
+      toolName: escape(tool.name),
+      firstName: escape(owner.first_name),
+      startDate,
+      endDate,
+      totalPrice,
+    });
+
+    await emailService.send({
+      to: owner.email,
+      subject,
+      html: `
+        <h2>${escape(translateTitle('tool_rental_payment_proof_submitted', language, { toolName: tool.name }))}</h2>
+        <p>${escape(localizeLabel('hi', language))} ${escape(owner.first_name)},</p>
+        <p>${escape(body)}</p>
+
+        <h3>${escape(localizeLabel('details', language))}</h3>
+        <ul>
+          <li><strong>${escape(localizeLabel('tool', language))}:</strong> ${escape(tool.name)}</li>
+          <li><strong>${escape(localizeLabel('fromDate', language))}:</strong> ${escape(startDate)}</li>
+          <li><strong>${escape(localizeLabel('toDate', language))}:</strong> ${escape(endDate)}</li>
+          <li><strong>${escape(localizeLabel('totalPrice', language))}:</strong> $${escape(totalPrice)}</li>
+          <li><strong>Reference:</strong> ${escape(proof?.reference || '')}</li>
+          <li><strong>Amount recorded:</strong> $${escape(formatMoney(proof?.amount))}</li>
+        </ul>
+
+        <p><a href="${process.env.CLIENT_URL}/my-bookings">${escape(localizeLabel('myBookings', language))}</a></p>
+
+        <p>${escape(localizeLabel('bestRegards', language))},<br>${escape(localizeLabel('oxTeam', language))}</p>
+      `,
+    });
+
+    logger.info('Rental payment proof email sent', { bookingId: booking.id });
+  } catch (err) {
+    logger.error('Failed to send rental payment proof email', { err });
+  }
+}
+
+// G11-A1/A3 (D-603): the owner confirmed receipt. The renter is told the
+// booking is paid and pickup can proceed.
+async function sendPaymentConfirmed(booking, tool, customer) {
+  try {
+    const language = normalizeLanguage(resolveLanguage(customer));
+    const startDate = formatDate(booking.start_date, language);
+    const endDate = formatDate(booking.end_date, language);
+    const totalPrice = `${formatMoney(booking.total_price)}`;
+    const subject = `${translateTitle('tool_rental_payment_confirmed', language)} - ${escape(tool.name)}`;
+    const body = translateBody('tool_rental_payment_confirmed', language, {
+      toolName: escape(tool.name),
+      firstName: escape(customer.first_name),
+      startDate,
+      endDate,
+      totalPrice,
+    });
+
+    await emailService.send({
+      to: customer.email,
+      subject,
+      html: `
+        <h2>${escape(translateTitle('tool_rental_payment_confirmed', language, { toolName: tool.name }))}</h2>
+        <p>${escape(localizeLabel('hi', language))} ${escape(customer.first_name)},</p>
+        <p>${escape(body)}</p>
+
+        <h3>${escape(localizeLabel('details', language))}</h3>
+        <ul>
+          <li><strong>${escape(localizeLabel('tool', language))}:</strong> ${escape(tool.name)}</li>
+          <li><strong>${escape(localizeLabel('fromDate', language))}:</strong> ${escape(startDate)}</li>
+          <li><strong>${escape(localizeLabel('toDate', language))}:</strong> ${escape(endDate)}</li>
+          <li><strong>${escape(localizeLabel('totalPrice', language))}:</strong> $${escape(totalPrice)}</li>
+        </ul>
+
+        <p><a href="${process.env.CLIENT_URL}/my-bookings">${escape(localizeLabel('myBookings', language))}</a></p>
+
+        <p>${escape(localizeLabel('bestRegards', language))},<br>${escape(localizeLabel('oxTeam', language))}</p>
+      `,
+    });
+
+    logger.info('Rental payment confirmed email sent', { bookingId: booking.id });
+  } catch (err) {
+    logger.error('Failed to send rental payment confirmed email', { err });
+  }
+}
+
 module.exports = {
   sendBookingConfirmation,
   sendBookingApproved,
   sendBookingDeclined,
+  sendPaymentProofReceived,
+  sendPaymentConfirmed,
 };

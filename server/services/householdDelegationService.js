@@ -26,10 +26,13 @@ const SCOPES = [
 
 // Item 81: the scope preview shows exactly what each scope grants before
 // the delegate accepts. These strings are the contract, not marketing.
+// D-579: book grants booking only; the visit actions (confirm readiness,
+// share summaries, replacements, follow-ups, emergency fallback,
+// reminders) need prepare or schedule, and the descriptions say so.
 const SCOPE_DESCRIPTIONS = {
-  book: 'Book visits for the owner. The owner always pays; the delegate never sees payment details.',
-  schedule: 'Schedule and reschedule visits on the shared calendar.',
-  prepare: 'Prepare visits: checklists, supplies, accessibility needs, arrival instructions.',
+  book: 'Book visits for the owner. The owner always pays; the delegate never sees payment details. Booking only: visit actions need prepare or schedule scope.',
+  schedule: 'Schedule and reschedule visits on the shared calendar, and record availability windows.',
+  prepare: 'Prepare visits: checklists, supplies, accessibility needs, arrival instructions, confirm readiness, share visit summaries, request replacements, file missed-visit follow-ups, trigger emergency fallback, and send visit and supply reminders.',
   coordinate: 'Coordinate people: assign tasks, hand work to another delegate.',
   view_records: 'Read visit summaries and household documents shared with them.',
   manage_addresses: 'Use and edit the household address book (private owner notes stay hidden).',
@@ -50,17 +53,124 @@ function isExpiredRow(row) {
 }
 
 // Lazily close rows past expiry so a stale 'accepted' row never grants
-// access (the same expire-if-stale pattern booking reads use).
+// access (the same expire-if-stale pattern booking reads use). D-589: an
+// expiring delegation gets a stored closure receipt (closedBy null, reason
+// expired) and its upcoming visit preps are reassigned to the owner, so
+// the receipt can record what the closure moved. D-591: a substitute
+// coordinator whose `until` passed is cleared here too, and the owner is
+// told once; the standing coordinator is NOT auto-restored.
 async function markExpiredDelegations(pool) {
   try {
-    await pool.query(
+    const { rows: expiring } = await pool.query(
       `UPDATE household_delegations
           SET status = 'expired', closed_at = COALESCE(closed_at, NOW()), updated_at = NOW()
         WHERE status IN ('invited', 'accepted')
-          AND expires_at <= NOW()`,
+          AND expires_at <= NOW()
+        RETURNING *`,
     );
+    for (const row of expiring) {
+      try {
+        const moved = await pool.query(
+          `UPDATE household_visit_preps p
+              SET assigned_delegate_user_id = NULL, updated_at = NOW()
+            WHERE p.owner_id = $1 AND p.assigned_delegate_user_id = $2
+              AND p.booking_id IN (SELECT id FROM booking_requests WHERE requested_date >= CURRENT_DATE)`,
+          [row.owner_id, row.delegate_user_id],
+        );
+        const receipt = {
+          closedBy: null,
+          closedAt: row.closed_at || new Date().toISOString(),
+          reason: 'Delegation expired',
+          scopesHeld: Array.isArray(row.scopes) ? row.scopes : [],
+          wasCoordinator: Boolean(row.is_coordinator),
+          upcomingVisitsReassigned: { count: moved.rowCount || 0, reassignedTo: 'owner' },
+        };
+        await pool.query(
+          `UPDATE household_delegations SET closure_receipt = $2 WHERE id = $1`,
+          [row.id, JSON.stringify(receipt)],
+        );
+        await logActivity(pool, row.id, null, 'expired', { reassignedVisits: moved.rowCount || 0 });
+      } catch (err) {
+        logger.warn('Failed to write household expiry receipt', { delegationId: row.id, error: err.message });
+      }
+    }
+    const { rows: lapsed } = await pool.query(
+      `SELECT * FROM household_delegations
+        WHERE is_coordinator = TRUE AND coordinator_until IS NOT NULL
+          AND coordinator_until <= NOW() AND status = 'accepted'`,
+    );
+    if (lapsed.length) {
+      await pool.query(
+        `UPDATE household_delegations
+            SET is_coordinator = FALSE, coordinator_until = NULL, updated_at = NOW()
+          WHERE id = ANY($1::uuid[])`,
+        [lapsed.map((r) => r.id)],
+      );
+    }
+    for (const row of lapsed) {
+      try {
+        await logActivity(pool, row.id, null, 'substitute_coordinator_lapsed', {
+          until: row.coordinator_until,
+        });
+        await notifyHousehold({
+          userId: row.owner_id,
+          type: 'household_delegation_update',
+          body: 'A temporary substitute coordinator lapsed. Re-assign the coordinator role when ready.',
+          data: { delegationId: row.id },
+          actionUrl: '/household',
+          idempotencyKey: `household-substitute-lapsed:${row.id}:${(row.coordinator_until instanceof Date ? row.coordinator_until.toISOString() : String(row.coordinator_until)).slice(0, 10)}`,
+        });
+      } catch (err) {
+        logger.warn('Failed to notify lapsed substitute coordinator', { delegationId: row.id, error: err.message });
+      }
+    }
   } catch (err) {
     logger.warn('Failed to mark expired household delegations', { error: err.message });
+  }
+}
+
+// D-585: automatic expiry reminders. A live delegation inside its final
+// 7 days (EXPIRY_SOON_MS) gets one reminder to the owner and one to the
+// delegate, recorded by last_reminder_sent_at so the sweep never
+// re-sends inside the window; a manual reminder stamps the same column
+// and suppresses the automatic one for the same window.
+async function sendDelegationExpiryReminders(pool) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM household_delegations
+        WHERE status = 'accepted'
+          AND expires_at > NOW()
+          AND expires_at <= NOW() + INTERVAL '7 days'
+          AND (last_reminder_sent_at IS NULL OR last_reminder_sent_at <= NOW() - INTERVAL '7 days')`,
+    );
+    let sent = 0;
+    for (const row of rows) {
+      try {
+        await pool.query(
+          'UPDATE household_delegations SET last_reminder_sent_at = NOW(), updated_at = NOW() WHERE id = $1',
+          [row.id],
+        );
+        await logActivity(pool, row.id, null, 'expiry_reminder_sent', {});
+        for (const userId of [row.owner_id, row.delegate_user_id]) {
+          if (!userId) continue;
+          await notifyHousehold({
+            userId,
+            type: 'household_delegation_update',
+            body: 'A household delegation expires within 7 days.',
+            data: { delegationId: row.id },
+            actionUrl: '/household',
+            idempotencyKey: `household-expiry-reminder:${row.id}:${(row.expires_at instanceof Date ? row.expires_at.toISOString() : String(row.expires_at)).slice(0, 10)}`,
+          });
+        }
+        sent += 1;
+      } catch (err) {
+        logger.warn('Failed to send household expiry reminder', { delegationId: row.id, error: err.message });
+      }
+    }
+    return { sent, checked: rows.length };
+  } catch (err) {
+    logger.warn('Failed to send household expiry reminders', { error: err.message });
+    return { sent: 0, checked: 0 };
   }
 }
 
@@ -210,4 +320,5 @@ module.exports = {
   newInviteToken,
   notifyHousehold,
   householdBookingAccess,
+  sendDelegationExpiryReminders,
 };

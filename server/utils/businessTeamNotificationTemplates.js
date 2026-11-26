@@ -64,6 +64,14 @@ const businessTeamNotifications = {
     title: t('Your issue was updated', 'Tu reporte fue actualizado', 'Votre signalement a été mis à jour', 'Yo mete siyalman ou ajou', 'تم تحديث بلاغك'),
     body: t('Open My work to see the status.', 'Abre Mi trabajo para ver el estado.', 'Ouvrez Mon travail pour voir le statut.', 'Louvri Travay mwen pou wè estati a.', 'افتح عملي لرؤية الحالة.'),
   },
+  job_exception_raised: {
+    title: t('A problem was reported on your job', 'Se reportó un problema en tu trabajo', 'Un problème a été signalé sur votre intervention', 'Yo siyale yon pwoblèm sou travay ou', 'تم الإبلاغ عن مشكلة في عملك'),
+    body: t('Open the job to review it.', 'Abre el trabajo para revisarlo.', 'Ouvrez l’intervention pour l’examiner.', 'Louvri travay la pou revize l.', 'افتح العمل لمراجعته.'),
+  },
+  job_exception_updated: {
+    title: t('Your job report was updated', 'Tu reporte del trabajo fue actualizado', 'Votre signalement a été mis à jour', 'Yo mete rapò travay ou ajou', 'تم تحديث بلاغ العمل الخاص بك'),
+    body: t('Open the job to see the status.', 'Abre el trabajo para ver el estado.', 'Ouvrez l’intervention pour voir le statut.', 'Louvri travay la pou wè estati a.', 'افتح العمل لرؤية الحالة.'),
+  },
   business_crew_allocated: {
     title: t('You were added to a job crew', 'Te agregaron al equipo de un trabajo', 'Vous avez été ajouté à l’équipe d’une intervention', 'Yo ajoute w nan ekip yon travay', 'تمت إضافتك إلى فريق عمل'),
     body: t('Confirm whether you can attend in My work.', 'Confirma en Mi trabajo si puedes asistir.', 'Confirmez votre présence dans Mon travail.', 'Konfime nan Travay mwen si ou ka vini.', 'أكّد في عملي ما إذا كان بإمكانك الحضور.'),
@@ -91,6 +99,13 @@ const businessTeamNotifications = {
   business_feedback_follow_up: {
     title: t('Low customer rating to follow up', 'Calificación baja de un cliente para dar seguimiento', 'Note client basse à suivre', 'Yon kliyan bay yon nòt ki ba, fè swivi', 'تقييم منخفض من عميل يحتاج إلى متابعة'),
     body: t('A customer rated a visit 3 stars or less. Reach out from the owner console.', 'Un cliente calificó una visita con 3 estrellas o menos. Contáctalo desde la consola del dueño.', 'Un client a noté une intervention 3 étoiles ou moins. Contactez-le depuis la console du propriétaire.', 'Yon kliyan bay yon vizit 3 zetwal oswa mwens. Kontakte l nan konsòl pwopriyetè a.', 'قيّم عميل زيارة بثلاث نجوم أو أقل. تواصل معه من لوحة المالك.'),
+  },
+  // D-475 (285, G5-22): the same low rating, routed to the member who did
+  // the visit — the manager copy above tells the reader to use the owner
+  // console, which is not the member's surface.
+  business_feedback_for_you: {
+    title: t('A customer rated your visit 3 stars or less', 'Un cliente calificó tu visita con 3 estrellas o menos', 'Un client a noté votre intervention 3 étoiles ou moins', 'Yon kliyan bay vizit ou a 3 zetwal oswa mwens', 'قيّم عميل زيارتك بثلاث نجوم أو أقل'),
+    body: t('See the feedback in My work — the visit may need a follow-up.', 'Consulta los comentarios en Mi trabajo; es posible que la visita necesite seguimiento.', 'Consultez les avis dans Mon travail — la visite peut nécessiter un suivi.', 'Gade fidbak la nan Travay mwen — vizit la ka bezwen yon swivi.', 'اطّلع على الملاحظات في عملي — قد تحتاج الزيارة إلى متابعة.'),
   },
   business_shift_handover: {
     title: t('You have a shift handover', 'Tienes una entrega de turno', 'Vous avez une passation de quart', 'Ou gen yon remiz ekip', 'لديك تسليم وردية'),
@@ -148,6 +163,10 @@ const businessTeamNotifications = {
     title: t('Visit time chosen', 'Horario de visita elegido', 'Heure de visite choisie', 'Lè vizit la chwazi', 'تم اختيار موعد الزيارة'),
     body: t('The occupant chose a visit time for {title}.', 'El ocupante eligió un horario para {title}.', 'L’occupant a choisi une heure pour {title}.', 'Lokatè a chwazi yon lè pou {title}.', 'اختار الساكن موعداً لـ {title}.'),
   },
+  property_request_status: {
+    title: t('Your repair has an update', 'Tu reparación tiene una actualización', 'Votre réparation a été mise à jour', 'Reparasyon ou gen yon mizajou', 'هناك تحديث بشأن الإصلاح الخاص بك'),
+    body: t('There is an update on your repair: {title}.', 'Hay una actualización sobre tu reparación: {title}.', 'Une mise à jour concerne votre réparation : {title}.', 'Gen yon mizajou sou reparasyon ou: {title}.', 'هناك تحديث بشأن الإصلاح الخاص بك: {title}.'),
+  },
   property_emergency: {
     title: t('Emergency at a property', 'Emergencia en una propiedad', 'Urgence dans une propriété', 'Ijans nan yon pwopriyete', 'حالة طارئة في عقار'),
     body: t('Emergency: {title}. Respond now.', 'Emergencia: {title}. Responde ahora.', 'Urgence : {title}. Intervenez maintenant.', 'Ijans: {title}. Reponn kounye a.', 'طارئ: {title}. استجب الآن.'),
@@ -159,6 +178,10 @@ const businessTeamNotifications = {
   property_maintenance_due: {
     title: t('Maintenance overdue', 'Mantenimiento vencido', 'Entretien en retard', 'Antretyen an reta', 'صيانة متأخرة'),
     body: t('{title} is past due.', '{title} está vencido.', '{title} est en retard.', '{title} an reta.', '{title} متأخر عن موعده.'),
+  },
+  property_sla_breach: {
+    title: t('Maintenance deadline missed', 'Se venció el plazo de mantenimiento', 'Délai d’entretien dépassé', 'Dat limit antretyen an pase', 'تم تجاوز الموعد النهائي للصيانة'),
+    body: t('{title} missed its maintenance deadline.', '{title} no cumplió su plazo de mantenimiento.', '{title} a dépassé son délai d’entretien.', '{title} rate dat limit antretyen li.', 'تجاوز {title} الموعد النهائي للصيانة.'),
   },
   property_budget_over: {
     title: t('Over budget', 'Presupuesto excedido', 'Budget dépassé', 'Bidjè depase', 'تجاوز الميزانية'),

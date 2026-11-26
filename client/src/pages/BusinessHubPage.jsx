@@ -5,6 +5,7 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { ACCESS_CHANGED_EVENT } from '../hooks/useAccessProjection';
 const ROLE_LABEL_KEYS = {
   manager: 'businessHub.roleManager',
   representative: 'businessHub.roleRepresentative',
@@ -19,6 +20,9 @@ const BusinessSkillsSelector = lazyDefault(() => import('../components/BusinessS
 const AIKnowledgeTab = lazyDefault(() => import('../components/AIKnowledgeTab'));
 import RoleMenu from '../components/businessHub/RoleMenu';
 const BusinessCalendarView = lazyDefault(() => import('../components/calendar/BusinessCalendarView'));
+// G5-10 (256): the assignment queue lives in the Hub calendar tab for
+// members holding bookings.manage (not only on the helper calendar).
+const BookingRequestsPanel = lazyDefault(() => import('../components/calendar/BookingRequestsPanel'));
 const BusinessClientsTab = lazyDefault(() => import('../components/businessHub/BusinessClientsTab'));
 const BusinessOperationsOverview = lazyDefault(() => import('../components/businessHub/BusinessOperationsOverview'));
 const BusinessAnalyticsTab = lazyNamed(() => import('../components/businessHub/BusinessAnalyticsTab'), 'BusinessAnalyticsTab');
@@ -95,6 +99,7 @@ import {
   approveMembership,
   denyMembership,
   removeMembership,
+  getOffboardingPreview,
   changeMembershipRole,
   listMemberships,
 } from '../api/vortex';
@@ -162,13 +167,14 @@ function BusinessCreditFundingTab({ businessId, members, currency }) {
           <p>{t('businessHub.creditHistoryEmpty', { defaultValue: 'No member Credit funded yet.' })}</p>
         ) : (
           <table className="bh-table">
-            <thead><tr><th>{t('businessHub.creditHistoryMember', { defaultValue: 'Member' })}</th><th>{t('businessHub.creditHistoryAmount', { defaultValue: 'Amount' })}</th><th>{t('businessHub.creditHistoryStatus', { defaultValue: 'Status' })}</th><th>{t('businessHub.creditHistoryReason', { defaultValue: 'Reason' })}</th></tr></thead>
+            <thead><tr><th>{t('businessHub.creditHistoryMember', { defaultValue: 'Member' })}</th><th>{t('businessHub.creditHistoryAmount', { defaultValue: 'Amount' })}</th><th>{t('businessHub.creditHistoryStatus', { defaultValue: 'Status' })}</th><th>{t('businessHub.creditHistoryApproval', { defaultValue: 'Approval' })}</th><th>{t('businessHub.creditHistoryReason', { defaultValue: 'Reason' })}</th></tr></thead>
             <tbody>
               {history.map((row) => (
                 <tr key={row.id}>
                   <td>{memberName(row)}</td>
                   <td>{formatMoney(row.amountCents / 100, { currency: row.currencyCode || 'USD' })}</td>
                   <td>{ct(`walletTopup.status.${row.status}`, { defaultValue: row.status })}</td>
+                  <td>{row.fundingApprovalState ? ct(`walletTopup.fundingApprovalState_${row.fundingApprovalState}`, { defaultValue: row.fundingApprovalState }) : '-'}</td>
                   <td>{row.fundingReason || '-'}</td>
                 </tr>
               ))}
@@ -398,6 +404,21 @@ function BusinessHubInner() {
       return true;
     });
 
+  // G5-35/G5-38 (255): tabs the member cannot open. Launch-hidden tabs
+  // are not denials, so only tabs that pass the launch filter but fail
+  // the permission filter count as denied sections.
+  const launchedTabs = candidateTabs
+    .filter((tb) => isBusinessHubTabLaunched(tb) || (isRestaurantBusiness && tb === 'staff'));
+  const deniedTabs = launchedTabs.filter((tb) => !visibleTabs.includes(tb));
+  // Least-privilege code to ask for per denied section; tabs without a
+  // mapping link to the request form with no code prefilled.
+  const deniedTabRequestCode = {
+    calendar: 'calendar.view_self',
+    messages: 'messages.view_assigned',
+    invoices: 'invoices.view',
+    analytics: 'analytics.view_financial',
+  };
+
   const aliasedTab = tabAliases[requestedTab] ?? requestedTab;
   const tab = !currentBiz || loadingBiz
     ? requestedTab
@@ -455,6 +476,9 @@ function BusinessHubInner() {
   const [managedBiz, setManagedBiz]       = useState([]);
   // S-11: offboarding history + rehire.
   const [offboardingRecords, setOffboardingRecords] = useState([]);
+  // 297 (G5-34): the summary of the removal just performed, shown
+  // until the next team reload replaces it.
+  const [lastOffboarding, setLastOffboarding] = useState(null);
 
   // vortex tokens
   const [vortexTokens, setVortexTokens]   = useState([]);
@@ -578,6 +602,20 @@ function BusinessHubInner() {
 
   useEffect(() => { loadBusinesses(); }, [loadBusinesses]);
 
+  // G5-31 (299): the member's access can change while the hub is open
+  // (removed elsewhere, role changed, re-added). Refetch on focus and
+  // on the access-changed event so the list never keeps showing a
+  // business the member can no longer open.
+  useEffect(() => {
+    const refetch = () => { loadBusinesses().catch(() => {}); };
+    window.addEventListener('focus', refetch);
+    window.addEventListener(ACCESS_CHANGED_EVENT, refetch);
+    return () => {
+      window.removeEventListener('focus', refetch);
+      window.removeEventListener(ACCESS_CHANGED_EVENT, refetch);
+    };
+  }, [loadBusinesses]);
+
   useEffect(() => {
     const b = searchParams.get('biz');
     if (!b || !businesses.length) return;
@@ -604,10 +642,16 @@ function BusinessHubInner() {
     if (!routeBusinessId) return;
     if (loadingBiz) return;
     const known = businesses.some((b) => String(b.id) === routeBusinessId);
+    // G5-31 (299): the routed business is gone from the member's list
+    // (removed while the tab was open, or a stale link). Land on
+    // Personal Home instead of an empty workspace; ModeHomeRoute shows
+    // the workspace-unavailable notice there. No redirect while the
+    // list is empty: a failed list must keep the try-again empty state.
+    if (!known && businesses.length > 0) { navigate('/', { replace: true }); return; }
     if (!known) return;
     if (String(bizId) !== routeBusinessId) setBizId(routeBusinessId);
     if (routeTab && routeTab !== tab) setTab(routeTab);
-  }, [routeBusinessId, routeTab, loadingBiz, businesses]); // intentionally ignore bizId/tab to avoid feedback loop
+  }, [routeBusinessId, routeTab, loadingBiz, businesses, navigate]); // intentionally ignore bizId/tab to avoid feedback loop
 
   // When the user switches tab via in-page controls AND we're already on this
   // business's workspace URL, push the new path so refresh/back/share works.
@@ -1173,9 +1217,27 @@ function BusinessHubInner() {
 
   async function handleRevokeMember(member) {
     const isActive = member.status === 'active';
-    const label = isActive
-      ? t('businessHub.confirmRemoveMember', { name: member.first_name || member.invite_email })
-      : t('businessHub.confirmCancelInvite', { email: member.invite_email });
+    const name = member.first_name || member.invite_email;
+    if (!isActive) {
+      if (!window.confirm(t('businessHub.confirmCancelInvite', { email: member.invite_email }))) return;
+      try {
+        await revokeMember(bizId, member.id);
+        toast.success(t('businessHub.toastMemberRemoved'));
+        await loadTeam();
+      } catch { toast.error(t('businessHub.toastMemberRemoveFail')); }
+      return;
+    }
+    // 297 (G5-34): show what the removal will move before asking.
+    // A failed preview falls back to the plain confirm, never blocks.
+    let preview = null;
+    try { preview = await getOffboardingPreview(bizId, member.id); } catch { preview = null; }
+    const label = preview
+      ? t('businessHub.confirmRemoveMemberWithWork', {
+        name,
+        tasks: preview.counts?.open_tasks ?? 0,
+        visits: preview.counts?.upcoming_visits ?? 0,
+      })
+      : t('businessHub.confirmRemoveMember', { name });
     if (!window.confirm(label)) return;
     try {
       // Active members are kicked via the dedicated remove endpoint.
@@ -1183,11 +1245,8 @@ function BusinessHubInner() {
       // cancelled through revokeMember (S-10): the Vortex-gated deny
       // endpoint 503s while Vortex is launch-hidden, which left owners
       // unable to withdraw an invite sent to the wrong person.
-      if (isActive) {
-        await removeMembership(bizId, member.id);
-      } else {
-        await revokeMember(bizId, member.id);
-      }
+      const removed = await removeMembership(bizId, member.id);
+      setLastOffboarding({ name, offboarding: removed?.offboarding || null });
       toast.success(t('businessHub.toastMemberRemoved'));
       await loadTeam();
     } catch { toast.error(t('businessHub.toastMemberRemoveFail')); }
@@ -2119,6 +2178,22 @@ function BusinessHubInner() {
                   </div>
                 )}
 
+                {/* G5-10 (256): the assignment queue. Members holding
+                    bookings.manage see pending business requests here
+                    instead of only on the helper-only calendar; without
+                    the code the panel (and the requests) stay hidden. */}
+                {hasPermission('bookings.manage') && (
+                  <div className="bh-calendar-panel">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold">{t('businessHub.rooms.bookingRequestsTitle')}</h3>
+                      <p className="bh-calendar-panel-description">
+                        {t('businessHub.rooms.bookingRequestsDescription')}
+                      </p>
+                    </div>
+                    <BookingRequestsPanel compact={false} />
+                  </div>
+                )}
+
                 <div className="bh-calendar-panel">
                   <div className="mb-4">
                     <h3 className="text-lg font-semibold">{t('businessHub.rooms.businessCalendarTitle')}</h3>
@@ -2162,10 +2237,39 @@ function BusinessHubInner() {
             {tab === 'owner-console' && bizId && <Suspense fallback={null}><BusinessOwnerConsole businessId={bizId} role={currentRole} /></Suspense>}
             {tab === 'my-work' && bizId && <Suspense fallback={null}><TeamMemberWork businessId={bizId} role={currentRole} /></Suspense>}
             {/* ── Overview tab ────────────────────────────────────── */}
-            {tab === 'overview' && bizId && (
+            {tab === 'overview' && bizId && (<>
               <BusinessOperationsOverview businessId={bizId} viewerId={user?.id} role={currentRole}
                 onOpen={(panel, task) => { setCalendarFocus(task?.type === 'confirmBookings' ? 'pending' : 'all'); setTab(panel); }} availablePanels={visibleTabs} />
-            )}
+              {/* G5-35/G5-38 (255): denied sections link to the access-request
+                  flow (My Work) instead of silently hiding. The code for the
+                  section is prefilled; the owner/manager is notified by the
+                  existing permission-request flow. */}
+              {currentRole !== 'owner' && deniedTabs.length > 0 && (
+                <div className="bh-calendar-panel">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold">{t('businessHub.deniedSectionsTitle')}</h3>
+                    <p className="bh-calendar-panel-description">
+                      {t('businessHub.deniedSectionsDescription')}
+                    </p>
+                  </div>
+                  <ul className="grid gap-2">
+                    {deniedTabs.map((tb) => (
+                      <li key={tb} className="flex items-center justify-between gap-3 flex-wrap">
+                        <span className="text-sm">{tabLabel(tb)}</span>
+                        <button
+                          type="button"
+                          className="min-h-11 px-4 rounded-full border border-[var(--color-border)] text-sm font-semibold text-[var(--color-primary)]"
+                          onClick={() => navigate(`/business/${bizId}/workspace/my-work${deniedTabRequestCode[tb] ? `?code=${deniedTabRequestCode[tb]}` : ''}`)}
+                          data-track="business.hub.request_access"
+                        >
+                          {t('businessHub.requestAccess')}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>)}
 
             {tab === 'analytics' && bizId && canViewFinanceHub && (
               <BusinessAnalyticsTab businessId={bizId} viewerId={user?.id} onInvoices={() => setTab('invoices')} />
@@ -2284,6 +2388,7 @@ function BusinessHubInner() {
                 onResend={handleResendInvite}
                 onExpireInvite={handleExpireInvite}
                 offboardingRecords={offboardingRecords}
+                lastOffboarding={lastOffboarding}
                 onRehire={handleRehire}
                 onApprove={handleApproveMember}
                 onDeny={handleDenyMember}
@@ -3257,6 +3362,11 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
       vendor_name: request.vendor_name || '',
       billable_party: request.billable_party || 'owner',
       resolution_summary: request.resolution_summary || '',
+      // Batch J (342, 347): relocation note + return date, and the
+      // property the request belongs to (re-link before conversion).
+      property_id: request.property_id || '',
+      relocation_note: request.relocation_note || '',
+      relocation_until: request.relocation_until ? String(request.relocation_until).slice(0, 10) : '',
     };
   }
 
@@ -3369,6 +3479,9 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                   <div className="bh-maint-details">
                     {request.property_name && <p><strong>{t('businessHub.maintenance.property')}:</strong> {request.property_name}</p>}
                     {request.property_label && <p><strong>{t('businessHub.rooms.property')}:</strong> {request.property_label}</p>}
+                    {request.follow_up_due_at && <p><strong>{t('businessHub.rooms.followUpDue')}:</strong> {fmtDate(request.follow_up_due_at)}</p>}
+                    {request.follow_up_done_at && <p><strong>{t('businessHub.rooms.followUpDone')}:</strong> {fmtDate(request.follow_up_done_at)}</p>}
+                    {request.relocation_note && <p><strong>{t('businessHub.rooms.relocationNote')}:</strong> {request.relocation_note}{request.relocation_until ? ` (${t('businessHub.rooms.relocationUntil')} ${fmtDate(request.relocation_until)})` : ''}</p>}
                     {request.preferred_times && <p><strong>{t('businessHub.rooms.preferredTimes')}:</strong> {request.preferred_times}</p>}
                     {request.access_notes && <p><strong>{t('businessHub.rooms.access')}:</strong> {request.access_notes}</p>}
                     {request.template_intake?.location_area && <p><strong>{t('businessHub.rooms.area')}:</strong> {request.template_intake.location_area}</p>}
@@ -3418,6 +3531,23 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                         ))}
                       </select>
                     </label>
+                    <label>
+                      {t('businessHub.rooms.moveProperty')}
+                      <select value={draft.property_id || ''} disabled={!!request.job_id} onChange={(e) => { if (e.target.value) patchDraft(request.id, { property_id: e.target.value }); }}>
+                        <option value="">—</option>
+                        {properties.map((property) => (
+                          <option key={property.id} value={property.id}>{property.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      {t('businessHub.rooms.relocationNote')}
+                      <input value={draft.relocation_note || ''} onChange={(e) => patchDraft(request.id, { relocation_note: e.target.value })} maxLength={2000} />
+                    </label>
+                    <label>
+                      {t('businessHub.rooms.relocationUntil')}
+                      <input type="date" value={draft.relocation_until || ''} onChange={(e) => patchDraft(request.id, { relocation_until: e.target.value })} />
+                    </label>
                     <label className="wide">
                       {t('businessHub.rooms.tenantVisibleUpdate')}
                       <textarea value={draft.tenant_visible_notes || ''} onChange={(e) => patchDraft(request.id, { tenant_visible_notes: e.target.value })} rows={2} placeholder={t('businessHub.rooms.tenantVisiblePlaceholder')} />
@@ -3430,6 +3560,9 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
 
                   <div className="bh-maint-actions">
                     <button className="bh-btn primary" onClick={() => onUpdate(request.id, draft)} data-track="ui.83b215c0c9.63">{t('businessHub.rooms.saveUpdate')}</button>
+                    {request.status === 'completed' && !request.follow_up_done_at && (
+                      <button className="bh-btn" onClick={() => onUpdate(request.id, { status: request.status, follow_up_done: true })} data-track="ui.83b215c0c9.117">{t('businessHub.rooms.markFollowUpDone')}</button>
+                    )}
                     <button className="bh-btn" onClick={() => onConvert(request.id)} disabled={!!request.job_id} data-track="ui.83b215c0c9.64">
                       {request.job_id ? t('businessHub.rooms.alreadyConverted') : t('businessHub.rooms.convertToJob')}
                     </button>
@@ -3454,6 +3587,7 @@ function TeamTab({
   showVortexAccess = false,
   onInvite, onOpenHiring, businessId,
   onRevoke, onResend, onExpireInvite, offboardingRecords = [], onRehire,
+  lastOffboarding = null,
   onAccept, onDecline, onApprove, onDeny, onChangeRole,
   isOwner = false, canEditPermissions = false, onEditPermissions,
   showOnceCode, onDismissShowOnceCode,
@@ -3922,7 +4056,24 @@ function TeamTab({
             account can be rehired; the record shows what was reassigned
             and how long history must be kept. */}
         {offboardingRecords.length > 0 && (
-          <div style={{ marginTop: '2rem' }}>
+          <>
+          {lastOffboarding?.offboarding && (
+            <div role="status" className="rounded-xl border border-[color:var(--border-color)] bg-[color:var(--card-bg)] p-4 mt-8">
+              <p className="text-sm">
+                {t('businessHub.offboardingRemovedSummary', {
+                  name: lastOffboarding.name,
+                  tasks: lastOffboarding.offboarding.teamTasksReassigned ?? 0,
+                  bookings: lastOffboarding.offboarding.bookingsReassigned ?? 0,
+                  appointments: lastOffboarding.offboarding.appointmentsReassigned ?? 0,
+                  jobs: lastOffboarding.offboarding.jobsReassigned ?? 0,
+                })}
+              </p>
+              <p className="text-sm mt-1">
+                <a href="#offboarding-history" className="underline" data-track="ui.83b215c0c9.116">{t('businessHub.offboardingViewHistory')}</a>
+              </p>
+            </div>
+          )}
+          <div id="offboarding-history" className="mt-8">
             <h4 className="bh-section-title">{t('businessHub.offboardingTitle')}</h4>
             <p style={{ fontSize: '0.82rem', color: 'var(--muted-text)', marginBottom: '0.75rem' }}>
               {t('businessHub.offboardingSubtitle')}
@@ -3972,6 +4123,7 @@ function TeamTab({
               </table>
             </div>
           </div>
+          </>
         )}
       </div>
     </div>

@@ -68,7 +68,7 @@ const mockStripe = {
   },
   refunds: { create: jest.fn() },
 };
-jest.mock('stripe', () => () => mockStripe);
+jest.mock('stripe', () => function StripeMock() { return mockStripe; });
 
 const crypto = require('crypto');
 
@@ -84,7 +84,6 @@ function isDisposableDb(value) {
 }
 
 const CAN_RUN_DB = isDisposableDb(RAW_URL);
-const ddescribe = CAN_RUN_DB ? describe : describe.skip;
 
 test('suite targets only the disposable Group 3 test database', () => {
   expect(isDisposableDb(RAW_URL)).toBe(CAN_RUN_DB);
@@ -136,7 +135,7 @@ function notifiedTypes(userId) {
     .map((c) => c[0]?.type);
 }
 
-ddescribe('Group 3 recipient and sponsor', () => {
+describe('Group 3 recipient and sponsor', () => {
   let booker;
   let helper;
   let recipient;
@@ -145,6 +144,12 @@ ddescribe('Group 3 recipient and sponsor', () => {
   let stranger;
 
   beforeAll(async () => {
+    // G3-38: the suite runs under plain describe now, so a missing or
+    // wrong test database fails loudly here instead of silently skipping
+    // — and never touches a non-disposable database.
+    if (!CAN_RUN_DB) {
+      throw new Error('Group 3 suite requires STATEMENT_TEST_DATABASE_URL pointing at credit_statement_test');
+    }
     async function makeUser(role, firstName = 'Test', lastName = 'User') {
       const id = crypto.randomUUID();
       await pool.query(
@@ -892,6 +897,14 @@ ddescribe('Group 3 recipient and sponsor', () => {
     );
     expect(care.statusCode).toBe(200);
     expect(notifiedTypes(recipient)).toContain('booking_care_instructions');
+    // G3-14 (D-48): the summary gates care instructions to completed,
+    // like the public page — a pending visit shows none.
+    const pendingSummary = mockRes();
+    await recipientController.getParticipantSummary({ params: { bookingId: booking.id }, user: { id: recipient } }, pendingSummary);
+    expect(pendingSummary.payload.data.careInstructions).toBeNull();
+    // The status trigger allows accepted -> completed only.
+    await pool.query("UPDATE booking_requests SET status = 'accepted' WHERE id = $1", [booking.id]);
+    await pool.query("UPDATE booking_requests SET status = 'completed' WHERE id = $1", [booking.id]);
     const summary = mockRes();
     await recipientController.getParticipantSummary({ params: { bookingId: booking.id }, user: { id: recipient } }, summary);
     expect(summary.payload.data.careInstructions).toContain('Water the plants');
@@ -1031,5 +1044,547 @@ ddescribe('Group 3 recipient and sponsor', () => {
       'SELECT status FROM booking_requests WHERE id = $1', [staleBooking.id]
     );
     expect(staleRows[0].status).toBe('accepted_cancelled');
+  });
+
+  test('items 122/124/125/127 (G3-1): sponsor preview carries the sponsorship status, booking status under its own key', async () => {
+    const booking = await createLinkedBooking();
+    const invite = await createSponsorshipFor(booking.id, 5000);
+    const preview = mockRes();
+    await recipientController.getSponsorPreviewByToken({ params: { token: invite.inviteToken } }, preview);
+    expect(preview.statusCode).toBe(200);
+    // The sponsorship is invited while the booking is still pending:
+    // the two statuses must not be conflated.
+    expect(preview.payload.data.status).toBe('invited');
+    expect(preview.payload.data.bookingStatus).toBe('pending');
+    const pub = mockRes();
+    await bookingController.getPublicBookingStatus({ params: { token: invite.inviteToken } }, pub);
+    expect(pub.statusCode).toBe(200);
+    expect(pub.payload.data.isSponsorPreview).toBe(true);
+    expect(pub.payload.data.sponsorshipStatus).toBe('invited');
+    expect(pub.payload.data.status).toBe('pending');
+  });
+
+  test('items 121/128 (D-578/D-581): invite is emailed; gross cap counts paid sponsorships only, charges never reduce the booker remainder', async () => {
+    const emailMock = require('../utils/email');
+    const booking = await createLinkedBooking();
+    emailMock.sendEmail.mockClear();
+    const invite = await createSponsorshipFor(booking.id, 5000);
+    expect(emailMock.sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: await sponsorEmail() })
+    );
+    await acceptSponsorship(booking.id, invite.id, invite.inviteToken);
+    await pool.query(
+      "UPDATE booking_sponsorships SET status = 'paid', paid_at = NOW(), stripe_payment_intent_id = 'pi_cap1' WHERE id = $1",
+      [invite.id],
+    );
+    await pool.query('UPDATE booking_requests SET gross_amount_cents = 10000, payment_amount_cents = 5000 WHERE id = $1', [booking.id]);
+
+    // Live 5000 of a 10000 gross: a further 6000 would exceed the gross.
+    const overCap = mockRes();
+    await recipientController.createSponsorship(
+      { params: { bookingId: booking.id }, user: { id: booker }, body: { sponsorEmail: await sponsorEmail(), amountCents: 6000 } },
+      overCap,
+    );
+    expect(overCap.statusCode).toBe(400);
+    // Exactly the remainder fits.
+    const fits = await createSponsorshipFor(booking.id, 5000);
+    expect(fits.status).toBe('invited');
+
+    // A paid additional charge does not reduce the booker's remainder:
+    // gross 10000 minus paid sponsorships 5000 is 5000, charge or not.
+    await acceptSponsorship(booking.id, fits.id, fits.inviteToken);
+    const chargeRes = mockRes();
+    await recipientController.requestAdditionalCharge(
+      { params: { bookingId: booking.id, sponsorshipId: invite.id }, user: { id: helper }, body: { amountCents: 1500, reason: 'Extra part' } },
+      chargeRes,
+    );
+    expect(chargeRes.statusCode).toBe(201);
+    await pool.query("UPDATE booking_sponsorship_charges SET status = 'paid', paid_at = NOW() WHERE id = $1", [chargeRes.payload.data.id]);
+    const breakdown = mockRes();
+    await recipientController.getPaymentBreakdown({ params: { bookingId: booking.id }, user: { id: booker } }, breakdown);
+    expect(breakdown.statusCode).toBe(200);
+    expect(breakdown.payload.data.sponsoredPaidCents).toBe(5000);
+    expect(breakdown.payload.data.remainingCents).toBe(5000);
+  });
+
+  test('items 122/123 (D-583/D-595): over-cap or late confirm refunds the intent and voids the sponsorship', async () => {
+    const booking = await createLinkedBooking();
+    const invite = await createSponsorshipFor(booking.id, 6000);
+    await acceptSponsorship(booking.id, invite.id, invite.inviteToken);
+    // The gross shrinks after the invite: the confirm must not mark paid.
+    await pool.query('UPDATE booking_requests SET gross_amount_cents = 5000, payment_amount_cents = 5000 WHERE id = $1', [booking.id]);
+    // Intent creation itself is refused once the gross no longer covers
+    // it (no Stripe call is made, so no create mock is needed).
+    const intentRes = mockRes();
+    await recipientController.createSponsorPaymentIntentByToken(
+      { params: { token: invite.inviteToken } },
+      intentRes,
+    );
+    expect(intentRes.statusCode).toBe(409);
+    expect(intentRes.payload.code).toBe('sponsorship_over_gross');
+
+    // The confirm path is the backstop: an intent minted before the
+    // gross shrank, already succeeded at Stripe, is refunded and voided.
+    await pool.query('UPDATE booking_sponsorships SET stripe_payment_intent_id = $2 WHERE id = $1', [invite.id, 'pi_oc1']);
+    mockStripe.paymentIntents.retrieve.mockResolvedValueOnce({
+      id: 'pi_oc1', status: 'succeeded', amount_received: 6000, amount: 6000, currency: 'usd',
+      metadata: { booking_request_id: booking.id, sponsorship_id: invite.id },
+    });
+    mockStripe.refunds.create.mockResolvedValueOnce({
+      id: 're_oc1', amount: 6000, currency: 'usd', payment_intent: 'pi_oc1',
+    });
+    const confirm = mockRes();
+    await recipientController.confirmSponsorPaymentByToken(
+      { params: { token: invite.inviteToken }, body: { paymentIntentId: 'pi_oc1' } },
+      confirm,
+    );
+    expect(confirm.statusCode).toBe(409);
+    expect(confirm.payload.code).toBe('sponsorship_over_gross');
+    expect(mockStripe.refunds.create).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_intent: 'pi_oc1' }),
+      expect.objectContaining({ idempotencyKey: expect.stringContaining('sponsorship_over_gross') }),
+    );
+    const { rows } = await pool.query('SELECT status FROM booking_sponsorships WHERE id = $1', [invite.id]);
+    expect(rows[0].status).toBe('voided');
+
+    // Late payment: the deadline passed before the confirm.
+    const late = await createSponsorshipFor(booking.id, 1000);
+    await acceptSponsorship(booking.id, late.id, late.inviteToken);
+    await pool.query("UPDATE booking_sponsorships SET payment_deadline_at = NOW() - INTERVAL '1 hour', stripe_payment_intent_id = 'pi_late1' WHERE id = $1", [late.id]);
+    mockStripe.paymentIntents.retrieve.mockResolvedValueOnce({
+      id: 'pi_late1', status: 'succeeded', amount_received: 1000, amount: 1000, currency: 'usd',
+      metadata: { booking_request_id: booking.id, sponsorship_id: late.id },
+    });
+    mockStripe.refunds.create.mockResolvedValueOnce({
+      id: 're_late1', amount: 1000, currency: 'usd', payment_intent: 'pi_late1',
+    });
+    const lateConfirm = mockRes();
+    await recipientController.confirmSponsorPaymentByToken(
+      { params: { token: late.inviteToken }, body: { paymentIntentId: 'pi_late1' } },
+      lateConfirm,
+    );
+    expect(lateConfirm.statusCode).toBe(409);
+    const { rows: lateRows } = await pool.query('SELECT status FROM booking_sponsorships WHERE id = $1', [late.id]);
+    expect(lateRows[0].status).toBe('expired');
+  });
+
+  test('items 122/123 (D-583): webhook refunds a late or over-gross payment instead of marking paid', async () => {
+    const booking = await createLinkedBooking();
+    await pool.query('UPDATE booking_requests SET gross_amount_cents = 10000 WHERE id = $1', [booking.id]);
+    const late = await createSponsorshipFor(booking.id, 3000);
+    await acceptSponsorship(booking.id, late.id, late.inviteToken);
+    await pool.query(
+      "UPDATE booking_sponsorships SET payment_deadline_at = NOW() - INTERVAL '1 hour', stripe_payment_intent_id = 'pi_wh_late' WHERE id = $1",
+      [late.id],
+    );
+    mockStripe.refunds.create.mockResolvedValueOnce({
+      id: 're_wh_late', amount: 3000, currency: 'usd', payment_intent: 'pi_wh_late',
+    });
+    const settledLate = await bookingDeposits.applyBookingIntentWebhook('payment_intent.succeeded', {
+      id: 'pi_wh_late', amount_received: 3000, amount: 3000, currency: 'usd',
+      metadata: { booking_request_id: booking.id, sponsorship_id: late.id, source: 'mobile_booking' },
+    });
+    expect(settledLate).toBe(true);
+    const { rows: lateRows } = await pool.query('SELECT status FROM booking_sponsorships WHERE id = $1', [late.id]);
+    expect(lateRows[0].status).toBe('expired');
+
+    // Over gross: 8000 already paid, a 2000 payment lands, and the gross
+    // has since dropped to 9000 — 8000 + 2000 exceeds it.
+    const paid = await createSponsorshipFor(booking.id, 8000);
+    await acceptSponsorship(booking.id, paid.id, paid.inviteToken);
+    await pool.query(
+      "UPDATE booking_sponsorships SET status = 'paid', paid_at = NOW(), stripe_payment_intent_id = 'pi_wh_paid' WHERE id = $1",
+      [paid.id],
+    );
+    const over = await createSponsorshipFor(booking.id, 2000);
+    await acceptSponsorship(booking.id, over.id, over.inviteToken);
+    await pool.query('UPDATE booking_sponsorships SET stripe_payment_intent_id = $2 WHERE id = $1', [over.id, 'pi_wh_over']);
+    await pool.query('UPDATE booking_requests SET gross_amount_cents = 9000 WHERE id = $1', [booking.id]);
+    mockStripe.refunds.create.mockResolvedValueOnce({
+      id: 're_wh_over', amount: 2000, currency: 'usd', payment_intent: 'pi_wh_over',
+    });
+    const settledOver = await bookingDeposits.applyBookingIntentWebhook('payment_intent.succeeded', {
+      id: 'pi_wh_over', amount_received: 2000, amount: 2000, currency: 'usd',
+      metadata: { booking_request_id: booking.id, sponsorship_id: over.id, source: 'mobile_booking' },
+    });
+    expect(settledOver).toBe(true);
+    const { rows: overRows } = await pool.query('SELECT status FROM booking_sponsorships WHERE id = $1', [over.id]);
+    expect(overRows[0].status).toBe('voided');
+  });
+
+  test('item 127 (G3-15): void an unpaid sponsorship; a paid one cannot void', async () => {
+    const booking = await createLinkedBooking();
+    const invite = await createSponsorshipFor(booking.id, 4000);
+    await acceptSponsorship(booking.id, invite.id, invite.inviteToken);
+    const voided = mockRes();
+    await recipientController.voidSponsorship(
+      { params: { bookingId: booking.id, sponsorshipId: invite.id }, user: { id: booker } },
+      voided,
+    );
+    expect(voided.statusCode).toBe(200);
+    expect(voided.payload.data.status).toBe('voided');
+    const again = mockRes();
+    await recipientController.voidSponsorship(
+      { params: { bookingId: booking.id, sponsorshipId: invite.id }, user: { id: booker } },
+      again,
+    );
+    expect(again.statusCode).toBe(409);
+
+    // The token path voids too, and the freed amount invites again.
+    const second = await createSponsorshipFor(booking.id, 4000);
+    const tokenVoid = mockRes();
+    await recipientController.voidSponsorshipByToken({ params: { token: second.inviteToken } }, tokenVoid);
+    expect(tokenVoid.statusCode).toBe(200);
+    expect(tokenVoid.payload.data.status).toBe('voided');
+
+    // A paid sponsorship cannot void.
+    const paid = await createSponsorshipFor(booking.id, 1000);
+    await acceptSponsorship(booking.id, paid.id, paid.inviteToken);
+    await pool.query("UPDATE booking_sponsorships SET status = 'paid', paid_at = NOW() WHERE id = $1", [paid.id]);
+    const paidVoid = mockRes();
+    await recipientController.voidSponsorship(
+      { params: { bookingId: booking.id, sponsorshipId: paid.id }, user: { id: booker } },
+      paidVoid,
+    );
+    expect(paidVoid.statusCode).toBe(409);
+  });
+
+  test('item 126 (D-582): additional charges need an open booking and cap at $50,000 cumulative', async () => {
+    const booking = await createLinkedBooking();
+    const invite = await createSponsorshipFor(booking.id, 5000);
+    await acceptSponsorship(booking.id, invite.id, invite.inviteToken);
+    await pool.query("UPDATE booking_requests SET status = 'cancelled' WHERE id = $1", [booking.id]);
+    const closed = mockRes();
+    await recipientController.requestAdditionalCharge(
+      { params: { bookingId: booking.id, sponsorshipId: invite.id }, user: { id: helper }, body: { amountCents: 1000, reason: 'Too late' } },
+      closed,
+    );
+    expect(closed.statusCode).toBe(400);
+    expect(closed.payload.code).toBe('booking_not_open');
+
+    const open = await createLinkedBooking();
+    const openInvite = await createSponsorshipFor(open.id, 5000);
+    await acceptSponsorship(open.id, openInvite.id, openInvite.inviteToken);
+    const max = mockRes();
+    await recipientController.requestAdditionalCharge(
+      { params: { bookingId: open.id, sponsorshipId: openInvite.id }, user: { id: helper }, body: { amountCents: 5000000, reason: 'Full cap' } },
+      max,
+    );
+    expect(max.statusCode).toBe(201);
+    const over = mockRes();
+    await recipientController.requestAdditionalCharge(
+      { params: { bookingId: open.id, sponsorshipId: openInvite.id }, user: { id: helper }, body: { amountCents: 100, reason: 'One cent over' } },
+      over,
+    );
+    expect(over.statusCode).toBe(400);
+  });
+
+  test('items 122/123 (G3-27): confirming an already-paid sponsorship is a 409, not a silent success', async () => {
+    const booking = await createLinkedBooking();
+    const invite = await createSponsorshipFor(booking.id, 4000);
+    await acceptSponsorship(booking.id, invite.id, invite.inviteToken);
+    mockStripe.paymentIntents.create.mockResolvedValueOnce({
+      id: 'pi_409', client_secret: 'sec_409', amount: 4000, status: 'requires_payment', currency: 'usd',
+    });
+    const intentRes = mockRes();
+    await recipientController.createSponsorPaymentIntentByToken({ params: { token: invite.inviteToken } }, intentRes);
+    expect(intentRes.statusCode).toBe(200);
+    mockStripe.paymentIntents.retrieve.mockResolvedValueOnce({
+      id: 'pi_409', status: 'succeeded', amount_received: 4000, amount: 4000, currency: 'usd',
+      metadata: { booking_request_id: booking.id, sponsorship_id: invite.id },
+    });
+    const first = mockRes();
+    await recipientController.confirmSponsorPaymentByToken(
+      { params: { token: invite.inviteToken }, body: { paymentIntentId: 'pi_409' } },
+      first,
+    );
+    expect(first.statusCode).toBe(200);
+    expect(first.payload.data.status).toBe('paid');
+    // The second confirm retrieves the same succeeded intent again and
+    // must report the settlement, not succeed silently.
+    mockStripe.paymentIntents.retrieve.mockResolvedValueOnce({
+      id: 'pi_409', status: 'succeeded', amount_received: 4000, amount: 4000, currency: 'usd',
+      metadata: { booking_request_id: booking.id, sponsorship_id: invite.id },
+    });
+    const second = mockRes();
+    await recipientController.confirmSponsorPaymentByToken(
+      { params: { token: invite.inviteToken }, body: { paymentIntentId: 'pi_409' } },
+      second,
+    );
+    expect(second.statusCode).toBe(409);
+    expect(second.payload.code).toBe('payment_already_settled');
+  });
+
+  test('item 114 (D-597): a duplicate renewal request returns the existing row and notifies the booker once', async () => {
+    const booking = await createLinkedBooking();
+    notificationService.sendNotification.mockClear();
+    const first = mockRes();
+    await recipientController.requestLinkRenewal(
+      { params: { bookingId: booking.id }, user: { id: recipient } },
+      first,
+    );
+    expect(first.statusCode).toBe(201);
+    const firstId = first.payload.data.id;
+    const second = mockRes();
+    await recipientController.requestLinkRenewal(
+      { params: { bookingId: booking.id }, user: { id: recipient } },
+      second,
+    );
+    expect(second.statusCode).toBe(201);
+    expect(second.payload.data.id).toBe(firstId);
+    const renewalNotices = (notificationService.sendNotification.mock.calls || [])
+      .filter((c) => String(c[0]?.userId) === String(booker) && c[0]?.type === 'booking_link_renewal_requested');
+    expect(renewalNotices).toHaveLength(1);
+    const { rows } = await pool.query(
+      "SELECT COUNT(*)::int AS n FROM booking_link_renewals WHERE booking_id = $1 AND status = 'requested'",
+      [booking.id]
+    );
+    expect(rows[0].n).toBe(1);
+  });
+
+  test('items 107/140 (D-593): a token party lists only the callbacks they requested', async () => {
+    const booking = await createLinkedBooking();
+    // The status token is the site contact's token: the callback is
+    // requested as the site contact.
+    const ticket = mockRes();
+    await recipientController.submitTokenSupportIntake(
+      { params: { token: booking.statusToken }, body: { kind: 'general', message: 'Call me back', callbackWindow: 'After 6pm' } },
+      ticket,
+    );
+    expect(ticket.statusCode).toBe(201);
+    const mine = mockRes();
+    await recipientController.listTokenCallbacks({ params: { token: booking.statusToken } }, mine);
+    expect(mine.statusCode).toBe(200);
+    expect(mine.payload.data).toHaveLength(1);
+    expect(mine.payload.data[0].preferredWindow).toBe('After 6pm');
+    // The recipient's token sees none of the site contact's callbacks.
+    const other = mockRes();
+    await recipientController.listTokenCallbacks({ params: { token: booking.recipientToken } }, other);
+    expect(other.statusCode).toBe(200);
+    expect(other.payload.data).toHaveLength(0);
+  });
+
+  test('item 139 (D-594): a token timeline shows only tickets filed with that token', async () => {
+    const booking = await createLinkedBooking();
+    const recipientEmail = (await pool.query('SELECT email FROM users WHERE id = $1', [recipient])).rows[0].email;
+    // Filed by the recipient token, with the recipient's account email
+    // recorded, so the account timeline can match it later.
+    const filed = mockRes();
+    await recipientController.submitTokenSupportIntake(
+      { params: { token: booking.recipientToken }, body: { kind: 'general', message: 'Gate code failed', email: recipientEmail } },
+      filed,
+    );
+    expect(filed.statusCode).toBe(201);
+    const ticketNumber = filed.payload.data.ticketNumber;
+    const mine = mockRes();
+    await recipientController.listTokenSupportIntake({ params: { token: booking.recipientToken } }, mine);
+    expect(mine.statusCode).toBe(200);
+    expect(mine.payload.data.some((t) => t.ticketNumber === ticketNumber)).toBe(true);
+    // The site contact's token on the same booking never shows it.
+    const other = mockRes();
+    await recipientController.listTokenSupportIntake({ params: { token: booking.statusToken } }, other);
+    expect(other.statusCode).toBe(200);
+    expect(other.payload.data.some((t) => t.ticketNumber === ticketNumber)).toBe(false);
+    // The recipient's own account timeline shows the token-filed ticket
+    // whose recorded email matches their account email.
+    const account = mockRes();
+    await recipientController.listSupportIntake({ params: { bookingId: booking.id }, user: { id: recipient } }, account);
+    expect(account.statusCode).toBe(200);
+    expect(account.payload.data.some((t) => t.ticketNumber === ticketNumber)).toBe(true);
+  });
+
+  test('item 103 (R36): business-appointment arrival stamps arrived_at and shows on the token page', async () => {
+    const booking = await createLinkedBooking();
+    await pool.query("UPDATE booking_requests SET status = 'accepted' WHERE id = $1", [booking.id]);
+    const bizId = (await pool.query(
+      `INSERT INTO businesses (user_id, business_name) VALUES ($1, 'Test Biz') RETURNING id`, [booker]
+    )).rows[0].id;
+    const svcId = (await pool.query(
+      `INSERT INTO business_services (business_id, name) VALUES ($1, 'Test Service') RETURNING id`, [bizId]
+    )).rows[0].id;
+    const baId = (await pool.query(
+      `INSERT INTO business_appointments (business_id, service_id, customer_id, start_time, end_time, status)
+       VALUES ($1, $2, $3, NOW() + INTERVAL '1 hour', NOW() + INTERVAL '2 hours', 'confirmed') RETURNING id`,
+      [bizId, svcId, booker]
+    )).rows[0].id;
+    await pool.query('UPDATE booking_requests SET business_appointment_id = $1 WHERE id = $2', [baId, booking.id]);
+    const arrived = mockRes();
+    await recipientController.markProviderArrived(
+      { params: { bookingId: booking.id }, user: { id: helper } },
+      arrived,
+    );
+    expect(arrived.statusCode).toBe(200);
+    expect(arrived.payload.data.arrivedAt).toBeTruthy();
+    const { rows } = await pool.query('SELECT arrived_at FROM business_appointments WHERE id = $1', [baId]);
+    expect(rows[0].arrived_at).toBeTruthy();
+    const pub = mockRes();
+    await bookingController.getPublicBookingStatus({ params: { token: booking.statusToken } }, pub);
+    expect(pub.statusCode).toBe(200);
+    expect(pub.payload.data.arrivedAt).toBeTruthy();
+  });
+
+  test('item 105 (D-592): job completion flips linked accepted bookings to completed at once', async () => {
+    const jobController = require('../controllers/jobController');
+    const booking = await createLinkedBooking();
+    await pool.query(
+      "UPDATE booking_requests SET status = 'accepted' WHERE id = $1", [booking.id]
+    );
+    const jobId = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO jobs (id, client_id, title, description, status) VALUES ($1, $2, 'Fix the sink', 'Leaky tap', 'completed')`,
+      [jobId, booker],
+    );
+    await pool.query('UPDATE booking_requests SET converted_to_job_id = $1 WHERE id = $2', [jobId, booking.id]);
+    notificationService.sendNotification.mockClear();
+    await jobController.afterJobCompleted({ id: jobId, client_id: booker, assigned_helper_id: helper, title: 'Fix the sink' }, booker);
+    const { rows } = await pool.query('SELECT status FROM booking_requests WHERE id = $1', [booking.id]);
+    expect(rows[0].status).toBe('completed');
+    expect(notifiedTypes(booker)).toContain('booking_auto_completed');
+    expect(notifiedTypes(helper)).toContain('booking_auto_completed');
+    expect(notifiedTypes(recipient)).toContain('booking_visit_completed');
+    const { rows: auditRows } = await pool.query(
+      "SELECT action FROM booking_request_audit_log WHERE booking_request_id = $1 AND action = 'auto_completed'",
+      [booking.id]
+    );
+    expect(auditRows.length).toBe(1);
+  });
+
+  test('item 148 (D-596): a token party who archived the visit sees the archived flag on the public page', async () => {
+    const booking = await createLinkedBooking();
+    const archived = mockRes();
+    await recipientController.archiveTokenVisit(
+      { params: { token: booking.statusToken } },
+      archived,
+    );
+    expect(archived.statusCode).toBe(200);
+    const pub = mockRes();
+    await bookingController.getPublicBookingStatus({ params: { token: booking.statusToken } }, pub);
+    expect(pub.statusCode).toBe(200);
+    expect(pub.payload.data.archived).toBe(true);
+    // The visit stays readable through the link.
+    expect(pub.payload.data.serviceName).toBe('Fix the sink');
+  });
+
+  test('items 107/114 (D-600): an expired link 404s link_expired, a revoked link 404s link_revoked', async () => {
+    const expiredBooking = await createLinkedBooking();
+    await pool.query("UPDATE booking_requests SET status_token_expires_at = NOW() - INTERVAL '1 hour' WHERE id = $1", [expiredBooking.id]);
+    const expired = mockRes();
+    await bookingController.getPublicBookingStatus({ params: { token: expiredBooking.statusToken } }, expired);
+    expect(expired.statusCode).toBe(404);
+    expect(expired.payload.code).toBe('link_expired');
+
+    const revokedBooking = await createLinkedBooking();
+    await pool.query("UPDATE booking_requests SET status_token_revoked_at = NOW() WHERE id = $1", [revokedBooking.id]);
+    const revoked = mockRes();
+    await bookingController.getPublicBookingStatus({ params: { token: revokedBooking.statusToken } }, revoked);
+    expect(revoked.statusCode).toBe(404);
+    expect(revoked.payload.code).toBe('link_revoked');
+
+    // A token matching nothing stays generic: no leak about which links exist.
+    const missing = mockRes();
+    await bookingController.getPublicBookingStatus({ params: { token: crypto.randomBytes(32).toString('hex') } }, missing);
+    expect(missing.statusCode).toBe(404);
+    expect(missing.payload.code).toBeUndefined();
+  });
+
+  test('item 114 (D-600): a renewal request from an expired link succeeds; from a revoked link it 404s', async () => {
+    const booking = await createLinkedBooking();
+    await pool.query("UPDATE booking_requests SET status_token_expires_at = NOW() - INTERVAL '1 hour' WHERE id = $1", [booking.id]);
+    notificationService.sendNotification.mockClear();
+    const first = mockRes();
+    await recipientController.requestTokenLinkRenewal({ params: { token: booking.statusToken } }, first);
+    expect(first.statusCode).toBe(201);
+    const firstId = first.payload.data.id;
+    // D-597 dedupe still applies on the expired path: one row, one notice.
+    const second = mockRes();
+    await recipientController.requestTokenLinkRenewal({ params: { token: booking.statusToken } }, second);
+    expect(second.statusCode).toBe(201);
+    expect(second.payload.data.id).toBe(firstId);
+    expect((notificationService.sendNotification.mock.calls || [])
+      .filter((c) => String(c[0]?.userId) === String(booker) && c[0]?.type === 'booking_link_renewal_requested'))
+      .toHaveLength(1);
+
+    const revokedBooking = await createLinkedBooking();
+    await pool.query("UPDATE booking_requests SET status_token_revoked_at = NOW() WHERE id = $1", [revokedBooking.id]);
+    const revoked = mockRes();
+    await recipientController.requestTokenLinkRenewal({ params: { token: revokedBooking.statusToken } }, revoked);
+    expect(revoked.statusCode).toBe(404);
+    expect(revoked.payload.code).toBe('link_revoked');
+  });
+
+  test('items 122/124/125/127 (D-601): a signed-in sponsor lists only their own sponsorships', async () => {
+    const booking = await createLinkedBooking();
+    const own = await createSponsorshipFor(booking.id, 4000);
+    const otherBooking = await createLinkedBooking();
+    await createSponsorshipFor(otherBooking.id, 3000);
+    const mine = mockRes();
+    await recipientController.listMySponsorships({ user: { id: sponsor } }, mine);
+    expect(mine.statusCode).toBe(200);
+    const ids = mine.payload.data.map((s) => s.sponsorshipId);
+    expect(ids).toContain(String(own.id));
+    expect(mine.payload.data.find((s) => s.sponsorshipId === String(own.id)).bookingId).toBe(String(booking.id));
+    expect(mine.payload.data.find((s) => s.sponsorshipId === String(own.id)).amountCents).toBe(4000);
+    // A stranger with no sponsorships sees none of them.
+    const strangers = mockRes();
+    await recipientController.listMySponsorships({ user: { id: stranger } }, strangers);
+    expect(strangers.statusCode).toBe(200);
+    expect(strangers.payload.data).toHaveLength(0);
+  });
+
+  test('items 107/140 (D-602): the public status and the summary say whether a site-contact account is linked', async () => {
+    const linked = await createLinkedBooking();
+    const pubLinked = mockRes();
+    await bookingController.getPublicBookingStatus({ params: { token: linked.statusToken } }, pubLinked);
+    expect(pubLinked.statusCode).toBe(200);
+    expect(pubLinked.payload.data.hasSiteContactAccount).toBe(true);
+    const summaryLinked = mockRes();
+    await recipientController.getParticipantSummary({ params: { bookingId: linked.id }, user: { id: recipient } }, summaryLinked);
+    expect(summaryLinked.statusCode).toBe(200);
+    expect(summaryLinked.payload.data.hasSiteContactAccount).toBe(true);
+
+    // A recipient-only booking (no site contact at all) has a public page
+    // and reports no linked site-contact account. A booking with neither
+    // recipient nor site contact mints no status token at all, so there is
+    // no public page to check.
+    const recipientOnly = await createBooking({
+      overrides: { recipientUserId: recipient, recipientName: 'Mom', recipientPhone: '555-0100' },
+    });
+    expect(recipientOnly.statusCode).toBe(201);
+    const pubPlain = mockRes();
+    await bookingController.getPublicBookingStatus({ params: { token: recipientOnly.payload.data.statusToken } }, pubPlain);
+    expect(pubPlain.statusCode).toBe(200);
+    expect(pubPlain.payload.data.hasSiteContactAccount).toBe(false);
+  });
+
+  test('item 103 (R36): the provider incoming list carries arrivedAt after the arrival check-in', async () => {
+    const booking = await createLinkedBooking();
+    await pool.query("UPDATE booking_requests SET status = 'accepted' WHERE id = $1", [booking.id]);
+    const bizId = (await pool.query(
+      `INSERT INTO businesses (user_id, business_name) VALUES ($1, 'Test Biz') RETURNING id`, [booker]
+    )).rows[0].id;
+    const svcId = (await pool.query(
+      `INSERT INTO business_services (business_id, name) VALUES ($1, 'Test Service') RETURNING id`, [bizId]
+    )).rows[0].id;
+    const baId = (await pool.query(
+      `INSERT INTO business_appointments (business_id, service_id, customer_id, start_time, end_time, status)
+       VALUES ($1, $2, $3, NOW() + INTERVAL '1 hour', NOW() + INTERVAL '2 hours', 'confirmed') RETURNING id`,
+      [bizId, svcId, booker]
+    )).rows[0].id;
+    await pool.query('UPDATE booking_requests SET business_appointment_id = $1 WHERE id = $2', [baId, booking.id]);
+    const arrived = mockRes();
+    await recipientController.markProviderArrived(
+      { params: { bookingId: booking.id }, user: { id: helper } },
+      arrived,
+    );
+    expect(arrived.statusCode).toBe(200);
+    const incoming = mockRes();
+    await bookingController.getIncomingBookingRequests(
+      { user: { id: helper }, query: { statuses: 'accepted' } },
+      incoming,
+    );
+    expect(incoming.statusCode).toBe(200);
+    const row = incoming.payload.data.find((b) => String(b.id) === String(booking.id));
+    expect(row).toBeTruthy();
+    expect(row.arrivedAt).toBeTruthy();
   });
 });

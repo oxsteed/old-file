@@ -495,6 +495,223 @@ describeDb('Group 11 Slice 2e: Disputes + Maintain + Review (586, 587, 589, 590,
         .expect(403);
       void owner;
     });
+
+    // Wave 3 (589, D-572/D-569): opening notifies the counterparty and
+    // the moderation admins, and both types are cataloged and templated
+    // (the catalog-sync test pins literal sendNotification types).
+    test('opening an escalation notifies the counterparty and the moderation admins', async () => {
+      const { owner, renter, booking } = await paidPair();
+      const admin = await addUser('super_admin');
+      void admin; // The fan-out asserts on the queue link, not this id (cap 25).
+      const { sendNotification } = require('../services/notificationService');
+      jest.clearAllMocks();
+      const opened = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/escalations`)
+        .set('x-test-user', renter)
+        .send({ category: 'deposit', message: 'The deposit was never returned.' })
+        .expect(201);
+      const escalationId = opened.body.escalation.id;
+      // The counterparty is always notified.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'tool_rental_escalation_opened',
+        userId: owner,
+      }));
+      // Admins are notified through the moderation queue link, capped at
+      // 25: with residue from earlier tests the file can hold more than 25
+      // super_admins, so no single admin is asserted here — only that the
+      // fan-out happens and stays bounded.
+      const adminCalls = sendNotification.mock.calls.filter(
+        ([call]) => call.type === 'tool_rental_escalation_opened' && call.action_url === '/admin/tool-rentals',
+      );
+      expect(adminCalls.length).toBeGreaterThan(0);
+      expect(adminCalls.length).toBeLessThanOrEqual(25);
+      expect(sendNotification).toHaveBeenCalledTimes(adminCalls.length + 1);
+      // The opener is never notified about their own escalation.
+      expect(sendNotification).not.toHaveBeenCalledWith(expect.objectContaining({
+        type: 'tool_rental_escalation_opened',
+        userId: renter,
+      }));
+      // Both types resolve to a real template in every locale the panel
+      // and the email path can send (en + ar spot-checked).
+      const { tNotif } = require('../utils/i18n');
+      for (const type of ['tool_rental_escalation_opened', 'tool_rental_escalation_resolved']) {
+        expect(tNotif(type, 'en').title).toBeTruthy();
+        expect(tNotif(type, 'ar').title).toBeTruthy();
+      }
+      void escalationId;
+    });
+
+    // Wave 3 (589, D-569): a fresh admin resolution arms the
+    // acknowledgment and notifies both parties; a party can accept, and
+    // a dispute reopens the thread so an admin can look again.
+    test('admin resolve arms acknowledgment and notifies both parties; accept settles it, a dispute reopens', async () => {
+      const { owner, renter, booking } = await paidPair();
+      const admin = await addUser('super_admin');
+      const { sendNotification } = require('../services/notificationService');
+      const opened = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/escalations`)
+        .set('x-test-user', renter)
+        .send({ category: 'condition', message: 'The tool came back damaged.' })
+        .expect(201);
+      const escalationId = opened.body.escalation.id;
+      jest.clearAllMocks();
+      const resolved = await request(app)
+        .post(`/api/tool-rentals/admin/escalations/${escalationId}/status`)
+        .set('x-test-user', admin)
+        .send({ status: 'resolved' })
+        .expect(200);
+      expect(resolved.body.escalation.ack_status).toBe('pending');
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'tool_rental_escalation_resolved',
+        userId: owner,
+      }));
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'tool_rental_escalation_resolved',
+        userId: renter,
+      }));
+      // The renter accepts; a second accept is refused.
+      const accepted = await request(app)
+        .post(`/api/tool-rentals/escalations/${escalationId}/acknowledge`)
+        .set('x-test-user', renter)
+        .send({ decision: 'acknowledged' })
+        .expect(200);
+      expect(accepted.body.escalation.ack_status).toBe('acknowledged');
+      expect(accepted.body.escalation.acknowledged_by).toBe(renter);
+      await request(app)
+        .post(`/api/tool-rentals/escalations/${escalationId}/acknowledge`)
+        .set('x-test-user', owner)
+        .send({ decision: 'acknowledged' })
+        .expect(409);
+      // A second escalation: the owner disputes, the thread reopens, and
+      // a fresh admin resolution arms the acknowledgment again.
+      const second = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/escalations`)
+        .set('x-test-user', owner)
+        .send({ category: 'other', message: 'The renter left the site a mess.' })
+        .expect(201);
+      const secondId = second.body.escalation.id;
+      await request(app)
+        .post(`/api/tool-rentals/admin/escalations/${secondId}/status`)
+        .set('x-test-user', admin)
+        .send({ status: 'resolved' })
+        .expect(200);
+      const disputed = await request(app)
+        .post(`/api/tool-rentals/escalations/${secondId}/acknowledge`)
+        .set('x-test-user', renter)
+        .send({ decision: 'disputed' })
+        .expect(200);
+      expect(disputed.body.escalation.status).toBe('open');
+      expect(disputed.body.escalation.ack_status).toBe('disputed');
+      expect(disputed.body.escalation.resolved_at).toBeNull();
+      const reResolved = await request(app)
+        .post(`/api/tool-rentals/admin/escalations/${secondId}/status`)
+        .set('x-test-user', admin)
+        .send({ status: 'resolved' })
+        .expect(200);
+      expect(reResolved.body.escalation.ack_status).toBe('pending');
+      expect(reResolved.body.escalation.acknowledged_by).toBeNull();
+    });
+
+    test('acknowledge guards: open thread, bad decision, stranger', async () => {
+      const { owner, renter, booking } = await paidPair();
+      const admin = await addUser('super_admin');
+      const opened = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/escalations`)
+        .set('x-test-user', renter)
+        .send({ category: 'other', message: 'Need help.' })
+        .expect(201);
+      const escalationId = opened.body.escalation.id;
+      // An open thread cannot be acknowledged.
+      await request(app)
+        .post(`/api/tool-rentals/escalations/${escalationId}/acknowledge`)
+        .set('x-test-user', renter)
+        .send({ decision: 'acknowledged' })
+        .expect(409);
+      await request(app)
+        .post(`/api/tool-rentals/admin/escalations/${escalationId}/status`)
+        .set('x-test-user', admin)
+        .send({ status: 'resolved' })
+        .expect(200);
+      // A bad decision is refused.
+      await request(app)
+        .post(`/api/tool-rentals/escalations/${escalationId}/acknowledge`)
+        .set('x-test-user', owner)
+        .send({ decision: 'maybe' })
+        .expect(400);
+      // A stranger sees nothing.
+      const stranger = await addUser();
+      await request(app)
+        .post(`/api/tool-rentals/escalations/${escalationId}/acknowledge`)
+        .set('x-test-user', stranger)
+        .send({ decision: 'acknowledged' })
+        .expect(404);
+    });
+
+    // Wave 3 (589, G11-B9): the server never gated opening an escalation
+    // by booking status; a pending booking with no history can open one.
+    test('a pending booking can open an escalation', async () => {
+      const { owner, renter, tool } = await paidPair();
+      const pending = await insertBooking(tool.id, renter, owner, '2026-12-20', '2026-12-22', 'pending');
+      const opened = await request(app)
+        .post(`/api/tool-rentals/bookings/${pending.id}/escalations`)
+        .set('x-test-user', renter)
+        .send({ category: 'other', message: 'The owner has not replied since booking.' })
+        .expect(201);
+      expect(opened.body.escalation.status).toBe('open');
+    });
+  });
+
+  // Wave 3 (599, D-574): the dashboard counts permitted earnings only.
+  // An invoice_sent booking is money not yet paid, so it is invoiced,
+  // not revenue, at the top level, per month, and per tool.
+  describe('599: permitted earnings summary', () => {
+    test('dashboard revenue counts only payment_confirmed/completed; invoice_sent is invoiced, not revenue', async () => {
+      const { owner, renter, tool, booking } = await paidPair();
+      // A second booking on the same tool, invoiced but unpaid.
+      await insertBooking(tool.id, renter, owner, '2026-12-15', '2026-12-17', 'invoice_sent');
+      const res = await request(app)
+        .get('/api/tool-rentals/analytics/dashboard')
+        .set('x-test-user', owner)
+        .expect(200);
+      expect(res.body.totalRevenue).toBe(36);
+      expect(res.body.totalInvoiced).toBe(36);
+      expect(res.body.totalBookings).toBe(2);
+      expect(res.body.monthlyRevenue).toHaveLength(1);
+      expect(Number(res.body.monthlyRevenue[0].revenue)).toBe(36);
+      expect(Number(res.body.monthlyRevenue[0].invoiced)).toBe(36);
+      expect(res.body.toolMetrics).toHaveLength(1);
+      expect(Number(res.body.toolMetrics[0].total_revenue)).toBe(36);
+      expect(Number(res.body.toolMetrics[0].total_invoiced)).toBe(36);
+      void booking;
+    });
+
+    test('completing a booking stamps completed_at and keeps it in revenue', async () => {
+      const { owner, renter, booking } = await paidPair();
+      const returned = await request(app)
+        .put(`/api/tool-rentals/bookings/${booking.id}`)
+        .set('x-test-user', owner)
+        .send({ status: 'returned' })
+        .expect(200);
+      expect(returned.body.status).toBe('returned');
+      expect(returned.body.returned_at).toBeTruthy();
+      expect(returned.body.completed_at).toBeNull();
+      const completed = await request(app)
+        .put(`/api/tool-rentals/bookings/${booking.id}`)
+        .set('x-test-user', owner)
+        .send({ status: 'completed' })
+        .expect(200);
+      expect(completed.body.status).toBe('completed');
+      expect(completed.body.completed_at).toBeTruthy();
+      // A completed booking still counts as permitted earnings.
+      const res = await request(app)
+        .get('/api/tool-rentals/analytics/dashboard')
+        .set('x-test-user', owner)
+        .expect(200);
+      expect(res.body.totalRevenue).toBe(36);
+      expect(res.body.totalInvoiced).toBe(0);
+      expect(res.body.completedBookings).toBe(1);
+      void renter;
+    });
   });
 
   describe('590: resolution acknowledgment', () => {
@@ -544,6 +761,14 @@ describeDb('Group 11 Slice 2e: Disputes + Maintain + Review (586, 587, 589, 590,
       const { owner, renter, booking } = await paidPair({
         bookingExtra: { deposit_status: 'held', deposit_amount: 40 },
       });
+      // G11-B3/A7 (D-606): a held deposit resolves only once the rental
+      // is over; mid-rental resolve is refused, so the tool is marked
+      // returned first.
+      await request(app)
+        .put(`/api/tool-rentals/bookings/${booking.id}`)
+        .set('x-test-user', owner)
+        .send({ status: 'returned' })
+        .expect(200);
       const resolved = await request(app)
         .post(`/api/tool-rentals/bookings/${booking.id}/deposit/resolve`)
         .set('x-test-user', owner)

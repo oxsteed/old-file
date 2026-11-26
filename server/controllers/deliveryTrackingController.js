@@ -18,6 +18,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { TERMINAL_STATUSES } = require('../services/localDeliveryState');
 const trackingService = require('../services/deliveryTrackingService');
 const geofenceService = require('../services/deliveryGeofenceService');
 const etaService = require('../services/deliveryEtaService');
@@ -268,6 +269,18 @@ async function ingestLocations(req, res) {
   try {
     const job = await loadJob(req.params.id);
     assertDriverAccess(req, job);
+    // Group 9 partials Wave 2 Batch Q (498, G9-B3, D-560): a terminal
+    // job takes no more location points. The delivered/cancelled
+    // transition ends the tracking assignment (see updateStatus), so
+    // a live session can no longer exist — but a client holding a
+    // stale session, or replaying a buffered batch after delivery,
+    // must still be refused here rather than silently resuming the
+    // driver's broadcast. The 7-day driver access expiry is subsumed
+    // by this check for ingest: a terminal job is terminal from the
+    // moment it ends, not only after the window lapses.
+    if (TERMINAL_STATUSES.has(job.status)) {
+      throw trackingError('tracking_job_terminal', `Delivery is ${job.status}; tracking has ended`, 409);
+    }
     const points = req.body?.points;
     if (!Array.isArray(points) || points.length === 0) {
       throw trackingError('tracking_points_invalid', 'points must be a non-empty array');
@@ -554,8 +567,31 @@ async function transferDevice(req, res) {
       oldDeviceId: req.body?.oldDeviceId,
       deviceLabel: req.body?.deviceLabel || null,
       platform: req.body?.platform || null,
+      // Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): the
+      // client-counted stranded queue, recorded per job so ops can
+      // reconcile it. Absent when the old device had nothing queued.
+      strandedOutbox: req.body?.strandedOutbox ?? null,
     });
     res.status(201).json({ success: true, ...result });
+  } catch (err) {
+    sendServiceError(res, err);
+  }
+}
+
+// Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): the lost-device
+// report. The driver marks a phone lost from the device being
+// abandoned, so the client counts the stranded queue in that browser
+// and records it here before the revoke lands (the revoke itself is
+// updateDevice). The service verifies the device belongs to the
+// driver; the counts are stored exactly as reported.
+async function reportDeviceStrands(req, res) {
+  try {
+    const stranded = await trackingService.recordDeviceStrands({
+      driverUserId: req.user.id,
+      deviceId: req.body?.deviceId,
+      strandedOutbox: req.body?.strandedOutbox ?? null,
+    });
+    res.status(201).json({ success: true, stranded });
   } catch (err) {
     sendServiceError(res, err);
   }
@@ -577,4 +613,5 @@ module.exports = {
   listDevices,
   updateDevice,
   transferDevice,
+  reportDeviceStrands,
 };

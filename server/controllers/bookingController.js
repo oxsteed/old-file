@@ -653,14 +653,15 @@ exports.getPublicBookingStatus = async (req, res) => {
     const { rows } = await pool.query(
       `SELECT b.id, b.service_name, b.status, b.requested_date,
               b.requested_start_time, b.requested_end_time,
-              b.site_contact_name, b.status_token, b.recipient_token,
+              b.site_contact_name, b.site_contact_user_id, b.status_token, b.recipient_token,
               b.recipient_consent_status, b.recipient_consented_at,
               b.status_token_expires_at, b.status_token_revoked_at,
               b.recipient_user_id, b.recipient_name, b.helper_id,
               b.care_instructions,
-              a.arrived_at
+              COALESCE(a.arrived_at, ba.arrived_at) AS arrived_at
          FROM booking_requests b
          LEFT JOIN appointments a ON a.id = b.appointment_id
+         LEFT JOIN business_appointments ba ON ba.id = b.business_appointment_id
         WHERE b.status_token = $1 OR b.recipient_token = $1`,
       [token]
     );
@@ -675,7 +676,14 @@ exports.getPublicBookingStatus = async (req, res) => {
         [token]
       );
       if (!sponsorRows.length) return sendError(res, 404, 'Booking status link not found');
-      const s = sponsorRows[0];
+      // G3-25: refresh the sponsorship's expiry on every preview, so
+      // the page never shows an expired invite as still payable.
+      // Lazy require: bookingRecipientController does not require this
+      // controller back, but keep the load lazy like the other
+      // controller-to-controller calls in this file.
+      // eslint-disable-next-line global-require
+      const recipientController = require('./bookingRecipientController');
+      const s = await recipientController.refreshSponsorship(sponsorRows[0]);
       return res.json({
         success: true,
         data: {
@@ -693,22 +701,39 @@ exports.getPublicBookingStatus = async (req, res) => {
       });
     }
     const row = rows[0];
-    if (!inviteLinkUsable(row)) return sendError(res, 404, 'Booking status link not found');
+    // D-600 (G3-18): the caller already holds the token, so naming the
+    // failure (expired vs revoked) leaks nothing and lets the page offer
+    // renewal for an expired link.
+    if (!inviteLinkUsable(row)) {
+      if (row.status_token_revoked_at) return sendError(res, 404, 'This status link was revoked', 'link_revoked');
+      return sendError(res, 404, 'This status link has expired', 'link_expired');
+    }
     const isRecipientToken = row.recipient_token && String(row.recipient_token) === token;
     // Group 3 (D-42): first name plus last initial once accepted, so the
     // person at the door can confirm the provider. D-48: care instructions
     // appear on the token page once the visit is done.
     const helper = await recipientSvc.helperName(row.helper_id);
+    // D-596 (item 148): a token party who archived the visit sees the
+    // archived flag on the public status page, so the page can show the
+    // visit as archived; the visit stays readable through the link.
+    const { rows: archiveRows } = await pool.query(
+      `SELECT 1 FROM booking_visit_archives WHERE booking_id = $1 AND token_hash = $2 LIMIT 1`,
+      [row.id, recipientSvc.tokenHash(token)]
+    );
     return res.json({
       success: true,
       data: {
         serviceName: row.service_name,
         status: row.status,
+        archived: archiveRows.length > 0,
         requestedDate: row.requested_date,
         requestedStartTime: row.requested_start_time,
         requestedEndTime: row.requested_end_time,
         arrivedAt: row.arrived_at,
         siteContactName: row.site_contact_name || null,
+        // D-602 (G3-33): the relay hides the site-contact target when no
+        // linked site-contact account exists.
+        hasSiteContactAccount: Boolean(row.site_contact_user_id),
         hasRecipient: Boolean(row.recipient_user_id || row.recipient_name),
         recipientConsentStatus: row.recipient_consent_status || 'pending',
         recipientConsentedAt: row.recipient_consented_at || null,
@@ -1330,7 +1355,11 @@ exports.helperCancelAcceptedBooking = async (req, res) => {
  * provider). The linked two-party conversation moves with it so the new
  * provider sees the thread and the old one loses it.
  *
- * The caller must be the current provider. The new provider must be
+ * G5-2: the caller must pass the manager gate (isBookingManagerForBooking),
+ * the same gate as accept/decline — the current provider, the business
+ * owner, a manager, or a member holding bookings.manage. The previous
+ * read-level gate (isProviderForBooking) let any active member transfer a
+ * confirmed, deposit-backed booking. The new provider must be
  * eligible: for a business booking, an owner/active member of that
  * business; for a helper-owned booking, an activated helper holding
  * helper.offer_services (grant in enforce mode, legacy role otherwise).
@@ -1351,8 +1380,8 @@ exports.transferBookingRequest = async (req, res) => {
     if (!booking) {
       return sendError(res, 404, 'Booking request not found');
     }
-    if (!(await bookingLifecycle.isProviderForBooking(actorId, booking))) {
-      return sendError(res, 403, 'Only the provider can transfer this booking', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(actorId, booking))) {
+      return sendError(res, 403, 'Only the provider or a business manager can transfer this booking', 'forbidden');
     }
     if (booking.status !== 'accepted') {
       return sendError(res, 400, 'Only accepted bookings can be transferred');
@@ -1402,6 +1431,11 @@ exports.transferBookingRequest = async (req, res) => {
         `UPDATE booking_requests
             SET helper_id = $2,
                 helper_response_reason = COALESCE($3, helper_response_reason),
+                -- G5-11 (260): a transfer is not a dispatch; the new
+                -- provider was not dispatched and confirms by accepting
+                -- as the provider, not via the dispatch flow.
+                dispatch_status = NULL,
+                dispatched_at = NULL,
                 updated_at = CURRENT_TIMESTAMP
           WHERE id = $1 AND status = 'accepted'
           RETURNING *`,
@@ -1476,6 +1510,135 @@ exports.transferBookingRequest = async (req, res) => {
   } catch (err) {
     logger.error('Error transferring booking', { error: err.message });
     sendError(res, 500, 'Failed to transfer booking');
+  }
+};
+
+/**
+ * G5-11 (260): dispatch a pending business booking to a member.
+ * Manager-gated (isBookingManagerForBooking), same as accept/decline.
+ * Sets helper_id to the member with dispatch_status='pending'; the member
+ * confirms by accepting (any accept path flips it to 'confirmed'), and a
+ * member who cannot do the work transfers it on (they pass the manager
+ * gate as the current provider). Decline semantics are untouched:
+ * declining still declines the booking for the customer. Pending only:
+ * a counter-proposed booking already carries a counter proposal from its
+ * current provider. Notifies the member (booking_dispatched) and
+ * broadcasts booking:updated so their queue refreshes.
+ */
+exports.dispatchBookingRequest = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const actorId = req.user.id;
+    const { memberId } = req.body || {};
+
+    if (typeof memberId !== 'string' || !/^[0-9a-f-]{36}$/i.test(memberId)) {
+      return sendError(res, 400, 'A valid member id is required', 'validation_failed');
+    }
+
+    const booking = await bookingLifecycle.loadBooking(bookingId);
+    if (!booking) {
+      return sendError(res, 404, 'Booking request not found');
+    }
+    if (!(await bookingLifecycle.isBookingManagerForBooking(actorId, booking))) {
+      return sendError(res, 403, 'Only the provider or a business manager can dispatch this booking', 'forbidden');
+    }
+    if (!booking.business_id) {
+      return sendError(res, 400, 'Only business bookings can be dispatched', 'dispatch_target_ineligible');
+    }
+    if (booking.status !== 'pending') {
+      return sendError(res, 400, 'Only pending bookings can be dispatched');
+    }
+    if (String(memberId) === String(booking.helper_id)) {
+      return sendError(res, 400, 'Booking is already with this member', 'validation_failed');
+    }
+    if (String(memberId) === String(booking.customer_id)) {
+      return sendError(res, 400, 'The customer cannot be the provider', 'validation_failed');
+    }
+
+    const { rows: [membership] } = await pool.query(
+      `SELECT 1 FROM businesses WHERE id = $1 AND user_id = $2 AND is_active = TRUE
+        UNION
+       SELECT 1 FROM business_members
+        WHERE business_id = $1 AND member_id = $2 AND status = 'active'`,
+      [booking.business_id, memberId]
+    );
+    if (!membership) {
+      return sendError(res, 400, 'Member is not part of this business', 'dispatch_target_ineligible');
+    }
+
+    const updatedResult = await withTransaction(pool, async (client) => {
+      const updated = await client.query(
+        `UPDATE booking_requests
+            SET helper_id = $2,
+                dispatch_status = 'pending',
+                dispatched_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1 AND status = 'pending'
+          RETURNING *`,
+        [bookingId, memberId]
+      );
+      if (!updated.rows.length) return updated;
+      await emitDomainEvent(client, 'booking.dispatched', serviceEventProps(updated.rows[0]), {
+        userId: actorId,
+        req,
+      });
+      return updated;
+    }, 'booking_dispatch');
+
+    const updated = updatedResult.rows[0];
+    if (!updated) {
+      return sendError(res, 400, 'Booking cannot be dispatched', 'booking_not_dispatchable');
+    }
+
+    await logBookingAudit(bookingId, 'dispatched', actorId, 'helper', 'pending', 'pending');
+    try {
+      broadcastToUser(memberId, 'booking:updated', { bookingId: booking.id, status: 'pending' });
+      await sendNotification({
+        userId: memberId,
+        type: 'booking_dispatched',
+        body: `${booking.service_name}, ${booking.requested_date} ${booking.requested_start_time}-${booking.requested_end_time}`,
+        data: { bookingId: booking.id, dispatchedBy: actorId },
+        action_url: '/calendar?tab=bookingRequests',
+      });
+    } catch (e) {
+      logger.warn('Failed to notify member of booking dispatch', { error: e.message });
+    }
+
+    logger.info('Booking dispatched', { bookingId, actorId, memberId });
+    res.json({
+      success: true,
+      data: transformBooking(updated),
+    });
+  } catch (err) {
+    logger.error('Error dispatching booking', { error: err.message });
+    sendError(res, 500, 'Failed to dispatch booking');
+  }
+};
+
+/**
+ * G5-12 (257): dispatch + transfer candidates for one booking. Manager-gated:
+ * only someone who can dispatch or transfer needs the roster with fit flags.
+ * Business bookings only; a helper-owned booking has no member roster.
+ */
+exports.listTransferCandidates = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const actorId = req.user.id;
+    const booking = await bookingLifecycle.loadBooking(bookingId);
+    if (!booking) {
+      return sendError(res, 404, 'Booking request not found');
+    }
+    if (!(await bookingLifecycle.isBookingManagerForBooking(actorId, booking))) {
+      return sendError(res, 403, 'Only the provider or a business manager can view dispatch candidates', 'forbidden');
+    }
+    const result = await bookingLifecycle.listBookingTransferCandidates(booking);
+    if (!result) {
+      return sendError(res, 400, 'Only business bookings have dispatch candidates', 'dispatch_target_ineligible');
+    }
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error('Error listing transfer candidates', { error: err.message });
+    sendError(res, 500, 'Failed to list transfer candidates');
   }
 };
 
@@ -2606,94 +2769,105 @@ exports.releaseStaleAcceptedBookings = async () => {
       )`;
 
     // 1) Delivered bookings: accepted -> completed (never cancelled).
-    const completed = await pool.query(
-      `UPDATE booking_requests br
-       SET status = 'completed',
-           helper_response_reason = COALESCE(
-             helper_response_reason,
-             'Service delivered; booking completed automatically'
-           ),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE ${staleCondition} AND ${deliveredCondition}
-       RETURNING id, customer_id, helper_id, business_id, service_name, requested_date,
-                 appointment_id, business_appointment_id, recipient_user_id, site_contact_user_id`
-    );
-    if (completed.rowCount > 0) {
-      logger.info('Auto-completed delivered bookings past scheduled end', { count: completed.rowCount });
-      for (const row of completed.rows) {
-        await logBookingAudit(row.id, 'auto_completed', null, 'system', 'accepted', 'completed');
-        broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'completed' });
-        broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'completed' });
+    // G3-28 (D-53): each branch has its own try/catch, so a failure in
+    // the delivered branch never aborts the stale-release branch.
+    try {
+      const completed = await pool.query(
+        `UPDATE booking_requests br
+         SET status = 'completed',
+             helper_response_reason = COALESCE(
+               helper_response_reason,
+               'Service delivered; booking completed automatically'
+             ),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE ${staleCondition} AND ${deliveredCondition}
+         RETURNING id, customer_id, helper_id, business_id, service_name, requested_date,
+                   appointment_id, business_appointment_id, recipient_user_id, site_contact_user_id`
+      );
+      if (completed.rowCount > 0) {
+        logger.info('Auto-completed delivered bookings past scheduled end', { count: completed.rowCount });
+        for (const row of completed.rows) {
+          await logBookingAudit(row.id, 'auto_completed', null, 'system', 'accepted', 'completed');
+          broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'completed' });
+          broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'completed' });
 
-        sendNotification({
-          userId: row.customer_id,
-          type: 'booking_auto_completed',
-          body: `${row.service_name}, ${row.requested_date}`,
-          data: { bookingId: row.id },
-          action_url: '/my-bookings',
-        }).catch((err) => logger.warn('Failed auto-complete customer notification', { error: err.message }));
+          sendNotification({
+            userId: row.customer_id,
+            type: 'booking_auto_completed',
+            body: `${row.service_name}, ${row.requested_date}`,
+            data: { bookingId: row.id },
+            action_url: '/my-bookings',
+          }).catch((err) => logger.warn('Failed auto-complete customer notification', { error: err.message }));
 
-        sendNotification({
-          userId: row.helper_id,
-          type: 'booking_auto_completed',
-          body: `${row.service_name}, ${row.requested_date}`,
-          data: { bookingId: row.id },
-          action_url: '/calendar',
-        }).catch((err) => logger.warn('Failed auto-complete helper notification', { error: err.message }));
+          sendNotification({
+            userId: row.helper_id,
+            type: 'booking_auto_completed',
+            body: `${row.service_name}, ${row.requested_date}`,
+            data: { bookingId: row.id },
+            action_url: '/calendar',
+          }).catch((err) => logger.warn('Failed auto-complete helper notification', { error: err.message }));
 
-        // Group 3 (item 105): the recipient and site contact learn the
-        // visit is complete too, unless they muted this booking.
-        recipientSvc.notifyVisitCompleted(row).catch((err) => logger.warn('Failed auto-complete visit notification', { error: err.message }));
+          // Group 3 (item 105): the recipient and site contact learn the
+          // visit is complete too, unless they muted this booking.
+          recipientSvc.notifyVisitCompleted(row).catch((err) => logger.warn('Failed auto-complete visit notification', { error: err.message }));
+        }
       }
+    } catch (err) {
+      logger.warn('Auto-complete delivered bookings failed', { error: err.message });
     }
 
     // 2) Genuinely stale bookings: accepted -> accepted_cancelled, excluding
     // delivered work (handled above) and appointments still in progress.
-    const r = await pool.query(
-      `UPDATE booking_requests br
-       SET status = 'accepted_cancelled',
-           helper_response_reason = COALESCE(
-             helper_response_reason,
-             'Automatically released after scheduled time passed'
-           ),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE ${staleCondition}
-         AND NOT (${deliveredCondition})
-         AND NOT (${inProgressCondition})
-       RETURNING id, customer_id, helper_id, business_id, service_name, requested_date,
-                 appointment_id, business_appointment_id`
-    );
-    if (r.rowCount > 0) {
-      logger.info('Released accepted bookings past scheduled end', { count: r.rowCount });
-      for (const row of r.rows) {
-        // The linked appointment must not outlive the released booking.
-        try {
-          await bookingLifecycle.cancelLinkedAppointment(row, row.helper_id);
-        } catch (e) {
-          logger.warn('Failed to cancel linked appointment on auto-release', { error: e.message });
+    try {
+      const r = await pool.query(
+        `UPDATE booking_requests br
+         SET status = 'accepted_cancelled',
+             helper_response_reason = COALESCE(
+               helper_response_reason,
+               'Automatically released after scheduled time passed'
+             ),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE ${staleCondition}
+           AND NOT (${deliveredCondition})
+           AND NOT (${inProgressCondition})
+         RETURNING id, customer_id, helper_id, business_id, service_name, requested_date,
+                   appointment_id, business_appointment_id`
+      );
+      if (r.rowCount > 0) {
+        logger.info('Released accepted bookings past scheduled end', { count: r.rowCount });
+        for (const row of r.rows) {
+          // The linked appointment must not outlive the released booking.
+          try {
+            await bookingLifecycle.cancelLinkedAppointment(row, row.helper_id);
+          } catch (e) {
+            logger.warn('Failed to cancel linked appointment on auto-release', { error: e.message });
+          }
+          await logBookingAudit(row.id, 'auto_released', null, 'system', 'accepted', 'accepted_cancelled');
+          broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
+          broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
+
+          sendNotification({
+            userId: row.customer_id,
+            type: 'booking_auto_released',
+            body: `${row.service_name}, ${row.requested_date}`,
+            data: { bookingId: row.id },
+            action_url: '/my-bookings',
+          }).catch((err) => logger.warn('Failed auto-release customer notification', { error: err.message }));
+
+          sendNotification({
+            userId: row.helper_id,
+            type: 'booking_auto_released',
+            body: `${row.service_name}, ${row.requested_date}`,
+            data: { bookingId: row.id },
+            action_url: '/calendar',
+          }).catch((err) => logger.warn('Failed auto-release helper notification', { error: err.message }));
         }
-        await logBookingAudit(row.id, 'auto_released', null, 'system', 'accepted', 'accepted_cancelled');
-        broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
-        broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
-
-        sendNotification({
-          userId: row.customer_id,
-          type: 'booking_auto_released',
-          body: `${row.service_name}, ${row.requested_date}`,
-          data: { bookingId: row.id },
-          action_url: '/my-bookings',
-        }).catch((err) => logger.warn('Failed auto-release customer notification', { error: err.message }));
-
-        sendNotification({
-          userId: row.helper_id,
-          type: 'booking_auto_released',
-          body: `${row.service_name}, ${row.requested_date}`,
-          data: { bookingId: row.id },
-          action_url: '/calendar',
-        }).catch((err) => logger.warn('Failed auto-release helper notification', { error: err.message }));
       }
+      return r.rowCount || 0;
+    } catch (err) {
+      logger.warn('Release stale accepted bookings failed', { error: err.message });
+      return 0;
     }
-    return r.rowCount || 0;
   } catch (err) {
     logger.warn('releaseStaleAcceptedBookings failed', { error: err.message });
     return 0;

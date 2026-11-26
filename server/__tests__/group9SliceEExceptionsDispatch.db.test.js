@@ -193,7 +193,7 @@ ddescribe('Group 9 Slice E: exceptions + dispatch (476-485)', () => {
 
   async function makeDriverProfile(userId, patch = {}) {
     const profile = {
-      approved: true, active: true, vehicleType: 'van', maxPayloadLbs: 200,
+      approved: true, active: true, available: true, vehicleType: 'van', maxPayloadLbs: 200,
       cargoLengthIn: 40, cargoWidthIn: 40, cargoHeightIn: 40,
       equipment: {}, serviceArea: {}, maxPieces: 10,
       fragileSupported: true, perishableSupported: true,
@@ -206,14 +206,14 @@ ddescribe('Group 9 Slice E: exceptions + dispatch (476-485)', () => {
          (user_id, approved, active, vehicle_type, max_payload_lbs,
           cargo_length_in, cargo_width_in, cargo_height_in, equipment,
           service_area, max_pieces, fragile_supported, perishable_supported,
-          insurance_acknowledged, insurance_expires_at, available_from, available_until)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12, $13, $14, $15, $16, $17)`,
+          insurance_acknowledged, insurance_expires_at, available_from, available_until, available)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12, $13, $14, $15, $16, $17, $18)`,
       [userId, profile.approved, profile.active, profile.vehicleType, profile.maxPayloadLbs,
         profile.cargoLengthIn, profile.cargoWidthIn, profile.cargoHeightIn,
         JSON.stringify(profile.equipment), JSON.stringify(profile.serviceArea),
         profile.maxPieces, profile.fragileSupported, profile.perishableSupported,
         profile.insuranceAcknowledged, profile.insuranceExpiresAt,
-        profile.availableFrom, profile.availableUntil],
+        profile.availableFrom, profile.availableUntil, profile.available],
     );
     return profile;
   }
@@ -692,7 +692,13 @@ ddescribe('Group 9 Slice E: exceptions + dispatch (476-485)', () => {
     });
 
     const first = await sweepDelayedDeliveries(pool, { now: new Date() });
-    expect(first.escalated).toBe(1);
+    // Group 9 partials Wave 2 Batch P (485, G9-B9, D-557): the sweep
+    // scans every active assigned job, so earlier suites' jobs may
+    // escalate too (Slice C leaves an assigned job with a backdated
+    // pickup window; the pickup-no-show trigger correctly catches
+    // it). Same convention as Slice C's 463 test: assert the global
+    // count only as a lower bound, and this job's escalation exactly.
+    expect(first.escalated).toBeGreaterThanOrEqual(1);
     expect(first.failed).toBe(0);
 
     const issues = await pool.query(

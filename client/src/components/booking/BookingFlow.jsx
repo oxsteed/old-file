@@ -30,6 +30,10 @@ function bookingDraftKey(helperId, businessId) {
   return `oxs:booking-draft:${businessId ? `biz-${businessId}` : `helper-${helperId || 'none'}`}`;
 }
 
+// Wave 4, item 64: a household template hands its prefill to the booking
+// flow through sessionStorage; the flow consumes it once, on mount.
+const TEMPLATE_PREFILL_KEY = 'oxs:household-template-prefill';
+
 function loadBookingDraft(key, serviceHint) {
   const base = { ...EMPTY_CALENDAR_DRAFT, serviceName: serviceHint || '' };
   try {
@@ -99,7 +103,49 @@ export default function BookingFlow({ helperId, helperName, businessId, business
   // unmounts it) doesn't drop the typed service details. Also mirrored to
   // sessionStorage so a refresh restores the draft. Scoped per helper/business.
   const draftKey = bookingDraftKey(helperId, businessId);
-  const [calendarDraft, setCalendarDraft] = useState(() => loadBookingDraft(draftKey, serviceHint));
+  // Wave 4, item 64: consume a pending household-template prefill once.
+  // It fills the draft's service fields (only where the draft is empty)
+  // and, when the template belongs to a household the viewer holds a book
+  // delegation for, defaults the "book for" picker to that owner (D-599).
+  const [templatePrefill] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem(TEMPLATE_PREFILL_KEY);
+      if (!raw) return null;
+      sessionStorage.removeItem(TEMPLATE_PREFILL_KEY);
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
+  });
+  const [calendarDraft, setCalendarDraft] = useState(() => {
+    const draft = loadBookingDraft(draftKey, serviceHint);
+    if (templatePrefill) {
+      if (!draft.serviceName && templatePrefill.serviceName) draft.serviceName = templatePrefill.serviceName;
+      if (!draft.serviceLocation && templatePrefill.serviceLocation) draft.serviceLocation = templatePrefill.serviceLocation;
+      if (!draft.description && templatePrefill.description) draft.description = templatePrefill.description;
+    }
+    return draft;
+  });
+  // Wave 4, item 51 (D-599): households the viewer may book for.
+  const [heldBookDelegations, setHeldBookDelegations] = useState([]);
+  const [bookFor, setBookFor] = useState('');
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    api.get('/household/delegations', { params: { role: 'delegate' } })
+      .then((r) => {
+        if (cancelled) return;
+        const held = (Array.isArray(r.data?.delegations) ? r.data.delegations : [])
+          .filter((d) => d.status === 'accepted' && (d.scopes || []).includes('book'));
+        setHeldBookDelegations(held);
+        if (templatePrefill?.ownerId && held.some((d) => d.ownerId === templatePrefill.ownerId)) {
+          setBookFor(templatePrefill.ownerId);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [user, templatePrefill]);
   // UI gaps item 6: a draft carrying a picked slot restores straight onto
   // the confirmation step, so a guest returning from sign-in does not
   // have to re-pick the slot or re-check the agreement.
@@ -164,6 +210,8 @@ export default function BookingFlow({ helperId, helperName, businessId, business
         siteContactName: formData.siteContactName || undefined,
         siteContactPhone: formData.siteContactPhone || undefined,
         siteContactEmail: formData.siteContactEmail || undefined,
+        // Wave 4, item 51 (D-599): book on behalf of the selected household.
+        onBehalfOfOwnerId: bookFor || undefined,
       });
 
       setBookingRequest(bookingRow);
@@ -309,6 +357,22 @@ export default function BookingFlow({ helperId, helperName, businessId, business
           </div>
         )}
 
+        {templatePrefill?.serviceName && step !== 'status' && (
+          <p className="booking-template-prefill-notice">{t('booking.templatePrefillNotice', { serviceName: templatePrefill.serviceName })}</p>
+        )}
+
+        {heldBookDelegations.length > 0 && step !== 'status' && (
+          <label className="booking-bookfor-label">
+            <span>{t('booking.bookForLabel')}</span>
+            <select value={bookFor} onChange={(e) => setBookFor(e.target.value)}>
+              <option value="">{t('booking.bookForMyself')}</option>
+              {heldBookDelegations.map((d) => (
+                <option key={d.id} value={d.ownerId}>{d.ownerName || d.ownerId}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
         {step === 'calendar' && (
           <BookingCalendar
             helperId={helperId}
@@ -329,6 +393,8 @@ export default function BookingFlow({ helperId, helperName, businessId, business
             onConfirm={handleConfirmBooking}
             onBack={backToCalendar}
             loading={loading}
+            initialRecipientName={templatePrefill?.recipientName || ''}
+            initialRecipientPhone={templatePrefill?.recipientPhone || ''}
             initialAgreed={calendarDraft.agreementAccepted}
             onAgreementChange={(agreed) => setCalendarDraft((prev) => ({ ...prev, agreementAccepted: agreed }))}
           />

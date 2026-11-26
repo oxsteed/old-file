@@ -30,7 +30,7 @@ class PayoutController {
         userId,
         type: 'payout_destination_changed',
         data: { payout_method_id: methodId },
-        action_url: '/settings/payouts',
+        action_url: '/helper/payouts',
         idempotencyKey: `payout-destination:${methodId}:${Date.now()}`,
       });
     } catch (notifyErr) {

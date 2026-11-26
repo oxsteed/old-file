@@ -1,8 +1,9 @@
 // Groups 5-6 items 262-270, 273-274, 281-284, 286-290: one job, for the
 // people working it — handoff summary, checklist, progress, crew, documents,
 // notes with mentions, completion record, materials, history, and blockers.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useBizG56, requestId } from './useBizG56';
+import { getBookingChecklist } from '../../../api/bookings';
 import './g56.css';
 
 const KINDS = ['exception', 'missing_instruction', 'incident', 'access_denied', 'reassignment_request'];
@@ -37,6 +38,9 @@ function Blocker({ businessId, appointmentId }) {
 export default function WorkJobDetail({ businessId, appointmentId, onClose }) {
   const base = `/businesses/${businessId}/work/appointments/${appointmentId}`;
   const hs = useBizG56(`${base}/handoff`, 'job');
+  // 272: the notes list reads from the dedicated GET, not the handoff
+  // excerpt; it falls back to the excerpt if the read fails.
+  const nt = useBizG56(`${base}/notes`, 'job');
   const cl = useBizG56(`${base}/checklist`, 'job');
   const pg = useBizG56(`${base}/progress`, 'job');
   const docs = useBizG56(`${base}/documents`, 'job');
@@ -47,6 +51,19 @@ export default function WorkJobDetail({ businessId, appointmentId, onClose }) {
   const [item, setItem] = useState(''); const [prog, setProg] = useState({ note: '', percent: '' });
   const [noteText, setNoteText] = useState(''); const [mentions, setMentions] = useState([]);
   const [cf, setCf] = useState(null); const [m, setM] = useState({ name: '', quantity: '1', unit: '', cost: '' });
+  const [bookingChecklist, setBookingChecklist] = useState(null);
+  // D-461 (262, G5-25): the booking's visit checklist, finally with a
+  // caller. A 403/404 (not the provider, no linked booking) hides the
+  // section; the appointment checklist above is untouched.
+  const linkedBookingId = hs.data?.appointment?.booking_id || null;
+  useEffect(() => {
+    if (!linkedBookingId) return undefined;
+    let cancelled = false;
+    getBookingChecklist(linkedBookingId)
+      .then((d) => { if (!cancelled) setBookingChecklist(d); })
+      .catch(() => { if (!cancelled) setBookingChecklist(null); });
+    return () => { cancelled = true; };
+  }, [linkedBookingId]);
   if (!hs.data) return hs.errorText ? <section className="g56-panel"><p className="g56-error">{hs.errorText}</p><button type="button" onClick={onClose} data-track="ui.68ec2fbbcd.3">{hs.tr('close')}</button></section> : null;
   const h = hs.data; const a = h.appointment;
   const items = cl.data?.items || (Array.isArray(cl.data) ? cl.data : []);
@@ -58,7 +75,6 @@ export default function WorkJobDetail({ businessId, appointmentId, onClose }) {
       <div className="g56-row"><h3 className="g56-grow">{a.service_name} · {hs.time(a.start_time)}</h3><button type="button" onClick={onClose} data-track="ui.68ec2fbbcd.4">{hs.tr('close')}</button></div>
       <p>{a.customer_name}{a.customer_notes && <> · {a.customer_notes}</>}</p>
       <h4>{hs.tr('handoff')}</h4>
-      <ul className="g56-list">{h.notes.map(n => <li key={n.id}>{n.is_pinned && <span className="g56-badge">{hs.tr('pinned')}</span>} {n.content} · {n.author}</li>)}</ul>
       {h.open_exceptions.length > 0 && <p className="g56-miss">{hs.tr('openIssues', { count: h.open_exceptions.length })}</p>}
       {h.acknowledged_at ? <p className="g56-ok">{hs.tr('acked', { date: hs.time(h.acknowledged_at) })}</p>
         : <button type="button" disabled={hs.busy} onClick={() => hs.send('post', `${base}/handoff/ack`)} data-track="ui.68ec2fbbcd.5">{hs.tr('ack')}</button>}
@@ -68,6 +84,12 @@ export default function WorkJobDetail({ businessId, appointmentId, onClose }) {
         <li key={i.id}><label><span><input type="checkbox" checked={!!i.done_at} disabled={cl.busy} onChange={e => cl.send('patch', `${base}/checklist/${i.id}`, { done: e.target.checked })} data-track="ui.68ec2fbbcd.6" /> {i.label}{i.required && ' *'}</span></label></li>))}</ul>
       <div className="g56-row"><input aria-label={hs.tr('addItem')} value={item} onChange={e => setItem(e.target.value)} maxLength={160} />
         <button type="button" disabled={cl.busy || !item.trim()} onClick={async () => { if (await cl.send('post', `${base}/checklist`, { label: item })) setItem(''); }} data-track="ui.68ec2fbbcd.7">{hs.tr('addItem')}</button></div>
+
+      {bookingChecklist?.items?.length > 0 && (<>
+        <h4>{hs.t('booking.token.checklistTitle')}</h4>
+        <ul className="g56-list">{bookingChecklist.items.map(i => (
+          <li key={i.key}>{i.done ? '✓' : '○'} {hs.t(`booking.token.checklist.${i.key}`)}</li>))}</ul>
+      </>)}
 
       <h4>{hs.tr('progress')}</h4>
       <div className="g56-row">
@@ -81,10 +103,11 @@ export default function WorkJobDetail({ businessId, appointmentId, onClose }) {
       <ul className="g56-list">{h.crew.map(c => <li key={c.user_id}>{c.name} · {hs.tr(`crewRole.${c.role}`)} · <span className="g56-badge">{hs.tr(`attend.${c.attendance}`)}</span>{c.task_note && <> · {c.task_note}</>}</li>)}</ul>
 
       <h4>{hs.tr('notes')}</h4>
+      <ul className="g56-list">{(nt.data?.notes || h.notes).map(n => <li key={n.id}>{n.is_pinned && <span className="g56-badge">{hs.tr('pinned')}</span>} {n.content} · {n.author}</li>)}</ul>
       <div className="g56-row">
         <label className="g56-grow">{hs.tr('noteText')}<input value={noteText} onChange={e => setNoteText(e.target.value)} maxLength={4000} /></label>
         {people.length > 0 && <label>{hs.tr('mention')}<select multiple value={mentions} onChange={e => setMentions([...e.target.selectedOptions].map(o => o.value))}>{people.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>}
-        <button type="button" disabled={hs.busy || !noteText.trim()} onClick={async () => { if (await hs.send('post', `${base}/team-notes`, { content: noteText, mention_user_ids: mentions })) { setNoteText(''); setMentions([]); } }} data-track="ui.68ec2fbbcd.9">{hs.tr('post')}</button>
+        <button type="button" disabled={hs.busy || !noteText.trim()} onClick={async () => { if (await hs.send('post', `${base}/team-notes`, { content: noteText, mention_user_ids: mentions })) { setNoteText(''); setMentions([]); nt.refresh(); } }} data-track="ui.68ec2fbbcd.9">{hs.tr('post')}</button>
       </div>
 
       {(docs.data?.documents || []).length > 0 && <><h4>{hs.tr('documents')}</h4>
