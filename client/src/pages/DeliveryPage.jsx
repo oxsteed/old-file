@@ -1474,6 +1474,42 @@ function HelperDelivery({ t }) {
 
   useEffect(() => { loadJobs(); }, [loadJobs]);
 
+  // Group 9 partials Wave 2 Batch Q (491, G9-B11, D-559): "My claimed"
+  // is its own server-filtered history, not a client-side slice of the
+  // mixed feed. mine=1 + status (active/completed) + limit/offset +
+  // total, the same shape as the customer Active/Completed tabs and
+  // the ops payout list, so a driver with 100+ jobs can page back to
+  // an old completed delivery. The feed above stays the open-jobs
+  // list; the history refreshes with it after a claim, move, or
+  // decline below.
+  const [historyTab, setHistoryTab] = useState('active');
+  const [historyJobs, setHistoryJobs] = useState([]);
+  const [historyTotal, setHistoryTotal] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
+  const historyJobsRef = useRef([]);
+  const loadHistory = useCallback(async (options = {}) => {
+    const append = options.append === true;
+    const tab = options.tab || historyTab;
+    if (append) setHistoryLoadingMore(true);
+    else setHistoryLoading(true);
+    setError('');
+    try {
+      const offset = append ? historyJobsRef.current.length : 0;
+      const response = await listDeliveryJobs({ mine: 1, status: tab, limit: FEED_PAGE_LIMIT, offset });
+      const nextJobs = response.jobs || [];
+      historyJobsRef.current = append ? [...historyJobsRef.current, ...nextJobs] : nextJobs;
+      setHistoryJobs(historyJobsRef.current);
+      setHistoryTotal(typeof response.total === 'number' ? response.total : nextJobs.length);
+    } catch (requestError) {
+      setError(deliveryError(requestError, t, 'delivery.errors.load'));
+    } finally {
+      setHistoryLoading(false);
+      setHistoryLoadingMore(false);
+    }
+  }, [t, historyTab]);
+  useEffect(() => { loadHistory({ tab: historyTab }); }, [loadHistory, historyTab]);
+
   // Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-535): ask once
   // for the device location so the feed's 50-mile filter can engage with
   // precise coordinates. A denial or timeout is silent: the service-area
@@ -1514,6 +1550,7 @@ function HelperDelivery({ t }) {
       // 50-mile distance sanity.
       await claimDeliveryJob(id, feedGeoParams());
       await loadJobs();
+      await loadHistory();
     } catch (requestError) {
       // P2-4-F10: a driver with no driver profile gets a registration path
       // instead of a dead-end 409.
@@ -1536,7 +1573,7 @@ function HelperDelivery({ t }) {
     setBusyId(String(id));
     setError('');
     setClaimReasons([]);
-    try { await updateDeliveryStatus(id, status, proof); await loadJobs(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
+    try { await updateDeliveryStatus(id, status, proof); await loadJobs(); await loadHistory(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
   };
 
   // Group 9 Slice B (item 460): passing on an offer records the reason
@@ -1545,7 +1582,7 @@ function HelperDelivery({ t }) {
     setBusyId(String(id));
     setError('');
     setClaimReasons([]);
-    try { await declineDeliveryJob(id, payload); await loadJobs(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
+    try { await declineDeliveryJob(id, payload); await loadJobs(); await loadHistory(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
   };
 
   // Group 9 partials Wave 2 Batch M (459, G9-A3, D-536): availability
@@ -1554,7 +1591,6 @@ function HelperDelivery({ t }) {
   // shared link) or be assigned until they go back online.
   const isOnline = driverProfile?.available === true;
   const openJobs = useMemo(() => selectOpenJobs(jobs, { canDrive, available: isOnline, userId: user?.id }), [jobs, canDrive, isOnline, user?.id]);
-  const myJobs = useMemo(() => jobs.filter((job) => job.is_assigned_operator === true || String(job.customer_user_id) === String(user?.id)), [jobs, user?.id]);
   const isDriver = canDrive || internalDriver;
   const payoutTotals = useMemo(() => {
     const totals = { paid: 0, pending: 0, voided: 0 };
@@ -1665,7 +1701,24 @@ function HelperDelivery({ t }) {
             {feedTotal != null && jobs.length > 0 && <p className="delivery-estimate-defaults">{t('delivery.helper.showingOf', { shown: jobs.length, total: feedTotal })}</p>}
             {feedTotal != null && jobs.length < feedTotal && <button type="button" className="delivery-button delivery-button--secondary" onClick={() => loadJobs({ append: true })} disabled={loadingMore || loading} data-track="ui.2f5c44f3da.50">{t('delivery.helper.loadMore')}</button>}
           </section>}
-          <section><div className="delivery-section-title"><h3>{t(isDriver ? 'delivery.driver.myClaimed' : 'delivery.helper.myDeliveries')}</h3><span>{myJobs.length}</span></div>{myJobs.length ? <div className="delivery-job-grid">{myJobs.map((job) => <DeliveryCard key={job.id} job={job} helper={isDriver && job.is_assigned_operator === true} onClaim={claim} onDecline={decline} onStatus={move} busyId={busyId} t={t} />)}</div> : !error && <p className="delivery-empty-copy">{t('delivery.ui.noDeliveries')}</p>}</section>
+          {/* Group 9 partials Wave 2 Batch Q (491, G9-B11, D-559): the
+            driver's own history with the same Active/Completed tabs
+            the customer side has, paged server-side (mine + status +
+            total) instead of sliced from the loaded feed. */}
+          <section>
+            <div className="delivery-section-title"><h3>{t(isDriver ? 'delivery.driver.myClaimed' : 'delivery.helper.myDeliveries')}</h3><span>{historyTotal ?? historyJobs.length}</span></div>
+            <div className="delivery-my__tabs" role="tablist" aria-label={t(isDriver ? 'delivery.driver.myClaimed' : 'delivery.helper.myDeliveries')}>
+              <button type="button" role="tab" aria-selected={historyTab === 'active'} className={historyTab === 'active' ? 'is-active' : ''} onClick={() => setHistoryTab('active')} data-track="ui.2f5c44f3da.51">
+                {t('delivery.myDeliveries.active')}
+              </button>
+              <button type="button" role="tab" aria-selected={historyTab === 'completed'} className={historyTab === 'completed' ? 'is-active' : ''} onClick={() => setHistoryTab('completed')} data-track="ui.2f5c44f3da.52">
+                {t('delivery.myDeliveries.completed')}
+              </button>
+            </div>
+            {historyLoading ? <div className="delivery-loading"><Loader2 className="delivery-spin" size={24} aria-hidden="true" />{t('delivery.helper.loading')}</div> : historyJobs.length ? <div className="delivery-job-grid">{historyJobs.map((job) => <DeliveryCard key={job.id} job={job} helper={isDriver && job.is_assigned_operator === true} onClaim={claim} onDecline={decline} onStatus={move} busyId={busyId} t={t} />)}</div> : !error && <p className="delivery-empty-copy">{t(historyTab === 'active' ? 'delivery.myDeliveries.emptyActive' : 'delivery.myDeliveries.emptyCompleted')}</p>}
+            {historyTotal != null && historyJobs.length > 0 && <p className="delivery-estimate-defaults">{t('delivery.helper.showingOf', { shown: historyJobs.length, total: historyTotal })}</p>}
+            {historyTotal != null && historyJobs.length < historyTotal && <button type="button" className="delivery-button delivery-button--secondary" onClick={() => loadHistory({ append: true })} disabled={historyLoadingMore || historyLoading} data-track="ui.2f5c44f3da.53">{t('delivery.helper.loadMore')}</button>}
+          </section>
         </>
       )}
     </div>

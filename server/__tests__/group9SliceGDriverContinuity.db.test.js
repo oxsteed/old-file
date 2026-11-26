@@ -74,7 +74,9 @@ if (CAN_RUN_DB) {
 const pool = require('../db');
 const localDelivery = require('../controllers/localDeliveryController');
 const trackingController = require('../controllers/deliveryTrackingController');
+const trackingOpsController = require('../controllers/deliveryTrackingOpsController');
 const trackingService = require('../services/deliveryTrackingService');
+const recoveryService = require('../services/localDeliveryRecoveryService');
 const { pinDigest } = require('../services/localDeliveryIntegrity');
 
 jest.setTimeout(120000);
@@ -372,6 +374,304 @@ ddescribe('Group 9 Slice G: manage continuity (496-500)', () => {
     expect(again.next).not.toHaveBeenCalled();
     expect(again.res.statusCode).toBe(409);
     expect(again.res.payload.error).toBe('tracking_device_revoked');
+  });
+
+  // Group 9 partials Wave 2 Batch Q (491, G9-B11, D-559): the driver
+  // history list filters by status and pages, so a driver with 100+
+  // jobs can find an old completed delivery.
+  test('491: the driver history list filters by status and pages', async () => {
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    const customerId = await makeUser('customer');
+    const now = new Date();
+    const activeJob = await makeJob(customerId, { driverId, status: 'assigned' });
+    const doneA = await makeJob(customerId, { driverId, status: 'delivered', pickedUpAt: now, deliveredAt: now });
+    const doneB = await makeJob(customerId, { driverId, status: 'delivered', pickedUpAt: now, deliveredAt: now });
+
+    const completed = await call(localDelivery.list, { user: helperUser(driverId), query: { mine: '1', status: 'completed' } });
+    expect(completed.next).not.toHaveBeenCalled();
+    expect(completed.res.payload.jobs.map((entry) => String(entry.id)).sort())
+      .toEqual([String(doneA.id), String(doneB.id)].sort());
+    expect(completed.res.payload.total).toBe(2);
+
+    const active = await call(localDelivery.list, { user: helperUser(driverId), query: { mine: '1', status: 'active' } });
+    expect(active.next).not.toHaveBeenCalled();
+    expect(active.res.payload.jobs.map((entry) => String(entry.id))).toEqual([String(activeJob.id)]);
+    expect(active.res.payload.total).toBe(1);
+
+    // Second page of the completed history: one row, same total.
+    const page2 = await call(localDelivery.list, { user: helperUser(driverId), query: { mine: '1', status: 'completed', limit: '1', offset: '1' } });
+    expect(page2.next).not.toHaveBeenCalled();
+    expect(page2.res.payload.jobs).toHaveLength(1);
+    expect(page2.res.payload.total).toBe(2);
+    expect([String(doneA.id), String(doneB.id)]).toContain(String(page2.res.payload.jobs[0].id));
+
+    // The unfiltered list still returns all three jobs.
+    const all = await call(localDelivery.list, { user: helperUser(driverId), query: {} });
+    expect(all.next).not.toHaveBeenCalled();
+    expect(all.res.payload.jobs.map((entry) => String(entry.id))).toEqual(
+      expect.arrayContaining([String(activeJob.id), String(doneA.id), String(doneB.id)]),
+    );
+  });
+
+  // Group 9 partials Wave 2 Batch Q (498, G9-B3, D-560): the live
+  // tracking session ends with the job, and ingest is refused after.
+  async function startLiveTracking(job, driverId) {
+    const { rows: [device] } = await pool.query(
+      `INSERT INTO delivery_tracking_devices (kind, driver_user_id, device_label, platform, status)
+       VALUES ('driver_phone', $1, 'Test phone', 'test', 'active') RETURNING *`,
+      [driverId],
+    );
+    await trackingService.grantConsent({ deliveryJobId: job.id, driverUserId: driverId, deviceId: device.id });
+    const assignment = await trackingService.startTracking({ deliveryJobId: job.id, deviceId: device.id, driverUserId: driverId });
+    return { device, assignment };
+  }
+
+  async function walkToDelivered(job, driverId) {
+    const picked = await call(localDelivery.updateStatus, {
+      params: { id: String(job.id) }, user: helperUser(driverId),
+      headers: { 'idempotency-key': key('g9q-pickup') },
+      body: { status: 'picked_up', pickupConfirmedPieces: 3, conditionAcknowledged: true },
+    });
+    expect(picked.next).not.toHaveBeenCalled();
+    const transit = await call(localDelivery.updateStatus, {
+      params: { id: String(job.id) }, user: helperUser(driverId),
+      headers: { 'idempotency-key': key('g9q-transit') },
+      body: { status: 'in_transit' },
+    });
+    expect(transit.next).not.toHaveBeenCalled();
+    const delivered = await call(localDelivery.updateStatus, {
+      params: { id: String(job.id) }, user: helperUser(driverId),
+      headers: { 'idempotency-key': key('g9q-delivered') },
+      body: { status: 'delivered', proofType: 'pin', proofValue: '123456' },
+    });
+    expect(delivered.next).not.toHaveBeenCalled();
+    expect(delivered.res.payload.job.status).toBe('delivered');
+  }
+
+  async function ingest(job, driverId) {
+    return call(trackingController.ingestLocations, {
+      params: { id: String(job.id) }, user: helperUser(driverId),
+      body: { points: [{ latitude: 40.123456, longitude: -83.123456, recordedAt: new Date().toISOString() }] },
+    });
+  }
+
+  test('498 (G9-B3): delivering a job ends its live tracking session and ingest is refused', async () => {
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    const customerId = await makeUser('customer');
+    const job = await makeJob(customerId, { driverId, status: 'assigned' });
+    const { device, assignment } = await startLiveTracking(job, driverId);
+    expect(assignment.status).toBe('active');
+
+    await walkToDelivered(job, driverId);
+
+    const { rows: [ended] } = await pool.query(
+      'SELECT status, ended_reason FROM delivery_tracking_assignments WHERE id = $1', [assignment.id],
+    );
+    expect(ended.status).toBe('completed');
+    expect(ended.ended_reason).toBe('delivered');
+
+    const refused = await ingest(job, driverId);
+    expect(refused.next).not.toHaveBeenCalled();
+    expect(refused.res.statusCode).toBe(409);
+    expect(refused.res.payload.error).toBe('tracking_job_terminal');
+
+    // No new tracking session can start for the delivered job.
+    const restart = await call(trackingController.startTracking, {
+      params: { id: String(job.id) }, user: helperUser(driverId),
+      body: { deviceId: device.id, sourcePolicy: 'driver_gps' },
+    });
+    expect(restart.next).not.toHaveBeenCalled();
+    expect(restart.res.statusCode).toBe(400);
+    expect(restart.res.payload.error).toBe('tracking_invalid_delivery_status');
+  });
+
+  test('498 (G9-B3): cancelling a job revokes its live tracking session', async () => {
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    const customerId = await makeUser('customer');
+    const job = await makeJob(customerId, { driverId, status: 'assigned' });
+    const { assignment } = await startLiveTracking(job, driverId);
+
+    const cancelled = await call(localDelivery.updateStatus, {
+      params: { id: String(job.id) }, user: customerUser(customerId),
+      headers: { 'idempotency-key': key('g9q-cancel') },
+      body: { status: 'cancelled', reason: 'Customer changed mind' },
+    });
+    expect(cancelled.next).not.toHaveBeenCalled();
+    expect(cancelled.res.payload.job.status).toBe('cancelled');
+
+    const { rows: [ended] } = await pool.query(
+      'SELECT status, ended_reason FROM delivery_tracking_assignments WHERE id = $1', [assignment.id],
+    );
+    expect(ended.status).toBe('revoked');
+    expect(ended.ended_reason).toBe('cancelled');
+
+    const refused = await ingest(job, driverId);
+    expect(refused.res.statusCode).toBe(409);
+    expect(refused.res.payload.error).toBe('tracking_job_terminal');
+  });
+
+  test('498 (G9-B6): a driver cannot file issues or extras on a job whose access expired; inside the window and the customer can', async () => {
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    const customerId = await makeUser('customer');
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+    const sixDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+    const oldJob = await makeJob(customerId, { driverId, status: 'delivered', pickedUpAt: eightDaysAgo, deliveredAt: eightDaysAgo });
+    const freshJob = await makeJob(customerId, { driverId, status: 'delivered', pickedUpAt: sixDaysAgo, deliveredAt: sixDaysAgo });
+
+    const expiredIssue = await call(localDelivery.createIssue, {
+      params: { id: String(oldJob.id) }, user: helperUser(driverId),
+      headers: { 'idempotency-key': key('g9q-old-issue') },
+      body: { code: 'delay', description: 'Traffic on the highway' },
+    });
+    expect(expiredIssue.next).toHaveBeenCalled();
+    expect(expiredIssue.next.error).toMatchObject({ code: 'delivery_access_expired', status: 410 });
+
+    const expiredExtra = await call(localDelivery.createExtra, {
+      params: { id: String(oldJob.id) }, user: helperUser(driverId),
+      headers: { 'idempotency-key': key('g9q-old-extra') },
+      body: { category: 'waiting', amountCents: 500, notes: 'Waited at the gate' },
+    });
+    expect(expiredExtra.next).toHaveBeenCalled();
+    expect(expiredExtra.next.error).toMatchObject({ code: 'delivery_access_expired', status: 410 });
+
+    // Inside the 7-day window the driver can still report.
+    const freshIssue = await call(localDelivery.createIssue, {
+      params: { id: String(freshJob.id) }, user: helperUser(driverId),
+      headers: { 'idempotency-key': key('g9q-fresh-issue') },
+      body: { code: 'delay', description: 'Traffic on the highway' },
+    });
+    expect(freshIssue.next).not.toHaveBeenCalled();
+    expect(freshIssue.res.statusCode).toBe(201);
+
+    const freshExtra = await call(localDelivery.createExtra, {
+      params: { id: String(freshJob.id) }, user: helperUser(driverId),
+      headers: { 'idempotency-key': key('g9q-fresh-extra') },
+      body: { category: 'waiting', amountCents: 500, notes: 'Waited at the gate' },
+    });
+    expect(freshExtra.next).not.toHaveBeenCalled();
+    expect(freshExtra.res.statusCode).toBe(201);
+
+    // The shipper's access never expires: the customer can still
+    // file on the old delivered job.
+    const customerIssue = await call(localDelivery.createIssue, {
+      params: { id: String(oldJob.id) }, user: customerUser(customerId),
+      headers: { 'idempotency-key': key('g9q-customer-issue') },
+      body: { code: 'damage', description: 'Box arrived dented' },
+    });
+    expect(customerIssue.next).not.toHaveBeenCalled();
+    expect(customerIssue.res.statusCode).toBe(201);
+  });
+
+  test('498 (G9-B6, runner): a driver reschedule request on an expired job 410s before the operation runs', async () => {
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    const customerId = await makeUser('customer');
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+    const oldJob = await makeJob(customerId, { driverId, status: 'delivered', pickedUpAt: eightDaysAgo, deliveredAt: eightDaysAgo });
+    const res = mockRes();
+    const next = mockNext();
+    await recoveryService.requestReschedule({
+      params: { id: String(oldJob.id) }, user: helperUser(driverId),
+      headers: { 'idempotency-key': key('g9q-runner') }, body: {},
+    }, res, next);
+    expect(next).toHaveBeenCalled();
+    expect(next.error).toMatchObject({ code: 'delivery_access_expired', status: 410 });
+  });
+
+  test('499 (G9-B7): a transfer with a stranded outbox records strand rows ops can list and reconcile', async () => {
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    const otherId = await makeUser('helper', { defaultMode: 'helper' });
+    const adminId = await makeUser('admin');
+    const customerId = await makeUser('customer');
+    const job = await makeJob(customerId, { driverId, status: 'assigned' });
+    const strangerJob = await makeJob(customerId, { driverId: otherId, status: 'assigned' });
+    const { rows: [oldDevice] } = await pool.query(
+      `INSERT INTO delivery_tracking_devices (kind, driver_user_id, device_label, platform, status)
+       VALUES ('driver_phone', $1, 'Old phone', 'test', 'active') RETURNING *`,
+      [driverId],
+    );
+    await trackingService.grantConsent({ deliveryJobId: job.id, driverUserId: driverId, deviceId: oldDevice.id });
+    await trackingService.startTracking({ deliveryJobId: job.id, deviceId: oldDevice.id, driverUserId: driverId });
+
+    const transferred = await call(trackingController.transferDevice, {
+      user: helperUser(driverId),
+      body: {
+        oldDeviceId: oldDevice.id, deviceLabel: 'New phone', platform: 'test',
+        strandedOutbox: [
+          { deliveryJobId: job.id, queuedActions: 2, unsyncedPoints: 5 },
+          { deliveryJobId: strangerJob.id, queuedActions: 9, unsyncedPoints: 9 },
+        ],
+      },
+    });
+    expect(transferred.next).not.toHaveBeenCalled();
+    expect(transferred.res.statusCode).toBe(201);
+    // Only the driver's own job is recorded; counts for a job the
+    // driver does not participate in are skipped, never stored.
+    expect(transferred.res.payload.stranded).toHaveLength(1);
+    expect(transferred.res.payload.stranded[0]).toMatchObject({
+      delivery_job_id: job.id, queued_actions: 2, unsynced_points: 5,
+      source: 'transfer', status: 'pending',
+    });
+    const strandId = transferred.res.payload.stranded[0].id;
+
+    const listed = await call(trackingOpsController.listDeviceStrands, { user: operatorUser(adminId), query: {} });
+    expect(listed.next).not.toHaveBeenCalled();
+    expect(listed.res.statusCode).toBe(200);
+    expect(listed.res.payload.strands.map((entry) => String(entry.id))).toContain(String(strandId));
+
+    const reconciled = await call(trackingOpsController.reconcileDeviceStrand, {
+      params: { strandId: String(strandId) }, user: operatorUser(adminId),
+      body: { note: 'Re-keyed the pickup from the driver by phone' },
+    });
+    expect(reconciled.next).not.toHaveBeenCalled();
+    expect(reconciled.res.payload.strand.status).toBe('reconciled');
+    expect(reconciled.res.payload.strand.reconcile_note).toBe('Re-keyed the pickup from the driver by phone');
+
+    const twice = await call(trackingOpsController.reconcileDeviceStrand, {
+      params: { strandId: String(strandId) }, user: operatorUser(adminId),
+      body: { note: 'Again' },
+    });
+    expect(twice.next).not.toHaveBeenCalled();
+    expect(twice.res.statusCode).toBe(409);
+    expect(twice.res.payload.code).toBe('tracking_strand_unavailable');
+  });
+
+  test('499 (G9-B7): a lost-device report records strands; another driver cannot report them', async () => {
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    const otherId = await makeUser('helper', { defaultMode: 'helper' });
+    const customerId = await makeUser('customer');
+    const job = await makeJob(customerId, { driverId, status: 'assigned' });
+    const { rows: [device] } = await pool.query(
+      `INSERT INTO delivery_tracking_devices (kind, driver_user_id, device_label, platform, status)
+       VALUES ('driver_phone', $1, 'Lost phone', 'test', 'active') RETURNING *`,
+      [driverId],
+    );
+
+    const reported = await call(trackingController.reportDeviceStrands, {
+      user: helperUser(driverId),
+      body: { deviceId: device.id, strandedOutbox: [{ deliveryJobId: job.id, queuedActions: 1, unsyncedPoints: 0 }] },
+    });
+    expect(reported.next).not.toHaveBeenCalled();
+    expect(reported.res.statusCode).toBe(201);
+    expect(reported.res.payload.stranded).toHaveLength(1);
+    expect(reported.res.payload.stranded[0]).toMatchObject({
+      delivery_job_id: job.id, queued_actions: 1, source: 'lost', status: 'pending',
+    });
+
+    const forbidden = await call(trackingController.reportDeviceStrands, {
+      user: helperUser(otherId),
+      body: { deviceId: device.id, strandedOutbox: [{ deliveryJobId: job.id, queuedActions: 1, unsyncedPoints: 0 }] },
+    });
+    expect(forbidden.next).not.toHaveBeenCalled();
+    expect(forbidden.res.statusCode).toBe(403);
+    expect(forbidden.res.payload.error).toBe('tracking_forbidden');
+
+    const invalid = await call(trackingController.reportDeviceStrands, {
+      user: helperUser(driverId),
+      body: { deviceId: device.id, strandedOutbox: [{ deliveryJobId: job.id, queuedActions: -1, unsyncedPoints: 0 }] },
+    });
+    expect(invalid.next).not.toHaveBeenCalled();
+    expect(invalid.res.statusCode).toBe(400);
+    expect(invalid.res.payload.error).toBe('tracking_stranded_invalid');
   });
 
   test('500: one open shift; closeout blocks on active jobs, summarizes after completion, and needs open-issue confirmation', async () => {

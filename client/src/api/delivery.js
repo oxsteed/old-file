@@ -108,6 +108,12 @@ export const registerTrackingDevice = (payload) => mutate('post', '/delivery/tra
 // old device. Buffered unsynced points stay on the old device (D-92).
 export const transferTrackingDevice = (payload) => mutate('post', '/delivery/tracking/devices/transfer', payload);
 export const revokeTrackingDevice = (id) => api.delete(`/delivery/tracking/devices/${id}`).then((response) => response.data);
+// Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): the lost-device
+// report (stranded queue counts from the device being abandoned) and
+// the ops reconcile queue for stranded transfer work.
+export const reportDeviceStrands = (deviceId, strandedOutbox) => mutate('post', '/delivery/tracking/devices/strands', { deviceId, strandedOutbox });
+export const listDeviceStrands = (status = 'pending', page = 1, limit = 25) => api.get('/delivery/internal/tracking/device-strands', { params: { status, page, limit } }).then((response) => response.data);
+export const reconcileDeviceStrand = (strandId, note) => mutate('post', `/delivery/internal/tracking/device-strands/${strandId}/reconcile`, { note });
 // Group 9 Slice G (item 500): driver shifts and shift closeout.
 export const startDriverShift = () => mutate('post', '/delivery/driver-shifts');
 export const getOpenDriverShift = () => api.get('/delivery/driver-shifts/open').then((response) => response.data);

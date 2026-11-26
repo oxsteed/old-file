@@ -13,6 +13,7 @@ import {
   refundDeliveryPayment, uploadDeliveryProof, deliveryDate, deliveryUnit, deliveryError, deliveryMoney,
   listInternalExceptions, listInternalDisputes, resolveInternalDispute,
   listInternalDriverPayouts, adjustInternalDriverPayout,
+  listDeviceStrands, reconcileDeviceStrand,
 } from '../api/delivery';
 import '../styles/DeliveryPage.css';
 
@@ -327,8 +328,41 @@ function PayoutAdjustments({ t, language, busy, run }) {
   </section>;
 }
 
-export default function DeliveryDispatchPage() {
-  const { t, i18n } = useTranslation();
+// Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): the ops
+// reconcile queue for queued offline work stranded on a device the
+// driver left behind (transfer or lost phone). One row per job with
+// the counts the driver's client reported; reconciling is explicit
+// per row with a note naming what ops did about the stranded
+// actions, and the row keeps the note as the record.
+function DeviceStrands({ t, language, busy, run }) {
+  const [rows, setRows] = useState(null);
+  const [form, setForm] = useState({});
+  const load = useCallback(async () => {
+    try { setRows(await listDeviceStrands('pending', 1, 25)); } catch { setRows({ strands: [] }); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const strands = rows?.strands || [];
+  const set = (id, key, value) => setForm((previous) => ({ ...previous, [id]: { ...previous[id], [key]: value } }));
+  return <section className="delivery-panel"><h2>{t('delivery.dispatch.deviceStrandsTitle')}</h2><p>{t('delivery.dispatch.deviceStrandsSubtitle')}</p>
+    {!rows && <p role="status">{t('delivery.helper.loading')}</p>}
+    {rows && strands.length === 0 && <p>{t('delivery.dispatch.deviceStrandsEmpty')}</p>}
+    {strands.map((strand) => {
+      const entry = form[strand.id] || {};
+      const name = [strand.driver_first_name, strand.driver_last_name].filter(Boolean).join(' ') || strand.driver_email || strand.driver_user_id;
+      return <article key={strand.id} className="delivery-review-item">
+        <h4>{strand.job_reference || strand.delivery_job_id} · {t(`delivery.dispatch.deviceStrandsSource.${strand.source}`)}</h4>
+        <p>{name} · {deliveryDate(strand.created_at, language)}</p>
+        <p>{t('delivery.dispatch.deviceStrandsSummary', { actions: strand.queued_actions, points: strand.unsynced_points })}</p>
+        <form onSubmit={(event) => { event.preventDefault(); run(async () => { await reconcileDeviceStrand(strand.id, entry.note || ''); await load(); }); }} data-track="ui.49bdb74b31.31"><fieldset className="delivery-form-fields" disabled={busy}>
+          <label className="delivery-field">{t('delivery.dispatch.deviceStrandsNote')}<input className="delivery-input" maxLength={2000} value={entry.note || ''} onChange={(event) => set(strand.id, 'note', event.target.value)} placeholder={t('delivery.dispatch.deviceStrandsNoteHint')} /></label>
+          <button className="delivery-button delivery-button--primary" data-track="ui.49bdb74b31.32">{t('delivery.dispatch.deviceStrandsReconcile')}</button>
+        </fieldset></form>
+      </article>;
+    })}
+  </section>;
+}
+
+export default function DeliveryDispatchPage() {  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const allowed = canAccessOperationsWorkspace(user);
   const [jobs, setJobs] = useState([]);
@@ -478,6 +512,7 @@ export default function DeliveryDispatchPage() {
       <ExceptionsOverview t={t} language={i18n.language} busy={busy} onReview={openReview} />
       <DisputesQueue t={t} language={i18n.language} busy={busy} run={run} />
       <PayoutAdjustments t={t} language={i18n.language} busy={busy} run={run} />
+      <DeviceStrands t={t} language={i18n.language} busy={busy} run={run} />
       <section className="delivery-panel"><h2>{t('delivery.ui.resources')}</h2><p>{t('delivery.ui.resourceHint')}</p>
         <div className="delivery-detail-grid"><ResourceForm kind="driver" drivers={drivers} busy={busy} run={run} t={t} /><ResourceForm kind="vehicle" drivers={drivers} busy={busy} run={run} t={t} /></div>
         <h3>{t('delivery.ui.vehicles')}</h3><ul>{vehicles.map((item) => <li key={item.id}>{item.label} · {deliveryUnit(item.max_payload_lbs, 'pound', i18n.language)}</li>)}</ul>

@@ -396,6 +396,49 @@ async function stopTracking(assignmentId, { reason = 'manual', actorUserId = nul
 }
 
 /**
+ * Group 9 partials Wave 2 Batch Q (498, G9-B3, D-560): end every live
+ * tracking session for a job when the job itself ends. Runs inside the
+ * caller's transaction (the delivered/cancelled transition in
+ * updateStatus owns the commit), so it takes a client instead of
+ * opening its own transaction like stopTracking does. 'delivered'
+ * maps to status 'completed'; every other reason maps to 'revoked',
+ * the same mapping stopTracking uses. A job with no live assignment
+ * is a no-op and returns an empty list.
+ */
+async function endTrackingForJob(client, deliveryJobId, reason) {
+  if (!STOP_REASONS.includes(reason)) {
+    throw trackingError('tracking_stop_reason_invalid', 'Unknown tracking stop reason');
+  }
+  const status = reason === 'delivered' ? 'completed' : 'revoked';
+  const { rows: assignments } = await client.query(
+    `SELECT id FROM delivery_tracking_assignments
+        WHERE delivery_job_id = $1 AND status IN ('active', 'paused')
+        FOR UPDATE`,
+    [deliveryJobId]
+  );
+  const ended = [];
+  for (const assignment of assignments) {
+    const { rows } = await client.query(
+      `UPDATE delivery_tracking_assignments
+          SET status = $2, ended_at = NOW(), ended_reason = $3, updated_at = NOW()
+        WHERE id = $1
+        RETURNING *`,
+      [assignment.id, status, reason]
+    );
+    await insertTrackingEvent(client, {
+      deliveryJobId,
+      assignmentId: assignment.id,
+      eventType: 'tracking_stopped',
+      actorUserId: null,
+      payload: { reason },
+    });
+    ended.push(rows[0]);
+  }
+  if (ended.length) logger.info('Tracking ended with job', { deliveryJobId, reason, count: ended.length });
+  return ended;
+}
+
+/**
  * Validate one raw location point against the last accepted point.
  * Returns { state: 'valid'|'suspicious'|'rejected', notes }.
  * Suspicious points are stored for operations review; rejected points are not.
@@ -820,8 +863,14 @@ async function setDeviceStatus({ deviceId, actorUserId, status, allowOperations 
  * surfaces that as a notice (D-92) and the old device keeps its
  * queue until it reconnects — revoking the device does not delete
  * its local queue, it only stops new ingestion from it.
+ * Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): what DOES get
+ * recorded now is the count. The client counts the queued offline
+ * actions and buffered points per job and sends them as
+ * strandedOutbox; the transfer stores one strand row per job so ops
+ * can reconcile each stranded job instead of the queue vanishing
+ * with no server trace.
  */
-async function transferTrackingDevice({ driverUserId, oldDeviceId, deviceLabel = null, platform = null }) {
+async function transferTrackingDevice({ driverUserId, oldDeviceId, deviceLabel = null, platform = null, strandedOutbox = null }) {
   if (!driverUserId || !oldDeviceId) {
     throw trackingError('tracking_device_transfer_invalid', 'A driver and an old device are required');
   }
@@ -896,6 +945,20 @@ async function transferTrackingDevice({ driverUserId, oldDeviceId, deviceLabel =
       [oldDeviceId]
     );
 
+    // Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): the queued
+    // offline actions and buffered GPS points the client counted on
+    // the old device are recorded per job, in the same transaction as
+    // the move, so ops can reconcile each stranded job. Entries for
+    // jobs the driver does not participate in are skipped, never
+    // stored: the count is the driver's claim about their own queue.
+    const stranded = await insertStrandRows(client, {
+      driverUserId,
+      oldDeviceId,
+      newDeviceId: device.id,
+      source: 'transfer',
+      entries: normalizeStrandedOutbox(strandedOutbox),
+    });
+
     return {
       device,
       oldDevice: { ...oldDevice, status: 'revoked' },
@@ -904,8 +967,96 @@ async function transferTrackingDevice({ driverUserId, oldDeviceId, deviceLabel =
         deliveryJobId: assignment.delivery_job_id,
         status: assignment.status,
       })),
+      stranded,
     };
   }, 'transfer_tracking_device');
+}
+
+/**
+ * Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): validate the
+ * client-counted stranded outbox a transfer (or lost-device report)
+ * sends. At most 200 jobs; each entry names a job with non-negative
+ * counts. Entries with nothing stranded are dropped. Anything
+ * malformed is a 400 — a bad count must never silently become a
+ * strand row ops has to chase.
+ */
+function normalizeStrandedOutbox(input) {
+  if (input == null) return [];
+  if (!Array.isArray(input) || input.length > 200) {
+    throw trackingError('tracking_stranded_invalid', 'strandedOutbox must be an array of at most 200 jobs');
+  }
+  const entries = [];
+  for (const entry of input) {
+    const deliveryJobId = Number(entry?.deliveryJobId);
+    const queuedActions = Number(entry?.queuedActions);
+    const unsyncedPoints = Number(entry?.unsyncedPoints);
+    if (!Number.isInteger(deliveryJobId) || deliveryJobId <= 0
+      || !Number.isInteger(queuedActions) || queuedActions < 0
+      || !Number.isInteger(unsyncedPoints) || unsyncedPoints < 0) {
+      throw trackingError('tracking_stranded_invalid', 'Each stranded entry needs a job id and non-negative counts');
+    }
+    if (queuedActions === 0 && unsyncedPoints === 0) continue;
+    entries.push({ deliveryJobId, queuedActions, unsyncedPoints });
+  }
+  return entries;
+}
+
+async function insertStrandRows(client, { driverUserId, oldDeviceId, newDeviceId = null, source, entries }) {
+  const stranded = [];
+  for (const entry of entries) {
+    const { rows: [job] } = await client.query(
+      `SELECT reference FROM delivery_jobs
+        WHERE id = $1 AND (helper_user_id = $2 OR internal_driver_user_id = $2)`,
+      [entry.deliveryJobId, driverUserId]
+    );
+    if (!job) continue;
+    const { rows: [row] } = await client.query(
+      `INSERT INTO delivery_device_transfer_strands
+         (driver_user_id, old_device_id, new_device_id, delivery_job_id,
+          job_reference, queued_actions, unsynced_points, source)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [driverUserId, oldDeviceId, newDeviceId, entry.deliveryJobId,
+        job.reference, entry.queuedActions, entry.unsyncedPoints, source]
+    );
+    stranded.push(row);
+  }
+  return stranded;
+}
+
+/**
+ * Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): the lost-device
+ * report. The driver marks a phone lost from the device that is being
+ * abandoned, so the client counts the stranded queue in that same
+ * browser and records it here before the revoke lands. The device
+ * must belong to the driver; the counts are stored exactly as
+ * reported, one row per job, for ops to reconcile.
+ */
+async function recordDeviceStrands({ driverUserId, deviceId, strandedOutbox }) {
+  if (!driverUserId || !deviceId) {
+    throw trackingError('tracking_stranded_invalid', 'A driver and a device are required');
+  }
+  return withTransaction(pool, async (client) => {
+    const { rows: [device] } = await client.query(
+      `SELECT id, kind, driver_user_id, status FROM delivery_tracking_devices
+        WHERE id = $1 FOR UPDATE`,
+      [deviceId]
+    );
+    if (!device) {
+      throw trackingError('tracking_device_not_found', 'Tracking device not found', 404);
+    }
+    if (device.kind !== 'driver_phone'
+      || String(device.driver_user_id || '') !== String(driverUserId || '')) {
+      throw trackingError('tracking_forbidden', 'Only the device owner may report it', 403);
+    }
+    return insertStrandRows(client, {
+      driverUserId,
+      oldDeviceId: device.id,
+      newDeviceId: null,
+      source: 'lost',
+      entries: normalizeStrandedOutbox(strandedOutbox),
+    });
+  }, 'record_device_strands');
 }
 
 module.exports = {
@@ -916,11 +1067,13 @@ module.exports = {
   pauseTracking,
   resumeTracking,
   stopTracking,
+  endTrackingForJob,
   ingestLocationBatch,
   recordScan,
   getAssignmentStatus,
   setDeviceStatus,
   transferTrackingDevice,
+  recordDeviceStrands,
   // exported for testing
   _validatePoint: validatePoint,
   _haversineMeters: haversineMeters,

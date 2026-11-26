@@ -185,12 +185,21 @@ router.get('/tracking/devices', requireAuth, trackingController.listDevices);
 // the live tracking assignments and consent to it and revokes the
 // old device. Same /delivery router, not a tenant route.
 router.post('/tracking/devices/transfer', requireAuth, rejectImpersonated, trackingController.transferDevice);
+// Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): the lost-device
+// report. The driver records the stranded queue counts from the
+// device being abandoned, before the revoke (DELETE below) lands.
+router.post('/tracking/devices/strands', requireAuth, rejectImpersonated, trackingController.reportDeviceStrands);
 router.patch('/tracking/devices/:deviceId', requireAuth, trackingController.updateDevice);
 router.delete('/tracking/devices/:deviceId', requireAuth, trackingController.updateDevice);
 
 // ── Delivery tracking: operations API (integration plan) ──
 router.get('/internal/jobs/:id/tracking/exact', requireAuth, requireOperationsWorkspace, trackingOpsController.getExactTracking);
 router.get('/internal/tracking/review-queue', requireAuth, requireOperationsWorkspace, trackingOpsController.getReviewQueue);
+// Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): the ops
+// reconcile queue for stranded device-transfer work, and the
+// per-row reconcile decision.
+router.get('/internal/tracking/device-strands', requireAuth, requireOperationsWorkspace, trackingOpsController.listDeviceStrands);
+router.post('/internal/tracking/device-strands/:strandId/reconcile', requireAuth, requireOperationsWorkspace, trackingOpsController.reconcileDeviceStrand);
 router.patch('/internal/tracking/points/:pointId', requireAuth, requireOperationsWorkspace, trackingOpsController.reviewPoint);
 router.post('/internal/telematics/connections', requireAuth, requireOperationsWorkspace, trackingOpsController.createTelematicsConnection);
 router.get('/internal/telematics/connections', requireAuth, requireOperationsWorkspace, trackingOpsController.listTelematicsConnections);

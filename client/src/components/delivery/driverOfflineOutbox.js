@@ -101,6 +101,59 @@ export function queuedCount(storage, jobId) {
   return readOutbox(storage, jobId).filter((entry) => entry.state === 'queued' || entry.state === 'syncing').length;
 }
 
+// Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): the stranded
+// count for a device change. The GPS queue (DriverTrackingControls,
+// `tracking-queue:<jobId>`) and the action outbox
+// (`delivery-outbox:<jobId>`) both live only in this browser's
+// localStorage, so the counts a transfer or a lost phone strands are
+// counted here, per job, and sent with the transfer (or the
+// lost-device report) for ops to reconcile. Entries already synced
+// or failed are not stranded — a failed entry stays visible on the
+// checklist for the driver to retry or discard, it is not lost with
+// the device — and an entry with nothing queued is not reported.
+export const TRACKING_QUEUE_PREFIX = 'tracking-queue:';
+export const OUTBOX_KEY_PREFIX = 'delivery-outbox:';
+
+export function countStrandedOutbox(storage) {
+  const jobs = new Map();
+  const take = (jobId) => {
+    const key = String(jobId);
+    if (!jobs.has(key)) jobs.set(key, { jobId: key, queuedActions: 0, unsyncedPoints: 0 });
+    return jobs.get(key);
+  };
+  const keys = [];
+  if (typeof storage?.length === 'number' && typeof storage?.key === 'function') {
+    for (let i = 0; i < storage.length; i += 1) {
+      const key = storage.key(i);
+      if (key != null) keys.push(key);
+    }
+  } else if (storage && typeof storage === 'object') {
+    keys.push(...Object.keys(storage));
+  }
+  for (const key of keys) {
+    if (typeof key !== 'string') continue;
+    if (key.startsWith(OUTBOX_KEY_PREFIX)) {
+      const jobId = key.slice(OUTBOX_KEY_PREFIX.length);
+      if (!jobId) continue;
+      const queued = readOutbox(storage, jobId)
+        .filter((entry) => entry.state === 'queued' || entry.state === 'syncing').length;
+      if (queued > 0) take(jobId).queuedActions = queued;
+    } else if (key.startsWith(TRACKING_QUEUE_PREFIX)) {
+      const jobId = key.slice(TRACKING_QUEUE_PREFIX.length);
+      if (!jobId) continue;
+      const points = readRaw(storage, key, []);
+      if (Array.isArray(points) && points.length > 0) take(jobId).unsyncedPoints = points.length;
+    }
+  }
+  const list = [...jobs.values()].filter((entry) => entry.queuedActions > 0 || entry.unsyncedPoints > 0);
+  return {
+    jobs: list,
+    totalQueuedActions: list.reduce((sum, entry) => sum + entry.queuedActions, 0),
+    totalUnsyncedPoints: list.reduce((sum, entry) => sum + entry.unsyncedPoints, 0),
+    totalJobs: list.length,
+  };
+}
+
 // Proof files held in memory, keyed by outbox entry id. localStorage
 // cannot hold a File, so a queued photo proof keeps its bytes here
 // until the flush uploads them.

@@ -625,8 +625,14 @@ ddescribe('Group 9 Slice F: track shipments + review work (486-495)', () => {
     // Previous week in New York, relative to Monday 2026-11-23 07:00 UTC.
     const now = new Date('2026-11-23T07:00:00Z');
     const weekStart = '2026-11-16';
-    const deliveredAt = new Date('2026-11-18T12:00:00Z');
-    const pickedUpAt = new Date('2026-11-18T11:15:00Z');
+    // Group 9 partials Wave 2 Batch Q (498, G9-B6, D-561): the driver
+    // files the issue through createIssue, which enforces the 7-day
+    // access expiry (D-90) against the real clock — so the job is
+    // created with recent stamps, and the stamps are moved back into
+    // the fixture week afterwards, the same way the issue's created_at
+    // already is. The report reads stored rows.
+    const deliveredAt = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const pickedUpAt = new Date(deliveredAt.getTime() - 45 * 60 * 1000);
     const job = await makeJob(customerId, {
       driverId, status: 'delivered', pickedUpAt, deliveredAt,
     });
@@ -637,6 +643,10 @@ ddescribe('Group 9 Slice F: track shipments + review work (486-495)', () => {
     // week so the report counts it — the report reads stored rows.
     await pool.query(
       "UPDATE delivery_issues SET created_at = '2026-11-18T13:30:00Z' WHERE delivery_job_id = $1",
+      [job.id],
+    );
+    await pool.query(
+      "UPDATE delivery_jobs SET picked_up_at = '2026-11-18T11:15:00Z', delivered_at = '2026-11-18T12:00:00Z' WHERE id = $1",
       [job.id],
     );
 

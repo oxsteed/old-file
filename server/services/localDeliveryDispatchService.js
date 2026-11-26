@@ -295,6 +295,16 @@ function createActionRunner(deps = {}) {
       const job = (await client.query('SELECT * FROM delivery_jobs WHERE id = $1 FOR UPDATE', [jobId])).rows[0];
       if (!job) throw fail('Delivery job not found', 'delivery_not_found', 404);
       await authorize(req, job, access);
+      // Group 9 partials Wave 2 Batch Q (498, G9-B6, D-561): the
+      // 7-day driver access expiry (D-90) applies to the driver-acting
+      // recovery/dispatch actions too — reschedule and return requests
+      // from a driver on a job delivered months ago 410 instead of
+      // opening new work on a closed job. Operator actions skip the
+      // check: ops acts on the job, not as the driver, and an operator
+      // who also happens to be the assigned driver must still be able
+      // to resolve an old exception. The check is driver-only inside
+      // assertDriverJobAccess, so customers are unaffected either way.
+      if (access !== 'operator') integrity.assertDriverJobAccess(job, req.user);
       const { clientRequestId, idempotencyKey, ...body } = req.body || {};
       const input = { jobId: String(job.id), childId: childId || null, action, body };
       const prior = await integrity.actionReplay(client, job, req.user, action, key, input);

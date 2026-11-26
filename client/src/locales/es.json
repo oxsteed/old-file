@@ -23482,7 +23482,18 @@
       "transferTitle": "Transferir en ruta",
       "transferHint": "Mueva esta entrega recogida a otro conductor. La prueba de recogida permanece en el trabajo.",
       "transferReason": "Motivo de la transferencia",
-      "transferSubmit": "Transferir"
+      "transferSubmit": "Transferir",
+      "deviceStrandsTitle": "Trabajo varado por cambio de dispositivo",
+      "deviceStrandsSubtitle": "Acciones sin conexión en cola y puntos sin enviar que quedaron en un dispositivo del que el conductor cambió o que marcó como perdido. Concilie cada trabajo para que nada se pierda en silencio.",
+      "deviceStrandsEmpty": "No hay trabajo varado por dispositivo para conciliar.",
+      "deviceStrandsSummary": "{{actions}} acción(es) en cola · {{points}} punto(s) sin enviar",
+      "deviceStrandsNote": "Qué se hizo",
+      "deviceStrandsNoteHint": "Reingresado, ya sincronizado o confirmado perdido: ¿qué pasó con las acciones varadas?",
+      "deviceStrandsReconcile": "Marcar como conciliado",
+      "deviceStrandsSource": {
+        "transfer": "Cambio de dispositivo",
+        "lost": "Dispositivo perdido"
+      }
     },
     "dispatchStates": {
       "internal_review": "Revisión interna",
@@ -23503,6 +23514,9 @@
       "markDeviceLost": "Marcar dispositivo anterior como perdido",
       "deviceLost": "Dispositivo anterior revocado.",
       "deviceLostNotice": "El dispositivo anterior ya no puede enviar seguimiento. Los puntos que no había enviado quedan en ese dispositivo hasta que se reconecte.",
+      "transferStrandedWarning": "Este dispositivo todavía tiene {{actions}} acción(es) en cola y {{points}} punto(s) de ubicación sin enviar en {{jobs}} trabajo(s). Cambiar mueve su seguimiento en vivo, pero el trabajo en cola queda en este dispositivo; operaciones tendrá la lista para conciliar.",
+      "transferStrandedNotice": "El seguimiento se trasladó a este dispositivo ({{count}} sesión(es) en vivo). {{actions}} acción(es) en cola y {{points}} punto(s) sin enviar quedaron en el dispositivo anterior y se registraron para que operaciones los concilie.",
+      "deviceLostStrandedNotice": "El dispositivo anterior ya no puede enviar seguimiento. {{actions}} acción(es) en cola y {{points}} punto(s) sin enviar de {{jobs}} trabajo(s) se registraron para que operaciones los concilie.",
       "ops": {
         "openTracking": "Seguimiento",
         "metaTitle": "Operaciones de seguimiento - OxSteed",

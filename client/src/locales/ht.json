@@ -23482,7 +23482,18 @@
       "transferTitle": "Transfere pandan wout la",
       "transferHint": "Deplase livrezon sa a ki deja pran an bay yon lòt chofè. Prèv ou te pran l la rete nan travay la.",
       "transferReason": "Rezon transfè a",
-      "transferSubmit": "Transfere"
+      "transferSubmit": "Transfere",
+      "deviceStrandsTitle": "Travay ki rete sou ansyen aparèy",
+      "deviceStrandsSubtitle": "Aksyon san koneksyon ki nan fil ap tann ak pwen ki poko voye ki te rete sou yon aparèy chofè a kite oswa deklare pèdi. Rekonsilye chak travay pou anyen pa pèdi an silans.",
+      "deviceStrandsEmpty": "Pa gen travay ki rete sou aparèy pou rekonsilye.",
+      "deviceStrandsSummary": "{{actions}} aksyon nan fil ap tann · {{points}} pwen ki poko voye",
+      "deviceStrandsNote": "Sa ki te fèt",
+      "deviceStrandsNoteHint": "Te re-antre, te deja senkronize, oswa konfime pèdi — kisa ki te rive aksyon ki te rete yo?",
+      "deviceStrandsReconcile": "Make rekonsilye",
+      "deviceStrandsSource": {
+        "transfer": "Chanjman aparèy",
+        "lost": "Aparèy pèdi"
+      }
     },
     "dispatchStates": {
       "internal_review": "Revizyon entèn",
@@ -23503,6 +23514,9 @@
       "markDeviceLost": "Make ansyen aparèy la pèdi",
       "deviceLost": "Ansyen aparèy revoke.",
       "deviceLostNotice": "Ansyen aparèy la pa ka voye swivi ankò. Pwen li poko t voye yo rete sou aparèy sa a jiskaske li rekonekte.",
+      "transferStrandedWarning": "Aparèy sa a gen {{actions}} aksyon nan fil ap tann ak {{points}} pwen pozisyon ki poko voye sou {{jobs}} travay. Chanjman an deplase swivi ou an dirèk, men travay nan fil la rete sou aparèy sa a — operasyon ap gen lis la pou rekonsilye.",
+      "transferStrandedNotice": "Swivi a deplase sou aparèy sa a ({{count}} sesyon an dirèk). {{actions}} aksyon nan fil ap tann ak {{points}} pwen ki poko voye te rete sou ansyen aparèy la epi yo anrejistre pou operasyon rekonsilye.",
+      "deviceLostStrandedNotice": "Ansyen aparèy la pa ka voye swivi ankò. {{actions}} aksyon nan fil ap tann ak {{points}} pwen ki poko voye nan {{jobs}} travay yo anrejistre pou operasyon rekonsilye.",
       "ops": {
         "openTracking": "Swivi",
         "metaTitle": "Operasyon swivi - OxSteed",

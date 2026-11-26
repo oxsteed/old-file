@@ -9,6 +9,7 @@ import {
   postTrackingLocations,
   postTrackingScan,
   registerTrackingDevice,
+  reportDeviceStrands,
   resumeTracking,
   revokeTrackingConsent,
   revokeTrackingDevice,
@@ -16,6 +17,7 @@ import {
   stopTracking,
   transferTrackingDevice,
 } from '../../api/delivery';
+import { countStrandedOutbox, TRACKING_QUEUE_PREFIX } from './driverOfflineOutbox';
 
 const CONSENT_VERSION = 'v1';
 const CAPTURE_INTERVAL_MS = 15000;
@@ -25,7 +27,7 @@ const ACCURACY_WARNING_METERS = 100;
 
 const deviceKey = (userId) => `tracking-device:${userId}`;
 const consentKey = (jobId) => `tracking-consent:${jobId}`;
-const queueKey = (jobId) => `tracking-queue:${jobId}`;
+const queueKey = (jobId) => `${TRACKING_QUEUE_PREFIX}${jobId}`;
 const sequenceKey = (jobId) => `tracking-sequence:${jobId}`;
 
 function readJson(key, fallback) {
@@ -67,6 +69,17 @@ export default function DriverTrackingControls({ job, userId }) {
   // stay on the old device until it reconnects, D-92).
   const [devices, setDevices] = useState([]);
   const [transferNotice, setTransferNotice] = useState('');
+  // Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): what this
+  // device would strand on a transfer or a lost phone — queued
+  // offline actions and unsent GPS points, counted per job from this
+  // browser's localStorage. Shown before the driver confirms, so the
+  // transfer is never a blind move.
+  const [stranded, setStranded] = useState({ jobs: [], totalQueuedActions: 0, totalUnsyncedPoints: 0, totalJobs: 0 });
+  const refreshStranded = useCallback(() => {
+    const counted = countStrandedOutbox(localStorage);
+    setStranded(counted);
+    return counted;
+  }, []);
   const lastAction = useRef(null);
   const watchId = useRef(null);
   const intervalId = useRef(null);
@@ -214,6 +227,7 @@ export default function DriverTrackingControls({ job, userId }) {
       }
       if (!cancelled) {
         await refreshStatus();
+        refreshStranded();
         flush(); // replay any points buffered while offline
       }
     })();
@@ -232,7 +246,7 @@ export default function DriverTrackingControls({ job, userId }) {
       document.removeEventListener('visibilitychange', onVisible);
       clearCapture();
     };
-  }, [jobId, userId, clearCapture, flush, refreshStatus, showError, t]);
+  }, [jobId, userId, clearCapture, flush, refreshStatus, refreshStranded, showError, t]);
 
   // Cost audit 2026-11-13 P6: while tracking is active, a backgrounded
   // tab used to keep burning high-accuracy GPS plus 4 location POSTs/min.
@@ -327,11 +341,19 @@ export default function DriverTrackingControls({ job, userId }) {
   // job keeps tracking without a restart. The old device's buffered,
   // unsynced points cannot move — they stay on the old device until
   // it reconnects — and the notice says so plainly (D-92).
+  // Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): the queued
+  // offline actions cannot move either, and now they are counted,
+  // named in the notice, and recorded server-side with the transfer
+  // so ops can reconcile each stranded job. The counts are
+  // re-counted at confirm time, not read from state, so actions
+  // queued after the page loaded are included.
   const handleTransferDevice = () => act(async () => {
+    const fresh = refreshStranded();
     const result = await transferTrackingDevice({
       oldDeviceId: deviceId,
       deviceLabel: t('delivery.tracking.deviceLabel'),
       platform: navigator.platform || null,
+      strandedOutbox: fresh.jobs,
     });
     const nextId = result?.device?.id || null;
     if (nextId) {
@@ -339,21 +361,35 @@ export default function DriverTrackingControls({ job, userId }) {
       localStorage.setItem(deviceKey(userId), String(nextId));
     }
     setDevices(result?.device ? [...devices.filter((d) => String(d.id) !== String(deviceId)), result.device] : devices);
-    setTransferNotice(t('delivery.tracking.transferUnsyncedNotice', { count: result?.transferredAssignments?.length || 0 }));
+    const sessions = result?.transferredAssignments?.length || 0;
+    setTransferNotice(fresh.totalQueuedActions > 0 || fresh.totalUnsyncedPoints > 0
+      ? t('delivery.tracking.transferStrandedNotice', { count: sessions, actions: fresh.totalQueuedActions, points: fresh.totalUnsyncedPoints })
+      : t('delivery.tracking.transferUnsyncedNotice', { count: sessions }));
     await refreshStatus();
   }, 'delivery.tracking.transferred');
 
   // Mark the old device lost/transferred: revoke it so it can no
   // longer ingest. Its local queue is untouched by the revoke — the
   // points stay on the old device until it reconnects.
+  // Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562): before the
+  // revoke, the stranded queue counted in this browser is reported
+  // to the server, so the lost phone leaves a reconcile record
+  // instead of a silent gap. A report failure never blocks the
+  // revoke itself.
   const handleMarkDeviceLost = () => act(async () => {
     clearCapture();
+    const fresh = refreshStranded();
+    if (fresh.totalQueuedActions > 0 || fresh.totalUnsyncedPoints > 0) {
+      try { await reportDeviceStrands(deviceId, fresh.jobs); } catch { /* the revoke still lands */ }
+    }
     await revokeTrackingDevice(deviceId);
     localStorage.removeItem(deviceKey(userId));
     setDeviceId(null);
     setDevices(devices.filter((d) => String(d.id) !== String(deviceId)));
     setTrackingState('none');
-    setTransferNotice(t('delivery.tracking.deviceLostNotice'));
+    setTransferNotice(fresh.totalQueuedActions > 0 || fresh.totalUnsyncedPoints > 0
+      ? t('delivery.tracking.deviceLostStrandedNotice', { actions: fresh.totalQueuedActions, points: fresh.totalUnsyncedPoints, jobs: fresh.totalJobs })
+      : t('delivery.tracking.deviceLostNotice'));
     await refreshStatus();
   }, 'delivery.tracking.deviceLost');
 
@@ -507,6 +543,15 @@ export default function DriverTrackingControls({ job, userId }) {
           <div className="delivery-tracking-devices">
             <h3>{t('delivery.tracking.devicesTitle')}</h3>
             <p>{t('delivery.tracking.deviceCurrent', { label: devices.find((d) => String(d.id) === String(deviceId))?.device_label || deviceId || t('delivery.tracking.noDevice') })}</p>
+            {/* Group 9 partials Wave 2 Batch Q (499, G9-B7, D-562):
+              the pre-transfer warning: what this device would strand.
+              Shown before the driver confirms, with the per-device
+              counts, so the transfer is never a blind move. */}
+            {(stranded.totalQueuedActions > 0 || stranded.totalUnsyncedPoints > 0) && (
+              <p className="delivery-alert delivery-alert--warning" role="status">
+                {t('delivery.tracking.transferStrandedWarning', { actions: stranded.totalQueuedActions, points: stranded.totalUnsyncedPoints, jobs: stranded.totalJobs })}
+              </p>
+            )}
             {transferNotice && <p className="delivery-alert delivery-alert--warning" role="status">{transferNotice}</p>}
             <div className="delivery-tracking-controls">
               <button className="delivery-button delivery-button--secondary" disabled={busy || !deviceId} onClick={handleTransferDevice} data-track="ui.5f4e3d8edc.10">

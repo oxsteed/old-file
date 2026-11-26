@@ -23482,7 +23482,18 @@
       "transferTitle": "Transfer mid-route",
       "transferHint": "Move this picked-up delivery to another driver. The pickup proof stays with the job.",
       "transferReason": "Reason for transfer",
-      "transferSubmit": "Transfer"
+      "transferSubmit": "Transfer",
+      "deviceStrandsTitle": "Stranded device work",
+      "deviceStrandsSubtitle": "Queued offline actions and unsent points left on a device the driver switched away from or marked lost. Reconcile each job so nothing is silently dropped.",
+      "deviceStrandsEmpty": "No stranded device work to reconcile.",
+      "deviceStrandsSummary": "{{actions}} queued action(s) · {{points}} unsent point(s)",
+      "deviceStrandsNote": "What was done",
+      "deviceStrandsNoteHint": "Re-keyed, already synced, or confirmed lost — what happened to the stranded actions?",
+      "deviceStrandsReconcile": "Mark reconciled",
+      "deviceStrandsSource": {
+        "transfer": "Device transfer",
+        "lost": "Lost device"
+      }
     },
     "dispatchStates": {
       "internal_review": "Internal review",
@@ -23503,6 +23514,9 @@
       "markDeviceLost": "Mark old device lost",
       "deviceLost": "Old device revoked.",
       "deviceLostNotice": "The old device can no longer send tracking. Any points it had not sent stay on that device until it reconnects.",
+      "transferStrandedWarning": "This device still has {{actions}} queued action(s) and {{points}} unsent location point(s) across {{jobs}} job(s). Switching moves your live tracking, but the queued work stays on this device — operations will have the list to reconcile.",
+      "transferStrandedNotice": "Tracking moved to this device ({{count}} live session(s)). {{actions}} queued action(s) and {{points}} unsent point(s) were left on the old device and recorded for operations to reconcile.",
+      "deviceLostStrandedNotice": "The old device can no longer send tracking. {{actions}} queued action(s) and {{points}} unsent point(s) from {{jobs}} job(s) were recorded for operations to reconcile.",
       "ops": {
         "openTracking": "Tracking",
         "metaTitle": "Tracking operations - OxSteed",

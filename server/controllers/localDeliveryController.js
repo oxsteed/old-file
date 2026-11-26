@@ -33,6 +33,11 @@ const { buildWeeklyReport, driverTimezone } = require('../services/deliveryWeekl
 const { renderWeeklyReportPdf } = require('../services/deliveryWeeklyReportPdf');
 // Group 9 Slice G (item 500): driver shifts and shift closeout.
 const shiftService = require('../services/deliveryDriverShiftService');
+// Group 9 partials Wave 2 Batch Q (498, G9-B3, D-560): ending the live
+// tracking sessions inside the delivered/cancelled transition. The
+// tracking service never touches delivery_jobs, so there is no import
+// cycle with this controller.
+const trackingService = require('../services/deliveryTrackingService');
 
 // Group 9 partials Wave 2 Batch L (451, G9-A8, D-529): driver approval
 // and payout notices. Fire-and-forget after the transition commits;
@@ -723,28 +728,49 @@ exports.list = async (req, res, next) => {
       if (center) { lat = center.lat; lng = center.lng; hasGeo = true; }
     }
     const maxMiles = 50;
+    // Group 9 partials Wave 2 Batch Q (491, G9-B11, D-559): the driver
+    // history filter. `mine=1` restricts to jobs the caller participates
+    // in (no marketplace offers); `status=active` keeps non-terminal
+    // jobs, `status=completed` keeps delivered/cancelled/returned. The
+    // marketplace feed is unchanged when neither is sent. The status
+    // values are fixed literals, so no new query params are introduced
+    // and the geo param numbering is untouched. When mine=1 the
+    // marketplace clause (and its $2..$5 params) is not referenced at
+    // all, so those params are not sent either: Postgres rejects a
+    // supplied parameter the query text never uses.
+    const mineOnly = req.query.mine === '1' || req.query.mine === 'true';
+    const historyStatus = req.query.status === 'active' || req.query.status === 'completed' ? req.query.status : null;
     let marketplaceClause = `($2::boolean AND status='posted' AND dispatch_state='marketplace_posted' AND fulfillment_source='marketplace' AND helper_user_id IS NULL AND internal_driver_user_id IS NULL)`;
-    const params = [req.user.id, canDrive];
-    if (hasGeo) {
-      // Haversine distance filter (approximate).
-      marketplaceClause += ` AND (
-        3959 * acos(cos(radians($3)) * cos(radians(origin_lat)) * cos(radians(origin_lng - $4)) + sin(radians($3)) * sin(radians(origin_lat)))
-      ) <= $5`;
-      params.push(lat, lng, maxMiles);
+    const params = [req.user.id];
+    if (!mineOnly) {
+      params.push(canDrive);
+      if (hasGeo) {
+        // Haversine distance filter (approximate).
+        marketplaceClause += ` AND (
+          3959 * acos(cos(radians($3)) * cos(radians(origin_lat)) * cos(radians(origin_lng - $4)) + sin(radians($3)) * sin(radians(origin_lat)))
+        ) <= $5`;
+        params.push(lat, lng, maxMiles);
+      }
     }
     // Group 9 partials Wave 2 Batch M (456, G9-A19, D-537): paginate the
     // feed like the driver payout list (D-524) instead of silently
     // capping at 100 rows. The default page stays 100 (the old cap); the
     // COUNT total lets the client page through the full list.
+    const participantClause = `customer_user_id=$1 OR helper_user_id=$1 OR internal_driver_user_id=$1`;
+    // The participant OR-group is parenthesised in both branches: the
+    // status AND-clause must apply to the whole group, not just the
+    // last OR term (AND binds tighter than OR).
+    const baseClause = mineOnly ? `(${participantClause})` : `(${participantClause} OR ${marketplaceClause})`;
+    const statusClause = historyStatus === 'completed'
+      ? ` AND status IN ('delivered','cancelled','returned')`
+      : historyStatus === 'active' ? ` AND status NOT IN ('delivered','cancelled','returned')` : '';
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 100));
     const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
     const pageParams = [...params, limit, offset];
-    const {rows} = await pool.query(`SELECT * FROM delivery_jobs WHERE customer_user_id=$1 OR helper_user_id=$1 OR internal_driver_user_id=$1
-      OR ${marketplaceClause}
+    const {rows} = await pool.query(`SELECT * FROM delivery_jobs WHERE ${baseClause}${statusClause}
       ORDER BY created_at DESC LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`, pageParams);
     const { rows: [countRow] } = await pool.query(
-      `SELECT COUNT(*)::int AS total FROM delivery_jobs WHERE customer_user_id=$1 OR helper_user_id=$1 OR internal_driver_user_id=$1
-       OR ${marketplaceClause}`,
+      `SELECT COUNT(*)::int AS total FROM delivery_jobs WHERE ${baseClause}${statusClause}`,
       params,
     );
     // Group 9 Slice B (item 460): the driver's own decline on each job,
@@ -1351,6 +1377,13 @@ exports.updateStatus = async (req,res,next) => {
       await client.query("UPDATE delivery_assignment_reservations SET status=$2 WHERE delivery_job_id=$1 AND status='active'",[job.id,requested==='delivered'?'completed':'cancelled']);
       await client.query("UPDATE delivery_reschedule_requests SET status='cancelled' WHERE delivery_job_id=$1 AND status='pending'",[job.id]);
       await client.query("UPDATE delivery_extras SET status='voided' WHERE delivery_job_id=$1 AND status='pending'",[job.id]);
+      // Group 9 partials Wave 2 Batch Q (498, G9-B3, D-560): the live
+      // tracking session ends with the job, in this same transaction.
+      // Delivered ends the assignment as completed; cancelled revokes
+      // it. A driver who forgets to stop tracking stops broadcasting
+      // here, and ingest is refused on the terminal job (see
+      // deliveryTrackingController.ingestLocations).
+      await trackingService.endTrackingForJob(client, job.id, requested);
     }
     // Group 9 Slice D (item 467): a mismatched pickup count rides in the
     // delivery_picked_up activity payload, so the existing picked_up
@@ -1379,6 +1412,14 @@ exports.createIssue = async (req, res, next) => {
     );
     const job = jobRows[0];
     if (!job) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
+    // Group 9 partials Wave 2 Batch Q (498, G9-B6, D-561): a driver's
+    // access to a job ends 7 days after it reaches a terminal state
+    // (D-90). The write paths never enforced that, so an issue (and
+    // its support ticket) could be filed on a job delivered months
+    // ago. The check is driver-only: the shipper can still report a
+    // problem on a delivered job, and a driver inside the 7-day
+    // window can still report one too.
+    assertDriverJobAccess(job, req.user);
     const code = text(req.body.code, 64);
     const description = text(req.body.description, 2000);
     if (!code || !description) throw new AppError('Issue code and description are required', 400, 'delivery_issue_invalid');
@@ -1454,6 +1495,14 @@ exports.createExtra = async (req, res, next) => {
     );
     const job = jobRows[0];
     if (!job) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
+    // Group 9 partials Wave 2 Batch Q (498, G9-B6, D-561): same
+    // 7-day driver access expiry as createIssue above. An extra of
+    // up to $500 could otherwise be filed on a job delivered months
+    // ago and land as a pending charge request on the customer. The
+    // extra still cannot charge without customer approval; this keeps
+    // the request itself from being created on a closed job. The
+    // shipper is unaffected (the check is driver-only).
+    assertDriverJobAccess(job, req.user);
     const category = text(req.body.category, 48);
     const amountCents = Number(req.body.amountCents);
     const notes = text(req.body.notes, 2000);

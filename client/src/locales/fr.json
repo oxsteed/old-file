@@ -23482,7 +23482,18 @@
       "transferTitle": "Transférer en cours de route",
       "transferHint": "Transférez cette livraison ramassée à un autre chauffeur. La preuve de ramassage reste liée à la livraison.",
       "transferReason": "Motif du transfert",
-      "transferSubmit": "Transférer"
+      "transferSubmit": "Transférer",
+      "deviceStrandsTitle": "Travail bloqué après changement d’appareil",
+      "deviceStrandsSubtitle": "Actions hors ligne en attente et points non envoyés restés sur un appareil que le conducteur a quitté ou déclaré perdu. Rapprochez chaque mission pour que rien ne se perde en silence.",
+      "deviceStrandsEmpty": "Aucun travail bloqué à rapprocher.",
+      "deviceStrandsSummary": "{{actions}} action(s) en attente · {{points}} point(s) non envoyé(s)",
+      "deviceStrandsNote": "Mesure prise",
+      "deviceStrandsNoteHint": "Resaisi, déjà synchronisé ou confirmé perdu — qu’est-il advenu des actions bloquées ?",
+      "deviceStrandsReconcile": "Marquer comme rapproché",
+      "deviceStrandsSource": {
+        "transfer": "Changement d’appareil",
+        "lost": "Appareil perdu"
+      }
     },
     "dispatchStates": {
       "internal_review": "Révision interne",
@@ -23503,6 +23514,9 @@
       "markDeviceLost": "Marquer l’ancien appareil comme perdu",
       "deviceLost": "Ancien appareil révoqué.",
       "deviceLostNotice": "L’ancien appareil ne peut plus envoyer de suivi. Les points non envoyés restent sur cet appareil jusqu’à sa reconnexion.",
+      "transferStrandedWarning": "Cet appareil a encore {{actions}} action(s) en attente et {{points}} point(s) de position non envoyé(s) sur {{jobs}} mission(s). Le changement déplace votre suivi en direct, mais le travail en attente reste sur cet appareil — les opérations auront la liste pour le rapprocher.",
+      "transferStrandedNotice": "Suivi déplacé vers cet appareil ({{count}} session(s) en direct). {{actions}} action(s) en attente et {{points}} point(s) non envoyé(s) sont restés sur l’ancien appareil et ont été enregistrés pour rapprochement par les opérations.",
+      "deviceLostStrandedNotice": "L’ancien appareil ne peut plus envoyer de suivi. {{actions}} action(s) en attente et {{points}} point(s) non envoyé(s) de {{jobs}} mission(s) ont été enregistrés pour rapprochement par les opérations.",
       "ops": {
         "openTracking": "Suivi",
         "metaTitle": "Opérations de suivi - OxSteed",
