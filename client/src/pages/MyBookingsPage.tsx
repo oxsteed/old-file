@@ -9,7 +9,8 @@ import PageShell from '../components/PageShell';
 import { useAuth } from '../hooks/useAuth';
 import { toolRentalsApi } from '../api/toolRentals';
 import api from '../api/axios';
-import { cancelBookingRequest, fetchBookingPrefillForJob } from '../api/bookings';
+import { cancelBookingRequest, fetchBookingPrefillForJob, listMySponsorships } from '../api/bookings';
+import BookingParticipantView from '../components/booking/BookingParticipantView';
 import BookingRescheduleBox from '../components/calendar/BookingRescheduleBox';
 import { prefillBookingDraft } from '../components/booking/BookingFlow';
 import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag, Clock, CheckCircle, XCircle, Briefcase, Wrench } from 'lucide-react';
@@ -32,6 +33,10 @@ function formatTime(hhmm: string | null | undefined, locale: string): string {
 interface HelperBooking {
   id: string;
   helperId: string;
+  // G-6: the customer is the booker; a row whose customerId is not the
+  // viewer is a visit the viewer attends as recipient or site contact,
+  // and mounts the participant view instead of the booker's card.
+  customerId?: string | number;
   serviceName: string;
   requestedDate: string;
   requestedStartTime: string;
@@ -99,10 +104,12 @@ const MyBookingsPageContent = () => {
   const locale = i18n.language || 'en';
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'my-rentals' | 'my-tools' | 'helper-bookings'>('helper-bookings');
+  const [activeTab, setActiveTab] = useState<'my-rentals' | 'my-tools' | 'helper-bookings' | 'my-sponsorships'>('helper-bookings');
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
   const [ownerBookings, setOwnerBookings] = useState<Booking[]>([]);
   const [helperBookings, setHelperBookings] = useState<HelperBooking[]>([]);
+  // D-601: the caller's own sponsorships, for the My sponsorships tab.
+  const [mySponsorships, setMySponsorships] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
@@ -133,15 +140,17 @@ const MyBookingsPageContent = () => {
       setLoading(true);
       setError(null);
 
-      const [myRentals, toolBookings, hbResponse] = await Promise.all([
+      const [myRentals, toolBookings, hbResponse, sponsorships] = await Promise.all([
         toolRentalsApi.getMyBookings().catch(() => []),
         toolRentalsApi.getBookingsByOwner().catch(() => []),
         api.get('/bookings').catch(() => ({ data: { data: [] } })),
+        listMySponsorships().catch(() => []),
       ]);
 
       setMyBookings(myRentals);
       setOwnerBookings(toolBookings);
       setHelperBookings(Array.isArray(hbResponse.data?.data) ? hbResponse.data.data : []);
+      setMySponsorships(Array.isArray(sponsorships) ? sponsorships : []);
       // Group 11 items 583/584: for every cancelled rental, load the
       // recovery record (if any) and replacement suggestions for the
       // original dates, so the recovery panel is ready on the card.
@@ -1257,6 +1266,12 @@ const MyBookingsPageContent = () => {
           >
             {t('toolRentals.toolsLent') || 'My Tools Rented'} ({myToolsCount})
           </button>
+          <button
+            onClick={() => setActiveTab('my-sponsorships')}
+            className={`my-bookings-tab ${activeTab === 'my-sponsorships' ? 'active' : ''}`} data-track="ui.5655b990ea.18"
+          >
+            {t('myBookings.sponsorshipsTab') || 'My Sponsorships'} ({mySponsorships.length})
+          </button>
         </div>
 
         {/* Content */}
@@ -1276,7 +1291,17 @@ const MyBookingsPageContent = () => {
           ) : activeTab === 'helper-bookings' ? (
             <div className="my-bookings-list">
               {helperBookings.length > 0 ? (
-                helperBookings.map((b) => renderHelperBookingCard(b))
+                helperBookings.map((b) => (
+                  // G3-2: a row the viewer did not book is a visit they
+                  // attend as recipient or site contact — the participant
+                  // view, not the booker's card with its book-again and
+                  // post-as-job actions.
+                  b.customerId != null && user?.id != null && String(b.customerId) !== String(user.id) ? (
+                    <BookingParticipantView key={b.id} booking={b} onReload={loadBookings} />
+                  ) : (
+                    renderHelperBookingCard(b)
+                  )
+                ))
               ) : (
                 renderEmptyState(
                   t('booking.noBookingsYet') || 'No service booking requests yet',
@@ -1285,6 +1310,26 @@ const MyBookingsPageContent = () => {
                   '/helpers',
                   t('myBookings.postPublicJob'),
                   '/post-job'
+                )
+              )}
+            </div>
+          ) : activeTab === 'my-sponsorships' ? (
+            <div className="my-bookings-list">
+              {mySponsorships.length > 0 ? (
+                mySponsorships.map((s) => (
+                  <BookingParticipantView
+                    key={s.sponsorshipId}
+                    booking={{ id: s.bookingId, serviceName: s.serviceName, status: s.bookingStatus, requestedDate: s.requestedDate, requestedStartTime: s.requestedStartTime, requestedEndTime: s.requestedEndTime, serviceLocation: s.serviceLocation } as HelperBooking}
+                    sponsorshipId={s.sponsorshipId}
+                    onReload={loadBookings}
+                  />
+                ))
+              ) : (
+                renderEmptyState(
+                  t('myBookings.noSponsorships') || 'No sponsorships yet',
+                  t('myBookings.sponsorshipsEmptyBody'),
+                  t('booking.backToDirectory') || 'Browse helpers',
+                  '/helpers'
                 )
               )}
             </div>

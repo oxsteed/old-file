@@ -1464,4 +1464,127 @@ describe('Group 3 recipient and sponsor', () => {
     // The visit stays readable through the link.
     expect(pub.payload.data.serviceName).toBe('Fix the sink');
   });
+
+  test('items 107/114 (D-600): an expired link 404s link_expired, a revoked link 404s link_revoked', async () => {
+    const expiredBooking = await createLinkedBooking();
+    await pool.query("UPDATE booking_requests SET status_token_expires_at = NOW() - INTERVAL '1 hour' WHERE id = $1", [expiredBooking.id]);
+    const expired = mockRes();
+    await bookingController.getPublicBookingStatus({ params: { token: expiredBooking.statusToken } }, expired);
+    expect(expired.statusCode).toBe(404);
+    expect(expired.payload.code).toBe('link_expired');
+
+    const revokedBooking = await createLinkedBooking();
+    await pool.query("UPDATE booking_requests SET status_token_revoked_at = NOW() WHERE id = $1", [revokedBooking.id]);
+    const revoked = mockRes();
+    await bookingController.getPublicBookingStatus({ params: { token: revokedBooking.statusToken } }, revoked);
+    expect(revoked.statusCode).toBe(404);
+    expect(revoked.payload.code).toBe('link_revoked');
+
+    // A token matching nothing stays generic: no leak about which links exist.
+    const missing = mockRes();
+    await bookingController.getPublicBookingStatus({ params: { token: crypto.randomBytes(32).toString('hex') } }, missing);
+    expect(missing.statusCode).toBe(404);
+    expect(missing.payload.code).toBeUndefined();
+  });
+
+  test('item 114 (D-600): a renewal request from an expired link succeeds; from a revoked link it 404s', async () => {
+    const booking = await createLinkedBooking();
+    await pool.query("UPDATE booking_requests SET status_token_expires_at = NOW() - INTERVAL '1 hour' WHERE id = $1", [booking.id]);
+    notificationService.sendNotification.mockClear();
+    const first = mockRes();
+    await recipientController.requestTokenLinkRenewal({ params: { token: booking.statusToken } }, first);
+    expect(first.statusCode).toBe(201);
+    const firstId = first.payload.data.id;
+    // D-597 dedupe still applies on the expired path: one row, one notice.
+    const second = mockRes();
+    await recipientController.requestTokenLinkRenewal({ params: { token: booking.statusToken } }, second);
+    expect(second.statusCode).toBe(201);
+    expect(second.payload.data.id).toBe(firstId);
+    expect((notificationService.sendNotification.mock.calls || [])
+      .filter((c) => String(c[0]?.userId) === String(booker) && c[0]?.type === 'booking_link_renewal_requested'))
+      .toHaveLength(1);
+
+    const revokedBooking = await createLinkedBooking();
+    await pool.query("UPDATE booking_requests SET status_token_revoked_at = NOW() WHERE id = $1", [revokedBooking.id]);
+    const revoked = mockRes();
+    await recipientController.requestTokenLinkRenewal({ params: { token: revokedBooking.statusToken } }, revoked);
+    expect(revoked.statusCode).toBe(404);
+    expect(revoked.payload.code).toBe('link_revoked');
+  });
+
+  test('items 122/124/125/127 (D-601): a signed-in sponsor lists only their own sponsorships', async () => {
+    const booking = await createLinkedBooking();
+    const own = await createSponsorshipFor(booking.id, 4000);
+    const otherBooking = await createLinkedBooking();
+    await createSponsorshipFor(otherBooking.id, 3000);
+    const mine = mockRes();
+    await recipientController.listMySponsorships({ user: { id: sponsor } }, mine);
+    expect(mine.statusCode).toBe(200);
+    const ids = mine.payload.data.map((s) => s.sponsorshipId);
+    expect(ids).toContain(String(own.id));
+    expect(mine.payload.data.find((s) => s.sponsorshipId === String(own.id)).bookingId).toBe(String(booking.id));
+    expect(mine.payload.data.find((s) => s.sponsorshipId === String(own.id)).amountCents).toBe(4000);
+    // A stranger with no sponsorships sees none of them.
+    const strangers = mockRes();
+    await recipientController.listMySponsorships({ user: { id: stranger } }, strangers);
+    expect(strangers.statusCode).toBe(200);
+    expect(strangers.payload.data).toHaveLength(0);
+  });
+
+  test('items 107/140 (D-602): the public status and the summary say whether a site-contact account is linked', async () => {
+    const linked = await createLinkedBooking();
+    const pubLinked = mockRes();
+    await bookingController.getPublicBookingStatus({ params: { token: linked.statusToken } }, pubLinked);
+    expect(pubLinked.statusCode).toBe(200);
+    expect(pubLinked.payload.data.hasSiteContactAccount).toBe(true);
+    const summaryLinked = mockRes();
+    await recipientController.getParticipantSummary({ params: { bookingId: linked.id }, user: { id: recipient } }, summaryLinked);
+    expect(summaryLinked.statusCode).toBe(200);
+    expect(summaryLinked.payload.data.hasSiteContactAccount).toBe(true);
+
+    // A recipient-only booking (no site contact at all) has a public page
+    // and reports no linked site-contact account. A booking with neither
+    // recipient nor site contact mints no status token at all, so there is
+    // no public page to check.
+    const recipientOnly = await createBooking({
+      overrides: { recipientUserId: recipient, recipientName: 'Mom', recipientPhone: '555-0100' },
+    });
+    expect(recipientOnly.statusCode).toBe(201);
+    const pubPlain = mockRes();
+    await bookingController.getPublicBookingStatus({ params: { token: recipientOnly.payload.data.statusToken } }, pubPlain);
+    expect(pubPlain.statusCode).toBe(200);
+    expect(pubPlain.payload.data.hasSiteContactAccount).toBe(false);
+  });
+
+  test('item 103 (R36): the provider incoming list carries arrivedAt after the arrival check-in', async () => {
+    const booking = await createLinkedBooking();
+    await pool.query("UPDATE booking_requests SET status = 'accepted' WHERE id = $1", [booking.id]);
+    const bizId = (await pool.query(
+      `INSERT INTO businesses (user_id, business_name) VALUES ($1, 'Test Biz') RETURNING id`, [booker]
+    )).rows[0].id;
+    const svcId = (await pool.query(
+      `INSERT INTO business_services (business_id, name) VALUES ($1, 'Test Service') RETURNING id`, [bizId]
+    )).rows[0].id;
+    const baId = (await pool.query(
+      `INSERT INTO business_appointments (business_id, service_id, customer_id, start_time, end_time, status)
+       VALUES ($1, $2, $3, NOW() + INTERVAL '1 hour', NOW() + INTERVAL '2 hours', 'confirmed') RETURNING id`,
+      [bizId, svcId, booker]
+    )).rows[0].id;
+    await pool.query('UPDATE booking_requests SET business_appointment_id = $1 WHERE id = $2', [baId, booking.id]);
+    const arrived = mockRes();
+    await recipientController.markProviderArrived(
+      { params: { bookingId: booking.id }, user: { id: helper } },
+      arrived,
+    );
+    expect(arrived.statusCode).toBe(200);
+    const incoming = mockRes();
+    await bookingController.getIncomingBookingRequests(
+      { user: { id: helper }, query: { statuses: 'accepted' } },
+      incoming,
+    );
+    expect(incoming.statusCode).toBe(200);
+    const row = incoming.payload.data.find((b) => String(b.id) === String(booking.id));
+    expect(row).toBeTruthy();
+    expect(row.arrivedAt).toBeTruthy();
+  });
 });

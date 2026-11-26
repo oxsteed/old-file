@@ -115,6 +115,9 @@ router.post('/:bookingId/counter-propose', requireAuth, requireBookingProviderCa
 router.post('/:bookingId/counter-propose/respond', requireAuth, bookingController.respondToCounterPropose);
 router.post('/:bookingId/convert-to-job', requireAuth, bookingController.convertBookingToJob);
 // Group 3 (Recipient and sponsor): account participant surfaces.
+// D-601: static before the :bookingId block — a sponsor's own list must
+// never be shadowed by a parametric booking route.
+router.get('/sponsorships/mine', requireAuth, bookingRecipientController.listMySponsorships);
 router.get('/:bookingId/participant-summary', requireAuth, bookingRecipientController.getParticipantSummary);
 router.get('/:bookingId/sharing-preview', requireAuth, bookingRecipientController.getSharingPreview);
 router.get('/:bookingId/checklist', requireAuth, bookingRecipientController.getChecklist);

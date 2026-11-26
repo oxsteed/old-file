@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import api from '../../api/axios';
+import { markBookingProviderArrived } from '../../api/bookings';
 import { toast } from 'sonner';
 import { useSocket } from '../../hooks/useSocket';
 import { useAuth } from '../../hooks/useAuth';
@@ -33,6 +34,8 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
   const [transferringId, setTransferringId] = useState(null);
   // G5-11 (260): dispatch in flight per booking.
   const [dispatchingId, setDispatchingId] = useState(null);
+  // R36 (item 103): arrival check-in in flight per accepted booking.
+  const [arrivingId, setArrivingId] = useState(null);
   // Per-row acting state: while a confirm/decline POST is in flight the row's
   // buttons are disabled (double-click cannot double-fire a money-adjacent accept).
   const [acting, setActing] = useState(null); // { id, kind: 'confirm' | 'decline' } | null
@@ -176,6 +179,24 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
     }
   };
 
+  // R36 (item 103): the provider marks arrival on an accepted booking.
+  // The server stamps the linked appointment (or business appointment) and
+  // notifies the booker, recipient, and site contact; a 403 here means the
+  // viewer is not the provider for this booking.
+  const handleMarkArrived = async (bookingId) => {
+    if (arrivingId) return;
+    setArrivingId(bookingId);
+    try {
+      await markBookingProviderArrived(bookingId);
+      toast.success(t('calendar.arrivedRecorded'));
+      loadBookingRequests();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('calendar.arriveFailed'));
+    } finally {
+      setArrivingId(null);
+    }
+  };
+
   const handleProposeSlot = async (slot) => {
     if (!proposingBooking?.id) return;
     const bookingId = proposingBooking.id;
@@ -294,6 +315,8 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
                 rescheduleProposal={booking.pendingRescheduleProposal || null}
                 currentUserId={user?.id}
                 onRescheduleDone={loadBookingRequests}
+                onMarkArrived={() => handleMarkArrived(booking.id)}
+                markingArrived={arrivingId === booking.id}
                 transferDraft={transferDrafts[booking.id] || {}}
                 onTransferDraftChange={(patch) =>
                   setTransferDrafts((current) => ({
@@ -343,7 +366,7 @@ function statusClass(status) {
   return 'pending';
 }
 
-function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onPropose, onTransfer, transferDraft, onTransferDraftChange, transferring, rescheduleProposal, currentUserId, onRescheduleDone, onDispatch, dispatching, t, locale }) {
+function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onPropose, onTransfer, transferDraft, onTransferDraftChange, transferring, rescheduleProposal, currentUserId, onRescheduleDone, onDispatch, dispatching, onMarkArrived, markingArrived, t, locale }) {
   const _rawDate = booking.requestedDate || booking.requested_date;
   const requestedDate = _rawDate ? String(_rawDate).split('T')[0] : null;
   const startTime = booking.requestedStartTime || booking.requested_start_time || booking.start_time;
@@ -503,6 +526,29 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
           </div>
         )}
       </div>
+
+      {/* R36 (item 103): arrival check-in on an accepted booking. The
+          server stamps the linked appointment and notifies all three
+          parties; once stamped the card shows the arrival time. */}
+      {status === 'accepted' && (
+        <div className="booking-actions">
+          {booking.arrivedAt || booking.arrived_at ? (
+            <p className="booking-arrived-note" role="status">
+              {t('calendar.arrivedAt', { time: new Date(booking.arrivedAt || booking.arrived_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}
+            </p>
+          ) : (
+            <button
+              type="button"
+              className="btn-confirm"
+              onClick={onMarkArrived}
+              disabled={!onMarkArrived || !!markingArrived}
+              title={t('calendar.markArrived')} data-track="ui.79e8a0a062.6"
+            >
+              {markingArrived ? t('calendar.markingArrived') : t('calendar.markArrived')}
+            </button>
+          )}
+        </div>
+      )}
 
       {onTransfer ? (
         <>

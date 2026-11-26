@@ -653,7 +653,7 @@ exports.getPublicBookingStatus = async (req, res) => {
     const { rows } = await pool.query(
       `SELECT b.id, b.service_name, b.status, b.requested_date,
               b.requested_start_time, b.requested_end_time,
-              b.site_contact_name, b.status_token, b.recipient_token,
+              b.site_contact_name, b.site_contact_user_id, b.status_token, b.recipient_token,
               b.recipient_consent_status, b.recipient_consented_at,
               b.status_token_expires_at, b.status_token_revoked_at,
               b.recipient_user_id, b.recipient_name, b.helper_id,
@@ -701,7 +701,13 @@ exports.getPublicBookingStatus = async (req, res) => {
       });
     }
     const row = rows[0];
-    if (!inviteLinkUsable(row)) return sendError(res, 404, 'Booking status link not found');
+    // D-600 (G3-18): the caller already holds the token, so naming the
+    // failure (expired vs revoked) leaks nothing and lets the page offer
+    // renewal for an expired link.
+    if (!inviteLinkUsable(row)) {
+      if (row.status_token_revoked_at) return sendError(res, 404, 'This status link was revoked', 'link_revoked');
+      return sendError(res, 404, 'This status link has expired', 'link_expired');
+    }
     const isRecipientToken = row.recipient_token && String(row.recipient_token) === token;
     // Group 3 (D-42): first name plus last initial once accepted, so the
     // person at the door can confirm the provider. D-48: care instructions
@@ -725,6 +731,9 @@ exports.getPublicBookingStatus = async (req, res) => {
         requestedEndTime: row.requested_end_time,
         arrivedAt: row.arrived_at,
         siteContactName: row.site_contact_name || null,
+        // D-602 (G3-33): the relay hides the site-contact target when no
+        // linked site-contact account exists.
+        hasSiteContactAccount: Boolean(row.site_contact_user_id),
         hasRecipient: Boolean(row.recipient_user_id || row.recipient_name),
         recipientConsentStatus: row.recipient_consent_status || 'pending',
         recipientConsentedAt: row.recipient_consented_at || null,

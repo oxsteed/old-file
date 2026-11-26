@@ -267,6 +267,9 @@ function toCalendarBooking(row) {
     marketplacePostedAt: row.marketplace_posted_at || null,
     acceptedAt: row.accepted_at,
     declinedAt: row.declined_at,
+    // R36 (item 103): the provider's arrival check-in, so the incoming
+    // panel can show "Arrived at …" instead of the arrive button.
+    arrivedAt: row.arrived_at || null,
     helperResponseReason: row.helper_response_reason,
     // G5-11 (260): booking-level dispatch state. Pending while the
     // dispatched member has not confirmed; confirmed by any accept.
@@ -411,9 +414,12 @@ async function listIncomingForProvider(providerUserId, { status, statuses } = {}
   const { rows } = await pool.query(
     `SELECT br.*,
             NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), '') AS customer_name,
-            u.profile_photo_url AS customer_avatar
+            u.profile_photo_url AS customer_avatar,
+            COALESCE(a.arrived_at, ba.arrived_at) AS arrived_at
        FROM booking_requests br
        LEFT JOIN users u ON u.id = br.customer_id
+       LEFT JOIN appointments a ON a.id = br.appointment_id
+       LEFT JOIN business_appointments ba ON ba.id = br.business_appointment_id
       WHERE (
         br.helper_id = $1
         OR (br.business_id IS NOT NULL AND br.business_id = ANY($2::int[]))

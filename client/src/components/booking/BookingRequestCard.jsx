@@ -16,6 +16,9 @@ import api from '../../api/axios';
 import {
   getBookingSharingPreview,
   getBookingPaymentBreakdown,
+  getBookingParticipantSummary,
+  getBookingChecklist,
+  listBookingCallbacks,
   listBookingSponsorships,
   createBookingSponsorship,
   requestSponsorshipCharge,
@@ -46,6 +49,17 @@ function statusDescriptionKey(status) {
   return map[status] || 'booking.statusPendingDesc';
 }
 
+// G3-19: the visit checklist keys, same set the token page renders.
+const CHECKLIST_KEYS = [
+  'instructions_acknowledged',
+  'access_window_suggested',
+  'entry_problem_reported',
+  'handoff_confirmed',
+  'completion_acknowledged',
+  'photos_contributed',
+  'callback_requested',
+];
+
 /**
  * Booking request status card with optional "Post as public job" when booking failed.
  */
@@ -63,6 +77,9 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
   const [showParticipants, setShowParticipants] = useState(false);
   const [participants, setParticipants] = useState(null);
   const [participantsLoading, setParticipantsLoading] = useState(false);
+  // G3-32: which panel sections failed to load, so the card says so
+  // instead of silently omitting them.
+  const [participantsErrors, setParticipantsErrors] = useState([]);
   const [sponsorName, setSponsorName] = useState('');
   const [sponsorEmail, setSponsorEmail] = useState('');
   const [sponsorAmount, setSponsorAmount] = useState('');
@@ -79,23 +96,41 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
 
   const loadParticipants = async () => {
     setParticipantsLoading(true);
+    setParticipantsErrors([]);
     try {
-      const [sharing, breakdown, sponsorships, siteActions, feedback, photos] = await Promise.all([
-        getBookingSharingPreview(live.id).catch(() => null),
-        getBookingPaymentBreakdown(live.id).catch(() => null),
-        listBookingSponsorships(live.id).catch(() => []),
-        listBookingSiteActions(live.id).catch(() => []),
-        listBookingFeedback(live.id).catch(() => []),
-        listBookingSitePhotos(live.id).catch(() => []),
-      ]);
+      const jobs = [
+        ['sharing', getBookingSharingPreview(live.id)],
+        ['breakdown', getBookingPaymentBreakdown(live.id)],
+        ['sponsorships', listBookingSponsorships(live.id)],
+        ['siteActions', listBookingSiteActions(live.id)],
+        ['feedback', listBookingFeedback(live.id)],
+        ['photos', listBookingSitePhotos(live.id)],
+        // G3-19: the booker sees the same participant summary, checklist,
+        // and callbacks the participants see, so the card is the one place
+        // the booker can watch the visit end to end.
+        ['summary', getBookingParticipantSummary(live.id)],
+        ['checklist', getBookingChecklist(live.id)],
+        ['callbacks', listBookingCallbacks(live.id)],
+      ];
+      const settled = await Promise.allSettled(jobs.map(([, p]) => p));
+      const errors = [];
+      const value = (key, fallback) => {
+        const i = jobs.findIndex(([k]) => k === key);
+        if (settled[i].status !== 'fulfilled') { errors.push(key); return fallback; }
+        return settled[i].value ?? fallback;
+      };
       setParticipants({
-        sharing,
-        breakdown,
-        sponsorships: sponsorships || [],
-        siteActions: siteActions || [],
-        feedback: feedback || [],
-        photos: photos || [],
+        sharing: value('sharing', null),
+        breakdown: value('breakdown', null),
+        sponsorships: value('sponsorships', []),
+        siteActions: value('siteActions', []),
+        feedback: value('feedback', []),
+        photos: value('photos', []),
+        summary: value('summary', null),
+        checklist: value('checklist', null),
+        callbacks: value('callbacks', []),
       });
+      setParticipantsErrors(errors);
     } finally {
       setParticipantsLoading(false);
     }
@@ -440,6 +475,46 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
                 </ul>
               </div>
             )}
+            {participantsErrors.length > 0 && !participantsLoading && (
+              <p role="alert">{t('booking.participantsLoadError', { sections: participantsErrors.join(', ') })}</p>
+            )}
+            {participants?.summary && (
+              <div>
+                <h4>{t('booking.participantSummaryTitle')}</h4>
+                <p>{participants.summary.labels?.ownershipLabel || ''}</p>
+                <ul className="booking-participant-list">
+                  {participants.summary.labels?.recipient && <li>{t('booking.participant.recipientLabel')}: {participants.summary.labels.recipient}</li>}
+                  {participants.summary.labels?.siteContact && <li>{t('booking.participant.siteContactLabel')}: {participants.summary.labels.siteContact}</li>}
+                  {participants.summary.helper?.name && <li>{t('booking.participant.helperLabel')}: {participants.summary.helper.name}</li>}
+                  {(participants.summary.payment?.sponsors || []).map((s) => (
+                    <li key={s.id}>{s.sponsorName || s.sponsorEmail} — {paymentStatusLabel(s.status)}{s.amountCents != null ? ` · ${money(s.amountCents)}` : ''}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {participants?.checklist && (
+              <div>
+                <h4>{t('booking.token.checklistTitle')}</h4>
+                <ul className="booking-participant-list">
+                  {CHECKLIST_KEYS.map((key) => {
+                    const item = participants.checklist.items?.find((i) => i.key === key);
+                    return <li key={key}>{item?.done ? '✓' : '○'} {t(`booking.token.checklist.${key}`)}</li>;
+                  })}
+                </ul>
+              </div>
+            )}
+            <div>
+              <h4>{t('booking.callbacksTitle')}</h4>
+              {(participants?.callbacks || []).length === 0 && <p>{t('booking.noCallbacks')}</p>}
+              <ul className="booking-participant-list">
+                {(participants?.callbacks || []).map((c) => (
+                  <li key={c.id}>
+                    {c.requestedBy} — {t(`booking.participant.callbackTarget.${c.target}`)} — {t(`booking.participant.callbackStatus.${c.status}`)}
+                    {c.preferredWindow ? ` · ${c.preferredWindow}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </div>
             <div>
               <h4>{t('booking.sponsorsTitle')}</h4>
               {(participants?.sponsorships || []).length === 0 && <p>{t('booking.noSponsors')}</p>}
@@ -690,6 +765,7 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
                   </ul>
                 </>
               )}
+              {(participants?.photos || []).length === 0 && <p>{t('booking.noPhotos')}</p>}
             </div>
           </div>
         )}

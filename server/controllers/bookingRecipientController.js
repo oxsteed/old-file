@@ -417,6 +417,10 @@ async function summaryFor(booking, party) {
     statusTokenExpiresAt: booking.status_token_expires_at || null,
     recipientConsentStatus: booking.recipient_consent_status || 'pending',
     receiptSharedWithRecipient: Boolean(booking.receipt_shared_with_recipient_at),
+    // D-602 (G3-33): the relay hides the site-contact target when no
+    // linked site-contact account exists (a relay there would silently
+    // deliver nowhere).
+    hasSiteContactAccount: Boolean(booking.site_contact_user_id),
     viewerRole: party.role,
     archived,
   };
@@ -445,6 +449,47 @@ exports.getTokenParticipantSummary = async (req, res) => {
   } catch (err) {
     logger.error('Error fetching token participant summary', { error: err.message });
     sendError(res, 500, 'Failed to fetch participant summary');
+  }
+};
+
+// D-601 (items 122/124/125/127): a signed-in sponsor discovers their own
+// sponsorships from their account. getMyBookingRequests never lists them
+// (booker/recipient/site-contact rows only), so without this endpoint a
+// sponsor with an account had no way to find a sponsorship except the
+// emailed token link. Read-only, own rows only, fail-closed.
+exports.listMySponsorships = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT s.*, b.service_name, b.status AS booking_status, b.requested_date,
+              b.requested_start_time, b.requested_end_time, b.service_location
+         FROM booking_sponsorships s
+         JOIN booking_requests b ON b.id = s.booking_id
+        WHERE s.sponsor_user_id = $1
+        ORDER BY s.created_at DESC`,
+      [req.user.id]
+    );
+    return res.json({
+      success: true,
+      data: rows.map((s) => ({
+        sponsorshipId: String(s.id),
+        bookingId: String(s.booking_id),
+        serviceName: s.service_name,
+        bookingStatus: s.booking_status,
+        requestedDate: s.requested_date,
+        requestedStartTime: s.requested_start_time,
+        requestedEndTime: s.requested_end_time,
+        serviceLocation: s.service_location || null,
+        amountCents: Number(s.amount_cents),
+        status: s.status,
+        paymentDeadlineAt: s.payment_deadline_at || null,
+        paidAt: s.paid_at || null,
+        refundedAt: s.refunded_at || null,
+        createdAt: s.created_at,
+      })),
+    });
+  } catch (err) {
+    logger.error('Error listing my sponsorships', { error: err.message });
+    sendError(res, 500, 'Failed to list sponsorships');
   }
 };
 
@@ -1031,9 +1076,29 @@ exports.requestLinkRenewal = async (req, res) => {
 
 exports.requestTokenLinkRenewal = async (req, res) => {
   try {
-    const loaded = await loadTokenBooking(req, res, ['recipient', 'site_contact']);
-    if (!loaded) return;
-    const row = await doRenewalRequest(loaded.booking, loaded.party);
+    // D-600 (G3-18): renewal is the remedy for an expired link, so this
+    // endpoint resolves the booking from the token WITHOUT the usability
+    // gate loadTokenBooking enforces — otherwise the renewal button on the
+    // expired error screen could never succeed. A revoked link still 404s:
+    // revocation is a deliberate kill the renewal must not resurrect.
+    const token = String(req.params.token || '');
+    if (!recipientSvc.isTokenShape(token)) {
+      return sendError(res, 404, 'Booking status link not found');
+    }
+    const { rows } = await pool.query(
+      `SELECT * FROM booking_requests WHERE status_token = $1 OR recipient_token = $1`,
+      [token]
+    );
+    const booking = rows[0] || null;
+    if (!booking) return sendError(res, 404, 'Booking status link not found');
+    if (booking.status_token_revoked_at) {
+      return sendError(res, 404, 'This status link was revoked', 'link_revoked');
+    }
+    const party = await recipientSvc.resolveParty(booking, { userId: req.user?.id, token });
+    if (!party || !['recipient', 'site_contact'].includes(party.role)) {
+      return sendError(res, 404, 'Booking status link not found');
+    }
+    const row = await doRenewalRequest(booking, party);
     return res.status(201).json({ success: true, data: { id: String(row.id), status: row.status } });
   } catch (err) {
     logger.error('Error requesting token link renewal', { error: err.message });
