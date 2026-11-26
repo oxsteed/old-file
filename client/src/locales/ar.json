@@ -23484,7 +23484,16 @@
       "payoutAdjustEmpty": "لا توجد مدفوعات لتعديلها.",
       "payoutAdjustAmount": "المبلغ الجديد ($)",
       "payoutAdjustReason": "السبب (يظهر للسائق)",
-      "payoutAdjustSubmit": "تعديل الدفع"
+      "payoutAdjustSubmit": "تعديل الدفع",
+      "marketplaceClaimed": "تمت المطالبة به في السوق من قبل {{driver}}",
+      "queuePrev": "السابق",
+      "queueNext": "التالي",
+      "queuePage": "الصفحة {{page}} من {{pages}}",
+      "queueTotal": "{{count}} مهمة في القائمة",
+      "transferTitle": "تحويل أثناء الطريق",
+      "transferHint": "انقل هذا التسليم الذي تم استلامه إلى سائق آخر. يبقى إثبات الاستلام مرتبطًا بالمهمة.",
+      "transferReason": "سبب التحويل",
+      "transferSubmit": "تحويل"
     },
     "dispatchStates": {
       "internal_review": "مراجعة داخلية",

@@ -23473,7 +23473,16 @@
       "payoutAdjustEmpty": "Aucun paiement à ajuster.",
       "payoutAdjustAmount": "Nouveau montant ($)",
       "payoutAdjustReason": "Motif (visible par le chauffeur)",
-      "payoutAdjustSubmit": "Ajuster le paiement"
+      "payoutAdjustSubmit": "Ajuster le paiement",
+      "marketplaceClaimed": "Réclamé sur le marché par {{driver}}",
+      "queuePrev": "Précédent",
+      "queueNext": "Suivant",
+      "queuePage": "Page {{page}} sur {{pages}}",
+      "queueTotal": "{{count}} livraisons en file",
+      "transferTitle": "Transférer en cours de route",
+      "transferHint": "Transférez cette livraison ramassée à un autre chauffeur. La preuve de ramassage reste liée à la livraison.",
+      "transferReason": "Motif du transfert",
+      "transferSubmit": "Transférer"
     },
     "dispatchStates": {
       "internal_review": "Révision interne",

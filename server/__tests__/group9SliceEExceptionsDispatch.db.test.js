@@ -692,7 +692,13 @@ ddescribe('Group 9 Slice E: exceptions + dispatch (476-485)', () => {
     });
 
     const first = await sweepDelayedDeliveries(pool, { now: new Date() });
-    expect(first.escalated).toBe(1);
+    // Group 9 partials Wave 2 Batch P (485, G9-B9, D-557): the sweep
+    // scans every active assigned job, so earlier suites' jobs may
+    // escalate too (Slice C leaves an assigned job with a backdated
+    // pickup window; the pickup-no-show trigger correctly catches
+    // it). Same convention as Slice C's 463 test: assert the global
+    // count only as a lower bound, and this job's escalation exactly.
+    expect(first.escalated).toBeGreaterThanOrEqual(1);
     expect(first.failed).toBe(0);
 
     const issues = await pool.query(

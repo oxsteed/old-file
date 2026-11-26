@@ -23473,7 +23473,16 @@
       "payoutAdjustEmpty": "No hay pagos para ajustar.",
       "payoutAdjustAmount": "Nuevo monto ($)",
       "payoutAdjustReason": "Motivo (visible para el conductor)",
-      "payoutAdjustSubmit": "Ajustar pago"
+      "payoutAdjustSubmit": "Ajustar pago",
+      "marketplaceClaimed": "Reclamado en el mercado por {{driver}}",
+      "queuePrev": "Anterior",
+      "queueNext": "Siguiente",
+      "queuePage": "Página {{page}} de {{pages}}",
+      "queueTotal": "{{count}} trabajos en cola",
+      "transferTitle": "Transferir en ruta",
+      "transferHint": "Mueva esta entrega recogida a otro conductor. La prueba de recogida permanece en el trabajo.",
+      "transferReason": "Motivo de la transferencia",
+      "transferSubmit": "Transferir"
     },
     "dispatchStates": {
       "internal_review": "Revisión interna",

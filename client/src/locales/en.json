@@ -23473,7 +23473,16 @@
       "payoutAdjustEmpty": "No payouts to adjust.",
       "payoutAdjustAmount": "New amount ($)",
       "payoutAdjustReason": "Reason (shown to the driver)",
-      "payoutAdjustSubmit": "Adjust payout"
+      "payoutAdjustSubmit": "Adjust payout",
+      "marketplaceClaimed": "Marketplace claimed by {{driver}}",
+      "queuePrev": "Previous",
+      "queueNext": "Next",
+      "queuePage": "Page {{page}} of {{pages}}",
+      "queueTotal": "{{count}} jobs in queue",
+      "transferTitle": "Transfer mid-route",
+      "transferHint": "Move this picked-up delivery to another driver. The pickup proof stays with the job.",
+      "transferReason": "Reason for transfer",
+      "transferSubmit": "Transfer"
     },
     "dispatchStates": {
       "internal_review": "Internal review",

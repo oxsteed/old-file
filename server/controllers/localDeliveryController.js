@@ -1508,14 +1508,30 @@ exports.internalQueue = async (_req, res, next) => {
     // to dispatch attention here (posted + expired marker), so an
     // unclaimed offer is never stranded off the board. decline_count
     // rides along so the board shows how many drivers passed per job.
-    const { rows } = await pool.query(`SELECT dj.*, u.email AS customer_email,
-      (SELECT COUNT(*) FROM delivery_job_declines d WHERE d.delivery_job_id = dj.id) AS decline_count
-      FROM delivery_jobs dj JOIN users u ON u.id = dj.customer_user_id
-      WHERE dj.dispatch_state IN ('internal_review','internal_assigned','exception')
+    // Group 9 partials Wave 2 Batch P (481, G9-B5, D-553): marketplace-
+    // claimed jobs (dispatch_state 'assigned') are on the board too,
+    // with the claiming driver's name joined in, and the queue is
+    // paginated (page/limit + total) instead of silently dropping
+    // everything past the 200 oldest-first rows.
+    const query = _req.query || {};
+    const limit = Math.min(200, Math.max(1, parseInt(query.limit, 10) || 200));
+    const page = Math.max(1, parseInt(query.page, 10) || 1);
+    const offset = (page - 1) * limit;
+    const where = `WHERE dj.dispatch_state IN ('internal_review','internal_assigned','exception')
          OR (dj.status = 'posted' AND dj.dispatch_state = 'marketplace_posted' AND dj.offer_expired_at IS NOT NULL)
          OR (dj.delay_escalated_at IS NOT NULL AND dj.status IN ('assigned','picked_up','in_transit'))
-      ORDER BY dj.created_at ASC LIMIT 200`);
-    res.json({ success: true, jobs: rows.map(operatorSafeJob) });
+         OR (dj.status = 'assigned' AND dj.dispatch_state = 'assigned')`;
+    const { rows } = await pool.query(`SELECT dj.*, u.email AS customer_email,
+      hu.first_name AS helper_first_name, hu.last_name AS helper_last_name, hu.email AS helper_email,
+      iu.first_name AS internal_first_name, iu.last_name AS internal_last_name, iu.email AS internal_email,
+      (SELECT COUNT(*) FROM delivery_job_declines d WHERE d.delivery_job_id = dj.id) AS decline_count
+      FROM delivery_jobs dj JOIN users u ON u.id = dj.customer_user_id
+      LEFT JOIN users hu ON hu.id = dj.helper_user_id
+      LEFT JOIN users iu ON iu.id = dj.internal_driver_user_id
+      ${where}
+      ORDER BY dj.created_at ASC LIMIT $1 OFFSET $2`, [limit, offset]);
+    const count = await pool.query(`SELECT COUNT(*)::int AS total FROM delivery_jobs dj ${where}`);
+    res.json({ success: true, jobs: rows.map(operatorSafeJob), total: Number(count.rows[0]?.total || 0), page, limit });
   } catch (error) {
     next(error);
   }
@@ -2689,7 +2705,7 @@ exports.internalDriverHandoffs = async (req, res, next) => {
 exports.isInternalOperator = isInternalOperator;
 
 Object.assign(exports, {
-  ...Object.fromEntries(['claim','decline','assignInternal','releaseMarketplace'].map(name => [name, require('../services/localDeliveryDispatchService')[name]])),
+  ...Object.fromEntries(['claim','decline','assignInternal','releaseMarketplace','transferAssignment'].map(name => [name, require('../services/localDeliveryDispatchService')[name]])),
   ...Object.fromEntries(['requestReschedule','reviewReschedule','requestReturn','reviewReturn','resolveIssue'].map(name => [name, require('../services/localDeliveryRecoveryService')[name]])),
 });
 const deliveryPayments = require('../services/localDeliveryPaymentService');

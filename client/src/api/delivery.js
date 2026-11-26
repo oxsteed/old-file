@@ -232,7 +232,7 @@ export const markInternalDriverPayoutPaid = (payoutId, paymentReference, note) =
 export const voidInternalDriverPayout = (payoutId, note) =>
   api.post(`/delivery/internal/driver-payouts/${payoutId}/void`, { note }).then((response) => response.data);
 
-export const listInternalDeliveryQueue = () => api.get('/delivery/internal/queue').then((response) => response.data);
+export const listInternalDeliveryQueue = (page = 1, limit = 50) => api.get('/delivery/internal/queue', { params: { page, limit } }).then((response) => response.data);
 export const getInternalDelivery = (id) => api.get(`/delivery/internal/jobs/${id}`).then((response) => response.data);
 // Group 9 Slice E (item 484): the handoff state record, per job and per driver.
 export const getInternalDeliveryHandoffs = (id) => api.get(`/delivery/internal/jobs/${id}/handoffs`).then((response) => response.data);
@@ -243,6 +243,9 @@ export const listDeliveryDrivers = () => api.get('/delivery/internal/drivers').t
 export const saveDeliveryDriver = (payload) => mutate('post', '/delivery/internal/drivers', payload);
 export const assignInternalDelivery = (id, payload) => mutate('post', `/delivery/internal/jobs/${id}/assign`, payload);
 export const releaseDeliveryToMarketplace = (id, reason, offerDeadlineHours) => mutate('post', `/delivery/internal/jobs/${id}/release-marketplace`, { reason, offerDeadlineHours });
+// Group 9 partials Wave 2 Batch P (482, G9-B4, D-555): mid-route transfer
+// of a picked-up job to another internal driver.
+export const transferInternalDelivery = (id, payload) => mutate('post', `/delivery/internal/jobs/${id}/transfer`, payload);
 
 export const reviewDeliveryReschedule = (id, decision) => mutate('patch', `/delivery/internal/reschedule-requests/${id}`, { decision });
 export const reviewDeliveryReturn = (id, decision, details = {}) => mutate('patch', `/delivery/internal/returns/${id}`, { decision, ...details });

@@ -356,8 +356,15 @@ function createDispatchService(deps = {}) {
   const run = createActionRunner(deps);
   const actions = {
     assignInternal: (req) => run(req, { action: 'assignInternal', access: 'operator', persistFailure: true }, async ({ client, job, activity, now }) => {
-      if (!['posted', 'assigned'].includes(job.status) || pickedUp(job) || job.helper_user_id
-        || !['internal_review', 'internal_assignment_attempt', 'internal_assigned', 'exception'].includes(job.dispatch_state)) throw fail('Delivery is not available for internal assignment', 'delivery_dispatch_conflict');
+      // Group 9 partials Wave 2 Batch P (482, G9-B4, D-556): a
+      // marketplace-claimed job (helper_user_id set, dispatch_state
+      // 'assigned', not yet picked up) can be pulled back by assigning
+      // it to an internal driver; the outgoing marketplace driver is
+      // notified through the replacement event below. The picked-up
+      // guard stays: once the package is in the van, only the
+      // mid-route transfer path moves the job.
+      if (!['posted', 'assigned'].includes(job.status) || pickedUp(job)
+        || !['internal_review', 'internal_assignment_attempt', 'internal_assigned', 'exception', 'assigned'].includes(job.dispatch_state)) throw fail('Delivery is not available for internal assignment', 'delivery_dispatch_conflict');
       await ensureNoOpenRecovery(client, job);
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.body?.driverUserId || '')) throw fail('A valid driver is required', 'delivery_driver_invalid', 400);
       const assignment = { driverId: req.body.driverUserId.toLowerCase(), vehicleId: positiveId(req.body.vehicleId) };
@@ -394,7 +401,10 @@ function createDispatchService(deps = {}) {
       // notifies with the replacement event (who replaced whom) instead
       // of the plain assignment event; a first assignment keeps
       // delivery_coordinated, which the worker maps to delivery_assigned.
-      const previousDriverUserId = job.internal_driver_user_id || null;
+      // Batch P (D-556): the outgoing driver may be a marketplace
+      // claimer (helper_user_id), not only an internal driver; the
+      // event worker fans the replacement out to them too.
+      const previousDriverUserId = job.helper_user_id || job.internal_driver_user_id || null;
       if (previousDriverUserId && !sameId(previousDriverUserId, assignment.driverId)) {
         await recordReplacement(activity, client, job, req.user.id, { previousDriverUserId, newDriverUserId: assignment.driverId, releasedToMarketplace: false });
       } else {
@@ -405,7 +415,10 @@ function createDispatchService(deps = {}) {
     releaseMarketplace: (req) => run(req, { action: 'releaseMarketplace', access: 'operator' }, async ({ client, job, activity, now }) => {
       const reason = cleanText(req.body?.reason, 1000);
       if (reason.length < 3) throw fail('An explicit release reason is required', 'delivery_release_reason_required', 400);
-      if (!['posted', 'assigned'].includes(job.status) || pickedUp(job) || job.helper_user_id) throw fail('Delivery cannot be released', 'delivery_release_conflict');
+      // Group 9 partials Wave 2 Batch P (482, G9-B4, D-556): a
+      // marketplace-claimed job can be pulled back before pickup; the
+      // helper_user_id refusal is gone. The picked-up guard stays.
+      if (!['posted', 'assigned'].includes(job.status) || pickedUp(job)) throw fail('Delivery cannot be released', 'delivery_release_conflict');
       await ensureNoOpenRecovery(client, job);
       // Group 9 Slice B (item 457): re-offering an expired marketplace
       // offer. The job is still posted, but its deadline passed (stamped
@@ -429,6 +442,31 @@ function createDispatchService(deps = {}) {
         return { success: true, job: reoffered };
       }
       if (job.status === 'posted' && job.dispatch_state === 'marketplace_posted' && job.fulfillment_source === 'marketplace' && !job.internal_driver_user_id && !job.vehicle_id) return { success: true, duplicate: true, job };
+      // Group 9 partials Wave 2 Batch P (482, G9-B4, D-556): pull a
+      // marketplace claim back before pickup. The claim is cleared,
+      // the job is re-posted with a fresh offer deadline, the claim
+      // reservation and any tracking session are released, and the
+      // outgoing claimer hears about it through the replacement
+      // event (releasedToMarketplace), not silence.
+      if (job.helper_user_id && job.status === 'assigned' && job.dispatch_state === 'assigned') {
+        await lockResources(client, assignmentOf(job));
+        await client.query(
+          `UPDATE delivery_tracking_assignments SET status = 'revoked', ended_at = NOW(), ended_reason = 'released', updated_at = NOW()
+           WHERE delivery_job_id = $1 AND status IN ('active', 'paused')`,
+          [job.id]
+        );
+        await client.query("UPDATE delivery_assignment_reservations SET status = 'released' WHERE delivery_job_id = $1 AND status = 'active'", [job.id]);
+        const hours = offerDeadlineHours(req);
+        const pulledBack = (await client.query(`UPDATE delivery_jobs SET fulfillment_source = 'marketplace', dispatch_state = 'marketplace_posted', status = 'posted',
+          helper_user_id = NULL, internal_driver_user_id = NULL, vehicle_id = NULL, assigned_by_user_id = NULL, assigned_at = NULL, internal_assigned_at = NULL,
+          marketplace_released_at = NOW(), marketplace_release_reason = $1, marketplace_released_by_user_id = $2,
+          offer_expires_at = NOW() + ($4::int * INTERVAL '1 hour'), offer_deadline_hours = $4, offer_expired_at = NULL, offer_expiry_notice_sent_at = NULL,
+          updated_at = NOW() WHERE id = $3 RETURNING *`, [reason, req.user.id, job.id, hours])).rows[0];
+        await client.query("INSERT INTO delivery_dispatch_attempts (delivery_job_id, source, action, reason, actor_user_id) VALUES ($1,'marketplace','released',$2,$3)", [job.id, reason, req.user.id]);
+        await activity(client, job.id, req.user.id, 'delivery_marketplace_released', { reason }, false);
+        await recordReplacement(activity, client, job, req.user.id, { previousDriverUserId: job.helper_user_id, newDriverUserId: null, releasedToMarketplace: true });
+        return { success: true, job: pulledBack };
+      }
       if (!['internal_review', 'internal_assignment_attempt', 'internal_assigned', 'exception'].includes(job.dispatch_state)) throw fail('Delivery cannot be released', 'delivery_release_conflict');
       await lockResources(client, assignmentOf(job));
       // Stop any prior tracking session (release to marketplace).
@@ -457,6 +495,61 @@ function createDispatchService(deps = {}) {
       if (job.internal_driver_user_id) {
         await recordReplacement(activity, client, job, req.user.id, { previousDriverUserId: job.internal_driver_user_id, newDriverUserId: null, releasedToMarketplace: true });
       }
+      return { success: true, job: updated };
+    }),
+    // Group 9 partials Wave 2 Batch P (482, G9-B4, D-555): mid-route
+    // transfer. A picked-up job (vehicle breakdown, driver emergency)
+    // moves to another internal driver. The new driver passes the
+    // same capability/readiness gate as a fresh claim (offline check,
+    // checkAssignment, reservation conflict); an unqualified
+    // transferee is refused, never handed the job. The custody/proof
+    // record is preserved: picked_up_at and the pickup proof are
+    // never touched, the old tracking session is revoked with
+    // ended_reason 'transferred', and the replacement event notifies
+    // the customer, the new driver, and the outgoing driver. No
+    // open-issue block: the transfer IS the ops escape hatch when the
+    // breakdown was reported as an issue; an open return still blocks
+    // it, because a package already heading back to origin must not
+    // be handed to a new driver.
+    transferAssignment: (req) => run(req, { action: 'transferAssignment', access: 'operator', persistFailure: true }, async ({ client, job, activity, now }) => {
+      if (!pickedUp(job) || !['picked_up', 'in_transit'].includes(job.status)) throw fail('Only a picked-up delivery can be transferred', 'delivery_transfer_conflict');
+      const openReturn = await client.query(`SELECT id FROM delivery_returns WHERE delivery_job_id = $1 AND status IN ('requested','approved','in_transit') LIMIT 1`, [job.id]);
+      if (openReturn.rows.length) throw fail('Resolve the open return before transferring', 'delivery_recovery_pending');
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.body?.driverUserId || '')) throw fail('A valid driver is required', 'delivery_driver_invalid', 400);
+      const assignment = { driverId: req.body.driverUserId.toLowerCase(), vehicleId: positiveId(req.body.vehicleId) };
+      const reason = cleanText(req.body?.reason, 1000);
+      const { rows: [targetProfile] } = await client.query(
+        'SELECT available FROM delivery_driver_profiles WHERE user_id = $1',
+        [assignment.driverId],
+      );
+      if (targetProfile && targetProfile.available !== true) {
+        throw new AppError('The driver is offline. Ask the driver to turn on availability in Driving before assigning.', 409, 'delivery_driver_offline', { reasons: ['offline'] });
+      }
+      await lockResources(client, assignmentOf(job), assignment);
+      // A mid-route handover starts now; the window end is the job's
+      // own delivery window when it is still ahead, else the job's
+      // duration from now. windowForJob would refuse a late job
+      // outright, which is exactly when a transfer is most needed.
+      const nowMs = new Date(now).getTime();
+      const windowEndMs = Math.max(
+        job.delivery_window_end ? new Date(job.delivery_window_end).getTime() : 0,
+        job.estimated_arrival_at ? new Date(job.estimated_arrival_at).getTime() : 0,
+        nowMs + Math.max(60, Number(job.duration_minutes) || 60) * 60000,
+      );
+      const window = { start: new Date(nowMs).toISOString(), end: new Date(windowEndMs).toISOString() };
+      await checkAssignment(client, job, assignment, window);
+      await reserve(client, job, assignment, window);
+      await client.query(
+        `UPDATE delivery_tracking_assignments SET status = 'revoked', ended_at = NOW(), ended_reason = 'transferred', updated_at = NOW()
+         WHERE delivery_job_id = $1 AND status IN ('active', 'paused')`,
+        [job.id]
+      );
+      const previousDriverUserId = job.helper_user_id || job.internal_driver_user_id || null;
+      const updated = (await client.query(`UPDATE delivery_jobs SET fulfillment_source = 'internal', dispatch_state = 'internal_assigned',
+        helper_user_id = NULL, internal_driver_user_id = $1, vehicle_id = $2, assigned_by_user_id = $3,
+        internal_assigned_at = NOW(), updated_at = NOW() WHERE id = $4 RETURNING *`, [assignment.driverId, assignment.vehicleId, req.user.id, job.id])).rows[0];
+      await client.query("INSERT INTO delivery_dispatch_attempts (delivery_job_id, source, driver_user_id, vehicle_id, action, reason, actor_user_id) VALUES ($1,'internal',$2,$3,'transferred',$4,$5)", [job.id, assignment.driverId, assignment.vehicleId, reason || null, req.user.id]);
+      await recordReplacement(activity, client, job, req.user.id, { previousDriverUserId, newDriverUserId: assignment.driverId, releasedToMarketplace: false });
       return { success: true, job: updated };
     }),
     claim: (req) => run(req, { action: 'claim', access: 'helper', persistFailure: true }, async ({ client, job, activity, now }) => {
@@ -574,7 +667,7 @@ module.exports = {
   windowForJob, lockResources, assignmentOf, reserve, checkAssignment, recordActivity, ensureNoOpenRecovery,
   DECLINE_REASON_CODES, OFFER_DEADLINE_DEFAULT_HOURS, offerDeadlineHours,
   TERMINAL, fail, sameId, isOperator, isParticipant, pickedUp, cleanText,
-  ...Object.fromEntries(['assignInternal', 'releaseMarketplace', 'claim', 'decline'].map((name) => [name, (...args) => {
+  ...Object.fromEntries(['assignInternal', 'releaseMarketplace', 'transferAssignment', 'claim', 'decline'].map((name) => [name, (...args) => {
     defaults ||= createDispatchService();
     return defaults[name](...args);
   }])),

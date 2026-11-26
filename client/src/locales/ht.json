@@ -23473,7 +23473,16 @@
       "payoutAdjustEmpty": "Pa gen peman pou ajiste.",
       "payoutAdjustAmount": "Nouvo kantite ($)",
       "payoutAdjustReason": "Rezon (chofè a ka wè l)",
-      "payoutAdjustSubmit": "Ajiste peman an"
+      "payoutAdjustSubmit": "Ajiste peman an",
+      "marketplaceClaimed": "Reklame sou mache a pa {{driver}}",
+      "queuePrev": "Anvan",
+      "queueNext": "Swivan",
+      "queuePage": "Paj {{page}} sou {{pages}}",
+      "queueTotal": "{{count}} travay nan ke",
+      "transferTitle": "Transfere pandan wout la",
+      "transferHint": "Deplase livrezon sa a ki deja pran an bay yon lòt chofè. Prèv ou te pran l la rete nan travay la.",
+      "transferReason": "Rezon transfè a",
+      "transferSubmit": "Transfere"
     },
     "dispatchStates": {
       "internal_review": "Revizyon entèn",

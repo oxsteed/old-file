@@ -146,6 +146,9 @@ router.patch('/internal/disputes/:disputeId', requireAuth, rejectImpersonated, r
 router.get('/internal/exceptions', requireAuth, requireOperationsWorkspace, controller.getInternalExceptions);
 router.post('/internal/jobs/:id/assign', requireAuth, requireOperationsWorkspace, controller.assignInternal);
 router.post('/internal/jobs/:id/release-marketplace', requireAuth, requireOperationsWorkspace, controller.releaseMarketplace);
+// Group 9 partials Wave 2 Batch P (482, G9-B4, D-555): mid-route transfer
+// of a picked-up job to another internal driver.
+router.post('/internal/jobs/:id/transfer', requireAuth, requireOperationsWorkspace, controller.transferAssignment);
 router.patch('/internal/reschedule-requests/:requestId', requireAuth, requireOperationsWorkspace, controller.reviewReschedule);
 router.patch('/internal/returns/:returnId', requireAuth, requireOperationsWorkspace, controller.reviewReturn);
 router.patch('/internal/issues/:issueId/resolve', requireAuth, requireOperationsWorkspace, controller.resolveIssue);

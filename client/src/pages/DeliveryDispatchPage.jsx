@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { canAccessOperationsWorkspace } from '../utils/logisticsWorkspaces';
 import {
   assignInternalDelivery, listDeliveryDrivers, listDeliveryVehicles, listInternalDeliveryQueue,
-  releaseDeliveryToMarketplace, getInternalDelivery, getInternalDeliveryHandoffs, listInternalDriverHandoffs,
+  releaseDeliveryToMarketplace, transferInternalDelivery, getInternalDelivery, getInternalDeliveryHandoffs, listInternalDriverHandoffs,
   createDeliveryVehicle, saveDeliveryDriver,
   reviewDeliveryReschedule, reviewDeliveryReturn, resolveDeliveryIssue,
   refundDeliveryPayment, uploadDeliveryProof, deliveryDate, deliveryUnit, deliveryError, deliveryMoney,
@@ -339,6 +339,12 @@ export default function DeliveryDispatchPage() {
   const [handoffs, setHandoffs] = useState(null);
   const [lookup, setLookup] = useState('');
   const [filter, setFilter] = useState('all');
+  // Group 9 partials Wave 2 Batch P (481, G9-B5, D-553): the board is
+  // paginated server-side; the page size lives here so the pager and
+  // the fetch agree.
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const PAGE_LIMIT = 50;
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -350,14 +356,15 @@ export default function DeliveryDispatchPage() {
     if (!allowed) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [queue, driverList, vehicleList] = await Promise.all([listInternalDeliveryQueue(), listDeliveryDrivers(), listDeliveryVehicles()]);
-      setJobs(queue.jobs || []); setDrivers(driverList.drivers || []); setVehicles(vehicleList.vehicles || []); setError('');
+      const [queue, driverList, vehicleList] = await Promise.all([listInternalDeliveryQueue(page, PAGE_LIMIT), listDeliveryDrivers(), listDeliveryVehicles()]);
+      setJobs(queue.jobs || []); setTotal(Number(queue.total || 0)); setDrivers(driverList.drivers || []); setVehicles(vehicleList.vehicles || []); setError('');
     } catch (failure) {
       setError(deliveryError(failure, t, 'delivery.dispatch.loadError'));
       if ([401, 403].includes(failure?.response?.status)) { setJobs([]); setDrivers([]); setVehicles([]); setDetail(null); setHandoffs(null); }
     } finally { setLoading(false); }
-  }, [allowed, t]);
+  }, [allowed, t, page]);
   useEffect(() => { load(); }, [load]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
 
   const openReview = async (id) => {
     const sequence = ++reviewSequence.current;
@@ -399,11 +406,22 @@ export default function DeliveryDispatchPage() {
       {!loading && !error && !shown.length && <p>{t('delivery.dispatch.empty')}</p>}
       <div className="delivery-dispatch-grid">{shown.map((job) => {
         const choice = selection[job.id] || {};
-        const dispatchable = ['posted', 'assigned'].includes(job.status) && ['internal_review', 'internal_assignment_attempt', 'internal_assigned', 'exception'].includes(job.dispatch_state) && !job.exception_code;
+        // Group 9 partials Wave 2 Batch P (482, G9-B4, D-556): a
+        // marketplace-claimed job (dispatch_state 'assigned') is
+        // dispatchable before pickup: ops can reassign it to an
+        // internal driver or pull it back to the marketplace. Picked-up
+        // jobs are not dispatchable here; they move via transfer below.
+        const dispatchable = ['posted', 'assigned'].includes(job.status) && ['internal_review', 'internal_assignment_attempt', 'internal_assigned', 'exception', 'assigned'].includes(job.dispatch_state) && !job.exception_code;
+        const transferable = ['picked_up', 'in_transit'].includes(job.status);
+        const claimedDriverName = [job.helper_first_name, job.helper_last_name].filter(Boolean).join(' ') || job.helper_email || job.helper_user_id;
         return <article className="delivery-panel" key={job.id}>
           <div className="delivery-job-card__topline"><h2>{job.reference}</h2><span className="delivery-status">{label('dispatchStates', job.dispatch_state)}</span></div>
           <p>{job.origin_city} → {job.destination_city}</p><p>{deliveryUnit(job.weight_lbs, 'pound', i18n.language)} · {deliveryUnit(job.distance_miles, 'mile', i18n.language)}</p>
           <p>{deliveryDate(job.pickup_window_start, i18n.language)} – {deliveryDate(job.delivery_window_end, i18n.language)}</p>
+          {/* Group 9 partials Wave 2 Batch P (481, G9-B5, D-553): a
+            marketplace-claimed job no longer vanishes from the board;
+            it is marked as claimed, with the claiming driver. */}
+          {job.dispatch_state === 'assigned' && job.helper_user_id && <p>{t('delivery.dispatch.marketplaceClaimed', { driver: claimedDriverName })}</p>}
           {job.offer_expired_at && <p>{t('delivery.dispatch.offerExpired')}</p>}
           {/* Group 9 Slice E (item 485): the automated delay escalation
             flag — the job is past its ETA and dispatch has the issue. */}
@@ -414,7 +432,22 @@ export default function DeliveryDispatchPage() {
               <label className="delivery-field">{t('delivery.dispatch.vehicle')}<select className="delivery-input" value={choice.vehicleId || ''} onChange={(event) => choiceFor(job.id, 'vehicleId', event.target.value)}><option value="">{t('delivery.dispatch.chooseVehicle')}</option>{vehicles.filter((item) => item.active !== false).map((item) => <option key={item.id} value={item.id}>{item.label} · {deliveryUnit(item.max_payload_lbs, 'pound', i18n.language)}</option>)}</select></label></div>
             <p>{t('delivery.ui.capacityHint')}</p>
             <button className="delivery-button delivery-button--primary" disabled={!choice.driverUserId || !choice.vehicleId} onClick={() => run(() => assignInternalDelivery(job.id, { driverUserId: choice.driverUserId, vehicleId: choice.vehicleId }))} data-track="ui.49bdb74b31.16">{t('delivery.dispatch.assign')}</button>
-            {!job.helper_user_id && <form onSubmit={(event) => { event.preventDefault(); run(() => releaseDeliveryToMarketplace(job.id, choice.reason, choice.offerDeadlineHours ? Number(choice.offerDeadlineHours) : undefined)); }} data-track="ui.49bdb74b31.17"><label className="delivery-field">{t('delivery.ui.releaseReason')}<input className="delivery-input" required maxLength={500} value={choice.reason || ''} onChange={(event) => choiceFor(job.id, 'reason', event.target.value)} /></label><label className="delivery-field">{t('delivery.dispatch.offerDeadlineHours')}<input className="delivery-input" type="number" min="1" max="168" step="1" value={choice.offerDeadlineHours || '24'} onChange={(event) => choiceFor(job.id, 'offerDeadlineHours', event.target.value)} /></label><button className="delivery-button delivery-button--secondary" data-track="ui.49bdb74b31.18">{t('delivery.dispatch.release')}</button></form>}
+            {/* Batch P (D-556): the release form is offered for claimed
+              jobs too — releasing one pulls the claim back and re-posts
+              it to the marketplace with a fresh offer deadline. */}
+            <form onSubmit={(event) => { event.preventDefault(); run(() => releaseDeliveryToMarketplace(job.id, choice.reason, choice.offerDeadlineHours ? Number(choice.offerDeadlineHours) : undefined)); }} data-track="ui.49bdb74b31.17"><label className="delivery-field">{t('delivery.ui.releaseReason')}<input className="delivery-input" required maxLength={500} value={choice.reason || ''} onChange={(event) => choiceFor(job.id, 'reason', event.target.value)} /></label><label className="delivery-field">{t('delivery.dispatch.offerDeadlineHours')}<input className="delivery-input" type="number" min="1" max="168" step="1" value={choice.offerDeadlineHours || '24'} onChange={(event) => choiceFor(job.id, 'offerDeadlineHours', event.target.value)} /></label><button className="delivery-button delivery-button--secondary" data-track="ui.49bdb74b31.18">{t('delivery.dispatch.release')}</button></form>
+          </fieldset>}
+          {/* Group 9 partials Wave 2 Batch P (482, G9-B4, D-555):
+            mid-route transfer for a picked-up job. The new driver
+            passes the same capability gate server-side; the pickup
+            proof and custody record stay with the job. */}
+          {transferable && <fieldset className="delivery-form-fields" disabled={busy || loading}>
+            <h3>{t('delivery.dispatch.transferTitle')}</h3>
+            <p>{t('delivery.dispatch.transferHint')}</p>
+            <div className="delivery-stop-grid"><label className="delivery-field">{t('delivery.dispatch.driver')}<select className="delivery-input" value={choice.driverUserId || ''} onChange={(event) => choiceFor(job.id, 'driverUserId', event.target.value)}><option value="">{t('delivery.dispatch.chooseDriver')}</option>{drivers.filter((item) => item.active !== false && item.approved !== false).map((item) => <option key={item.user_id} value={item.user_id}>{[item.first_name, item.last_name].filter(Boolean).join(' ') || item.email || item.user_id}</option>)}</select></label>
+              <label className="delivery-field">{t('delivery.dispatch.vehicle')}<select className="delivery-input" value={choice.vehicleId || ''} onChange={(event) => choiceFor(job.id, 'vehicleId', event.target.value)}><option value="">{t('delivery.dispatch.chooseVehicle')}</option>{vehicles.filter((item) => item.active !== false).map((item) => <option key={item.id} value={item.id}>{item.label} · {deliveryUnit(item.max_payload_lbs, 'pound', i18n.language)}</option>)}</select></label></div>
+            <label className="delivery-field">{t('delivery.dispatch.transferReason')}<input className="delivery-input" maxLength={1000} value={choice.transferReason || ''} onChange={(event) => choiceFor(job.id, 'transferReason', event.target.value)} /></label>
+            <button className="delivery-button delivery-button--primary" disabled={!choice.driverUserId || !choice.vehicleId} onClick={() => run(() => transferInternalDelivery(job.id, { driverUserId: choice.driverUserId, vehicleId: choice.vehicleId, reason: choice.transferReason || '' }))} data-track="ui.49bdb74b31.30">{t('delivery.dispatch.transferSubmit')}</button>
           </fieldset>}
           {/* Group 9 Slice B (item 457): an expired offer is back with
             dispatch. Re-offering stamps a fresh deadline (default 24h)
@@ -426,6 +459,14 @@ export default function DeliveryDispatchPage() {
           </div>
         </article>;
       })}</div>
+      {/* Group 9 partials Wave 2 Batch P (481, G9-B5, D-553): the
+        board pager — the 200-row silent drop is gone; every queued
+        job is reachable page by page. */}
+      {!loading && total > PAGE_LIMIT && <div className="delivery-dispatch-actions">
+        <button className="delivery-button delivery-button--secondary" disabled={busy || page <= 1} onClick={() => setPage(page - 1)} data-track="ui.49bdb74b31.28">{t('delivery.dispatch.queuePrev')}</button>
+        <span>{t('delivery.dispatch.queuePage', { page, pages: totalPages })} · {t('delivery.dispatch.queueTotal', { count: total })}</span>
+        <button className="delivery-button delivery-button--secondary" disabled={busy || page >= totalPages} onClick={() => setPage(page + 1)} data-track="ui.49bdb74b31.29">{t('delivery.dispatch.queueNext')}</button>
+      </div>}
       {detail && <JobReview key={detail.job.id} detail={detail} handoffs={handoffs} busy={busy} run={run} t={t} language={i18n.language} />}
       {/* Group 9 Slice F (item 483): the dispatcher capacity overview —
         read-only; assignment stays on the board cards above. */}
