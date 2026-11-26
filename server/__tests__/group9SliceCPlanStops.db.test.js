@@ -332,7 +332,10 @@ ddescribe('Group 9 Slice C: driver plan stops (461-465)', () => {
     const forJob = () => sent.filter((notification) => notification.data.deliveryJobId === job.id);
     const first = await sweepDeliveryWindowWarnings(pool, { send });
     expect(first.closing).toBeGreaterThanOrEqual(1);
-    expect(first.expired).toBe(0);
+    // The sweep scans the whole shared test DB, so other suites' jobs
+    // (e.g. Batch P's past-window no-show job) may contribute expired
+    // counts: assert expired per-job, as in 485.
+    expect(forJob().filter((notification) => notification.data.kind === 'expired')).toHaveLength(0);
     expect(first.failed).toBe(0);
     expect(forJob()).toHaveLength(1);
     expect(forJob()[0].userId).toBe(driverId);
