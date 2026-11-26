@@ -13776,6 +13776,7 @@
     "receiptTool": "Herramienta",
     "receiptDates": "Fechas del alquiler",
     "receiptTotal": "Total",
+    "receiptDeposit": "Depósito",
     "receiptFulfillment": "Cómo la recibes",
     "receiptFulfillment_pickup": "Recogida",
     "receiptFulfillment_delivery": "Entrega",

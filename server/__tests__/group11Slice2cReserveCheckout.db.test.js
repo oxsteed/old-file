@@ -433,6 +433,59 @@ describeDb('Group 11 Slice 2c: Reserve + Checkout (566, 568, 570, 571, 574, 575)
       expect(Number(res.body.invoice.total_amount)).toBe(36);
       expect(res.body.booking.status).toBe('invoice_sent');
     });
+
+    test('a booking made through the API records the renter terms acceptance (569)', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Terms drill' });
+      const created = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12');
+      expect(created.status).toBe(201);
+      const bookingId = created.body.id;
+      // The acceptance row is written in the same transaction as the booking.
+      const { rows } = await db.query(
+        `SELECT user_role, terms_version FROM tool_rental_terms_acceptance WHERE booking_id = $1 AND user_id = $2`,
+        [bookingId, renter],
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0].user_role).toBe('customer');
+      expect(rows[0].terms_version).toBeTruthy();
+      // The receipt reports the renter as accepted without any second step.
+      const receipt = await request(app)
+        .get(`/api/tool-rentals/bookings/${bookingId}/receipt`)
+        .set('x-test-user', renter)
+        .expect(200);
+      expect(receipt.body.terms.customerAccepted).toBe(true);
+      expect(receipt.body.terms.ownerAccepted).toBe(false);
+      expect(receipt.body.terms.bothAccepted).toBe(false);
+    });
+
+    test('after invoicing a deposit listing the receipt carries the deposit line (570)', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Deposit drill', requires_deposit: true, deposit_amount: 40 });
+      const created = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12');
+      expect(created.status).toBe(201);
+      const bookingId = created.body.id;
+      await insertPaymentMethod(owner);
+      await insertTermsAcceptance(bookingId, owner, 'owner');
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${bookingId}/approve`)
+        .set('x-test-user', owner)
+        .expect(200);
+      const issued = await attemptInvoice(owner, bookingId);
+      expect(issued.status).toBe(200);
+      const res = await request(app)
+        .get(`/api/tool-rentals/bookings/${bookingId}/receipt`)
+        .set('x-test-user', renter)
+        .expect(200);
+      expect(Number(res.body.invoice.deposit_amount)).toBe(40);
+      expect(Number(res.body.booking.deposit_amount)).toBe(40);
+      expect(res.body.booking.deposit_status).toBe('due');
+      // The renter terms are accepted from booking time (569).
+      expect(res.body.terms.customerAccepted).toBe(true);
+    });
   });
 
   describe('571: identity check status', () => {

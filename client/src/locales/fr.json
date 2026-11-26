@@ -13776,6 +13776,7 @@
     "receiptTool": "Outil",
     "receiptDates": "Dates de location",
     "receiptTotal": "Total",
+    "receiptDeposit": "Caution",
     "receiptFulfillment": "Comment vous le récupérez",
     "receiptFulfillment_pickup": "Retrait",
     "receiptFulfillment_delivery": "Livraison",

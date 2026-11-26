@@ -215,6 +215,24 @@ const createBooking = async (req, res, next) => {
       [toolId, userId, ownerId, startDate, endDate, totalPrice, agreementSnapshot, TOOL_RENTAL_AGREEMENT_VERSION, pickupTime, returnTime]
     );
 
+    // 569 (D-570): the renter ticked the agreement checkbox to book
+    // (renterAgreementAccepted is required above), so the booking-time
+    // acceptance is recorded as a `customer` row in
+    // tool_rental_terms_acceptance, in the same transaction as the
+    // booking. The receipt and the terms-status read only that table,
+    // so without this row they always reported the renter as "not
+    // accepted" even though the renter had agreed to book. The owner
+    // row still comes only from the explicit accept-terms step (the
+    // invoice gate), never from booking. terms_version here is the
+    // agreement-snapshot version the renter actually accepted, not
+    // the accept-terms endpoint's TERMS_VERSION.
+    await client.query(
+      `INSERT INTO tool_rental_terms_acceptance (booking_id, user_id, user_role, terms_version)
+       VALUES ($1, $2, 'customer', $3)
+       ON CONFLICT (booking_id, user_id) DO NOTHING`,
+      [booking.rows[0].id, userId, TOOL_RENTAL_AGREEMENT_VERSION]
+    );
+
     // Log analytics
     await client.query(
       `INSERT INTO tool_rentals_analytics (user_id, tool_id, event_type, metadata)

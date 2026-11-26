@@ -736,6 +736,17 @@ const MyBookingsPageContent = () => {
             <div><dt>{t('toolRentals.receiptFulfillment') || 'How you get it'}</dt><dd>{t(`toolRentals.receiptFulfillment_${fulfillment}`) || fulfillment}</dd></div>
           )}
           <div><dt>{t('toolRentals.receiptTotal') || 'Total'}</dt><dd>${Number(booking.total_price || 0).toFixed(2)}</dd></div>
+          {(Number(receipt.invoice?.deposit_amount || 0) > 0 || Number(booking.deposit_amount || 0) > 0) && (
+            <div>
+              <dt>{t('toolRentals.receiptDeposit') || 'Deposit'}</dt>
+              <dd>
+                ${Number(receipt.invoice?.deposit_amount ?? booking.deposit_amount ?? 0).toFixed(2)}
+                {booking.deposit_status && booking.deposit_status !== 'none' && (
+                  <> · {t(`toolRentals.depositStatus_${booking.deposit_status}`) || booking.deposit_status}</>
+                )}
+              </dd>
+            </div>
+          )}
           <div>
             <dt>{t('toolRentals.receiptApproval') || 'Owner approval'}</dt>
             <dd>{t(`toolRentals.receiptApproval_${booking.owner_approval || 'pending'}`) || booking.owner_approval || 'pending'}</dd>

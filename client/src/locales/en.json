@@ -13776,6 +13776,7 @@
     "receiptTool": "Tool",
     "receiptDates": "Rental dates",
     "receiptTotal": "Total",
+    "receiptDeposit": "Deposit",
     "receiptFulfillment": "How you get it",
     "receiptFulfillment_pickup": "Pickup",
     "receiptFulfillment_delivery": "Delivery",
