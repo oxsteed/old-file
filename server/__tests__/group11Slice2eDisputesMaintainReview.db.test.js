@@ -502,6 +502,7 @@ describeDb('Group 11 Slice 2e: Disputes + Maintain + Review (586, 587, 589, 590,
     test('opening an escalation notifies the counterparty and the moderation admins', async () => {
       const { owner, renter, booking } = await paidPair();
       const admin = await addUser('super_admin');
+      void admin; // The fan-out asserts on the queue link, not this id (cap 25).
       const { sendNotification } = require('../services/notificationService');
       jest.clearAllMocks();
       const opened = await request(app)
@@ -510,14 +511,21 @@ describeDb('Group 11 Slice 2e: Disputes + Maintain + Review (586, 587, 589, 590,
         .send({ category: 'deposit', message: 'The deposit was never returned.' })
         .expect(201);
       const escalationId = opened.body.escalation.id;
+      // The counterparty is always notified.
       expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
         type: 'tool_rental_escalation_opened',
         userId: owner,
       }));
-      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'tool_rental_escalation_opened',
-        userId: admin,
-      }));
+      // Admins are notified through the moderation queue link, capped at
+      // 25: with residue from earlier tests the file can hold more than 25
+      // super_admins, so no single admin is asserted here — only that the
+      // fan-out happens and stays bounded.
+      const adminCalls = sendNotification.mock.calls.filter(
+        ([call]) => call.type === 'tool_rental_escalation_opened' && call.action_url === '/admin/tool-rentals',
+      );
+      expect(adminCalls.length).toBeGreaterThan(0);
+      expect(adminCalls.length).toBeLessThanOrEqual(25);
+      expect(sendNotification).toHaveBeenCalledTimes(adminCalls.length + 1);
       // The opener is never notified about their own escalation.
       expect(sendNotification).not.toHaveBeenCalledWith(expect.objectContaining({
         type: 'tool_rental_escalation_opened',
@@ -650,6 +658,59 @@ describeDb('Group 11 Slice 2e: Disputes + Maintain + Review (586, 587, 589, 590,
         .send({ category: 'other', message: 'The owner has not replied since booking.' })
         .expect(201);
       expect(opened.body.escalation.status).toBe('open');
+    });
+  });
+
+  // Wave 3 (599, D-574): the dashboard counts permitted earnings only.
+  // An invoice_sent booking is money not yet paid, so it is invoiced,
+  // not revenue, at the top level, per month, and per tool.
+  describe('599: permitted earnings summary', () => {
+    test('dashboard revenue counts only payment_confirmed/completed; invoice_sent is invoiced, not revenue', async () => {
+      const { owner, renter, tool, booking } = await paidPair();
+      // A second booking on the same tool, invoiced but unpaid.
+      await insertBooking(tool.id, renter, owner, '2026-12-15', '2026-12-17', 'invoice_sent');
+      const res = await request(app)
+        .get('/api/tool-rentals/analytics/dashboard')
+        .set('x-test-user', owner)
+        .expect(200);
+      expect(res.body.totalRevenue).toBe(36);
+      expect(res.body.totalInvoiced).toBe(36);
+      expect(res.body.totalBookings).toBe(2);
+      expect(res.body.monthlyRevenue).toHaveLength(1);
+      expect(Number(res.body.monthlyRevenue[0].revenue)).toBe(36);
+      expect(Number(res.body.monthlyRevenue[0].invoiced)).toBe(36);
+      expect(res.body.toolMetrics).toHaveLength(1);
+      expect(Number(res.body.toolMetrics[0].total_revenue)).toBe(36);
+      expect(Number(res.body.toolMetrics[0].total_invoiced)).toBe(36);
+      void booking;
+    });
+
+    test('completing a booking stamps completed_at and keeps it in revenue', async () => {
+      const { owner, renter, booking } = await paidPair();
+      const returned = await request(app)
+        .put(`/api/tool-rentals/bookings/${booking.id}`)
+        .set('x-test-user', owner)
+        .send({ status: 'returned' })
+        .expect(200);
+      expect(returned.body.status).toBe('returned');
+      expect(returned.body.returned_at).toBeTruthy();
+      expect(returned.body.completed_at).toBeNull();
+      const completed = await request(app)
+        .put(`/api/tool-rentals/bookings/${booking.id}`)
+        .set('x-test-user', owner)
+        .send({ status: 'completed' })
+        .expect(200);
+      expect(completed.body.status).toBe('completed');
+      expect(completed.body.completed_at).toBeTruthy();
+      // A completed booking still counts as permitted earnings.
+      const res = await request(app)
+        .get('/api/tool-rentals/analytics/dashboard')
+        .set('x-test-user', owner)
+        .expect(200);
+      expect(res.body.totalRevenue).toBe(36);
+      expect(res.body.totalInvoiced).toBe(0);
+      expect(res.body.completedBookings).toBe(1);
+      void renter;
     });
   });
 

@@ -17,12 +17,14 @@ interface ToolMetric {
   inquiries: number;
   completed_bookings: number;
   total_revenue: number;
+  total_invoiced: number;
   avg_rating: number;
 }
 
 interface MonthlyRevenue {
   month: string;
   revenue: number;
+  invoiced: number;
   bookings: number;
 }
 
@@ -33,6 +35,7 @@ interface DashboardData {
   totalBookings: number;
   completedBookings: number;
   totalRevenue: number;
+  totalInvoiced: number;
   monthlyRevenue: MonthlyRevenue[];
   toolMetrics: ToolMetric[];
 }
@@ -207,6 +210,24 @@ const ToolRentalsAnalytics: React.FC = () => {
           <div className="analytics-metric-content">
             <div className="analytics-metric-label">{t('toolRentals.totalRevenue') || 'Total Revenue'}</div>
             <div className="analytics-metric-value">${data.totalRevenue.toFixed(2)}</div>
+            <div className="analytics-metric-subtext">
+              {t('toolRentals.totalRevenueSubtext') || 'Paid or completed bookings'}
+            </div>
+          </div>
+        </div>
+
+        {/* Wave 3 (599, D-574): invoiced, not yet paid, shown separately
+            so unpaid invoices never read as revenue. */}
+        <div className="analytics-metric-card">
+          <div className="analytics-metric-icon revenue">
+            <Receipt className="w-6 h-6" />
+          </div>
+          <div className="analytics-metric-content">
+            <div className="analytics-metric-label">{t('toolRentals.totalInvoiced') || 'Invoiced'}</div>
+            <div className="analytics-metric-value">${data.totalInvoiced.toFixed(2)}</div>
+            <div className="analytics-metric-subtext">
+              {t('toolRentals.totalInvoicedSubtext') || 'Unpaid invoices'}
+            </div>
           </div>
         </div>
       </div>
@@ -330,6 +351,7 @@ const ToolRentalsAnalytics: React.FC = () => {
                 <th>{t('toolRentals.inquiries') || 'Inquiries'}</th>
                 <th>{t('toolRentals.completed') || 'Completed'}</th>
                 <th>{t('toolRentals.revenue') || 'Revenue'}</th>
+                <th>{t('toolRentals.invoiced') || 'Invoiced'}</th>
                 <th>{t('toolRentals.rating') || 'Rating'}</th>
               </tr>
             </thead>
@@ -342,6 +364,7 @@ const ToolRentalsAnalytics: React.FC = () => {
                   <td>{tool.inquiries.toLocaleString()}</td>
                   <td>{tool.completed_bookings}</td>
                   <td>${tool.total_revenue.toFixed(2)}</td>
+                  <td>${(tool.total_invoiced || 0).toFixed(2)}</td>
                   <td>
                     {tool.avg_rating > 0 ? (
                       <span className="analytics-rating">

@@ -196,12 +196,16 @@ const getOwnerDashboard = async (req, res) => {
       eventCounts[row.event_type] = row.count;
     });
 
-    // Get booking statistics
+    // Get booking statistics. Wave 3 (599, D-574): revenue is permitted
+    // earnings only — payment_confirmed or completed. An invoice_sent
+    // booking is money the renter has not paid yet, so it counts as
+    // invoiced, not revenue, and is reported separately.
     const bookingsResult = await db.query(
       `SELECT
          COUNT(*) as total,
          SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-         SUM(CASE WHEN status IN ('invoice_sent', 'payment_confirmed', 'completed') THEN total_price ELSE 0 END) as revenue
+         SUM(CASE WHEN status IN ('payment_confirmed', 'completed') THEN total_price ELSE 0 END) as revenue,
+         SUM(CASE WHEN status = 'invoice_sent' THEN total_price ELSE 0 END) as invoiced
        FROM tool_rentals_bookings
        WHERE tool_id = ANY($1)`,
       [toolIds]
@@ -213,7 +217,8 @@ const getOwnerDashboard = async (req, res) => {
     const monthlyResult = await db.query(
       `SELECT
          DATE_TRUNC('month', created_at)::date as month,
-         SUM(total_price) as revenue,
+         SUM(CASE WHEN status IN ('payment_confirmed', 'completed') THEN total_price ELSE 0 END) as revenue,
+         SUM(CASE WHEN status = 'invoice_sent' THEN total_price ELSE 0 END) as invoiced,
          COUNT(*) as bookings
        FROM tool_rentals_bookings
        WHERE tool_id = ANY($1) AND status IN ('invoice_sent', 'payment_confirmed', 'completed')
@@ -238,7 +243,8 @@ const getOwnerDashboard = async (req, res) => {
          SELECT tool_id,
                 COUNT(*) AS inquiries,
                 COUNT(*) FILTER (WHERE status = 'completed') AS completed_bookings,
-                COALESCE(SUM(total_price) FILTER (WHERE status IN ('invoice_sent', 'payment_confirmed', 'completed')), 0) AS total_revenue
+                COALESCE(SUM(total_price) FILTER (WHERE status IN ('payment_confirmed', 'completed')), 0) AS total_revenue,
+                COALESCE(SUM(total_price) FILTER (WHERE status = 'invoice_sent'), 0) AS total_invoiced
            FROM tool_rentals_bookings
           WHERE tool_id = ANY($1)
           GROUP BY tool_id
@@ -256,6 +262,7 @@ const getOwnerDashboard = async (req, res) => {
               COALESCE(b.inquiries, 0) AS inquiries,
               COALESCE(b.completed_bookings, 0) AS completed_bookings,
               COALESCE(b.total_revenue, 0) AS total_revenue,
+              COALESCE(b.total_invoiced, 0) AS total_invoiced,
               COALESCE(r.avg_rating, 0) AS avg_rating
          FROM tool_rentals tr
          LEFT JOIN analytics a ON tr.id = a.tool_id
@@ -273,6 +280,7 @@ const getOwnerDashboard = async (req, res) => {
       totalBookings: parseInt(bookingStats.total) || 0,
       completedBookings: parseInt(bookingStats.completed) || 0,
       totalRevenue: parseFloat(bookingStats.revenue) || 0,
+      totalInvoiced: parseFloat(bookingStats.invoiced) || 0,
       monthlyRevenue: monthlyResult.rows,
       toolMetrics: toolMetricsResult.rows
     });

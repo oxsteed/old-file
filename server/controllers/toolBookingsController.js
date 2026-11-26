@@ -402,13 +402,21 @@ const updateBookingStatus = async (req, res, next) => {
     }
 
     const returnNote = typeof req.body?.returnNote === 'string' ? req.body.returnNote.trim().slice(0, 2000) : null;
+    // Wave 3 (599, D-574): the new status is passed twice ($1 and $4).
+    // Postgres cannot deduce a parameter's type when the same $n is used
+    // both to set a varchar column and inside a CASE comparison against a
+    // literal ("inconsistent types deduced for parameter $1"), so the
+    // pre-existing single-parameter form 500d every returned/completed
+    // update through this endpoint. $1 is used once (the assignment) and
+    // $4 only inside the CASE comparisons, so each deduces cleanly.
     const result = await db.query(
       `UPDATE tool_rentals_bookings
           SET status = $1,
-              returned_at = CASE WHEN $1 = 'returned' THEN NOW() ELSE returned_at END,
-              return_condition_note = CASE WHEN $1 = 'returned' THEN $3 ELSE return_condition_note END
+              returned_at = CASE WHEN $4 = 'returned' THEN NOW() ELSE returned_at END,
+              completed_at = CASE WHEN $4 = 'completed' THEN NOW() ELSE completed_at END,
+              return_condition_note = CASE WHEN $4 = 'returned' THEN $3 ELSE return_condition_note END
         WHERE id = $2 RETURNING *`,
-      [status, bookingId, returnNote]
+      [status, bookingId, returnNote, status]
     );
 
     const updatedBooking = result.rows[0];
