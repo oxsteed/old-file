@@ -92,7 +92,32 @@ function getInitialState(defaultCountry, defaultState) {
   const urgentParam = params.get('urgent');
   if (urgentParam === 'true') filters.urgentOnly = true;
 
-  return { filters, tileId };
+  // Geo from a shared link or the homepage search (helpers + discover both
+  // send lat/lng/radius). Mirrors the helpers directory pattern: both
+  // coords must parse and be in range, or neither applies. The radius is
+  // returned separately so the helper-preference seeding below can let an
+  // explicit URL radius win, the same way a restored radius wins.
+  let urlRadius = null;
+  const latParam = params.get('lat');
+  const lngParam = params.get('lng');
+  if (latParam && lngParam) {
+    const lat = parseFloat(latParam);
+    const lng = parseFloat(lngParam);
+    if (Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      filters.userLat = lat;
+      filters.userLng = lng;
+    }
+  }
+  const radParam = params.get('radius');
+  if (radParam) {
+    const r = parseFloat(radParam);
+    if (Number.isFinite(r) && r >= 1 && r <= 250) {
+      filters.radiusMiles = Math.round(r);
+      urlRadius = filters.radiusMiles;
+    }
+  }
+
+  return { filters, tileId, urlRadius };
 }
 
 // ── Card skeleton ─────────────────────────────────────────────────────────────
@@ -347,7 +372,7 @@ export default function JobListPage() {
     || detectCountryFromLocale('US');
 
   const [savedList] = useState(() => {const saved=readNavigationState('jobs');return saved && (!window.location.search || window.location.search===saved.search) ? saved : null;});
-  const [{ filters: _initFilters, tileId: _initTileId }] = useState(() => {
+  const [{ filters: _initFilters, tileId: _initTileId, urlRadius: _initUrlRadius }] = useState(() => {
     const defaults=getInitialState(defaultCountry,defaultState);
     // A supplied URL wins over remembered filters.
     return savedList && (!window.location.search || window.location.search===savedList.search)
@@ -384,7 +409,7 @@ export default function JobListPage() {
   useEffect(() => {
     if (!hasHelperAccess || discoveryRadiusSeededRef.current) return undefined;
     discoveryRadiusSeededRef.current = true;
-    void applyDiscoveryRadius(savedList?.filters?.radiusMiles ?? null);
+    void applyDiscoveryRadius(savedList?.filters?.radiusMiles ?? _initUrlRadius ?? null);
     const onChanged = () => void applyDiscoveryRadius();
     window.addEventListener(DISCOVERY_CHANGED_EVENT, onChanged);
     return () => window.removeEventListener(DISCOVERY_CHANGED_EVENT, onChanged);
@@ -460,8 +485,15 @@ export default function JobListPage() {
     if (filters.city) next.set('city', filters.city);
     if (filters.state) next.set('state', filters.state);
     if (filters.urgentOnly) next.set('urgent', 'true');
+    // Geo round-trips too, so a refresh or shared link keeps the radius
+    // search instead of silently dropping it (the homepage sends it).
+    if (filters.userLat !== null && filters.userLng !== null) {
+      next.set('lat', String(filters.userLat));
+      next.set('lng', String(filters.userLng));
+      next.set('radius', String(filters.radiusMiles));
+    }
     setSearchParams(next, { replace: true });
-  }, [filters.query, selectedTileId, filters.city, filters.state, filters.urgentOnly, setSearchParams]);
+  }, [filters.query, selectedTileId, filters.city, filters.state, filters.urgentOnly, filters.userLat, filters.userLng, filters.radiusMiles, setSearchParams]);
 
   // Persist state + country across sessions (matches old behaviour).
   useEffect(() => {
