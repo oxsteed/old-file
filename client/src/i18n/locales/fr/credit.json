@@ -117,6 +117,10 @@
   "creditApplyStatusActive": "Demande active",
   "creditApplyStatusPending": "Demande en attente",
   "creditApplyStatusRevoked": "Demande révoquée",
+  "creditApplyPartnerSuspended": "Partenaire suspendu",
+  "creditApplyPartnerTerminated": "Partenaire fermé",
+  "creditApplyPartnerStatusReason": "Motif : {{reason}}",
+  "creditApplyPartnerStatusChangedAt": "Modifié le {{date}}",
   "creditApplyStatusSuspended": "Demande suspendue",
   "creditApplyChecklistBlocked": "Bloqué",
   "creditApplyChecklistDetailApprovalRequested": "Approbation demandée, en attente d'un deuxième administrateur.",
@@ -2727,7 +2731,9 @@
     "fundedByBusiness": "Financé par {{business}}",
     "fundedByPerson": "Approuvé par {{name}}",
     "fundingReason": "Motif : {{reason}}",
-    "fundingApprovedAt": "Approuvé le {{date}}"
+    "fundingApprovedAt": "Approuvé le {{date}}",
+    "fundingApprovalState_approved": "Approuvé",
+    "fundingApprovalState_not_applicable": "Sans objet"
   },
   "identityVerification": {
     "eyebrow": "Vérification d'identité",

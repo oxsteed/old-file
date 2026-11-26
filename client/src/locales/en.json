@@ -8726,6 +8726,7 @@
     "creditHistoryMember": "Member",
     "creditHistoryAmount": "Amount",
     "creditHistoryStatus": "Status",
+    "creditHistoryApproval": "Approval",
     "creditHistoryReason": "Reason",
     "tabTaxLabel": "Tax",
     "tabGoalsLabel": "Goals",

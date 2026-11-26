@@ -200,6 +200,14 @@ export default function CreditApplyPage() {
                 {t(participant.participantType === 'helper' ? 'adminParticipantTypeHelper' : 'adminParticipantTypeBusiness')}
                 {' · '}
                 {t(STATUS_KEY[participant.status] || 'creditApplyStatusPending')}
+                {(participant.partnerStatus === 'suspended' || participant.partnerStatus === 'terminated') && (
+                  <>
+                    {' · '}
+                    {t(participant.partnerStatus === 'suspended' ? 'creditApplyPartnerSuspended' : 'creditApplyPartnerTerminated')}
+                    {participant.partnerStatusReason && ` · ${t('creditApplyPartnerStatusReason', { reason: participant.partnerStatusReason })}`}
+                    {participant.partnerStatusChangedAt && ` · ${t('creditApplyPartnerStatusChangedAt', { date: new Date(participant.partnerStatusChangedAt).toLocaleDateString() })}`}
+                  </>
+                )}
               </li>
             ))}
           </ul>
@@ -210,7 +218,11 @@ export default function CreditApplyPage() {
           ))}
         </div>
       )}
-      {participants.some((participant) => participant.status === 'suspended' || participant.status === 'revoked') && (
+      {/* Wave 3 (700, D-576): the recovery links also show when the
+          participant's own record is fine but its partner is suspended or
+          terminated — the removal was partner-side, and the reason + date
+          above come from the partner transition audit event. */}
+      {participants.some((participant) => participant.status === 'suspended' || participant.status === 'revoked' || participant.partnerStatus === 'suspended' || participant.partnerStatus === 'terminated') && (
         <CreditDomainRecoveryLinks />
       )}
       {participants.length === 0 && (

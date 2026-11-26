@@ -93,6 +93,7 @@ describeDb('Group 13 Slice 4j: track accountability (696-700)', () => {
     app.use(express.json());
     app.use('/api/consent', require('../routes/consent'));
     app.get('/api/oxsteed-credit/account', authenticate, creditCtrl.getMyAccount);
+    app.get('/api/oxsteed-credit/participants/me', authenticate, creditCtrl.getMyParticipants);
     app.get('/api/oxsteed-credit/topups', authenticate, topupCtrl.listMyTopups);
     app.get('/api/oxsteed-credit/topups/:id', authenticate, topupCtrl.getTopup);
     app.get('/api/oxsteed-credit/cards/:cardId/history', authenticate, cardController.myCardHistory);
@@ -407,6 +408,47 @@ describeDb('Group 13 Slice 4j: track accountability (696-700)', () => {
     expect(strangerRes.status).toBe(200);
     expect(strangerRes.body.account.status).toBe('active');
     expect(strangerRes.body.account.statusReason).toBeNull();
+  });
+
+  // 700 (display-only, D-576): a suspended partner's removal reason +
+  // date come from the partner transition audit event; the participant
+  // row itself is untouched (no suspend/revoke transition is built).
+  test('700: a suspended partner read carries its removal reason and date; the participant row stays active', async () => {
+    const funder = await makeUser();
+    const member = await makeUser();
+    const business = await makeBusiness({ owner: funder, member });
+    const participantService = require('../services/oxsteedCreditParticipantService');
+    const { participant, partnerId } = await participantService.enrollParticipant({
+      actorUserId: admin.id,
+      participantType: 'business',
+      businessId: business.id,
+      notes: 'Fixture enrolment',
+      allowedSurfaces: ['food_online'],
+    });
+    // The partner is suspended partner-side (row flip + the transition
+    // audit event, the way transitionPartner records it); the
+    // participant row is left active on purpose.
+    await pool.query(`UPDATE credit_participants SET status = 'active' WHERE id = $1`, [participant.participantId]);
+    await pool.query(`UPDATE oxsteed_credit_partners SET status = 'suspended' WHERE id = $1`, [partnerId]);
+    await pool.query(
+      `INSERT INTO oxsteed_credit_audit_events
+         (action_type, actor_user_id, partner_id, resource_type, resource_id, reason)
+       VALUES ('credit.partner.transitioned', $1, $2, 'credit_partner', $3, 'Fixture partner suspension')`,
+      [admin.id, partnerId, String(partnerId)],
+    );
+    const res = await getAs(funder, '/api/oxsteed-credit/participants/me');
+    expect(res.status).toBe(200);
+    const mine = res.body.participants.find((row) => String(row.participantId) === String(participant.participantId));
+    expect(mine).toBeTruthy();
+    expect(mine.status).toBe('active');
+    expect(mine.partnerStatus).toBe('suspended');
+    expect(mine.partnerStatusReason).toBe('Fixture partner suspension');
+    expect(mine.partnerStatusChangedAt).toBeTruthy();
+    // Isolation: another customer's read carries no such participant.
+    const stranger = await makeUser();
+    const strangerRes = await getAs(stranger, '/api/oxsteed-credit/participants/me');
+    expect(strangerRes.status).toBe(200);
+    expect(strangerRes.body.participants.map((row) => String(row.participantId))).not.toContain(String(participant.participantId));
   });
 
   test('700 HELD: the participant service has no suspend/revoke transition', async () => {

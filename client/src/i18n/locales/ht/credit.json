@@ -117,6 +117,10 @@
   "creditApplyStatusActive": "Aplikasyon aktif",
   "creditApplyStatusPending": "Aplikasyon poko deside",
   "creditApplyStatusRevoked": "Aplikasyon anile",
+  "creditApplyPartnerSuspended": "Patenè sispann",
+  "creditApplyPartnerTerminated": "Patenè fèmen",
+  "creditApplyPartnerStatusReason": "Rezon: {{reason}}",
+  "creditApplyPartnerStatusChangedAt": "Chanje {{date}}",
   "creditApplyStatusSuspended": "Aplikasyon sispann",
   "creditApplyChecklistBlocked": "Bloke",
   "creditApplyChecklistDetailApprovalRequested": "Apwobasyon yo mande, n ap tann yon dezyèm administratè.",
@@ -2727,7 +2731,9 @@
     "fundedByBusiness": "Finanse pa {{business}}",
     "fundedByPerson": "Apwouve pa {{name}}",
     "fundingReason": "Rezon: {{reason}}",
-    "fundingApprovedAt": "Apwouve {{date}}"
+    "fundingApprovedAt": "Apwouve {{date}}",
+    "fundingApprovalState_approved": "Apwouve",
+    "fundingApprovalState_not_applicable": "Pa aplikab"
   },
   "identityVerification": {
     "eyebrow": "Verifikasyon idantite",

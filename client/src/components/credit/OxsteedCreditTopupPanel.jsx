@@ -348,6 +348,7 @@ export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = f
               {viewingTopup.fundedByName && <p className="ox-credit-panel-copy">{t('walletTopup.fundedByPerson', { name: viewingTopup.fundedByName })}</p>}
               {viewingTopup.fundingReason && <p className="ox-credit-panel-copy">{t('walletTopup.fundingReason', { reason: viewingTopup.fundingReason })}</p>}
               {viewingTopup.fundingApprovedAt && <p className="ox-credit-panel-copy">{t('walletTopup.fundingApprovedAt', { date: dateTime(viewingTopup.fundingApprovedAt) })}</p>}
+              {viewingTopup.fundingApprovalState && <p className="ox-credit-panel-copy">{t(`walletTopup.fundingApprovalState_${viewingTopup.fundingApprovalState}`)}</p>}
             </>
           )}
           {viewingTopup.retriedFromTopupId && (

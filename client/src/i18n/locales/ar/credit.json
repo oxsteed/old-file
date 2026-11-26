@@ -117,6 +117,10 @@
   "creditApplyStatusActive": "الطلب نشط",
   "creditApplyStatusPending": "الطلب معلّق",
   "creditApplyStatusRevoked": "الطلب ملغى",
+  "creditApplyPartnerSuspended": "تم إيقاف الشريك",
+  "creditApplyPartnerTerminated": "تم إغلاق الشريك",
+  "creditApplyPartnerStatusReason": "السبب: {{reason}}",
+  "creditApplyPartnerStatusChangedAt": "تم التغيير في {{date}}",
   "creditApplyStatusSuspended": "الطلب موقوف",
   "creditApplyChecklistBlocked": "محظور",
   "creditApplyChecklistDetailApprovalRequested": "تم طلب الموافقة، بانتظار مسؤول ثانٍ.",
@@ -2727,7 +2731,9 @@
     "fundedByBusiness": "مموّل من {{business}}",
     "fundedByPerson": "اعتُمد من {{name}}",
     "fundingReason": "السبب: {{reason}}",
-    "fundingApprovedAt": "اعتُمد في {{date}}"
+    "fundingApprovedAt": "اعتُمد في {{date}}",
+    "fundingApprovalState_approved": "معتمد",
+    "fundingApprovalState_not_applicable": "غير منطبق"
   },
   "identityVerification": {
     "eyebrow": "التحقق من الهوية",

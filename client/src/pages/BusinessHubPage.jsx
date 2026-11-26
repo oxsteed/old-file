@@ -167,13 +167,14 @@ function BusinessCreditFundingTab({ businessId, members, currency }) {
           <p>{t('businessHub.creditHistoryEmpty', { defaultValue: 'No member Credit funded yet.' })}</p>
         ) : (
           <table className="bh-table">
-            <thead><tr><th>{t('businessHub.creditHistoryMember', { defaultValue: 'Member' })}</th><th>{t('businessHub.creditHistoryAmount', { defaultValue: 'Amount' })}</th><th>{t('businessHub.creditHistoryStatus', { defaultValue: 'Status' })}</th><th>{t('businessHub.creditHistoryReason', { defaultValue: 'Reason' })}</th></tr></thead>
+            <thead><tr><th>{t('businessHub.creditHistoryMember', { defaultValue: 'Member' })}</th><th>{t('businessHub.creditHistoryAmount', { defaultValue: 'Amount' })}</th><th>{t('businessHub.creditHistoryStatus', { defaultValue: 'Status' })}</th><th>{t('businessHub.creditHistoryApproval', { defaultValue: 'Approval' })}</th><th>{t('businessHub.creditHistoryReason', { defaultValue: 'Reason' })}</th></tr></thead>
             <tbody>
               {history.map((row) => (
                 <tr key={row.id}>
                   <td>{memberName(row)}</td>
                   <td>{formatMoney(row.amountCents / 100, { currency: row.currencyCode || 'USD' })}</td>
                   <td>{ct(`walletTopup.status.${row.status}`, { defaultValue: row.status })}</td>
+                  <td>{row.fundingApprovalState ? ct(`walletTopup.fundingApprovalState_${row.fundingApprovalState}`, { defaultValue: row.fundingApprovalState }) : '-'}</td>
                   <td>{row.fundingReason || '-'}</td>
                 </tr>
               ))}
