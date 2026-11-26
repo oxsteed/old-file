@@ -10,6 +10,7 @@ const { startRestaurantScreenSync } = require('../jobs/restaurantScreenSync');
 const logger = require('../utils/logger');
 const bookingController = require('../controllers/bookingController');
 const bookingRecipientService = require('../services/bookingRecipientService');
+const householdDelegationService = require('../services/householdDelegationService');
 const cleanupOldMessagesJob = require('../jobs/cleanupOldMessages');
 const guestChatRetention = require('../jobs/guestChatRetentionCleanup');
 const { cleanupExpiredSupportMessages } = require('../jobs/supportConversationRetentionCleanup');
@@ -349,6 +350,13 @@ class BackgroundWorkers {
           await bookingRecipientService.sendVisitReminders();
         } catch (err) {
           this.log.warn('Visit reminder job failed', { error: err.message });
+        }
+        // Group 2 (item 84, D-585): delegation expiry reminders when a
+        // live delegation enters its final 7 days, once per delegation.
+        try {
+          await householdDelegationService.sendDelegationExpiryReminders(require('../db'));
+        } catch (err) {
+          this.log.warn('Delegation expiry reminder job failed', { error: err.message });
         }
         try {
           await cancelAbandonedPayNowOrders();
