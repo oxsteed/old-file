@@ -122,9 +122,110 @@ export default function RentalDisputesPanel({ booking, isOwner, currentUserId, o
     }
   };
 
+  // Wave 3 (589, D-569): either party accepts or disputes an admin-closed
+  // escalation; a dispute reopens the thread.
+  const handleAckEscalation = async (esc, decision) => {
+    try {
+      await toolRentalsApi.acknowledgeEscalation(esc.id, decision);
+      toast.success(decision === 'acknowledged'
+        ? (t('toolRentals.resolutionAcknowledged') || 'Resolution acknowledged')
+        : (t('toolRentals.resolutionDisputed') || 'Resolution disputed; the escalation is open again'));
+      refresh();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('toolRentals.escalationFailed') || 'Could not record the acknowledgment');
+    }
+  };
+
+  // Wave 3 (589, D-572): the escalation section is always visible, even
+  // on a pending booking with no history. The server never gated opening
+  // an escalation by booking status, but the panel hid the form until a
+  // claim, an escalation, or a claimable status existed (G11-B9).
+  const escalationSection = (
+    <>
+      <h4>{t('toolRentals.escalationTitle') || 'Support escalation'}</h4>
+      {escalations.map((esc) => (
+        <div key={esc.id}>
+          <p>
+            {t(`toolRentals.escalationCategory_${esc.category}`) || esc.category}
+            {' · '}{t(`toolRentals.escalationStatus_${esc.status}`) || esc.status}
+            {esc.status === 'resolved' && esc.ack_status ? ` · ${t(`toolRentals.escalationAck_${esc.ack_status}`) || esc.ack_status}` : ''}
+          </p>
+          <ul>
+            {(esc.messages || []).map((m) => (
+              <li key={m.id}>
+                <strong>{t(`toolRentals.escalationRole_${m.author_role}`) || m.author_role}:</strong> {m.body}
+              </li>
+            ))}
+          </ul>
+          {esc.status !== 'resolved' && (
+            <div className="booking-card-actions">
+              <label>
+                {t('toolRentals.escalationReply') || 'Reply'}
+                <input
+                  type="text" maxLength={2000} value={escReply[esc.id] || ''}
+                  onChange={(e) => setEscReply((prev) => ({ ...prev, [esc.id]: e.target.value }))}
+                />
+              </label>
+              <button type="button" onClick={() => handleEscReply(esc)} className="booking-action-btn booking-action-approve" data-track-private>
+                {t('toolRentals.escalationSend') || 'Send'}
+              </button>
+            </div>
+          )}
+          {esc.status === 'resolved' && esc.ack_status === 'pending' && (
+            <div>
+              <p>{t('toolRentals.escalationAckPrompt') || 'An admin closed this escalation. Accept the resolution, or dispute it to reopen the thread.'}</p>
+              <div className="booking-card-actions">
+                <button type="button" onClick={() => handleAckEscalation(esc, 'acknowledged')} className="booking-action-btn booking-action-approve" data-track-private>
+                  {t('toolRentals.resolutionAcknowledge') || 'Accept resolution'}
+                </button>
+                <button type="button" onClick={() => handleAckEscalation(esc, 'disputed')} className="booking-action-btn booking-action-decline" data-track-private>
+                  {t('toolRentals.resolutionDispute') || 'Dispute resolution'}
+                </button>
+              </div>
+            </div>
+          )}
+          {esc.status === 'resolved' && esc.ack_status === 'acknowledged' && (
+            <p>{t('toolRentals.resolutionAcknowledgedNote') || 'Resolution acknowledged by the other party.'}</p>
+          )}
+          {esc.ack_status === 'disputed' && (
+            <p>{t('toolRentals.escalationAckDisputedNote') || 'The resolution was disputed. The escalation is open again for admin review.'}</p>
+          )}
+        </div>
+      ))}
+      <div className="booking-card-actions">
+        <label>
+          {t('toolRentals.escalationCategory') || 'Category'}
+          <select value={escDraft.category} onChange={(e) => setEscDraft((prev) => ({ ...prev, category: e.target.value }))}>
+            <option value="damage">{t('toolRentals.escalationCategory_damage') || 'Damage'}</option>
+            <option value="deposit">{t('toolRentals.escalationCategory_deposit') || 'Deposit'}</option>
+            <option value="condition">{t('toolRentals.escalationCategory_condition') || 'Condition'}</option>
+            <option value="other">{t('toolRentals.escalationCategory_other') || 'Other'}</option>
+          </select>
+        </label>
+        <label>
+          {t('toolRentals.escalationMessage') || 'What happened?'}
+          <input
+            type="text" maxLength={2000} value={escDraft.message}
+            onChange={(e) => setEscDraft((prev) => ({ ...prev, message: e.target.value }))}
+          />
+        </label>
+        <button type="button" onClick={handleOpenEscalation} className="booking-action-btn booking-action-approve" data-track-private>
+          {t('toolRentals.escalationOpen') || 'Open escalation'}
+        </button>
+      </div>
+      <p><Link to="/support">{t('toolRentals.escalationSupportLink') || 'Contact support'}</Link></p>
+    </>
+  );
+
   if (!loaded) return null;
   const showPanel = claims.length > 0 || escalations.length > 0 || claimable || depositAckPending;
-  if (!showPanel) return null;
+  if (!showPanel) {
+    return (
+      <div className="booking-card-note" data-testid={`booking-disputes-${booking.id}`}>
+        {escalationSection}
+      </div>
+    );
+  }
 
   return (
     <div className="booking-card-note" data-testid={`booking-disputes-${booking.id}`}>
@@ -235,58 +336,7 @@ export default function RentalDisputesPanel({ booking, isOwner, currentUserId, o
       {depositResolved && booking.deposit_ack_status === 'disputed' && (
         <p>{t('toolRentals.depositAckDisputedNote') || 'The deposit decision was disputed. Support can review it in an escalation below.'}</p>
       )}
-      <h4>{t('toolRentals.escalationTitle') || 'Support escalation'}</h4>
-      {escalations.map((esc) => (
-        <div key={esc.id}>
-          <p>
-            {t(`toolRentals.escalationCategory_${esc.category}`) || esc.category}
-            {' · '}{t(`toolRentals.escalationStatus_${esc.status}`) || esc.status}
-          </p>
-          <ul>
-            {(esc.messages || []).map((m) => (
-              <li key={m.id}>
-                <strong>{t(`toolRentals.escalationRole_${m.author_role}`) || m.author_role}:</strong> {m.body}
-              </li>
-            ))}
-          </ul>
-          {esc.status !== 'resolved' && (
-            <div className="booking-card-actions">
-              <label>
-                {t('toolRentals.escalationReply') || 'Reply'}
-                <input
-                  type="text" maxLength={2000} value={escReply[esc.id] || ''}
-                  onChange={(e) => setEscReply((prev) => ({ ...prev, [esc.id]: e.target.value }))}
-                />
-              </label>
-              <button type="button" onClick={() => handleEscReply(esc)} className="booking-action-btn booking-action-approve" data-track-private>
-                {t('toolRentals.escalationSend') || 'Send'}
-              </button>
-            </div>
-          )}
-        </div>
-      ))}
-      <div className="booking-card-actions">
-        <label>
-          {t('toolRentals.escalationCategory') || 'Category'}
-          <select value={escDraft.category} onChange={(e) => setEscDraft((prev) => ({ ...prev, category: e.target.value }))}>
-            <option value="damage">{t('toolRentals.escalationCategory_damage') || 'Damage'}</option>
-            <option value="deposit">{t('toolRentals.escalationCategory_deposit') || 'Deposit'}</option>
-            <option value="condition">{t('toolRentals.escalationCategory_condition') || 'Condition'}</option>
-            <option value="other">{t('toolRentals.escalationCategory_other') || 'Other'}</option>
-          </select>
-        </label>
-        <label>
-          {t('toolRentals.escalationMessage') || 'What happened?'}
-          <input
-            type="text" maxLength={2000} value={escDraft.message}
-            onChange={(e) => setEscDraft((prev) => ({ ...prev, message: e.target.value }))}
-          />
-        </label>
-        <button type="button" onClick={handleOpenEscalation} className="booking-action-btn booking-action-approve" data-track-private>
-          {t('toolRentals.escalationOpen') || 'Open escalation'}
-        </button>
-      </div>
-      <p><Link to="/support">{t('toolRentals.escalationSupportLink') || 'Contact support'}</Link></p>
+      {escalationSection}
     </div>
   );
 }

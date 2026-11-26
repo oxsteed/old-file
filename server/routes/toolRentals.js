@@ -1389,6 +1389,9 @@ router.post('/bookings/:bookingId/damage-claims/:claimId/acknowledge', authentic
 router.get('/bookings/:bookingId/escalations', authenticate, toolRentalDisputesController.listEscalations);
 router.post('/bookings/:bookingId/escalations', authenticate, toolRentalDisputesController.openEscalation);
 router.post('/escalations/:escalationId/messages', authenticate, toolRentalDisputesController.postEscalationMessage);
+// Wave 3 (589, D-569): either party accepts or disputes an admin-closed
+// escalation; a dispute reopens the thread.
+router.post('/escalations/:escalationId/acknowledge', authenticate, toolRentalDisputesController.acknowledgeEscalation);
 router.get('/admin/escalations', authenticate, requireAdmin, requirePermission('moderate_content'), toolRentalDisputesController.adminListEscalations);
 router.get('/admin/escalations/:escalationId', authenticate, requireAdmin, requirePermission('moderate_content'), toolRentalDisputesController.adminGetEscalation);
 router.post('/admin/escalations/:escalationId/messages', authenticate, requireAdmin, requirePermission('moderate_content'), toolRentalDisputesController.adminPostEscalationMessage);

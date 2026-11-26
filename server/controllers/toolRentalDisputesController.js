@@ -265,6 +265,101 @@ const acknowledgeDamageClaim = async (req, res) => {
 
 // ---------------------------------------------------------------- 589: escalation
 
+// 589 (D-569/D-572): who works the rental-escalation queue. Active,
+// non-deleted admins / super_admins holding the global `moderate_content`
+// grant (super_admins unconditionally), the same gate as the admin
+// escalation endpoints. Capped at 25 like the support-staff fan-out, so
+// an escalation open never notifies an unbounded list. Mirrors
+// resolveSupportStaffIds (supportNotificationService.js); the grant
+// differs because this queue is a moderation queue, not support.
+const ESCALATION_ADMIN_ALERT_LIMIT = 25;
+async function resolveEscalationAdminIds() {
+  const { rows } = await db.query(
+    `SELECT u.id FROM users u
+      WHERE u.role::text = ANY($1::text[])
+        AND u.is_active = TRUE
+        AND u.deleted_at IS NULL
+        AND (u.role = 'super_admin' OR EXISTS (
+          SELECT 1 FROM admin_permission_grants g
+           WHERE g.grantee_id = u.id
+             AND g.permissions ? 'moderate_content'
+             AND g.region_id IS NULL
+             AND g.revoked_at IS NULL
+             AND g.expires_at > NOW()
+        ))
+      ORDER BY u.id
+      LIMIT $2`,
+    [['admin', 'super_admin'], ESCALATION_ADMIN_ALERT_LIMIT],
+  );
+  return rows.map((row) => String(row.id));
+}
+
+// 589 (D-572/D-569): escalation-open notices. Awaited by the caller but
+// failure-safe: the helper catches everything, so a failed send is logged
+// and never turns the 201 into a 500. The fan-out is bounded (one
+// counterparty + at most 25 admins), so the wait is one small query plus
+// a few notification rows. One sendNotification per recipient with a
+// per-recipient idempotency key, so a retry cannot duplicate the row.
+// The counterparty links to their bookings; admins link to the queue.
+async function notifyEscalationOpened({ escalation, booking, openerId }) {
+  try {
+    const { sendNotification } = require('../services/notificationService');
+    const counterpartyId = String(openerId) === String(booking.owner_id) ? booking.customer_id : booking.owner_id;
+    const sends = [];
+    if (String(counterpartyId) !== String(openerId)) {
+      sends.push({
+        userId: String(counterpartyId),
+        action_url: '/my-bookings',
+        idempotencyKey: `tool-rental-escalation-opened:${escalation.id}:${counterpartyId}`,
+      });
+    }
+    for (const adminId of await resolveEscalationAdminIds()) {
+      if (adminId !== String(openerId)) {
+        sends.push({
+          userId: adminId,
+          action_url: '/admin/tool-rentals',
+          idempotencyKey: `tool-rental-escalation-opened:${escalation.id}:${adminId}`,
+        });
+      }
+    }
+    const results = await Promise.allSettled(sends.map((s) => sendNotification({
+      userId: s.userId,
+      type: 'tool_rental_escalation_opened',
+      data: { escalation_id: String(escalation.id), booking_id: String(booking.id), category: escalation.category },
+      action_url: s.action_url,
+      idempotencyKey: s.idempotencyKey,
+    })));
+    const failed = results.filter((r) => r.status === 'rejected' || r.value?.success === false).length;
+    if (failed) logger.warn('Rental escalation open notification had failures', { escalationId: escalation.id, failed });
+  } catch (err) {
+    logger.warn('Rental escalation open notification failed', { escalationId: escalation?.id, error: err.message });
+  }
+}
+
+// 589 (D-569/D-572): an admin closing the thread notifies both parties,
+// each with a per-recipient key scoped to this resolution (resolved_at),
+// so a re-resolve after a dispute notifies again. Awaited by the caller
+// but failure-safe, same shape as notifyEscalationOpened.
+async function notifyEscalationResolved({ escalation, booking }) {
+  try {
+    const { sendNotification } = require('../services/notificationService');
+    const key = String(escalation.resolved_at || 'unresolved');
+    const results = await Promise.allSettled(
+      [booking.customer_id, booking.owner_id].map((userId) => sendNotification({
+        userId: String(userId),
+        type: 'tool_rental_escalation_resolved',
+        data: { escalation_id: String(escalation.id), booking_id: String(booking.id), category: escalation.category },
+        action_url: '/my-bookings',
+        idempotencyKey: `tool-rental-escalation-resolved:${escalation.id}:${key}:${userId}`,
+      })),
+    );
+    const failed = results.filter((r) => r.status === 'rejected' || r.value?.success === false).length;
+    if (failed) logger.warn('Rental escalation resolved notification had failures', { escalationId: escalation.id, failed });
+  } catch (err) {
+    logger.warn('Rental escalation resolved notification failed', { escalationId: escalation?.id, error: err.message });
+  }
+}
+
 function serializeEscalation(row, messages) {
   return { ...row, messages: messages || [] };
 }
@@ -319,6 +414,9 @@ const openEscalation = async (req, res) => {
        VALUES ($1, $2, $3, $4) RETURNING id, author_id, author_role, body, created_at`,
       [escalation.id, req.user.id, party.isOwner ? 'owner' : 'renter', message],
     );
+    // 589 (D-572): tell the counterparty and the moderation admins.
+    // Awaited but failure-safe; the helper never throws into this 201.
+    await notifyEscalationOpened({ escalation, booking: party.booking, openerId: req.user.id });
     return res.status(201).json({ escalation: serializeEscalation(escalation, first) });
   } catch (err) {
     logger.error('openEscalation error', { err });
@@ -459,14 +557,37 @@ const adminSetEscalationStatus = async (req, res) => {
     if (!ESCALATION_STATUSES.includes(status)) {
       return fail(res, 400, 'validation_failed', 'status must be open, in_review or resolved');
     }
+    const { rows: prior } = await db.query(
+      'SELECT status FROM tool_rental_escalations WHERE id = $1',
+      [req.params.escalationId],
+    );
+    if (!prior.length) return fail(res, 404, 'not_found', 'Escalation not found');
     const { rows } = await db.query(
       `UPDATE tool_rental_escalations
-          SET status = $2, resolved_at = CASE WHEN $2 = 'resolved' THEN NOW() ELSE NULL END
+          SET status = $2, resolved_at = CASE WHEN $2 = 'resolved' THEN NOW() ELSE NULL END,
+              ack_status = CASE WHEN $2 = 'resolved' THEN 'pending' ELSE ack_status END,
+              acknowledged_by = CASE WHEN $2 = 'resolved' THEN NULL ELSE acknowledged_by END,
+              acknowledged_at = CASE WHEN $2 = 'resolved' THEN NULL ELSE acknowledged_at END
         WHERE id = $1 RETURNING *`,
       [req.params.escalationId, status],
     );
     if (!rows.length) return fail(res, 404, 'not_found', 'Escalation not found');
-    return res.json({ escalation: rows[0] });
+    const escalation = rows[0];
+    // 589 (D-569/D-572): a fresh resolution arms the acknowledgment
+    // (pending, both parties) and notifies both parties. A repeat resolve
+    // of an already-resolved thread is a no-op for notices (the ack was
+    // already armed and both parties were already told); a status move
+    // away from resolved leaves the ack state as-is.
+    if (status === 'resolved' && prior[0].status !== 'resolved') {
+      const { rows: bookingRows } = await db.query(
+        'SELECT owner_id, customer_id FROM tool_rentals_bookings WHERE id = $1',
+        [escalation.booking_id],
+      );
+      if (bookingRows.length) {
+        await notifyEscalationResolved({ escalation, booking: bookingRows[0] });
+      }
+    }
+    return res.json({ escalation });
   } catch (err) {
     logger.error('adminSetEscalationStatus error', { err });
     return res.status(500).json({ error: 'Failed to update escalation' });
@@ -474,6 +595,46 @@ const adminSetEscalationStatus = async (req, res) => {
 };
 
 // ---------------------------------------------------------------- 590: acknowledgment
+
+// 589 (D-569): either party accepts or disputes an admin-closed
+// escalation. A dispute reopens the thread (status back to open,
+// resolved_at cleared) so an admin can look again, mirroring the
+// damage-claim dispute (D-283). The ack_status guard in the WHERE keeps
+// a double-submit from flipping an already-settled acknowledgment.
+const acknowledgeEscalation = async (req, res) => {
+  try {
+    const escalation = await loadEscalationForParty(req, res);
+    if (!escalation) return;
+    if (escalation.status !== 'resolved') {
+      return fail(res, 409, 'state_conflict', 'Only a resolved escalation can be acknowledged');
+    }
+    if (escalation.ack_status !== 'pending') {
+      return fail(res, 409, 'state_conflict', 'This resolution was already acknowledged');
+    }
+    const decision = req.body?.decision;
+    if (!['acknowledged', 'disputed'].includes(decision)) {
+      return fail(res, 400, 'validation_failed', 'decision must be acknowledged or disputed');
+    }
+    const { rows } = await db.query(
+      decision === 'acknowledged'
+        ? `UPDATE tool_rental_escalations
+              SET ack_status = 'acknowledged', acknowledged_by = $2, acknowledged_at = NOW()
+            WHERE id = $1 AND ack_status = 'pending' RETURNING *`
+        : `UPDATE tool_rental_escalations
+              SET status = 'open', resolved_at = NULL, ack_status = 'disputed',
+                  acknowledged_by = $2, acknowledged_at = NOW()
+            WHERE id = $1 AND ack_status = 'pending' RETURNING *`,
+      [escalation.id, req.user.id],
+    );
+    if (!rows.length) {
+      return fail(res, 409, 'state_conflict', 'This resolution was already acknowledged');
+    }
+    return res.json({ escalation: rows[0] });
+  } catch (err) {
+    logger.error('acknowledgeEscalation error', { err });
+    return res.status(500).json({ error: 'Failed to acknowledge escalation' });
+  }
+};
 
 // Missing-accessory resolution (578): the owner resolves, so the renter
 // acknowledges (or disputes, which clears the resolution so the owner can
@@ -994,6 +1155,7 @@ module.exports = {
   adminGetEscalation,
   adminPostEscalationMessage,
   adminSetEscalationStatus,
+  acknowledgeEscalation,
   acknowledgeMissingResolution,
   acknowledgeDepositResolution,
   listMaintenanceEvents,

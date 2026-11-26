@@ -53,4 +53,16 @@ exports.disputeNotifications = {
     title: t('Your refund request was updated', 'Tu solicitud de reembolso se actualizó', 'Votre demande de remboursement a été mise à jour', 'Demann ranbousman ou a mete ajou', 'تم تحديث طلب الاسترداد الخاص بك'),
     body: t('Our team made a decision on your refund request. Open your support tickets for details.', 'Nuestro equipo tomó una decisión sobre tu solicitud de reembolso. Abre tus tickets de soporte para ver los detalles.', 'Notre équipe a pris une décision sur votre demande de remboursement. Ouvrez vos tickets d’assistance pour les détails.', 'Ekip nou an pran yon desizyon sou demann ranbousman ou. Louvri tikè sipò ou yo pou detay.', 'اتخذ فريقنا قرارًا بشأن طلب الاسترداد. افتح تذاكر الدعم للتفاصيل.'),
   },
+  // Wave 3 (589, D-572/D-569): rental escalation notices. The opened
+  // notice goes to the counterparty and to the moderation admins; the
+  // resolved notice goes to both parties when an admin closes the thread.
+  // The machine-readable ids ride in data; the caller appends nothing.
+  tool_rental_escalation_opened: {
+    title: t('A rental escalation was opened', 'Se abrió una escalación de alquiler', 'Une escalade de location a été ouverte', 'Yo louvri yon eskalasyon lokasyon', 'تم فتح تصعيد إيجار'),
+    body: t('A party on a tool rental opened a support escalation. Open the rental moderation queue to read the thread and reply.', 'Una parte de un alquiler de herramientas abrió una escalación de soporte. Abre la cola de moderación de alquileres para leer el hilo y responder.', 'Une partie à une location d’outil a ouvert une escalade d’assistance. Ouvrez la file de modération des locations pour lire le fil et répondre.', 'Yon pati nan yon lokasyon zouti louvri yon eskalasyon sipò. Louvri ke modération lokasyon yo pou li fil la epi reponn.', 'فتح أحد طرفي إيجار أداة تصعيد دعم. افتح قائمة مراجعة الإيجارات لقراءة المحادثة والرد.'),
+  },
+  tool_rental_escalation_resolved: {
+    title: t('A rental escalation was resolved', 'Se resolvió una escalación de alquiler', 'Une escalade de location a été résolue', 'Yo rezoud yon eskalasyon lokasyon', 'تم حل تصعيد إيجار'),
+    body: t('An admin closed a support escalation on a tool rental. Open the booking to accept the resolution or dispute it.', 'Un administrador cerró una escalación de soporte sobre un alquiler de herramientas. Abre la reserva para aceptar la resolución o disputarla.', 'Un administrateur a clôturé une escalade d’assistance sur une location d’outil. Ouvrez la réservation pour accepter la résolution ou la contester.', 'Yon admin fèmen yon eskalasyon sipò sou yon lokasyon zouti. Louvri rezervasyon an pou aksepte rezolisyon an oswa konteste l.', 'أغلق أحد المسؤولين تصعيد دعم بشأن إيجار أداة. افتح الحجز لقبول الحل أو الاعتراض عليه.'),
+  },
 };

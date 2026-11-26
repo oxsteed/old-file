@@ -252,6 +252,13 @@ export const toolRentalsApi = {
     return response.data;
   },
 
+  // Wave 3 (589, D-569): either party accepts or disputes an admin-closed
+  // escalation; a dispute reopens the thread.
+  acknowledgeEscalation: async (escalationId, decision) => {
+    const response = await api.post(`/tool-rentals/escalations/${escalationId}/acknowledge`, { decision });
+    return response.data;
+  },
+
   acknowledgeMissingResolution: async (bookingId, reportId, decision) => {
     const response = await api.post(`/tool-rentals/bookings/${bookingId}/missing/${reportId}/acknowledge`, { decision });
     return response.data;

@@ -342,6 +342,9 @@ const NOTIFICATION_TYPES = [
   { type: 'dispute_reopened', group: 'support' },
   { type: 'dispute_resolved', group: 'support' },
   { type: 'dispute_under_review', group: 'support' },
+  // Wave 3 (589, D-572/D-569): rental escalation opened/resolved.
+  { type: 'tool_rental_escalation_opened', group: 'support' },
+  { type: 'tool_rental_escalation_resolved', group: 'support' },
   { type: 'intake_request_received', group: 'support' },
   { type: 'new_review', group: 'support' },
   { type: 'report_resolved', group: 'support' },
