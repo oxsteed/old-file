@@ -6581,7 +6581,8 @@
       "saveFailed": "Erè sove zouti",
       "removed": "Zouti efase",
       "removeConfirm": "Retire anons zouti sa a?",
-      "removeFailed": "Erè efase zouti"
+      "removeFailed": "Erè efase zouti",
+      "removeActiveBookings": "Anons sa a gen rezervasyon aktif epi li pa ka efase pou kounye a."
     },
     "invoices": {
       "title": "Fakti",

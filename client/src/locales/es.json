@@ -6281,7 +6281,8 @@
       "saveFailed": "Error al guardar la herramienta",
       "removed": "Herramienta removida",
       "removeConfirm": "¿Eliminar este anuncio de herramienta?",
-      "removeFailed": "Error al remover la herramienta"
+      "removeFailed": "Error al remover la herramienta",
+      "removeActiveBookings": "Este anuncio tiene reservas activas y no se puede eliminar todavía."
     },
     "invoices": {
       "title": "Facturas",

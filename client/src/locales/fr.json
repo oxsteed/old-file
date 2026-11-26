@@ -6281,7 +6281,8 @@
       "saveFailed": "Erreur lors de l'enregistrement de l'outil",
       "removed": "Outil supprimé",
       "removeConfirm": "Supprimer cette annonce d’outil ?",
-      "removeFailed": "Erreur lors de la suppression de l'outil"
+      "removeFailed": "Erreur lors de la suppression de l'outil",
+      "removeActiveBookings": "Cette annonce a des réservations actives et ne peut pas encore être supprimée."
     },
     "invoices": {
       "title": "Factures",

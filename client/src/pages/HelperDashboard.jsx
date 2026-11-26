@@ -781,7 +781,15 @@ export default function HelperDashboard() {
       await api.delete(`/tool-rentals/${id}`);
       toast.success(t('helperDashboard.tools.removed'));
       fetchMyTools();
-    } catch { toast.error(t('helperDashboard.tools.removeFailed')); }
+    } catch (err) {
+      // G11-A2 (D-604): a 409 means live bookings block the delete;
+      // surface the localized reason instead of the generic failure.
+      if (err.response?.data?.code === 'active_bookings') {
+        toast.error(t('helperDashboard.tools.removeActiveBookings'));
+      } else {
+        toast.error(err.response?.data?.error || t('helperDashboard.tools.removeFailed'));
+      }
+    }
   };
 
   // ── Personal Care state & handlers ──────────────────────────────────────

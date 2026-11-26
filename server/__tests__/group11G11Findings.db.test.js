@@ -326,4 +326,115 @@ describeDb('G11 findings batch: payment, delete guard, identity, notifications',
       expect(Number(receipt.body.invoice.payment_proof_amount)).toBe(94);
     });
   });
+  describe('G11-A2: listing delete refuses while a booking is live (D-604)', () => {
+    test('a pending booking blocks the delete with 409', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner);
+      await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12', 'pending');
+      const res = await request(app).delete(`/api/tool-rentals/${tool.id}`).set('x-test-user', owner);
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('active_bookings');
+      expect(res.body.active_bookings).toBe(1);
+      const { rows } = await db.query('SELECT id FROM tool_rentals WHERE id = $1', [tool.id]);
+      expect(rows).toHaveLength(1);
+    });
+
+    test('an invoice_sent booking blocks, and a returned booking blocks', async () => {
+      const { owner, tool } = await invoiceSentBooking();
+      const blocked = await request(app).delete(`/api/tool-rentals/${tool.id}`).set('x-test-user', owner);
+      expect(blocked.status).toBe(409);
+      expect(blocked.body.code).toBe('active_bookings');
+
+      const owner2 = await addUser();
+      const renter2 = await addUser();
+      await grantToolOwner(owner2);
+      const tool2 = await insertTool(owner2);
+      await insertBooking(tool2.id, renter2, owner2, '2026-12-10', '2026-12-12', 'returned');
+      const blocked2 = await request(app).delete(`/api/tool-rentals/${tool2.id}`).set('x-test-user', owner2);
+      expect(blocked2.status).toBe(409);
+      expect(blocked2.body.code).toBe('active_bookings');
+    });
+
+    test('cancelled and completed bookings do not block', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner);
+      await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12', 'cancelled');
+      const tool2 = await insertTool(owner, { name: 'Second drill' });
+      await insertBooking(tool2.id, renter, owner, '2026-12-10', '2026-12-12', 'completed');
+      expect((await request(app).delete(`/api/tool-rentals/${tool.id}`).set('x-test-user', owner)).status).toBe(200);
+      expect((await request(app).delete(`/api/tool-rentals/${tool2.id}`).set('x-test-user', owner)).status).toBe(200);
+    });
+
+    test('a stranger still gets 404, never the 409', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      const stranger = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner);
+      await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12', 'pending');
+      const res = await request(app).delete(`/api/tool-rentals/${tool.id}`).set('x-test-user', stranger);
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('G11-A4: identity flags count only while their verification time is fresh (D-605)', () => {
+    const { rentalIdentityStatus } = require('../utils/rentalIdentity');
+    const freshAt = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const staleAt = new Date(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000).toISOString();
+
+    test('a bare flag with no timestamp is fail-closed (the A4 hole)', () => {
+      expect(rentalIdentityStatus({ identity_verified: true, id_verified: true }).verified).toBe(false);
+      expect(rentalIdentityStatus({ identity_verified: true, id_verified: true }).status).toBe('not_started');
+    });
+
+    test('a flag with a fresh timestamp verifies, and reports that time', () => {
+      const s = rentalIdentityStatus({ identity_verified: true, id_verified: true, identity_verified_at: freshAt });
+      expect(s.verified).toBe(true);
+      expect(s.status).toBe('verified');
+      expect(new Date(s.verifiedAt).getTime()).toBe(new Date(freshAt).getTime());
+    });
+
+    test('a flag with a stale timestamp does not verify', () => {
+      const s = rentalIdentityStatus({ identity_verified: true, id_verified: true, identity_verified_at: staleAt });
+      expect(s.verified).toBe(false);
+    });
+
+    test('a fresh Didit approval still verifies, a stale one does not', () => {
+      expect(rentalIdentityStatus({ didit_status: 'verified', didit_verified_at: freshAt }).verified).toBe(true);
+      const s = rentalIdentityStatus({ didit_status: 'verified', didit_verified_at: staleAt });
+      expect(s.verified).toBe(false);
+      expect(s.status).toBe('expired');
+    });
+
+    test('a fresh flag rescues a stale Didit approval', () => {
+      const s = rentalIdentityStatus({
+        didit_status: 'verified', didit_verified_at: staleAt,
+        identity_verified: true, identity_verified_at: freshAt,
+      });
+      expect(s.verified).toBe(true);
+    });
+
+    test('skipped is still not verified', () => {
+      expect(rentalIdentityStatus({ didit_status: 'skipped' }).verified).toBe(false);
+    });
+
+    test('the bookings list carries the TTL verdict end to end', async () => {
+      const owner = await addUser();
+      const staleRenter = await addUser('customer', { identityVerified: true, identityVerifiedAt: staleAt });
+      const freshRenter = await addUser('customer', { identityVerified: true, identityVerifiedAt: freshAt });
+      await grantToolOwner(owner);
+      const staleTool = await insertTool(owner);
+      const freshTool = await insertTool(owner, { name: 'Second drill' });
+      await insertBooking(staleTool.id, staleRenter, owner, '2026-12-10', '2026-12-12', 'pending');
+      await insertBooking(freshTool.id, freshRenter, owner, '2026-12-10', '2026-12-12', 'pending');
+      const staleList = await request(app).get('/api/tool-rentals/bookings/my').set('x-test-user', staleRenter).expect(200);
+      expect(staleList.body[0].renter_identity.verified).toBe(false);
+      const freshList = await request(app).get('/api/tool-rentals/bookings/my').set('x-test-user', freshRenter).expect(200);
+      expect(freshList.body[0].renter_identity.verified).toBe(true);
+    });
+  });
 });

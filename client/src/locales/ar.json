@@ -6274,7 +6274,8 @@
       "saveFailed": "فشل حفظ الأداة",
       "removed": "تمت إزالة الأداة",
       "removeConfirm": "هل تريد إزالة قائمة الأدوات هذه؟",
-      "removeFailed": "فشل في إزالة الأداة"
+      "removeFailed": "فشل في إزالة الأداة",
+      "removeActiveBookings": "هذا الإعلان لديه حجوزات نشطة ولا يمكن حذفه بعد."
     },
     "invoices": {
       "title": "الفواتير",

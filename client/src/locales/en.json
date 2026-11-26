@@ -6274,7 +6274,8 @@
       "saveFailed": "Failed to save tool",
       "removed": "Tool Removed",
       "removeConfirm": "Remove this tool listing?",
-      "removeFailed": "Failed to remove tool"
+      "removeFailed": "Failed to remove tool",
+      "removeActiveBookings": "This listing has active bookings and cannot be deleted yet."
     },
     "invoices": {
       "title": "Invoices",

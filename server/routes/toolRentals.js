@@ -1339,8 +1339,28 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
 });
 
 // DELETE /api/tool-rentals/:id
+// G11-A2 (D-604): a listing with a live booking cannot be deleted.
+// Deleting would cascade the bookings, invoices, reports and claims
+// (FKs ON DELETE CASCADE) and strand the renter mid-rental with no
+// record. Live = pending / invoice_sent / payment_confirmed / returned
+// (the live booking-status CHECK); completed / cancelled bookings do
+// not block. Deliberately no toolOwnerCapabilityGate here: a revoked
+// owner must still be able to remove their own listings.
 router.delete('/:id', authenticate, async (req, res) => {
   try {
+    const { rows: live } = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM tool_rentals_bookings
+        WHERE tool_id = $1 AND owner_id = $2
+          AND status IN ('pending', 'invoice_sent', 'payment_confirmed', 'returned')`,
+      [req.params.id, req.user.id]
+    );
+    if (live[0]?.count > 0) {
+      return res.status(409).json({
+        error: 'This listing has active bookings and cannot be deleted',
+        code: 'active_bookings',
+        active_bookings: live[0].count,
+      });
+    }
     const result = await pool.query(
       'DELETE FROM tool_rentals WHERE id = $1 AND user_id = $2 RETURNING id',
       [req.params.id, req.user.id]
