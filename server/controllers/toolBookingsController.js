@@ -11,6 +11,23 @@ const { notifyRental, notifyRentalCounterparty } = require('../utils/toolRentalN
 
 const TOOL_RENTAL_AGREEMENT_VERSION = 'peer-rental-v1';
 
+// G11-A6 (D-610): tool-owner enforcement is 'off' only as an escape hatch;
+// otherwise a booking requires the owner's tool_owner.list_equipment grant
+// to be effective. Mirrors GET /tool-rentals/me (publication_blocked).
+function toolOwnerGrantEnforced() {
+  try {
+    return require('../services/access/flags').toolOwnerEnforcement() !== 'off';
+  } catch { return true; }
+}
+
+async function assertOwnerGrant(ownerId, dbClient) {
+  const access = require('../services/access/accessService');
+  const decision = await access.can(ownerId, 'tool_owner.list_equipment', undefined, dbClient);
+  if (!decision.allowed) {
+    throw new AppError('This listing is no longer available because the owner no longer has equipment-owner access', 409, 'owner_access_revoked');
+  }
+}
+
 function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPrice, fulfillment, pickupTime, returnTime }) {
   return {
     version: TOOL_RENTAL_AGREEMENT_VERSION,
@@ -139,6 +156,11 @@ const createBooking = async (req, res, next) => {
     if (listedTool.moderation_hold) {
       throw new AppError('Tool is under admin review and cannot be booked', 409, 'state_conflict');
     }
+    // G11-A6 (D-610): the owner's equipment-owner grant must be effective
+    // to take a new booking. Browse and the public detail hide a grant-less
+    // listing; this is the fail-closed check for direct booking attempts
+    // (stale page, direct id). Re-checked under the per-tool lock below.
+    if (toolOwnerGrantEnforced()) await assertOwnerGrant(ownerId);
     // 554: pickup eligibility. Delivery is refused when the listing is
     // pickup-only or does not offer delivery; pickup is always allowed.
     // (The owner's email_verified flag is re-checked in the join above:
@@ -194,6 +216,11 @@ const createBooking = async (req, res, next) => {
     // changed between the first read and the lock.
     if (fulfillment === 'delivery' && (currentTool.rows[0].pickup_only === true || currentTool.rows[0].delivery_available !== true)) throw new AppError('Delivery is not available for this tool',409,'fulfillment_not_available');
     if(Number(currentTool.rows[0].equipment_version)>1 && (req.body.equipmentVersion!==currentTool.rows[0].equipment_version || listedTool.equipment_version!==currentTool.rows[0].equipment_version))throw new AppError('Review the current equipment rules before booking',409,'equipment_changed');
+    // G11-A6 (D-610): re-check the owner's grant under the per-tool lock;
+    // it may have been revoked between the first read and the lock. (The
+    // revoke also flips is_available, caught by the re-check above, but a
+    // grant lost through expiry or another path leaves the flag on.)
+    if (toolOwnerGrantEnforced()) await assertOwnerGrant(ownerId, client);
 
     // Check for calendar conflicts (overlapping confirmed/pending bookings)
     const conflictResult = await client.query(
@@ -207,6 +234,22 @@ const createBooking = async (req, res, next) => {
 
     if (parseInt(conflictResult.rows[0].conflict_count) > 0) {
       throw new AppError('Tool is already booked for these dates', 409, 'conflict');
+    }
+
+    // G11-B4 (D-611): hard block while an earlier rental of this tool is
+    // overdue and unreturned. The tool is physically out, so no new booking
+    // can proceed on any dates until the return is recorded. A booking
+    // ending today is not overdue yet.
+    const overdueResult = await client.query(
+      `SELECT id FROM tool_rentals_bookings
+        WHERE tool_id = $1
+          AND status = 'payment_confirmed'
+          AND end_date < CURRENT_DATE
+        LIMIT 1`,
+      [toolId]
+    );
+    if (overdueResult.rows.length > 0) {
+      throw new AppError('A previous rental of this tool is overdue and has not been returned yet', 409, 'previous_rental_overdue');
     }
 
     const booking = await client.query(

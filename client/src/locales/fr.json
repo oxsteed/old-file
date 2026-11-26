@@ -13951,6 +13951,8 @@
     "paymentConfirmed": "Paiement confirmé",
     "cancelled": "Annulée",
     "dateConflict": "Cet outil est déjà réservé pour ces dates",
+    "previousRentalOverdue": "Une location précédente de cet outil est en retard et n'a pas encore été retournée, donc les nouvelles réservations sont bloquées jusqu'à son retour.",
+    "ownerAccessRevoked": "Cette annonce n'est plus disponible car le propriétaire n'a plus l'accès propriétaire d'équipement.",
     "completed": "Complétée",
     "markCompleted": "Marquer comme terminée",
     "returned": "Retournée",

@@ -329,6 +329,10 @@ describeDb('Group 11 Slice 2a: Get started (551, 552, 554, 555)', () => {
     test('delivery is refused on a pickup-only listing, pickup succeeds', async () => {
       const owner = await addUser();
       const renter = await addUser();
+      // G11-A6 (D-610): any booking now needs the owner's grant first;
+      // the fulfillment rule under test is unchanged, the grant is the
+      // precondition the 554 tests previously did not need.
+      await grantToolOwner(owner);
       const tool = await insertTool(owner, { pickup_only: true, delivery_available: false });
       const refused = await book(tool.id, renter, { fulfillment: 'delivery' }).expect(409);
       expect(refused.body.code).toBe('fulfillment_not_available');
@@ -339,6 +343,7 @@ describeDb('Group 11 Slice 2a: Get started (551, 552, 554, 555)', () => {
     test('delivery succeeds when the listing offers it and is not pickup-only', async () => {
       const owner = await addUser();
       const renter = await addUser();
+      await grantToolOwner(owner);
       const tool = await insertTool(owner, { pickup_only: false, delivery_available: true });
       const ok = await book(tool.id, renter, { fulfillment: 'delivery' }).expect(201);
       expect(ok.body.agreement_snapshot.rental.fulfillment).toBe('delivery');
@@ -347,6 +352,7 @@ describeDb('Group 11 Slice 2a: Get started (551, 552, 554, 555)', () => {
     test('pickup-only wins even when delivery_available is also set', async () => {
       const owner = await addUser();
       const renter = await addUser();
+      await grantToolOwner(owner);
       const tool = await insertTool(owner, { pickup_only: true, delivery_available: true });
       const refused = await book(tool.id, renter, { fulfillment: 'delivery' }).expect(409);
       expect(refused.body.code).toBe('fulfillment_not_available');
@@ -355,6 +361,7 @@ describeDb('Group 11 Slice 2a: Get started (551, 552, 554, 555)', () => {
     test('no fulfillment defaults to pickup', async () => {
       const owner = await addUser();
       const renter = await addUser();
+      await grantToolOwner(owner);
       const tool = await insertTool(owner);
       const ok = await book(tool.id, renter, {}).expect(201);
       expect(ok.body.agreement_snapshot.rental.fulfillment).toBe('pickup');

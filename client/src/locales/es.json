@@ -13951,6 +13951,8 @@
     "paymentConfirmed": "Pago confirmado",
     "cancelled": "Cancelada",
     "dateConflict": "La herramienta ya está reservada para estas fechas",
+    "previousRentalOverdue": "Un alquiler anterior de esta herramienta está vencido y aún no se ha devuelto, por lo que las nuevas reservas están bloqueadas hasta que se devuelva.",
+    "ownerAccessRevoked": "Este anuncio ya no está disponible porque el propietario ya no tiene acceso como propietario de equipos.",
     "completed": "Completada",
     "markCompleted": "Marcar como completada",
     "returned": "Devuelta",

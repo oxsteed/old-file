@@ -13951,6 +13951,8 @@
     "paymentConfirmed": "Peman konfime",
     "cancelled": "Anile",
     "dateConflict": "Zouti sa deja rezève pou dat sa yo",
+    "previousRentalOverdue": "Yon lwaye anvan zouti sa a an reta epi li poko retounen, kidonk nouvo rezervasyon yo bloke jiskaske li retounen.",
+    "ownerAccessRevoked": "Anons sa a pa disponib ankò paske pwopriyetè a pa gen aksè pwopriyetè ekipman ankò.",
     "completed": "Konplete",
     "markCompleted": "Make kòm fini",
     "returned": "Retounen",
