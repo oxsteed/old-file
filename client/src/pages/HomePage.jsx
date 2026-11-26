@@ -299,7 +299,11 @@ function HomeSearch() {
   }, [t]);
 
   // ── Skill autocomplete: instant local + deferred DB ───────────────────────
+  // Helpers mode only: the dropdown never renders in jobs/discover mode,
+  // so skip the /helpers/skills fetch there instead of fetching for a
+  // list nobody can see.
   useEffect(() => {
+    if (mode !== 'helpers') { setSkillSugg([]); setSkillsOpen(false); return; }
     const q = query.trim().toLowerCase();
     if (!q) { setSkillSugg([]); setSkillsOpen(false); return; }
 
@@ -340,7 +344,7 @@ function HomeSearch() {
       } catch { /* keep local suggestions */ }
     }, 220);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [query]);
+  }, [query, mode]);
 
   // ── Location autocomplete ─────────────────────────────────────────────────
   useEffect(() => {
@@ -422,10 +426,11 @@ function HomeSearch() {
         p.set('lat', locCoords.lat.toFixed(6));
         p.set('lng', locCoords.lng.toFixed(6));
       }
-      // Gated dead link (Nov 3 audit): /discover redirects to /jobs in the
-      // launch gate, so the discover search lands on the launched discovery
-      // surface directly instead of bouncing and dropping its params.
-      navigate(`/jobs?${p.toString()}`);
+      // discoverEverything is on (client default + /api/launch-visibility):
+      // /discover renders the cross-entity surface (helpers, jobs,
+      // businesses, tools, products), so land there directly. The Nov 3
+      // audit's /jobs bounce was for the gated era and no longer applies.
+      navigate(`/discover?${p.toString()}`);
       return;
     }
     navigate(`/helpers?${buildHelperParams().toString()}`);
