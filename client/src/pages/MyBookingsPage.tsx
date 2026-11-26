@@ -139,6 +139,8 @@ const MyBookingsPageContent = () => {
   // Group 11 item 583: cancellation recovery record per cancelled booking.
   const [recoveries, setRecoveries] = useState<Record<number, any>>({});
   const [recoveryDraft, setRecoveryDraft] = useState<Record<number, { amount: string; direction: string; note: string }>>({});
+  // G11-B6 (D-607): payer's payment-reference draft per agreed settlement.
+  const [settleReference, setSettleReference] = useState<Record<number, string>>({});
   // Group 11 item 584: replacement suggestions per cancelled booking.
   const [bookingAlternatives, setBookingAlternatives] = useState<Record<number, any[]>>({});
 
@@ -518,10 +520,19 @@ const MyBookingsPageContent = () => {
   };
 
   const handleSettleRefund = async (booking: Booking) => {
+    const recovery = recoveries[booking.id];
+    const reference = (settleReference[booking.id] || '').trim();
+    // G11-B6 (D-607): the payer's reference is the evidence the money
+    // moved; the server requires it whenever money is owed.
+    if (Number(recovery?.refund_amount || 0) > 0 && !reference) {
+      toast.error(t('toolRentals.recoveryReferenceRequired') || 'Add the payment reference for this refund first');
+      return;
+    }
     if (!window.confirm(t('toolRentals.recoverySettleConfirm') || 'Confirm the refund money has already moved between you off-platform?')) return;
     try {
-      const { recovery } = await toolRentalsApi.settleRefundSettlement(booking.id);
-      setRecoveries((prev) => ({ ...prev, [booking.id]: recovery }));
+      const { recovery: settled } = await toolRentalsApi.settleRefundSettlement(booking.id, { reference: reference || undefined });
+      setRecoveries((prev) => ({ ...prev, [booking.id]: settled }));
+      setSettleReference((prev) => ({ ...prev, [booking.id]: '' }));
       toast.success(t('toolRentals.recoverySettled') || 'Refund marked settled');
       loadBookings();
     } catch (err: any) {
@@ -680,17 +691,44 @@ const MyBookingsPageContent = () => {
             {recovery.refund_status === 'proposed' && isProposer && (
               <p>{t('toolRentals.recoveryWaitingOther') || 'Waiting for the other party to agree.'}</p>
             )}
-            {recovery.refund_status === 'agreed' && (
-              <div className="booking-card-actions">
-                <button
-                  type="button"
-                  onClick={() => handleSettleRefund(booking)}
-                  className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.27"
-                >
-                  {t('toolRentals.recoverySettle') || 'Mark refund settled'}
-                </button>
-              </div>
+            {recovery.refund_status === 'settled' && recovery.settled_reference && (
+              <p>{t('toolRentals.recoverySettledReference', { reference: recovery.settled_reference }) || `Payment reference: ${recovery.settled_reference}`}</p>
             )}
+            {recovery.refund_status === 'agreed' && (() => {
+              // G11-B6 (D-607): only the paying party settles. The
+              // direction names the payer; a zero-amount settlement
+              // (direction 'none') has no payer, so either party may.
+              const isPayer = recovery.refund_direction === 'owner_to_renter'
+                ? String(booking.owner_id) === String(user?.id)
+                : recovery.refund_direction === 'renter_to_owner'
+                  ? String(booking.customer_id) === String(user?.id)
+                  : true;
+              if (!isPayer) {
+                return <p>{t('toolRentals.recoveryWaitingPayer') || 'Waiting for the party who pays to mark the refund settled.'}</p>;
+              }
+              return (
+                <div className="booking-card-actions">
+                  {Number(recovery.refund_amount || 0) > 0 && (
+                    <label>
+                      {t('toolRentals.recoverySettleReference') || 'Payment reference'}
+                      <input
+                        type="text"
+                        value={settleReference[booking.id] || ''}
+                        onChange={(e) => setSettleReference((prev) => ({ ...prev, [booking.id]: e.target.value }))}
+                        placeholder={t('toolRentals.recoverySettleReferencePlaceholder') || 'e.g. VENMO-1234'}
+                      />
+                    </label>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleSettleRefund(booking)}
+                    className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.27"
+                  >
+                    {t('toolRentals.recoverySettle') || 'Mark refund settled'}
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         ) : (
           <div>
@@ -1086,7 +1124,7 @@ const MyBookingsPageContent = () => {
           {booking.deposit_withheld_amount != null && Number(booking.deposit_withheld_amount) > 0 && (
             <p>{t('toolRentals.depositWithheldDetail', { amount: Number(booking.deposit_withheld_amount).toFixed(2), reason: booking.deposit_resolution_note || '' })}</p>
           )}
-          {isOwner && booking.deposit_status === 'held' && (
+          {isOwner && booking.deposit_status === 'held' && ['returned', 'completed', 'cancelled'].includes(booking.status) && (
             <div className="booking-card-actions">
               <button onClick={() => handleResolveDeposit(booking, 'return')} className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.3">
                 {t('toolRentals.depositReturn')}

@@ -558,7 +558,7 @@ describeDb('Group 11 Slice 2d: Return + Changes (576, 580, 583, 584)', () => {
       void owner;
     });
 
-    test('the other party confirms, then either party marks it settled; the proposer cannot confirm', async () => {
+    test('the other party confirms, then only the payer marks it settled with a reference; the proposer cannot confirm', async () => {
       const { owner, renter, booking } = await cancelledBooking();
       await propose(renter, booking.id, { amount: 18, direction: 'owner_to_renter' }).expect(200);
       // Settling before agreement is refused.
@@ -580,13 +580,30 @@ describeDb('Group 11 Slice 2d: Return + Changes (576, 580, 583, 584)', () => {
       expect(agreed.body.recovery.agreed_at).toBeTruthy();
       // A re-proposal after agreement is refused.
       await propose(owner, booking.id, { amount: 5, direction: 'owner_to_renter' }).expect(409);
-      // Either party can mark it settled once the money moved off-platform.
-      const settled = await request(app)
+      // G11-B6 (D-607): only the payer settles, with a reference. The
+      // direction is owner_to_renter, so the renter (non-payer) is
+      // refused and the owner needs a reference.
+      const byNonPayer = await request(app)
         .post(`/api/tool-rentals/bookings/${booking.id}/recovery/settle`)
         .set('x-test-user', renter)
+        .send({ reference: 'VENMO-1' });
+      expect(byNonPayer.status).toBe(403);
+      expect(byNonPayer.body.code).toBe('not_payer');
+      const noReference = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/recovery/settle`)
+        .set('x-test-user', owner)
+        .send({});
+      expect(noReference.status).toBe(400);
+      expect(noReference.body.code).toBe('reference_required');
+      const settled = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/recovery/settle`)
+        .set('x-test-user', owner)
+        .send({ reference: 'VENMO-1' })
         .expect(200);
       expect(settled.body.recovery.refund_status).toBe('settled');
       expect(settled.body.recovery.settled_at).toBeTruthy();
+      expect(settled.body.recovery.settled_reference).toBe('VENMO-1');
+      expect(settled.body.recovery.settled_by).toBe(owner);
     });
 
     test('a new proposal replaces a still-proposed one', async () => {

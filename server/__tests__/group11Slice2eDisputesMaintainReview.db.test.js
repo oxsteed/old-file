@@ -761,6 +761,14 @@ describeDb('Group 11 Slice 2e: Disputes + Maintain + Review (586, 587, 589, 590,
       const { owner, renter, booking } = await paidPair({
         bookingExtra: { deposit_status: 'held', deposit_amount: 40 },
       });
+      // G11-B3/A7 (D-606): a held deposit resolves only once the rental
+      // is over; mid-rental resolve is refused, so the tool is marked
+      // returned first.
+      await request(app)
+        .put(`/api/tool-rentals/bookings/${booking.id}`)
+        .set('x-test-user', owner)
+        .send({ status: 'returned' })
+        .expect(200);
       const resolved = await request(app)
         .post(`/api/tool-rentals/bookings/${booking.id}/deposit/resolve`)
         .set('x-test-user', owner)

@@ -36,7 +36,14 @@ const resolveDeposit = async (req, res) => {
     if (booking.deposit_status !== 'held') {
       return res.status(409).json({ error: 'No held deposit to resolve', code: 'deposit_not_held', deposit_status: booking.deposit_status });
     }
-    if (!['payment_confirmed', 'completed'].includes(booking.status)) {
+    // G11-B3 + G11-A7 (D-606): a held deposit resolves only once the
+    // rental is over. 'returned' (tool back) and 'completed' (rental
+    // closed) can resolve; so can 'cancelled' (a paid booking cancelled
+    // before pickup must not leave the deposit held forever, the B3
+    // hole). 'payment_confirmed' is mid-rental and must NOT resolve
+    // (the A7 hole: the owner could withhold the deposit while the
+    // renter still holds the tool).
+    if (!['returned', 'completed', 'cancelled'].includes(booking.status)) {
       return res.status(409).json({ error: 'Booking is not in a state where the deposit can be resolved' });
     }
     const deposit = Number(booking.deposit_amount);

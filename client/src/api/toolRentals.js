@@ -217,8 +217,8 @@ export const toolRentalsApi = {
     return response.data;
   },
 
-  settleRefundSettlement: async (bookingId) => {
-    const response = await api.post(`/tool-rentals/bookings/${bookingId}/recovery/settle`);
+  settleRefundSettlement: async (bookingId, { reference } = {}) => {
+    const response = await api.post(`/tool-rentals/bookings/${bookingId}/recovery/settle`, { reference });
     return response.data;
   },
 

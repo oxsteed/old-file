@@ -437,4 +437,186 @@ describeDb('G11 findings batch: payment, delete guard, identity, notifications',
       expect(freshList.body[0].renter_identity.verified).toBe(true);
     });
   });
+
+  // A booking at payment_confirmed with the deposit held (rental 54 +
+  // deposit 40 = invoice total 94, proof recorded, owner confirmed).
+  async function paymentConfirmedBooking() {
+    const ctx = await invoiceSentBooking();
+    const { owner, renter, booking, invoice } = ctx;
+    await request(app)
+      .post(`/api/tool-rentals/invoices/${invoice.id}/record-payment`)
+      .set('x-test-user', renter)
+      .send({ reference: 'VENMO-ABC-123', amount: 94 })
+      .expect(200);
+    await request(app)
+      .post(`/api/tool-rentals/invoices/${invoice.id}/confirm-payment`)
+      .set('x-test-user', owner)
+      .send({})
+      .expect(200);
+    return ctx;
+  }
+
+  const setStatus = (bookingId, userId, status) => request(app)
+    .put(`/api/tool-rentals/bookings/${bookingId}`)
+    .set('x-test-user', userId)
+    .send({ status });
+
+  const resolveDeposit = (bookingId, userId, body) => request(app)
+    .post(`/api/tool-rentals/bookings/${bookingId}/deposit/resolve`)
+    .set('x-test-user', userId)
+    .send(body);
+
+  describe('G11-B3/A7: deposit resolves only once the rental is over (D-606)', () => {
+    test('mid-rental resolve is refused; returned resolves', async () => {
+      const { owner, booking } = await paymentConfirmedBooking();
+      const midRental = await resolveDeposit(booking.id, owner, { action: 'return' });
+      expect(midRental.status).toBe(409);
+      await setStatus(booking.id, owner, 'returned').then((r) => expect(r.status).toBe(200));
+      const resolved = await resolveDeposit(booking.id, owner, { action: 'return' });
+      expect(resolved.status).toBe(200);
+      expect(resolved.body.deposit_status).toBe('returned');
+    });
+
+    test('a cancelled paid booking resolves instead of leaving the deposit held', async () => {
+      const { owner, renter, booking } = await paymentConfirmedBooking();
+      await setStatus(booking.id, renter, 'cancelled').then((r) => expect(r.status).toBe(200));
+      const resolved = await resolveDeposit(booking.id, owner, { action: 'return' });
+      expect(resolved.status).toBe(200);
+      expect(resolved.body.deposit_status).toBe('returned');
+    });
+
+    test('completed resolves, and withhold still needs a reason', async () => {
+      const { owner, booking } = await paymentConfirmedBooking();
+      await setStatus(booking.id, owner, 'returned').then((r) => expect(r.status).toBe(200));
+      await setStatus(booking.id, owner, 'completed').then((r) => expect(r.status).toBe(200));
+      const noNote = await resolveDeposit(booking.id, owner, { action: 'withhold', amount: 10 });
+      expect(noNote.status).toBe(400);
+      const withheld = await resolveDeposit(booking.id, owner, { action: 'withhold', amount: 10, note: 'Chipped chuck, repair quote attached.' });
+      expect(withheld.status).toBe(200);
+      expect(withheld.body.deposit_status).toBe('partially_withheld');
+    });
+  });
+
+  describe('G11-B6: only the payer settles, with a payment reference (D-607)', () => {
+    async function agreedSettlement(amount = 18, direction = 'owner_to_renter') {
+      const { owner, renter, booking } = await paymentConfirmedBooking();
+      await setStatus(booking.id, renter, 'cancelled').then((r) => expect(r.status).toBe(200));
+      const proposed = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/recovery/refund`)
+        .set('x-test-user', owner)
+        .send({ amount, direction, note: 'Half back for the unused days.' });
+      expect(proposed.status).toBe(200);
+      const confirmed = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/recovery/confirm`)
+        .set('x-test-user', renter);
+      expect(confirmed.status).toBe(200);
+      expect(confirmed.body.recovery.refund_status).toBe('agreed');
+      return { owner, renter, booking };
+    }
+    const settle = (bookingId, userId, body) => request(app)
+      .post(`/api/tool-rentals/bookings/${bookingId}/recovery/settle`)
+      .set('x-test-user', userId)
+      .send(body || {});
+
+    test('the non-payer cannot settle; the payer needs a reference', async () => {
+      const { owner, renter, booking } = await agreedSettlement();
+      const byNonPayer = await settle(booking.id, renter, { reference: 'VENMO-999' });
+      expect(byNonPayer.status).toBe(403);
+      expect(byNonPayer.body.code).toBe('not_payer');
+      const noReference = await settle(booking.id, owner, {});
+      expect(noReference.status).toBe(400);
+      expect(noReference.body.code).toBe('reference_required');
+      const settled = await settle(booking.id, owner, { reference: 'VENMO-999' });
+      expect(settled.status).toBe(200);
+      expect(settled.body.recovery.refund_status).toBe('settled');
+      expect(settled.body.recovery.settled_reference).toBe('VENMO-999');
+      expect(settled.body.recovery.settled_by).toBe(owner);
+    });
+
+    test('a renter-to-owner direction flips the payer', async () => {
+      const { owner, renter, booking } = await agreedSettlement(12, 'renter_to_owner');
+      const byOwner = await settle(booking.id, owner, { reference: 'VENMO-111' });
+      expect(byOwner.status).toBe(403);
+      const settled = await settle(booking.id, renter, { reference: 'VENMO-111' });
+      expect(settled.status).toBe(200);
+      expect(settled.body.recovery.settled_by).toBe(renter);
+    });
+
+    test('a zero-amount settlement needs no reference and either party may settle', async () => {
+      const { owner, renter, booking } = await agreedSettlement(0, 'none');
+      const settled = await settle(booking.id, renter, {});
+      expect(settled.status).toBe(200);
+      expect(settled.body.recovery.refund_status).toBe('settled');
+      expect(settled.body.recovery.settled_reference).toBeNull();
+    });
+  });
+
+  describe('G11-B7: reschedule decisions need a live booking and a future date (D-608)', () => {
+    test('a past return date is refused', async () => {
+      // Past-date case isolated from the after-pickup rule: a booking
+      // whose rental already started, proposing a return in the past.
+      const pastOwner = await addUser();
+      const pastRenter = await addUser();
+      await grantToolOwner(pastOwner);
+      const pastTool = await insertTool(pastOwner);
+      const pastBooking = await insertBooking(pastTool.id, pastRenter, pastOwner, '2026-11-01', '2026-11-10', 'payment_confirmed');
+      const res = await request(app)
+        .post(`/api/tool-rentals/bookings/${pastBooking.id}/return-reschedule`)
+        .set('x-test-user', pastRenter)
+        .send({ proposedEndDate: '2026-11-20' });
+      expect(res.status).toBe(400);
+      expect(res.body.fields.proposedEndDate).toMatch(/past/);
+    });
+
+    test('approve and decline on a non-live booking are refused', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner);
+      const booking = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12', 'invoice_sent', {
+        return_reschedule_status: 'proposed',
+        return_reschedule_proposed_end_date: '2026-12-20',
+      });
+      const approve = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/return-reschedule/approve`)
+        .set('x-test-user', owner);
+      expect(approve.status).toBe(409);
+      const decline = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/return-reschedule/decline`)
+        .set('x-test-user', owner)
+        .send({ reason: 'No longer available then.' });
+      expect(decline.status).toBe(409);
+    });
+
+    test('happy path: propose a future date, owner approves, end date moves', async () => {
+      const { owner, renter, booking } = await paymentConfirmedBooking();
+      const proposed = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/return-reschedule`)
+        .set('x-test-user', renter)
+        .send({ proposedEndDate: '2026-12-20' });
+      expect(proposed.status).toBe(200);
+      expect(proposed.body.return_reschedule_status).toBe('proposed');
+      const approved = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/return-reschedule/approve`)
+        .set('x-test-user', owner);
+      expect(approved.status).toBe(200);
+      expect(approved.body.return_reschedule_status).toBe('approved');
+      expect(String(approved.body.end_date).slice(0, 10)).toBe('2026-12-20');
+    });
+
+    test('owner can decline with a reason', async () => {
+      const { owner, renter, booking } = await paymentConfirmedBooking();
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/return-reschedule`)
+        .set('x-test-user', renter)
+        .send({ proposedEndDate: '2026-12-20' })
+        .expect(200);
+      const declined = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/return-reschedule/decline`)
+        .set('x-test-user', owner)
+        .send({ reason: 'Need it back for another job.' });
+      expect(declined.status).toBe(200);
+      expect(declined.body.return_reschedule_status).toBe('declined');
+    });
+  });
 });

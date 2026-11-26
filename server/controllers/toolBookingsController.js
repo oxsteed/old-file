@@ -731,6 +731,9 @@ const proposeReturnReschedule = async (req, res, next) => {
     const end = parseDateOnlyUTC(proposedEndDate);
     if (!end) fields.proposedEndDate = 'Proposed return date is required and must be a valid date';
     else {
+      // G11-B7 (D-608): a return cannot be rescheduled into the past.
+      const today = parseDateOnlyUTC(new Date().toISOString().slice(0, 10));
+      if (today && end < today) fields.proposedEndDate = 'The new return date cannot be in the past';
       // booking.start_date comes back from pg as a Date, not a string.
       const startRaw = booking.start_date instanceof Date
         ? booking.start_date.toISOString().slice(0, 10)
@@ -773,6 +776,13 @@ const approveReturnReschedule = async (req, res, next) => {
   try {
     const { bookingId } = req.params;
     const booking = await loadBookingForReturnReschedule(bookingId, req.user.id, { ownerOnly: true });
+    // G11-B7 (D-608): a reschedule can only be decided while the
+    // booking is live at payment_confirmed. Without this, an owner
+    // could approve a reschedule on a cancelled or completed booking
+    // and move its end date after the fact.
+    if (booking.status !== 'payment_confirmed') {
+      throw new AppError('The return can only be rescheduled once payment is confirmed', 409, 'state_conflict');
+    }
     if (booking.return_reschedule_status !== 'proposed' || !booking.return_reschedule_proposed_end_date) {
       throw new AppError('There is no return reschedule waiting for a decision', 409, 'state_conflict');
     }
@@ -818,6 +828,10 @@ const declineReturnReschedule = async (req, res, next) => {
       throw new AppError('Decline reason is too long', 400, 'validation_failed', { reason: 'Keep the reason under 2000 characters' });
     }
     const booking = await loadBookingForReturnReschedule(bookingId, req.user.id, { ownerOnly: true });
+    // G11-B7 (D-608): same live-booking guard as approve.
+    if (booking.status !== 'payment_confirmed') {
+      throw new AppError('The return can only be rescheduled once payment is confirmed', 409, 'state_conflict');
+    }
     if (booking.return_reschedule_status !== 'proposed') {
       throw new AppError('There is no return reschedule waiting for a decision', 409, 'state_conflict');
     }
@@ -953,17 +967,36 @@ const confirmRefundSettlement = async (req, res, next) => {
 const settleRefundSettlement = async (req, res, next) => {
   try {
     const { bookingId } = req.params;
-    await loadBookingForRecovery(bookingId, req.user.id);
+    const booking = await loadBookingForRecovery(bookingId, req.user.id);
     const existing = await loadRecoveryRow(bookingId);
     if (!existing || existing.refund_status !== 'agreed') {
       throw new AppError('Only an agreed refund settlement can be marked settled', 409, 'state_conflict');
     }
+    // G11-B6 (D-607): only the paying party marks the settlement
+    // settled. The direction names the payer; a zero-amount settlement
+    // (direction 'none') has no payer, so either party may settle it.
+    const payerId = existing.refund_direction === 'owner_to_renter'
+      ? booking.owner_id
+      : existing.refund_direction === 'renter_to_owner'
+        ? booking.customer_id
+        : null;
+    if (payerId && String(payerId) !== String(req.user.id)) {
+      throw new AppError('Only the party who pays the refund can mark it settled', 403, 'not_payer');
+    }
+    // S-E3: the payer's off-platform payment reference is the evidence
+    // the money moved. Required whenever money is owed; a zero-amount
+    // settlement has no payment to reference.
+    const reference = typeof req.body?.reference === 'string' ? req.body.reference.trim().slice(0, 200) : '';
+    if (Number(existing.refund_amount) > 0 && !reference) {
+      throw new AppError('A payment reference is required to mark the refund settled', 400, 'reference_required');
+    }
     const { rows } = await db.query(
       `UPDATE tool_rental_cancellation_recoveries
-          SET refund_status = 'settled', settled_at = NOW(), updated_at = NOW()
+          SET refund_status = 'settled', settled_at = NOW(),
+              settled_reference = $2, settled_by = $3, updated_at = NOW()
         WHERE booking_id = $1 AND refund_status = 'agreed'
         RETURNING *`,
-      [bookingId]
+      [bookingId, reference || null, req.user.id]
     );
     if (!rows[0]) throw new AppError('Only an agreed refund settlement can be marked settled', 409, 'state_conflict');
     res.json({ recovery: rows[0] });
