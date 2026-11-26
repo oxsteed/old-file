@@ -28,7 +28,7 @@ const resolveDeposit = async (req, res) => {
   if (!['return', 'withhold'].includes(action)) return res.status(400).json({ error: 'action must be return or withhold' });
   try {
     const { rows } = await db.query(
-      `SELECT id, owner_id, status, deposit_amount, deposit_status FROM tool_rentals_bookings WHERE id = $1`,
+      `SELECT id, owner_id, customer_id, status, deposit_amount, deposit_status FROM tool_rentals_bookings WHERE id = $1`,
       [bookingId]
     );
     const booking = rows[0];
@@ -65,6 +65,13 @@ const resolveDeposit = async (req, res) => {
       [bookingId, status, action === 'return' ? 0 : withheld, note || null]
     );
     if (!updated.length) return res.status(409).json({ error: 'Deposit was already resolved', code: 'deposit_not_held' });
+    // G11-B2 (D-609): the renter is told the deposit was resolved.
+    await notifyRental({
+      userId: booking.customer_id,
+      type: 'tool_rental_deposit_resolved',
+      bookingId,
+      eventKey: `resolved:${updated[0].deposit_resolved_at}`,
+    });
     return res.json(updated[0]);
   } catch (err) {
     logger.error('resolveDeposit error', { err });
@@ -341,6 +348,15 @@ const createInvoice = async (req, res) => {
     await client.query('COMMIT');
 
     client.release();
+
+    // G11-A5 (D-609): the renter is told in-app whichever delivery
+    // method was used; in_platform delivery sends no email at all.
+    await notifyRental({
+      userId: booking.customer_id,
+      type: 'tool_rental_invoice_sent',
+      bookingId,
+      eventKey: `sent:${invoice.id}`,
+    });
 
     res.json({
       invoiceId: invoice.id,
@@ -778,6 +794,16 @@ const confirmPayment = async (req, res) => {
         bookingEmailService.sendPaymentConfirmed(
           { id: invoice.booking_id, start_date: invoice.start_date, end_date: invoice.end_date, total_price: invoice.total_amount },
           toolData.rows[0], customerData.rows[0],
+        );
+      }
+      // G11-A5 (D-609): the owner gets a confirmation record of their
+      // own (booking paid, deposit held).
+      const ownerData = await db.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [invoice.owner_id]);
+      if (ownerData.rows[0] && toolData.rows[0]) {
+        const bookingEmailService = require('../services/bookingEmailService');
+        bookingEmailService.sendPaymentConfirmedToOwner(
+          { id: invoice.booking_id, start_date: invoice.start_date, end_date: invoice.end_date, total_price: invoice.total_amount },
+          toolData.rows[0], ownerData.rows[0],
         );
       }
     } catch (notifyErr) {

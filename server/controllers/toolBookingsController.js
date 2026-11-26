@@ -5,6 +5,9 @@ const bookingEmailService = require('../services/bookingEmailService');
 const { parseDateOnlyUTC } = require('../utils/dateOnly');
 // Group 11 item 571 (D-259): identity is the platform Didit state.
 const { rentalIdentityStatus } = require('../utils/rentalIdentity');
+// G11-B2/A5 (D-609): rental lifecycle in-app notices (notify_bookings
+// toggle, per-event idempotency, failure-safe).
+const { notifyRental, notifyRentalCounterparty } = require('../utils/toolRentalNotifications');
 
 const TOOL_RENTAL_AGREEMENT_VERSION = 'peer-rental-v1';
 
@@ -437,19 +440,30 @@ const updateBookingStatus = async (req, res, next) => {
 
     const updatedBooking = result.rows[0];
 
-    // Send status update emails asynchronously
-    if (status === 'payment_confirmed') {
-      const customerData = await db.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [booking.customer_id]);
-      const toolData = await db.query('SELECT name FROM tool_rentals WHERE id = $1', [booking.tool_id]);
-      if (customerData.rows[0] && toolData.rows[0]) {
-        bookingEmailService.sendBookingApproved(updatedBooking, toolData.rows[0], customerData.rows[0]);
-      }
-    } else if (status === 'cancelled' && booking.status !== 'cancelled') {
+    // G11-A5/B2 (D-609): the dead payment_confirmed email branch is
+    // gone (validStatuses excludes it; the approval mail now sends from
+    // approveBooking). Cancel tells the renter by email, and the owner
+    // by email + in-app when the renter cancelled; a return tells the
+    // counterparty in-app.
+    if (status === 'cancelled' && booking.status !== 'cancelled') {
       const customerData = await db.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [booking.customer_id]);
       const toolData = await db.query('SELECT name FROM tool_rentals WHERE id = $1', [booking.tool_id]);
       if (customerData.rows[0] && toolData.rows[0]) {
         bookingEmailService.sendBookingDeclined(updatedBooking, toolData.rows[0], customerData.rows[0]);
       }
+      if (String(userId) === String(booking.customer_id)) {
+        const ownerData = await db.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [booking.owner_id]);
+        if (ownerData.rows[0] && toolData.rows[0]) {
+          bookingEmailService.sendBookingCancelledToOwner(updatedBooking, toolData.rows[0], ownerData.rows[0]);
+        }
+      }
+      await notifyRentalCounterparty({
+        booking, actorId: userId, type: 'tool_rental_booking_cancelled', eventKey: `cancelled:${bookingId}`,
+      });
+    } else if (status === 'returned') {
+      await notifyRentalCounterparty({
+        booking, actorId: userId, type: 'tool_rental_return_marked', eventKey: `returned:${bookingId}`,
+      });
     }
 
     res.json(updatedBooking);
@@ -494,7 +508,22 @@ const approveBooking = async (req, res, next) => {
       [bookingId]
     );
     if (!rows[0]) throw new AppError('This request can no longer be approved', 409, 'state_conflict');
-    res.json(rows[0]);
+    const updated = rows[0];
+    // G11-A5 (D-609): approval notifies the renter (email + in-app).
+    // The email helper is fire-and-forget per the codebase pattern;
+    // the in-app notice is awaited but failure-safe.
+    const customerData = await db.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [booking.customer_id]);
+    const toolData = await db.query('SELECT name FROM tool_rentals WHERE id = $1', [booking.tool_id]);
+    if (customerData.rows[0] && toolData.rows[0]) {
+      bookingEmailService.sendBookingApproved(updated, toolData.rows[0], customerData.rows[0]);
+    }
+    await notifyRental({
+      userId: booking.customer_id,
+      type: 'tool_rental_booking_approved',
+      bookingId,
+      eventKey: `approved:${bookingId}`,
+    });
+    res.json(updated);
   } catch (err) {
     next(err);
   }
@@ -530,6 +559,14 @@ const declineBooking = async (req, res, next) => {
     if (customerData.rows[0] && toolData.rows[0]) {
       bookingEmailService.sendBookingDeclined(updated, toolData.rows[0], customerData.rows[0]);
     }
+    // G11-A5 (D-609): the decline is also an in-app notice, matching
+    // the approval notice above.
+    await notifyRental({
+      userId: booking.customer_id,
+      type: 'tool_rental_booking_declined',
+      bookingId,
+      eventKey: `declined:${bookingId}`,
+    });
     res.json(updated);
   } catch (err) {
     next(err);
@@ -766,6 +803,13 @@ const proposeReturnReschedule = async (req, res, next) => {
         RETURNING *`,
       [bookingId, proposedEndDate, proposedTime, req.user.id]
     );
+    // G11-B2 (D-609): the owner decides, so the owner is told.
+    await notifyRental({
+      userId: booking.owner_id,
+      type: 'tool_rental_reschedule_proposed',
+      bookingId,
+      eventKey: `proposed:${rows[0].return_reschedule_proposed_at}`,
+    });
     res.json(rows[0]);
   } catch (err) {
     next(err);
@@ -811,6 +855,13 @@ const approveReturnReschedule = async (req, res, next) => {
       [bookingId, proposedEnd, booking.return_reschedule_proposed_time]
     );
     if (!rows[0]) throw new AppError('There is no return reschedule waiting for a decision', 409, 'state_conflict');
+    // G11-B2 (D-609): the renter proposed, so the renter is told.
+    await notifyRental({
+      userId: booking.customer_id,
+      type: 'tool_rental_reschedule_approved',
+      bookingId,
+      eventKey: `decided:${rows[0].return_reschedule_decided_at}`,
+    });
     res.json(rows[0]);
   } catch (err) {
     next(err);
@@ -845,6 +896,13 @@ const declineReturnReschedule = async (req, res, next) => {
       [bookingId, reason]
     );
     if (!rows[0]) throw new AppError('There is no return reschedule waiting for a decision', 409, 'state_conflict');
+    // G11-B2 (D-609): the renter proposed, so the renter is told.
+    await notifyRental({
+      userId: booking.customer_id,
+      type: 'tool_rental_reschedule_declined',
+      bookingId,
+      eventKey: `decided:${rows[0].return_reschedule_decided_at}`,
+    });
     res.json(rows[0]);
   } catch (err) {
     next(err);
@@ -933,6 +991,11 @@ const proposeRefundSettlement = async (req, res, next) => {
        RETURNING *`,
       [bookingId, amount, direction, note || null, req.user.id]
     );
+    // G11-B2 (D-609): the counterparty confirms, so they are told.
+    await notifyRentalCounterparty({
+      booking, actorId: req.user.id, type: 'tool_rental_refund_proposed',
+      eventKey: `proposed:${rows[0].updated_at}`,
+    });
     res.json({ recovery: rows[0] });
   } catch (err) {
     next(err);
@@ -958,6 +1021,13 @@ const confirmRefundSettlement = async (req, res, next) => {
       [bookingId]
     );
     if (!rows[0]) throw new AppError('There is no proposed refund settlement to confirm', 409, 'state_conflict');
+    // G11-B2 (D-609): the proposer waits on the decision.
+    await notifyRental({
+      userId: existing.proposed_by,
+      type: 'tool_rental_refund_confirmed',
+      bookingId,
+      eventKey: `agreed:${rows[0].agreed_at}`,
+    });
     res.json({ recovery: rows[0] });
   } catch (err) {
     next(err);
@@ -999,6 +1069,11 @@ const settleRefundSettlement = async (req, res, next) => {
       [bookingId, reference || null, req.user.id]
     );
     if (!rows[0]) throw new AppError('Only an agreed refund settlement can be marked settled', 409, 'state_conflict');
+    // G11-B2 (D-609): the counterparty is told the refund is settled.
+    await notifyRentalCounterparty({
+      booking, actorId: req.user.id, type: 'tool_rental_refund_settled',
+      eventKey: `settled:${rows[0].settled_at}`,
+    });
     res.json({ recovery: rows[0] });
   } catch (err) {
     next(err);

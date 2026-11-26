@@ -61,12 +61,16 @@ jest.mock('../services/notificationService', () => ({
 }));
 const mockSendPaymentProofReceived = jest.fn();
 const mockSendPaymentConfirmed = jest.fn();
+const mockSendBookingCancelledToOwner = jest.fn();
+const mockSendPaymentConfirmedToOwner = jest.fn();
 jest.mock('../services/bookingEmailService', () => ({
   sendBookingConfirmation: jest.fn(),
   sendBookingApproved: jest.fn(),
   sendBookingDeclined: jest.fn(),
   sendPaymentProofReceived: (...args) => mockSendPaymentProofReceived(...args),
   sendPaymentConfirmed: (...args) => mockSendPaymentConfirmed(...args),
+  sendBookingCancelledToOwner: (...args) => mockSendBookingCancelledToOwner(...args),
+  sendPaymentConfirmedToOwner: (...args) => mockSendPaymentConfirmedToOwner(...args),
 }));
 jest.mock('../growth/emit', () => ({
   emitDomainEvent: jest.fn().mockResolvedValue(undefined),
@@ -617,6 +621,228 @@ describeDb('G11 findings batch: payment, delete guard, identity, notifications',
         .send({ reason: 'Need it back for another job.' });
       expect(declined.status).toBe(200);
       expect(declined.body.return_reschedule_status).toBe('declined');
+    });
+  });
+
+  describe('G11-B2/A5: rental lifecycle events notify the other party (D-609)', () => {
+    // The notification service is mocked, so the assertion is on its
+    // calls: type + recipient. Cleared before each test so an earlier
+    // flow (approve inside invoiceSentBooking, etc.) cannot leak in.
+    beforeEach(() => {
+      mockSendNotification.mockClear();
+      mockSendBookingCancelledToOwner.mockClear();
+      mockSendPaymentConfirmedToOwner.mockClear();
+    });
+    const notified = (type, userId) => mockSendNotification.mock.calls
+      .filter(([call]) => call?.type === type && String(call?.userId) === String(userId));
+
+    async function pendingBooking() {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner);
+      const created = await request(app)
+        .post('/api/tool-rentals/bookings')
+        .set('x-test-user', renter)
+        .send({ toolId: tool.id, startDate: '2026-12-10', endDate: '2026-12-12', renterAgreementAccepted: true });
+      expect(created.status).toBe(201);
+      return { owner, renter, tool, booking: created.body };
+    }
+
+    async function openEscalation(owner, renter, booking) {
+      const opened = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/escalations`)
+        .set('x-test-user', renter)
+        .send({ category: 'damage', message: 'The drill came back cracked.' });
+      expect(opened.status).toBe(201);
+      return opened.body.escalation.id;
+    }
+
+    async function setNotifyBookings(userId, value) {
+      await db.query(
+        `INSERT INTO tool_rental_notifications (user_id, notify_bookings) VALUES ($1, $2)
+         ON CONFLICT (user_id) DO UPDATE SET notify_bookings = EXCLUDED.notify_bookings`,
+        [userId, value],
+      );
+    }
+
+    test('approval and decline notify the renter in-app', async () => {
+      const first = await pendingBooking();
+      await request(app).post(`/api/tool-rentals/bookings/${first.booking.id}/approve`).set('x-test-user', first.owner).expect(200);
+      expect(notified('tool_rental_booking_approved', first.renter).length).toBe(1);
+
+      const second = await pendingBooking();
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${second.booking.id}/decline`)
+        .set('x-test-user', second.owner)
+        .send({ reason: 'Out on loan that week.' })
+        .expect(200);
+      expect(notified('tool_rental_booking_declined', second.renter).length).toBe(1);
+    });
+
+    test('invoice sent notifies the renter even for in-platform delivery', async () => {
+      const { renter } = await invoiceSentBooking();
+      expect(notified('tool_rental_invoice_sent', renter).length).toBe(1);
+    });
+
+    test('payment confirmation notifies the renter and emails the owner a record', async () => {
+      const { owner, renter } = await paymentConfirmedBooking();
+      expect(notified('tool_rental_payment_confirmed', renter).length).toBe(1);
+      expect(mockSendPaymentConfirmedToOwner.mock.calls.length).toBe(1);
+      expect(mockSendPaymentConfirmedToOwner.mock.calls[0][2].email).toContain('g11g-');
+      expect(mockSendPaymentConfirmedToOwner.mock.calls[0][0].id).toBeTruthy();
+      expect(owner).toBeTruthy();
+    });
+
+    test('renter cancel tells the owner by email and in-app; owner cancel tells the renter in-app only', async () => {
+      const first = await paymentConfirmedBooking();
+      await setStatus(first.booking.id, first.renter, 'cancelled').then((r) => expect(r.status).toBe(200));
+      expect(notified('tool_rental_booking_cancelled', first.owner).length).toBe(1);
+      expect(mockSendBookingCancelledToOwner.mock.calls.length).toBe(1);
+
+      mockSendNotification.mockClear();
+      mockSendBookingCancelledToOwner.mockClear();
+      const second = await paymentConfirmedBooking();
+      await setStatus(second.booking.id, second.owner, 'cancelled').then((r) => expect(r.status).toBe(200));
+      expect(notified('tool_rental_booking_cancelled', second.renter).length).toBe(1);
+      expect(mockSendBookingCancelledToOwner.mock.calls.length).toBe(0);
+    });
+
+    test('marking a return notifies the counterparty', async () => {
+      const { owner, renter, booking } = await paymentConfirmedBooking();
+      await setStatus(booking.id, owner, 'returned').then((r) => expect(r.status).toBe(200));
+      expect(notified('tool_rental_return_marked', renter).length).toBe(1);
+    });
+
+    test('damage claim filed, resolved and acknowledged each notify the waiting party', async () => {
+      const { owner, renter, booking } = await paymentConfirmedBooking();
+      const filed = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/damage-claims`)
+        .set('x-test-user', owner)
+        .send({ amount: 25, description: 'Cracked housing.' });
+      expect(filed.status).toBe(201);
+      expect(notified('tool_rental_damage_claim_filed', renter).length).toBe(1);
+
+      const resolved = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/damage-claims/${filed.body.claim.id}/resolve`)
+        .set('x-test-user', renter)
+        .send({ decision: 'agreed', agreed_amount: 20 });
+      expect(resolved.status).toBe(200);
+      expect(notified('tool_rental_damage_claim_resolved', owner).length).toBe(1);
+
+      const acked = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/damage-claims/${filed.body.claim.id}/acknowledge`)
+        .set('x-test-user', owner)
+        .send({ decision: 'acknowledged' });
+      expect(acked.status).toBe(200);
+      expect(notified('tool_rental_damage_claim_acknowledged', renter).length).toBe(1);
+    });
+
+    test('escalation replies notify the counterparty; an admin reply tells both parties', async () => {
+      const { owner, renter, booking } = await paymentConfirmedBooking();
+      const escalationId = await openEscalation(owner, renter, booking);
+      mockSendNotification.mockClear();
+      const reply = await request(app)
+        .post(`/api/tool-rentals/escalations/${escalationId}/messages`)
+        .set('x-test-user', renter)
+        .send({ message: 'Here is a photo of the crack.' });
+      expect(reply.status).toBe(201);
+      expect(notified('tool_rental_escalation_replied', owner).length).toBe(1);
+      expect(notified('tool_rental_escalation_replied', renter).length).toBe(0);
+
+      mockSendNotification.mockClear();
+      const admin = await addUser('super_admin');
+      const adminReply = await request(app)
+        .post(`/api/tool-rentals/admin/escalations/${escalationId}/messages`)
+        .set('x-test-user', admin)
+        .send({ message: 'Looking into this now.' });
+      expect(adminReply.status).toBe(201);
+      expect(notified('tool_rental_escalation_replied', owner).length).toBe(1);
+      expect(notified('tool_rental_escalation_replied', renter).length).toBe(1);
+    });
+
+    test('reschedule proposed, approved and declined notify the waiting party', async () => {
+      const first = await paymentConfirmedBooking();
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${first.booking.id}/return-reschedule`)
+        .set('x-test-user', first.renter)
+        .send({ proposedEndDate: '2026-12-20' })
+        .expect(200);
+      expect(notified('tool_rental_reschedule_proposed', first.owner).length).toBe(1);
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${first.booking.id}/return-reschedule/approve`)
+        .set('x-test-user', first.owner)
+        .expect(200);
+      expect(notified('tool_rental_reschedule_approved', first.renter).length).toBe(1);
+
+      const second = await paymentConfirmedBooking();
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${second.booking.id}/return-reschedule`)
+        .set('x-test-user', second.renter)
+        .send({ proposedEndDate: '2026-12-20' })
+        .expect(200);
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${second.booking.id}/return-reschedule/decline`)
+        .set('x-test-user', second.owner)
+        .send({ reason: 'Need it back for another job.' })
+        .expect(200);
+      expect(notified('tool_rental_reschedule_declined', second.renter).length).toBe(1);
+    });
+
+    test('refund proposed, confirmed and settled notify the waiting party', async () => {
+      const { owner, renter, booking } = await paymentConfirmedBooking();
+      await setStatus(booking.id, renter, 'cancelled').then((r) => expect(r.status).toBe(200));
+      mockSendNotification.mockClear();
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/recovery/refund`)
+        .set('x-test-user', owner)
+        .send({ amount: 18, direction: 'owner_to_renter', note: 'Half back for the unused days.' })
+        .expect(200);
+      expect(notified('tool_rental_refund_proposed', renter).length).toBe(1);
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/recovery/confirm`)
+        .set('x-test-user', renter)
+        .expect(200);
+      expect(notified('tool_rental_refund_confirmed', owner).length).toBe(1);
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/recovery/settle`)
+        .set('x-test-user', owner)
+        .send({ reference: 'VENMO-999' })
+        .expect(200);
+      expect(notified('tool_rental_refund_settled', renter).length).toBe(1);
+    });
+
+    test('deposit resolved and acknowledged notify the waiting party', async () => {
+      const { owner, renter, booking } = await paymentConfirmedBooking();
+      await setStatus(booking.id, owner, 'returned').then((r) => expect(r.status).toBe(200));
+      mockSendNotification.mockClear();
+      await resolveDeposit(booking.id, owner, { action: 'return' }).then((r) => expect(r.status).toBe(200));
+      expect(notified('tool_rental_deposit_resolved', renter).length).toBe(1);
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/deposit/acknowledge`)
+        .set('x-test-user', renter)
+        .send({ decision: 'acknowledged' })
+        .expect(200);
+      expect(notified('tool_rental_deposit_acknowledged', owner).length).toBe(1);
+    });
+
+    test('a renter who silenced booking notices gets none, but a safety-thread reply still arrives', async () => {
+      const { owner, renter, booking } = await pendingBooking();
+      await setNotifyBookings(renter, false);
+      await request(app).post(`/api/tool-rentals/bookings/${booking.id}/approve`).set('x-test-user', owner).expect(200);
+      expect(notified('tool_rental_booking_approved', renter).length).toBe(0);
+
+      // The same renter, toggle still off, opens an escalation; the
+      // owner's reply reaches them because the safety thread ignores
+      // the bookings toggle.
+      const escalationId = await openEscalation(owner, renter, booking);
+      mockSendNotification.mockClear();
+      await request(app)
+        .post(`/api/tool-rentals/escalations/${escalationId}/messages`)
+        .set('x-test-user', owner)
+        .send({ message: 'Can you describe the damage?' })
+        .expect(201);
+      expect(notified('tool_rental_escalation_replied', renter).length).toBe(1);
     });
   });
 });
