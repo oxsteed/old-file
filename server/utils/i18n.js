@@ -5,6 +5,8 @@ const T = {
   ...require('./reviewLifecycleNotificationTemplates').reviewLifecycleNotifications,
   ...require('./mediaCreatorNotifications').creatorNotifications,
   ...require('./disputeNotificationTemplates').disputeNotifications,
+  // G11 rental lifecycle notices (D-603 onwards).
+  ...require('./toolRentalNotificationTemplates').toolRentalNotifications,
   // Analytics platform, Phase 2 Item 9: metric threshold alert titles.
   ...require('./metricAlertNotificationCopy').metricAlertNotifications,
   affiliate_payout_processed: {

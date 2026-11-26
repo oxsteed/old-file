@@ -1509,6 +1509,7 @@ router.post('/invoices', authenticate, invoiceLimiter, invoiceController.createI
 router.get('/invoices/:invoiceId', authenticate, invoiceController.getInvoice);
 router.get('/invoices/:invoiceId/pdf', authenticate, invoiceController.generateInvoicePDF);
 router.post('/invoices/:invoiceId/confirm-payment', authenticate, invoiceLimiter, invoiceController.confirmPayment);
+router.post('/invoices/:invoiceId/record-payment', authenticate, invoiceLimiter, invoiceController.recordPayment);
 router.post('/bookings/:bookingId/deposit/resolve', authenticate, invoiceLimiter, invoiceController.resolveDeposit);
 
 // USER REPORTS (Option C)

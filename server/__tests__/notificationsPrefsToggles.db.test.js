@@ -461,6 +461,12 @@ ddescribe('Track C preference toggles (DB)', () => {
         // ones its callers pass (approval, payout approved, payout paid).
         { file: 'controllers/localDeliveryController.js', name: 'type', expansions: ['driver_approved', 'driver_payout_approved', 'driver_payout_paid'] },
         { file: 'services/supportNotificationService.js', name: 'type', expansions: ['support_sla_breach'] },
+        // G11 checkpoint 1 (D-603): notifyRental fan-out in the
+        // tool-rental notifications helper; the two types are the only
+        // ones its callers pass (payment proof submitted / confirmed).
+        // Later G11 checkpoints that send more types through it must
+        // extend this list, or N3 fails on purpose.
+        { file: 'utils/toolRentalNotifications.js', name: 'type', expansions: ['tool_rental_payment_proof_submitted', 'tool_rental_payment_confirmed'] },
         // Redis job-data replay: the queued payload is a full
         // notification object produced by a sendNotification caller
         // upstream, so the type already passed through the central

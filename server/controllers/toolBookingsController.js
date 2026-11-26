@@ -272,6 +272,9 @@ const getMyBookings = async (req, res, next) => {
     const userId = req.user.id;
     const result = await db.query(
       `SELECT b.*, tr.name, tr.daily_rate,
+              inv.id AS invoice_id, inv.invoice_number, inv.status AS invoice_status,
+              inv.total_amount AS invoice_total_amount,
+              inv.payment_proof_reference, inv.payment_proof_amount, inv.payment_proof_submitted_at,
               cu.didit_status AS renter_didit_status,
               cu.didit_verified_at AS renter_didit_verified_at,
               cu.identity_verified AS renter_identity_verified,
@@ -282,6 +285,7 @@ const getMyBookings = async (req, res, next) => {
               ou.id_verified AS owner_id_verified
        FROM tool_rentals_bookings b
        JOIN tool_rentals tr ON b.tool_id = tr.id
+       LEFT JOIN tool_rental_invoices inv ON inv.booking_id = b.id
        JOIN users cu ON b.customer_id = cu.id
        JOIN users ou ON b.owner_id = ou.id
        WHERE b.customer_id = $1
@@ -315,6 +319,9 @@ const getBookingsByOwner = async (req, res, next) => {
     const ownerId = req.user.id;
     const result = await db.query(
       `SELECT b.*, tr.name, u.first_name, u.last_name,
+              inv.id AS invoice_id, inv.invoice_number, inv.status AS invoice_status,
+              inv.total_amount AS invoice_total_amount,
+              inv.payment_proof_reference, inv.payment_proof_amount, inv.payment_proof_submitted_at,
               cu.didit_status AS renter_didit_status,
               cu.didit_verified_at AS renter_didit_verified_at,
               cu.identity_verified AS renter_identity_verified,
@@ -326,6 +333,7 @@ const getBookingsByOwner = async (req, res, next) => {
        FROM tool_rentals_bookings b
        JOIN tool_rentals tr ON b.tool_id = tr.id
        JOIN users u ON b.customer_id = u.id
+       LEFT JOIN tool_rental_invoices inv ON inv.booking_id = b.id
        JOIN users cu ON b.customer_id = cu.id
        JOIN users ou ON b.owner_id = ou.id
        WHERE b.owner_id = $1
@@ -563,7 +571,8 @@ const getBookingReceipt = async (req, res, next) => {
     });
     terms.bothAccepted = terms.customerAccepted && terms.ownerAccepted;
     const invoiceResult = await db.query(
-      `SELECT id, invoice_number, status, total_amount, rental_amount, deposit_amount, created_at
+      `SELECT id, invoice_number, status, total_amount, rental_amount, deposit_amount, created_at,
+              payment_proof_reference, payment_proof_amount, payment_proof_submitted_at
          FROM tool_rental_invoices WHERE booking_id = $1`,
       [bookingId]
     );

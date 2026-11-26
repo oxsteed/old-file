@@ -156,6 +156,18 @@ export const toolRentalsApi = {
     window.URL.revokeObjectURL(url);
   },
 
+  // G11-A1/A3 (D-603): two-step payment confirmation. The renter records
+  // payment proof (reference + amount); the owner confirms receipt.
+  recordInvoicePayment: async (invoiceId, { reference, amount }) => {
+    const response = await api.post(`/tool-rentals/invoices/${invoiceId}/record-payment`, { reference, amount });
+    return response.data;
+  },
+
+  confirmInvoicePayment: async (invoiceId) => {
+    const response = await api.post(`/tool-rentals/invoices/${invoiceId}/confirm-payment`);
+    return response.data;
+  },
+
   // Group 11 item 575: checkout acknowledgment at pickup.
   acknowledgeCheckout: async (bookingId) => {
     const response = await api.post(`/tool-rentals/bookings/${bookingId}/checkout-acknowledge`);
