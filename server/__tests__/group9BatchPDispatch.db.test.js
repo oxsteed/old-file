@@ -221,6 +221,23 @@ ddescribe('Group 9 partials Wave 2 Batch P: dispatch (481, 482, 485)', () => {
     return rows[0]?.payload || null;
   }
 
+  // Leave no past-window job behind: the Slice C window-warning sweep
+  // (item 463) scans every active assigned job, and a stale pickup
+  // window here would count as an expired warning in its exact-count
+  // assertions when this suite runs before Slice C (as in CI). The
+  // stops update is a no-op when no stop rows exist yet.
+  async function restorePickupWindow(jobIds) {
+    await pool.query(
+      `UPDATE delivery_jobs SET pickup_window_end = NOW() + INTERVAL '2 hours' WHERE id = ANY($1::bigint[])`,
+      [jobIds],
+    );
+    await pool.query(
+      `UPDATE delivery_job_stops SET window_end = NOW() + INTERVAL '2 hours'
+        WHERE delivery_job_id = ANY($1::bigint[]) AND stop_type = 'pickup'`,
+      [jobIds],
+    );
+  }
+
   test('481: the board shows a marketplace-claimed job with its claiming driver, and paginates', async () => {
     const claimerId = await makeUser('helper', { defaultMode: 'helper' });
     const customerId = await makeUser('customer');
@@ -334,6 +351,10 @@ ddescribe('Group 9 partials Wave 2 Batch P: dispatch (481, 482, 485)', () => {
     const notice = sent.find((entry) => entry.userId === claimerId && entry.type === 'delivery_claim_expired');
     expect(notice).toBeDefined();
     expect(notice.data.deliveryJobId).toBe(staleJob.id);
+    // Cleanup: the stale and picked-up fixtures carry past pickup
+    // windows by design; restore them so a later suite's window sweep
+    // (Slice C 463) does not count them as expired.
+    await restorePickupWindow([staleJob.id, pickedUpJob.id]);
   });
 
   test('482: a picked-up job transfers mid-route, keeping its pickup proof', async () => {
@@ -445,5 +466,9 @@ ddescribe('Group 9 partials Wave 2 Batch P: dispatch (481, 482, 485)', () => {
       [futureJob.id],
     );
     expect(futureIssues).toHaveLength(0);
+    // Cleanup: the no-show and on-time fixtures carry past pickup
+    // windows by design; restore them so a later suite's window sweep
+    // (Slice C 463) does not count the no-show job as expired.
+    await restorePickupWindow([noShowJob.id, onTimeJob.id]);
   });
 });
