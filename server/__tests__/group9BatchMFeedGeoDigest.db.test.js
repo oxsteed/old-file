@@ -129,6 +129,14 @@ ddescribe('Group 9 Batch M: feed, geo, availability, offers (454/456/459/460)', 
     return vehicle;
   }
 
+  // Jobs are stamped released 12h ago by default (D-563): the digest
+  // sweep takes the 200 earliest-released live offers, and the shared
+  // CI database accumulates residue jobs from every suite in the run.
+  // A job stamped NOW() is the newest and is cut off once that residue
+  // passes 200, so the test job would never be digested. 12h ago is
+  // still inside the sweep's 24h window and older than any residue
+  // from the current run, so the sweep always finds it. Callers that
+  // need a specific release pass releasedAt explicitly.
   async function makeMarketplaceJob(customerId, {
     originState = 'OH', destinationState = 'OH',
     originLat = 40.123456, originLng = -83.123456,
@@ -157,7 +165,7 @@ ddescribe('Group 9 Batch M: feed, geo, availability, offers (454/456/459/460)', 
       [`DLV-G9M-${crypto.randomBytes(4).toString('hex').toUpperCase()}`, customerId, originState, originLat, originLng,
         destinationState, destinationLat, destinationLng, start, pickupEnd, deliveryEnd,
         offerExpiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        releasedAt || new Date().toISOString()],
+        releasedAt || new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()],
     );
     await pool.query(
       `INSERT INTO delivery_payments (delivery_job_id, delivery_extra_id, customer_user_id, amount_cents, status, captured_at, idempotency_key)
@@ -381,17 +389,29 @@ ddescribe('Group 9 Batch M: feed, geo, availability, offers (454/456/459/460)', 
     expect(sent.some((n) => n.userId === offlineId
       && (n.data.deliveryJobIds || []).includes(String(job.id)))).toBe(false);
 
-    // A second run notifies nobody about the same release.
+    // A second run notifies nobody about the same release. The check
+    // is scoped to this job (D-564): the sweep notifies about every
+    // pending job any available driver covers, and the shared CI/local
+    // database holds other suites' never-digested residue jobs, so a
+    // global `second.notified === 0` fails whenever residue is pending
+    // (full-suite run after the D-563 fix: second.notified > 0 from
+    // residue alone). The per-job filter below is the dedup check that
+    // matters: this release is not notified twice.
     const sentAgain = [];
-    const second = await sweepDeliveryOfferDigest(pool, {
+    await sweepDeliveryOfferDigest(pool, {
       send: async (notification) => { sentAgain.push(notification); return { success: true }; },
     });
     expect(sentAgain.filter((n) => (n.data.deliveryJobIds || []).includes(String(job.id)))).toHaveLength(0);
-    expect(second.notified).toBe(0);
 
-    // A re-offer (fresh release timestamp) is digested again.
+    // A re-offer (fresh release timestamp) is digested again. The
+    // re-offer is stamped 11h ago, not NOW() (D-563): it is still a
+    // fresh release relative to the stored 12h-ago mark, still inside
+    // the sweep's 24h window, and still older than any residue from
+    // the current run, so the sweep's 200-earliest cap cannot cut it
+    // off the way a NOW()-stamped re-offer is cut off once shared-DB
+    // residue passes 200 (CI run 45758795174).
     await pool.query(
-      'UPDATE delivery_jobs SET marketplace_released_at = NOW(), offer_expires_at = NOW() + INTERVAL \'24 hours\' WHERE id = $1',
+      'UPDATE delivery_jobs SET marketplace_released_at = NOW() - INTERVAL \'11 hours\', offer_expires_at = NOW() + INTERVAL \'24 hours\' WHERE id = $1',
       [job.id],
     );
     const sentReoffer = [];
