@@ -77,7 +77,13 @@ describeDb('Groups 5-6: team member jobs and crews', () => {
     expect(p.updates[0]).toMatchObject({ percent: 50, note: 'Halfway there' });
   });
   test('264: manager work report aggregates status, updates and stalled work', async () => {
-    const a = await mk(employee, 9);
+    // The report's default window ends at tomorrow 00:00 UTC, so an
+    // appointment N hours out crosses midnight (and out of the window)
+    // whenever the suite runs after (24-N):00 UTC; at 23:xx UTC the +1h
+    // and +3h appointments from the earlier tests cross too and the
+    // total drops to 1 (CI run 45720457141). A past appointment is inside
+    // the window at every hour, so the report counts it deterministically.
+    const a = await mk(employee, -9);
     await request(app).post(`${B()}/work/appointments/${a}/progress`).set(as(employee)).send({ note: 'Started', percent: 10 }).expect(201);
     const stalled = await pool.query("INSERT INTO business_appointments(business_id,service_id,staff_id,start_time,end_time,status) VALUES($1,$2,$3,NOW() - INTERVAL '3 hours',NOW() - INTERVAL '2 hours','in_progress') RETURNING id", [bizId, serviceId, employee]).then((r) => r.rows[0].id);
     try {
