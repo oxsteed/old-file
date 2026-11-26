@@ -167,6 +167,17 @@ async function emailTokenParties(booking, kind, { subject, text }) {
       [booking.id]
     );
     for (const row of rows) {
+      // G3-12 (item 146): a token party who opted out stops getting
+      // emails. The opt-out is recorded by token hash; the token for a
+      // link kind is the booking's own token for that role.
+      try {
+        const token = row.link_kind === 'recipient'
+          ? booking.recipient_token
+          : row.link_kind === 'site_contact' ? booking.status_token : null;
+        if (token && await isMuted(booking.id, { token })) continue;
+      } catch (err) {
+        logger.warn('Recipient mute check failed; emailing anyway', { error: err.message });
+      }
       try {
         await sendEmail({
           to: row.email,
@@ -241,7 +252,7 @@ async function notifyProviderArrived(booking) {
 }
 
 /** One notice to the booker about a recipient/site-contact act (D-44). */
-async function notifyBookerOfSiteAction(booking, { actionLabel, detail }) {
+async function notifyBookerOfSiteAction(booking, { actionLabel, detail, idempotencyKey }) {
   return notifyAccountParty({
     booking,
     userId: booking.customer_id,
@@ -249,9 +260,9 @@ async function notifyBookerOfSiteAction(booking, { actionLabel, detail }) {
     body: `${booking.service_name}: ${actionLabel}${detail ? ` (${detail})` : ''}`,
     data: { actionLabel },
     actionUrl: '/my-bookings',
-    // Each site action is a distinct event: a fresh key per event keeps
-    // two actions in one 15-minute bucket from collapsing into one send.
-    idempotencyKey: `booking-site-action:${booking.id}:${crypto.randomUUID()}`,
+    // Stable per event (G3-30): callers pass the action/ticket row id so
+    // a retry or double-submit dedupes instead of double-sending.
+    idempotencyKey: idempotencyKey || `booking-site-action:${booking.id}:${detail || actionLabel}`,
   });
 }
 
@@ -268,16 +279,12 @@ async function sponsorshipTotals(bookingId) {
   return totals;
 }
 
-/** Cents already paid by sponsors toward this booking (D-40). */
+/** Cents already paid by sponsors toward this booking (D-40, D-581). */
 async function paidSponsorshipCents(bookingId) {
+  // D-581: paid additional charges are extra work on top of the booking
+  // total, so they never reduce the booker's remaining amount.
   const totals = await sponsorshipTotals(bookingId);
-  const { rows } = await pool.query(
-    `SELECT COALESCE(SUM(amount_cents), 0)::int AS cents
-       FROM booking_sponsorship_charges
-      WHERE booking_id = $1 AND status = 'paid'`,
-    [bookingId]
-  );
-  return totals.paid + Number(rows[0]?.cents || 0);
+  return totals.paid;
 }
 
 /** Helper name for provider-identity confirmation (D-42). */
@@ -320,12 +327,22 @@ async function sendVisitReminders() {
       ['site_contact', booking.site_contact_user_id],
     ]) {
       if (!userId) continue;
-      const inserted = await pool.query(
-        `INSERT INTO booking_visit_reminders (booking_id, party_role)
-         VALUES ($1, $2) ON CONFLICT (booking_id, party_role) DO NOTHING RETURNING id`,
+      // G3-24: the dedupe row is written only after the send succeeds
+      // (or the party is muted, which is a deliberate end-state). A
+      // failed send leaves no row, so the next sweep retries it.
+      if (await isMuted(booking.id, { userId: String(userId) })) {
+        await pool.query(
+          `INSERT INTO booking_visit_reminders (booking_id, party_role)
+           VALUES ($1, $2) ON CONFLICT (booking_id, party_role) DO NOTHING`,
+          [booking.id, role]
+        );
+        continue;
+      }
+      const already = await pool.query(
+        `SELECT 1 FROM booking_visit_reminders WHERE booking_id = $1 AND party_role = $2`,
         [booking.id, role]
       );
-      if (!inserted.rows.length) continue;
+      if (already.rows.length) continue;
       const ok = await notifyAccountParty({
         booking,
         userId,
@@ -334,7 +351,14 @@ async function sendVisitReminders() {
         actionUrl: '/my-bookings',
         idempotencyKey: `booking-visit-reminder:${booking.id}:${role}`,
       });
-      if (ok) sent += 1;
+      if (ok) {
+        await pool.query(
+          `INSERT INTO booking_visit_reminders (booking_id, party_role)
+           VALUES ($1, $2) ON CONFLICT (booking_id, party_role) DO NOTHING`,
+          [booking.id, role]
+        );
+        sent += 1;
+      }
     }
     // Token parties share the same once-per-role record: the email goes
     // out only when the role's reminder row is newly inserted above, or
@@ -344,18 +368,30 @@ async function sendVisitReminders() {
       [booking.id]
     );
     for (const emailRow of emailRows) {
-      const inserted = await pool.query(
-        `INSERT INTO booking_visit_reminders (booking_id, party_role)
-         VALUES ($1, $2) ON CONFLICT (booking_id, party_role) DO NOTHING RETURNING id`,
+      // G3-24 + G3-12: the row is the once-per-role record shared with
+      // the account leg, so an already-reminded role is skipped; a muted
+      // token party is skipped without a row (opting back in re-enables
+      // the reminder); a failed send leaves no row and retries next sweep.
+      const already = await pool.query(
+        `SELECT 1 FROM booking_visit_reminders WHERE booking_id = $1 AND party_role = $2`,
         [booking.id, emailRow.link_kind]
       );
-      if (!inserted.rows.length) continue;
+      if (already.rows.length) continue;
+      const token = emailRow.link_kind === 'recipient'
+        ? booking.recipient_token
+        : emailRow.link_kind === 'site_contact' ? booking.status_token : null;
+      if (token && await isMuted(booking.id, { token })) continue;
       try {
         await sendEmail({
           to: emailRow.email,
           subject: 'Reminder: your visit is tomorrow',
           text: `Reminder: the visit for ${booking.service_name} is tomorrow, ${booking.requested_date}.\n`,
         });
+        await pool.query(
+          `INSERT INTO booking_visit_reminders (booking_id, party_role)
+           VALUES ($1, $2) ON CONFLICT (booking_id, party_role) DO NOTHING`,
+          [booking.id, emailRow.link_kind]
+        );
         sent += 1;
       } catch (err) {
         logger.warn('Failed to email visit reminder', { bookingId: booking.id, error: err.message });

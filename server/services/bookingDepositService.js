@@ -122,6 +122,12 @@ async function applyBookingIntentWebhook(eventType, pi) {
 }
 
 async function deliveredAppointment(runner, booking) {
+  // G3-9: a completed business appointment is delivery evidence too,
+  // exactly like the sweeper's delivered condition.
+  if (booking.business_appointment_id) {
+    const { rows } = await runner.query('SELECT status FROM business_appointments WHERE id = $1', [booking.business_appointment_id]);
+    if (rows[0]?.status === 'completed') return true;
+  }
   if (!booking.appointment_id) return false;
   const { rows } = await runner.query('SELECT status FROM appointments WHERE id = $1', [booking.appointment_id]);
   return rows[0]?.status === 'completed';
@@ -192,6 +198,25 @@ async function refundOneSponsorshipPayment(stripe, entry, bookingId, reason) {
   }
 }
 
+/**
+ * G3-10: a fully sponsored booking has no booker intent; once every
+ * sponsor payment is refunded the booking itself must read refunded,
+ * not paid. Called after terminal refunds from both the settlement
+ * path and the webhook paid-after-terminal path.
+ */
+async function syncFullySponsoredRefundStatus(bookingId) {
+  const { rows: [booking] } = await db.query('SELECT * FROM booking_requests WHERE id = $1', [bookingId]);
+  if (!booking || booking.stripe_payment_intent_id || booking.payment_status !== 'paid') return;
+  const remaining = await findPaidSponsorshipPayments(booking.id);
+  if (remaining.length === 0) {
+    await db.query(
+      `UPDATE booking_requests SET payment_status = 'refunded', refunded_at = COALESCE(refunded_at, NOW()), updated_at = NOW()
+        WHERE id = $1 AND payment_status = 'paid'`,
+      [booking.id]
+    );
+  }
+}
+
 /** Refund every paid sponsorship/charge on a terminal booking. Best-effort per row. */
 async function refundSponsorshipPayments(booking, entries, reason) {
   if (!entries.length) return false;
@@ -233,14 +258,28 @@ async function refundSponsorshipPayments(booking, entries, reason) {
  * Settle one sponsorship (or charge) intent from the Stripe webhook.
  * Verifies the intent against the stored row exactly like the booker leg:
  * same intent id, same amount, USD. A payment that lands after the
- * booking already ended is refunded straight away.
+ * booking already ended is refunded straight away. A sponsorship payment
+ * that lands past its deadline, or that would push paid sponsorships
+ * past gross (D-583), is refunded immediately and never marked paid.
  */
 async function applySponsorshipPaymentWebhook(eventType, pi, table, rowId) {
   const { rows: [row] } = await db.query(
     `SELECT * FROM ${table} WHERE id = $1 AND stripe_payment_intent_id = $2 FOR UPDATE`,
     [rowId, pi.id]
   );
-  if (!row) return true;
+  // G3-26: an unmatched sponsorship intent is a reconciliation exception
+  // for operators, not a silent ack — a payment with no row is money
+  // with nowhere to settle.
+  if (!row) {
+    await recordException({
+      domain: 'webhook_receipt',
+      referenceId: String(pi.id),
+      severity: 'warning',
+      summary: `Sponsorship webhook matched no ${table} row for intent ${pi.id}`,
+      details: { table, rowId: String(rowId), intentId: String(pi.id), eventType },
+    });
+    return true;
+  }
   if (eventType === 'payment_intent.succeeded') {
     const providerAmount = Number(pi.amount_received ?? pi.amount);
     const expectedAmount = Number(row.amount_cents);
@@ -257,6 +296,48 @@ async function applySponsorshipPaymentWebhook(eventType, pi, table, rowId) {
         'sponsorship_payment_verification_failed',
       );
     }
+    const { rows: [booking] } = await db.query(
+      'SELECT * FROM booking_requests WHERE id = $1', [row.booking_id]
+    );
+    // D-583 (sponsorships only; charges have no deadline and sit on top
+    // of the total): a late or over-gross payment is refunded at once
+    // and never marked paid.
+    if (booking && table === 'booking_sponsorships') {
+      const pastDeadline = row.payment_deadline_at && new Date(row.payment_deadline_at) <= new Date();
+      if (pastDeadline) {
+        // Refund first; the row closes only once the money is back. A
+        // failed refund throws so Stripe redelivers the webhook and the
+        // refund is retried (the exception is already recorded).
+        const refunded = await refundOneSponsorshipPayment(stripeClient(), { table, row }, booking.id, 'sponsorship_paid_after_deadline');
+        if (!refunded) {
+          throw new AppError('Sponsorship refund failed; retry the webhook', 502, 'sponsorship_refund_failed');
+        }
+        await db.query(
+          `UPDATE booking_sponsorships SET status = 'expired', updated_at = NOW()
+            WHERE id = $1 AND status IN ('invited', 'accepted')`,
+          [row.id]
+        );
+        return true;
+      }
+      // eslint-disable-next-line global-require
+      const recipientSvc = require('./bookingRecipientService');
+      const paidSoFar = await recipientSvc.paidSponsorshipCents(booking.id);
+      const gross = Number(booking.gross_amount_cents || 0) > 0
+        ? Number(booking.gross_amount_cents)
+        : (Number(booking.payment_amount_cents || 0) > 0 ? Number(booking.payment_amount_cents) : 5000000);
+      if (paidSoFar + expectedAmount > gross) {
+        const refunded = await refundOneSponsorshipPayment(stripeClient(), { table, row }, booking.id, 'sponsorship_over_gross');
+        if (!refunded) {
+          throw new AppError('Sponsorship refund failed; retry the webhook', 502, 'sponsorship_refund_failed');
+        }
+        await db.query(
+          `UPDATE booking_sponsorships SET status = 'voided', updated_at = NOW()
+            WHERE id = $1 AND status IN ('invited', 'accepted')`,
+          [row.id]
+        );
+        return true;
+      }
+    }
     const { rows: [paid] } = await db.query(
       `UPDATE ${table}
           SET status = 'paid', paid_at = COALESCE(paid_at, NOW()), updated_at = NOW()
@@ -264,11 +345,9 @@ async function applySponsorshipPaymentWebhook(eventType, pi, table, rowId) {
       [row.id]
     );
     if (!paid) return true;
-    const { rows: [booking] } = await db.query(
-      'SELECT * FROM booking_requests WHERE id = $1', [row.booking_id]
-    );
     if (booking && TERMINAL_STATUSES.includes(booking.status)) {
       await refundOneSponsorshipPayment(stripeClient(), { table, row: paid }, booking.id, 'paid_after_terminal');
+      await syncFullySponsoredRefundStatus(booking.id);
       return true;
     }
     if (booking) {
@@ -333,6 +412,12 @@ async function settleTerminalBooking(bookingId, reason = 'booking_ended') {
     bookerOutcome = await settleBookerTerminalIntent(booking, reason);
   }
   const sponsorRefunded = await refundSponsorshipPayments(booking, sponsorPayments, reason);
+  // G3-10: a fully sponsored booking has no booker intent; once every
+  // sponsor payment is refunded the booking itself must read refunded,
+  // not paid.
+  if (!booking.stripe_payment_intent_id && sponsorPayments.length > 0) {
+    await syncFullySponsoredRefundStatus(booking.id);
+  }
   if (bookerOutcome) return bookerOutcome;
   return sponsorRefunded ? 'refunded' : 'nothing_to_settle';
 }
@@ -474,13 +559,12 @@ async function findUnsettledTerminalBookings(limit = 50) {
   const { rows } = await db.query(
     `SELECT id FROM booking_requests
       WHERE status = ANY($1::text[])
-        AND payment_status IN ('paid', 'requires_payment', 'processing')
         AND (
-          (stripe_payment_intent_id IS NOT NULL AND refund_attempts < $2)
-          OR (stripe_payment_intent_id IS NULL AND (
-            EXISTS (SELECT 1 FROM booking_sponsorships s WHERE s.booking_id = booking_requests.id AND s.status = 'paid')
-            OR EXISTS (SELECT 1 FROM booking_sponsorship_charges c WHERE c.booking_id = booking_requests.id AND c.status = 'paid')
-          ))
+          (stripe_payment_intent_id IS NOT NULL
+           AND payment_status IN ('paid', 'requires_payment', 'processing')
+           AND refund_attempts < $2)
+          OR EXISTS (SELECT 1 FROM booking_sponsorships s WHERE s.booking_id = booking_requests.id AND s.status = 'paid')
+          OR EXISTS (SELECT 1 FROM booking_sponsorship_charges c WHERE c.booking_id = booking_requests.id AND c.status = 'paid')
         )
       ORDER BY updated_at ASC
       LIMIT $3`,

@@ -1833,6 +1833,69 @@ async function completeJobCore({ job, jobId, asClient, actorUserId = null, req =
 
 /** Post-commit, non-blocking side effects of a completion. */
 async function afterJobCompleted(result, actorId) {
+  // D-592 (item 105, R17): when a job completes, its linked accepted
+  // bookings flip to completed at once — same flip + notices as the
+  // sweep (booking_auto_completed to booker/helper, visit-completed to
+  // recipient/site contact). Business-appointment completion has no
+  // job-completion hook, so it still relies on the sweep.
+  try {
+    const { rows: linked } = await pool.query(
+      `UPDATE booking_requests
+          SET status = 'completed',
+              helper_response_reason = COALESCE(
+                helper_response_reason,
+                'Service delivered; booking completed automatically'
+              ),
+              updated_at = CURRENT_TIMESTAMP
+        WHERE converted_to_job_id = $1 AND status = 'accepted'
+        RETURNING id, customer_id, helper_id, service_name, requested_date,
+                  recipient_user_id, site_contact_user_id`,
+      [result.id]
+    );
+    for (const row of linked) {
+      try {
+        await pool.query(
+          `INSERT INTO booking_request_audit_log (booking_request_id, action, actor_id, actor_type, old_status, new_status)
+           VALUES ($1, 'auto_completed', NULL, 'system', 'accepted', 'completed')`,
+          [row.id]
+        );
+      } catch (err) {
+        logger.warn('Failed to log job-completion booking audit', { error: err.message });
+      }
+      try {
+        await sendNotification({
+          userId: row.customer_id,
+          type: 'booking_auto_completed',
+          body: `${row.service_name}, ${row.requested_date}`,
+          data: { bookingId: row.id },
+          action_url: '/my-bookings',
+        });
+      } catch (err) {
+        logger.warn('Failed job-completion booking notification', { error: err.message });
+      }
+      try {
+        await sendNotification({
+          userId: row.helper_id,
+          type: 'booking_auto_completed',
+          body: `${row.service_name}, ${row.requested_date}`,
+          data: { bookingId: row.id },
+          action_url: '/calendar',
+        });
+      } catch (err) {
+        logger.warn('Failed job-completion booking notification', { error: err.message });
+      }
+      try {
+        // eslint-disable-next-line global-require
+        const recipientSvc = require('../services/bookingRecipientService');
+        await recipientSvc.notifyVisitCompleted(row);
+      } catch (err) {
+        logger.warn('Failed job-completion visit notification', { error: err.message });
+      }
+    }
+  } catch (err) {
+    logger.warn('Failed to complete linked bookings on job completion', { error: err.message });
+  }
+
   // Phase 5 — Credit Everywhere: release the Credit escrow collateral hold
   // (non-blocking; the hold is collateral, not the payment).
   try {

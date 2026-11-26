@@ -57,6 +57,7 @@ router.get('/status/:token/checklist', bookingRecipientController.getTokenCheckl
 router.get('/status/:token/receipt', bookingRecipientController.getTokenReceipt);
 router.get('/status/:token/site-actions', bookingRecipientController.listTokenSiteActions);
 router.get('/status/:token/support', bookingRecipientController.listTokenSupportIntake);
+router.get('/status/:token/callbacks', bookingRecipientController.listTokenCallbacks);
 router.post('/status/:token/site-actions', bookingRecipientController.recordTokenSiteAction);
 router.post('/status/:token/renewal-request', bookingRecipientController.requestTokenLinkRenewal);
 router.post('/status/:token/update-email', bookingRecipientController.registerUpdateEmail);
@@ -72,6 +73,7 @@ router.post('/status/:token/contact-correction', bookingRecipientController.subm
 router.post('/status/:token/relay-message', bookingRecipientController.relayTokenMessage);
 router.get('/status/:token/sponsor', bookingRecipientController.getSponsorPreviewByToken);
 router.post('/status/:token/sponsor/respond', bookingRecipientController.respondToSponsorshipByToken);
+router.post('/status/:token/sponsor/void', bookingRecipientController.voidSponsorshipByToken);
 // Group 3: the token sponsor pays with their own card, no account needed.
 // Same money path as the account handlers; only the credential differs.
 router.post('/status/:token/sponsor/payment-intent', bookingRecipientController.createSponsorPaymentIntentByToken);
@@ -145,6 +147,7 @@ router.get('/:bookingId/payment-breakdown', requireAuth, bookingRecipientControl
 router.post('/:bookingId/sponsorships', requireAuth, bookingRecipientController.createSponsorship);
 router.get('/:bookingId/sponsorships', requireAuth, bookingRecipientController.listSponsorships);
 router.post('/:bookingId/sponsorships/:sponsorshipId/respond', requireAuth, bookingRecipientController.respondToSponsorship);
+router.post('/:bookingId/sponsorships/:sponsorshipId/void', requireAuth, bookingRecipientController.voidSponsorship);
 router.post('/:bookingId/sponsorships/:sponsorshipId/payment-intent', requireAuth, bookingRecipientController.createSponsorPaymentIntent);
 router.post('/:bookingId/sponsorships/:sponsorshipId/confirm-payment', requireAuth, bookingRecipientController.confirmSponsorPayment);
 router.get('/:bookingId/sponsorships/:sponsorshipId/receipt', requireAuth, bookingRecipientController.getSponsorReceipt);

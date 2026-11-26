@@ -658,9 +658,10 @@ exports.getPublicBookingStatus = async (req, res) => {
               b.status_token_expires_at, b.status_token_revoked_at,
               b.recipient_user_id, b.recipient_name, b.helper_id,
               b.care_instructions,
-              a.arrived_at
+              COALESCE(a.arrived_at, ba.arrived_at) AS arrived_at
          FROM booking_requests b
          LEFT JOIN appointments a ON a.id = b.appointment_id
+         LEFT JOIN business_appointments ba ON ba.id = b.business_appointment_id
         WHERE b.status_token = $1 OR b.recipient_token = $1`,
       [token]
     );
@@ -675,7 +676,14 @@ exports.getPublicBookingStatus = async (req, res) => {
         [token]
       );
       if (!sponsorRows.length) return sendError(res, 404, 'Booking status link not found');
-      const s = sponsorRows[0];
+      // G3-25: refresh the sponsorship's expiry on every preview, so
+      // the page never shows an expired invite as still payable.
+      // Lazy require: bookingRecipientController does not require this
+      // controller back, but keep the load lazy like the other
+      // controller-to-controller calls in this file.
+      // eslint-disable-next-line global-require
+      const recipientController = require('./bookingRecipientController');
+      const s = await recipientController.refreshSponsorship(sponsorRows[0]);
       return res.json({
         success: true,
         data: {
@@ -699,11 +707,19 @@ exports.getPublicBookingStatus = async (req, res) => {
     // person at the door can confirm the provider. D-48: care instructions
     // appear on the token page once the visit is done.
     const helper = await recipientSvc.helperName(row.helper_id);
+    // D-596 (item 148): a token party who archived the visit sees the
+    // archived flag on the public status page, so the page can show the
+    // visit as archived; the visit stays readable through the link.
+    const { rows: archiveRows } = await pool.query(
+      `SELECT 1 FROM booking_visit_archives WHERE booking_id = $1 AND token_hash = $2 LIMIT 1`,
+      [row.id, recipientSvc.tokenHash(token)]
+    );
     return res.json({
       success: true,
       data: {
         serviceName: row.service_name,
         status: row.status,
+        archived: archiveRows.length > 0,
         requestedDate: row.requested_date,
         requestedStartTime: row.requested_start_time,
         requestedEndTime: row.requested_end_time,
@@ -2744,94 +2760,105 @@ exports.releaseStaleAcceptedBookings = async () => {
       )`;
 
     // 1) Delivered bookings: accepted -> completed (never cancelled).
-    const completed = await pool.query(
-      `UPDATE booking_requests br
-       SET status = 'completed',
-           helper_response_reason = COALESCE(
-             helper_response_reason,
-             'Service delivered; booking completed automatically'
-           ),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE ${staleCondition} AND ${deliveredCondition}
-       RETURNING id, customer_id, helper_id, business_id, service_name, requested_date,
-                 appointment_id, business_appointment_id, recipient_user_id, site_contact_user_id`
-    );
-    if (completed.rowCount > 0) {
-      logger.info('Auto-completed delivered bookings past scheduled end', { count: completed.rowCount });
-      for (const row of completed.rows) {
-        await logBookingAudit(row.id, 'auto_completed', null, 'system', 'accepted', 'completed');
-        broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'completed' });
-        broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'completed' });
+    // G3-28 (D-53): each branch has its own try/catch, so a failure in
+    // the delivered branch never aborts the stale-release branch.
+    try {
+      const completed = await pool.query(
+        `UPDATE booking_requests br
+         SET status = 'completed',
+             helper_response_reason = COALESCE(
+               helper_response_reason,
+               'Service delivered; booking completed automatically'
+             ),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE ${staleCondition} AND ${deliveredCondition}
+         RETURNING id, customer_id, helper_id, business_id, service_name, requested_date,
+                   appointment_id, business_appointment_id, recipient_user_id, site_contact_user_id`
+      );
+      if (completed.rowCount > 0) {
+        logger.info('Auto-completed delivered bookings past scheduled end', { count: completed.rowCount });
+        for (const row of completed.rows) {
+          await logBookingAudit(row.id, 'auto_completed', null, 'system', 'accepted', 'completed');
+          broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'completed' });
+          broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'completed' });
 
-        sendNotification({
-          userId: row.customer_id,
-          type: 'booking_auto_completed',
-          body: `${row.service_name}, ${row.requested_date}`,
-          data: { bookingId: row.id },
-          action_url: '/my-bookings',
-        }).catch((err) => logger.warn('Failed auto-complete customer notification', { error: err.message }));
+          sendNotification({
+            userId: row.customer_id,
+            type: 'booking_auto_completed',
+            body: `${row.service_name}, ${row.requested_date}`,
+            data: { bookingId: row.id },
+            action_url: '/my-bookings',
+          }).catch((err) => logger.warn('Failed auto-complete customer notification', { error: err.message }));
 
-        sendNotification({
-          userId: row.helper_id,
-          type: 'booking_auto_completed',
-          body: `${row.service_name}, ${row.requested_date}`,
-          data: { bookingId: row.id },
-          action_url: '/calendar',
-        }).catch((err) => logger.warn('Failed auto-complete helper notification', { error: err.message }));
+          sendNotification({
+            userId: row.helper_id,
+            type: 'booking_auto_completed',
+            body: `${row.service_name}, ${row.requested_date}`,
+            data: { bookingId: row.id },
+            action_url: '/calendar',
+          }).catch((err) => logger.warn('Failed auto-complete helper notification', { error: err.message }));
 
-        // Group 3 (item 105): the recipient and site contact learn the
-        // visit is complete too, unless they muted this booking.
-        recipientSvc.notifyVisitCompleted(row).catch((err) => logger.warn('Failed auto-complete visit notification', { error: err.message }));
+          // Group 3 (item 105): the recipient and site contact learn the
+          // visit is complete too, unless they muted this booking.
+          recipientSvc.notifyVisitCompleted(row).catch((err) => logger.warn('Failed auto-complete visit notification', { error: err.message }));
+        }
       }
+    } catch (err) {
+      logger.warn('Auto-complete delivered bookings failed', { error: err.message });
     }
 
     // 2) Genuinely stale bookings: accepted -> accepted_cancelled, excluding
     // delivered work (handled above) and appointments still in progress.
-    const r = await pool.query(
-      `UPDATE booking_requests br
-       SET status = 'accepted_cancelled',
-           helper_response_reason = COALESCE(
-             helper_response_reason,
-             'Automatically released after scheduled time passed'
-           ),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE ${staleCondition}
-         AND NOT (${deliveredCondition})
-         AND NOT (${inProgressCondition})
-       RETURNING id, customer_id, helper_id, business_id, service_name, requested_date,
-                 appointment_id, business_appointment_id`
-    );
-    if (r.rowCount > 0) {
-      logger.info('Released accepted bookings past scheduled end', { count: r.rowCount });
-      for (const row of r.rows) {
-        // The linked appointment must not outlive the released booking.
-        try {
-          await bookingLifecycle.cancelLinkedAppointment(row, row.helper_id);
-        } catch (e) {
-          logger.warn('Failed to cancel linked appointment on auto-release', { error: e.message });
+    try {
+      const r = await pool.query(
+        `UPDATE booking_requests br
+         SET status = 'accepted_cancelled',
+             helper_response_reason = COALESCE(
+               helper_response_reason,
+               'Automatically released after scheduled time passed'
+             ),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE ${staleCondition}
+           AND NOT (${deliveredCondition})
+           AND NOT (${inProgressCondition})
+         RETURNING id, customer_id, helper_id, business_id, service_name, requested_date,
+                   appointment_id, business_appointment_id`
+      );
+      if (r.rowCount > 0) {
+        logger.info('Released accepted bookings past scheduled end', { count: r.rowCount });
+        for (const row of r.rows) {
+          // The linked appointment must not outlive the released booking.
+          try {
+            await bookingLifecycle.cancelLinkedAppointment(row, row.helper_id);
+          } catch (e) {
+            logger.warn('Failed to cancel linked appointment on auto-release', { error: e.message });
+          }
+          await logBookingAudit(row.id, 'auto_released', null, 'system', 'accepted', 'accepted_cancelled');
+          broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
+          broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
+
+          sendNotification({
+            userId: row.customer_id,
+            type: 'booking_auto_released',
+            body: `${row.service_name}, ${row.requested_date}`,
+            data: { bookingId: row.id },
+            action_url: '/my-bookings',
+          }).catch((err) => logger.warn('Failed auto-release customer notification', { error: err.message }));
+
+          sendNotification({
+            userId: row.helper_id,
+            type: 'booking_auto_released',
+            body: `${row.service_name}, ${row.requested_date}`,
+            data: { bookingId: row.id },
+            action_url: '/calendar',
+          }).catch((err) => logger.warn('Failed auto-release helper notification', { error: err.message }));
         }
-        await logBookingAudit(row.id, 'auto_released', null, 'system', 'accepted', 'accepted_cancelled');
-        broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
-        broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'accepted_cancelled' });
-
-        sendNotification({
-          userId: row.customer_id,
-          type: 'booking_auto_released',
-          body: `${row.service_name}, ${row.requested_date}`,
-          data: { bookingId: row.id },
-          action_url: '/my-bookings',
-        }).catch((err) => logger.warn('Failed auto-release customer notification', { error: err.message }));
-
-        sendNotification({
-          userId: row.helper_id,
-          type: 'booking_auto_released',
-          body: `${row.service_name}, ${row.requested_date}`,
-          data: { bookingId: row.id },
-          action_url: '/calendar',
-        }).catch((err) => logger.warn('Failed auto-release helper notification', { error: err.message }));
       }
+      return r.rowCount || 0;
+    } catch (err) {
+      logger.warn('Release stale accepted bookings failed', { error: err.message });
+      return 0;
     }
-    return r.rowCount || 0;
   } catch (err) {
     logger.warn('releaseStaleAcceptedBookings failed', { error: err.message });
     return 0;

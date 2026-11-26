@@ -1436,6 +1436,22 @@ const T = {
       ar: 'تم إلغاء طلب الحجز هذا.',
     },
   },
+  booking_auto_completed: {
+    title: {
+      en: 'Booking Completed',
+      fr: 'Réservation terminée',
+      es: 'Reserva completada',
+      ht: 'Rezèvasyon an fini',
+      ar: 'اكتمل الحجز',
+    },
+    body: {
+      en: 'The visit was completed.',
+      fr: 'La visite est terminée.',
+      es: 'La visita se completó.',
+      ht: 'Vizit la fini.',
+      ar: 'اكتملت الزيارة.',
+    },
+  },
   booking_auto_released: {
     title: {
       en: 'Booking Auto Released',
@@ -2025,6 +2041,22 @@ const EMAIL_TEMPLATES = {
       ht: 'Gade peman yo',
       ar: 'عرض المدفوعات',
     },
+  booking_auto_completed: {
+    title: {
+      en: 'Booking Completed',
+      fr: 'Réservation terminée',
+      es: 'Reserva completada',
+      ht: 'Rezèvasyon an fini',
+      ar: 'اكتمل الحجز',
+    },
+    body: {
+      en: 'The visit was completed.',
+      fr: 'La visite est terminée.',
+      es: 'La visita se completó.',
+      ht: 'Vizit la fini.',
+      ar: 'اكتملت الزيارة.',
+    },
+  },
   booking_auto_released: {
     title: {
       en: 'Booking Request Expired',

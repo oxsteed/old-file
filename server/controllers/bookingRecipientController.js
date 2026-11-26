@@ -27,6 +27,8 @@ const { sendNotification } = require('../services/notificationService');
 const { broadcastToUser } = require('../services/socketService');
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
+const { sendEmail } = require('../utils/email');
+const { recordException } = require('../services/reconciliationExceptions');
 const recipientSvc = require('../services/bookingRecipientService');
 
 const SITE_ACTION_TYPES = [
@@ -93,6 +95,68 @@ function cleanCents(value) {
 
 function isUuid(value) {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+// Email invite links use the same public base as the other invite flows.
+function safeBaseUrl() {
+  return String(process.env.PUBLIC_APP_URL || process.env.APP_URL || 'https://oxsteed.com').replace(/\/$/, '');
+}
+
+/**
+ * Gross the booking is worth, for the sponsor cap (D-581): the declared
+ * gross when set, else the booker's intent amount, else the per-invite
+ * maximum as the total cap (a fresh booking with no declared amount).
+ */
+function sponsorshipGross(booking) {
+  const gross = Number(booking.gross_amount_cents || 0);
+  if (gross > 0) return gross;
+  const declared = Number(booking.payment_amount_cents || 0);
+  if (declared > 0) return declared;
+  return MAX_SPONSORSHIP_CENTS;
+}
+
+/** True when paying this amount would push paid sponsorships past gross. */
+async function sponsorshipWouldExceedGross(booking, amountCents) {
+  const paid = await recipientSvc.paidSponsorshipCents(booking.id);
+  return paid + Number(amountCents) > sponsorshipGross(booking);
+}
+
+/** The sponsor (account or token) may act on this sponsorship row. */
+function isOwnSponsorship(party, sponsorship) {
+  if (!sponsorship) return false;
+  if (party.sponsorshipId && String(party.sponsorshipId) === String(sponsorship.id)) return true;
+  return Boolean(
+    sponsorship.sponsor_user_id && party.userId
+    && String(sponsorship.sponsor_user_id) === String(party.userId)
+  );
+}
+
+/**
+ * Best-effort refund of a succeeded sponsor intent (D-595): the money
+ * never strands when a payment is refused after Stripe already captured
+ * it. A failed refund is a reconciliation exception for operators.
+ */
+async function refundIntentBestEffort(stripe, intentId, bookingId, reason) {
+  if (!stripe || !intentId) return false;
+  try {
+    const refund = await stripe.refunds.create(
+      { payment_intent: intentId, metadata: { booking_request_id: String(bookingId), reason } },
+      { idempotencyKey: `booking-sponsorship:${intentId}:refund:${reason}` },
+    );
+    return Boolean(refund && refund.id);
+  } catch (err) {
+    logger.warn('Failed to refund sponsor intent', { bookingId, intentId, reason, error: err.message });
+    try {
+      await recordException({
+        domain: 'payment_refund',
+        referenceId: String(bookingId),
+        severity: 'critical',
+        summary: `Sponsor intent refund failed for booking ${bookingId}`,
+        details: { bookingId: String(bookingId), intentId, reason, lastError: String(err.message || '').slice(0, 500) },
+      });
+    } catch (_) { /* recordException never throws; guard anyway */ }
+    return false;
+  }
 }
 
 // ─── party loading ────────────────────────────────────────────────────────
@@ -185,7 +249,10 @@ function sponsorshipShape(row, viewer) {
 
 function chargeShape(row, viewer) {
   const isBooker = viewer.role === 'booker';
-  const isOwnSponsor = viewer.role === 'sponsor';
+  // G3-7: a sponsor sees an amount only for their own sponsorship's
+  // charges; another sponsor's charges show the status, never the amount.
+  const isOwnSponsor = viewer.role === 'sponsor'
+    && viewer.sponsorshipId && String(viewer.sponsorshipId) === String(row.sponsorship_id);
   const amountVisible = isBooker || isOwnSponsor;
   return {
     id: String(row.id),
@@ -265,6 +332,25 @@ async function summaryFor(booking, party) {
   );
   const isBooker = party.role === 'booker';
   const isToken = party.via === 'token';
+  // D-596 (item 148): a token party's archive is honored on the summary.
+  let archived = false;
+  try {
+    if (isToken && party.token) {
+      const { rows: archivedRows } = await pool.query(
+        'SELECT 1 FROM booking_visit_archives WHERE booking_id = $1 AND token_hash = $2 LIMIT 1',
+        [booking.id, recipientSvc.tokenHash(party.token)]
+      );
+      archived = archivedRows.length > 0;
+    } else if (party.userId) {
+      const { rows: archivedRows } = await pool.query(
+        'SELECT 1 FROM booking_visit_archives WHERE booking_id = $1 AND user_id = $2 LIMIT 1',
+        [booking.id, party.userId]
+      );
+      archived = archivedRows.length > 0;
+    }
+  } catch (err) {
+    logger.warn('Failed to check visit archive', { error: err.message });
+  }
   const payment = {
     bookerPays: true,
     sponsoredCents: isBooker ? paidSponsored : null,
@@ -277,9 +363,14 @@ async function summaryFor(booking, party) {
       : null,
     promoDiscountCents: isBooker ? Number(booking.promo_discount_cents || 0) : null,
     remainingCents: null,
+    // D-587 (item 135): the recipient and site contact see who pays —
+    // each live sponsor's name and status, never an amount
+    // (sponsorshipShape already nulls amounts for them).
     sponsors: sponsorships
       .filter((s) => isBooker || (party.role === 'sponsor' && party.sponsorshipId
-        && String(party.sponsorshipId) === String(s.id)))
+        && String(party.sponsorshipId) === String(s.id))
+        || ((party.role === 'recipient' || party.role === 'site_contact')
+          && ['invited', 'accepted', 'paid'].includes(s.status)))
       .map((s) => sponsorshipShape(s, party)),
     sponsorCount: sponsorships.filter((s) => ['invited', 'accepted', 'paid'].includes(s.status)).length,
   };
@@ -318,11 +409,16 @@ async function summaryFor(booking, party) {
       ? { doorName: ['accepted', 'completed'].includes(booking.status) ? (helper?.doorName || null) : null }
       : { name: helper?.fullName || null },
     payment,
-    careInstructions: booking.care_instructions || jobRows[0]?.aftercare_instructions || null,
+    // G3-14 (D-48): care instructions appear once the visit is done,
+    // matching the public page gate — never early via the summary.
+    careInstructions: booking.status === 'completed'
+      ? (booking.care_instructions || jobRows[0]?.aftercare_instructions || null)
+      : null,
     statusTokenExpiresAt: booking.status_token_expires_at || null,
     recipientConsentStatus: booking.recipient_consent_status || 'pending',
     receiptSharedWithRecipient: Boolean(booking.receipt_shared_with_recipient_at),
     viewerRole: party.role,
+    archived,
   };
 }
 
@@ -461,6 +557,8 @@ async function doSiteAction(booking, party, actionType, details) {
   await recipientSvc.notifyBookerOfSiteAction(booking, {
     actionLabel: SITE_ACTION_LABELS[actionType] || actionType,
     detail: detailText,
+    // G3-30: the action row id is the stable per-event key.
+    idempotencyKey: `booking-site-action:${booking.id}:${row.id}`,
   });
   if (actionType === 'request_callback') {
     await pool.query(
@@ -550,6 +648,21 @@ exports.markProviderArrived = async (req, res) => {
     if (!['accepted'].includes(booking.status)) {
       return sendError(res, 400, 'Only an accepted booking can be marked arrived', 'invalid_booking_state');
     }
+    // R36 (item 103): a business appointment is marked arrived on its
+    // own table; a helper appointment on the appointments table.
+    if (booking.business_appointment_id) {
+      const { rows } = await pool.query(
+        `UPDATE business_appointments SET arrived_at = NOW(), updated_at = NOW()
+          WHERE id = $1 AND arrived_at IS NULL RETURNING arrived_at`,
+        [booking.business_appointment_id]
+      );
+      if (!rows.length) {
+        return sendError(res, 409, 'Arrival is already recorded for this booking', 'already_arrived');
+      }
+      await logBookingAudit(booking.id, 'provider_arrived', req.user.id, 'helper', booking.status, booking.status);
+      await recipientSvc.notifyProviderArrived(booking);
+      return res.json({ success: true, data: { bookingId: booking.id, arrivedAt: rows[0].arrived_at } });
+    }
     if (!booking.appointment_id) {
       return sendError(res, 400, 'This booking has no appointment to mark arrived', 'no_appointment');
     }
@@ -594,7 +707,8 @@ exports.setCareInstructions = async (req, res) => {
         type: 'booking_care_instructions',
         body: `${updated.service_name}, ${updated.requested_date}`,
         actionUrl: '/my-bookings',
-        idempotencyKey: `booking-care-instructions:${updated.id}:${Date.now()}`,
+        // G3-30: stable per instruction text, not per send.
+        idempotencyKey: `booking-care-instructions:${updated.id}:${crypto.createHash('sha256').update(instructions).digest('hex').slice(0, 12)}`,
       });
     }
     return res.json({ success: true, data: { bookingId: updated.id, careInstructions: instructions } });
@@ -806,6 +920,13 @@ exports.removeGuestAccess = async (req, res) => {
       return sendValidationError(res, { kind: 'Kind must be recipient or site_contact' });
     }
     const oldUserId = kind === 'recipient' ? booking.recipient_user_id : booking.site_contact_user_id;
+    // D-588 (item 120): when the removed party has a registered update
+    // email, the removal notice is emailed there; the response says
+    // which channel carried the notice, or 'none' when there is none.
+    const { rows: updateEmails } = await pool.query(
+      `SELECT email FROM booking_link_update_emails WHERE booking_id = $1 AND link_kind = $2`,
+      [booking.id, kind]
+    );
     let updated;
     if (kind === 'recipient') {
       const { rows } = await pool.query(
@@ -819,9 +940,14 @@ exports.removeGuestAccess = async (req, res) => {
       );
       updated = rows[0];
     } else {
+      // G3-6 (item 147): removing the site contact clears the status
+      // token too, exactly like the recipient leg — otherwise the
+      // removed contact's link keeps working until expiry.
       const { rows } = await pool.query(
         `UPDATE booking_requests
             SET site_contact_user_id = NULL, site_contact_name = NULL, site_contact_phone = NULL,
+                status_token = NULL, status_token_expires_at = NULL,
+                status_token_revoked_at = CURRENT_TIMESTAMP,
                 updated_at = CURRENT_TIMESTAMP
           WHERE id = $1 RETURNING *`,
         [booking.id]
@@ -830,13 +956,29 @@ exports.removeGuestAccess = async (req, res) => {
     }
     await logBookingAudit(booking.id, `${kind}_access_removed`, req.user.id, 'booker', booking.status, booking.status);
     await notifyRemovedParty(booking, oldUserId);
+    let channel = oldUserId ? 'account' : 'none';
+    if (!oldUserId && updateEmails.length) {
+      for (const row of updateEmails) {
+        try {
+          await sendEmail({
+            to: row.email,
+            subject: 'Your access to a booking visit has ended',
+            text: `Your access to the visit for ${booking.service_name} on ${booking.requested_date} has been removed by the booker. The status link no longer works.`,
+          });
+          channel = 'email';
+        } catch (err) {
+          logger.warn('Failed to email removal notice', { bookingId: booking.id, error: err.message });
+        }
+      }
+    }
     return res.json({
       success: true,
       data: {
         bookingId: booking.id,
         kind,
         removedUserId: oldUserId ? String(oldUserId) : null,
-        notified: Boolean(oldUserId),
+        notified: channel !== 'none',
+        channel,
       },
     });
   } catch (err) {
@@ -848,6 +990,16 @@ exports.removeGuestAccess = async (req, res) => {
 // ─── link renewal (item 114) ──────────────────────────────────────────────
 
 async function doRenewalRequest(booking, party) {
+  // D-597 (item 114): while a renewal request is pending for the
+  // booking, a further request returns the existing row and sends no
+  // second notice to the booker.
+  const { rows: pending } = await pool.query(
+    `SELECT * FROM booking_link_renewals
+      WHERE booking_id = $1 AND status = 'requested'
+      ORDER BY created_at DESC LIMIT 1`,
+    [booking.id]
+  );
+  if (pending.length) return pending[0];
   const { rows } = await pool.query(
     `INSERT INTO booking_link_renewals (booking_id, requested_by_type, requested_by_user_id)
      VALUES ($1, $2, $3) RETURNING *`,
@@ -1161,15 +1313,17 @@ async function doContactCorrection(booking, party, field, value) {
       WHERE id = $1 RETURNING *`,
     [booking.id, value]
   );
-  await pool.query(
+  const { rows: correctionRows } = await pool.query(
     `INSERT INTO booking_contact_corrections (booking_id, party_type, requested_by_user_id, field_name, old_value, new_value)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
     [booking.id, party.role, party.userId || null, field, oldValue, value]
   );
   await logBookingAudit(booking.id, `contact_${field}_corrected`, party.userId || null, party.role, booking.status, booking.status);
   await recipientSvc.notifyBookerOfSiteAction(booking, {
     actionLabel: `Contact ${field} corrected`,
     detail: value,
+    // G3-30: the correction row id is the stable per-event key.
+    idempotencyKey: `booking-contact-correction:${booking.id}:${correctionRows[0].id}`,
   });
   return rows[0];
 }
@@ -1237,7 +1391,8 @@ async function doRelay(booking, party, to, message) {
     body: `${booking.service_name}: ${label}: ${cleanMessage}`,
     data: { relayFrom: party.role },
     actionUrl: '/my-bookings',
-    idempotencyKey: `booking-relay:${booking.id}:${crypto.randomUUID()}`,
+    // G3-30: stable per message content per day, not per send.
+    idempotencyKey: `booking-relay:${booking.id}:${party.role}:${to}:${crypto.createHash('sha256').update(cleanMessage).digest('hex').slice(0, 12)}:${new Date().toISOString().slice(0, 10)}`,
   });
   return { delivered: true };
 }
@@ -1295,8 +1450,15 @@ async function refreshSponsorship(row) {
   return row;
 }
 
+// Shared with bookingController: the public sponsor preview refreshes
+// expiry the same way the token preview does (G3-25).
+exports.refreshSponsorship = refreshSponsorship;
+
 async function notifySponsorUpdate(booking, sponsorship, note) {
   const body = `${booking.service_name}: ${note}`;
+  // G3-30: the note text (one event, one wording) is the stable key —
+  // the same update never double-sends on a retry.
+  const noteKey = crypto.createHash('sha256').update(String(note)).digest('hex').slice(0, 12);
   if (sponsorship.sponsor_user_id) {
     await recipientSvc.notifyAccountParty({
       booking,
@@ -1305,7 +1467,7 @@ async function notifySponsorUpdate(booking, sponsorship, note) {
       body,
       data: { sponsorshipId: sponsorship.id },
       actionUrl: '/my-bookings',
-      idempotencyKey: `booking-sponsor-update:${sponsorship.id}:${crypto.randomUUID()}`,
+      idempotencyKey: `booking-sponsor-update:${sponsorship.id}:${noteKey}`,
     });
   }
   await recipientSvc.notifyAccountParty({
@@ -1315,7 +1477,7 @@ async function notifySponsorUpdate(booking, sponsorship, note) {
     body,
     data: { sponsorshipId: sponsorship.id },
     actionUrl: '/my-bookings',
-    idempotencyKey: `booking-sponsor-update:${sponsorship.id}:booker:${crypto.randomUUID()}`,
+    idempotencyKey: `booking-sponsor-update:${sponsorship.id}:booker:${noteKey}`,
   });
 }
 
@@ -1333,14 +1495,6 @@ exports.createSponsorship = async (req, res) => {
     const amountCents = cleanCents(req.body?.amountCents ?? req.body?.amount_cents);
     if (amountCents == null || amountCents < MIN_SPONSORSHIP_CENTS || amountCents > MAX_SPONSORSHIP_CENTS) {
       return sendValidationError(res, { amountCents: 'Amount must be between $0.50 and $50,000' });
-    }
-    const totals = await recipientSvc.sponsorshipTotals(booking.id);
-    // A fresh booking carries no declared amount (NULL or 0 until the
-    // booker starts payment): the cap is the intent maximum, not zero.
-    const declaredAmount = Number(booking.payment_amount_cents || 0);
-    const cap = declaredAmount > 0 ? declaredAmount : MAX_SPONSORSHIP_CENTS;
-    if (totals.live + amountCents > cap) {
-      return sendValidationError(res, { amountCents: 'Live sponsorships already cover the booking amount' });
     }
     const email = String(req.body?.sponsorEmail || req.body?.email || '').trim().toLowerCase() || null;
     const sponsorUserId = req.body?.sponsorUserId
@@ -1371,14 +1525,38 @@ exports.createSponsorship = async (req, res) => {
       deadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     }
     const token = newToken();
-    const { rows } = await pool.query(
-      `INSERT INTO booking_sponsorships
-         (booking_id, sponsor_user_id, sponsor_name, sponsor_email, amount_cents,
-          status, invite_token, payment_deadline_at, invited_by)
-       VALUES ($1, $2, $3, $4, $5, 'invited', $6, $7, $8) RETURNING *`,
-      [booking.id, sponsorUserId, sponsorName, email, amountCents, token, deadline, req.user.id]
-    );
-    const sponsorship = rows[0];
+    // G3-36 (D-581): the cap check and the insert run under a
+    // booking-scoped advisory lock, so two concurrent invites cannot
+    // both pass the check and together exceed the gross.
+    const client = await pool.connect();
+    let sponsorship;
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`booking-sponsorship:${booking.id}`]);
+      const totals = await recipientSvc.sponsorshipTotals(booking.id);
+      // D-581: live sponsorships (invited + accepted + paid) may not
+      // exceed gross minus promo; the old base was the booker's net
+      // intent, which double-counted paid sponsorships.
+      const cap = sponsorshipGross(booking) - Number(booking.promo_discount_cents || 0);
+      if (totals.live + amountCents > cap) {
+        await client.query('ROLLBACK');
+        return sendValidationError(res, { amountCents: 'Live sponsorships already cover the booking amount' });
+      }
+      const { rows } = await client.query(
+        `INSERT INTO booking_sponsorships
+           (booking_id, sponsor_user_id, sponsor_name, sponsor_email, amount_cents,
+            status, invite_token, payment_deadline_at, invited_by)
+         VALUES ($1, $2, $3, $4, $5, 'invited', $6, $7, $8) RETURNING *`,
+        [booking.id, sponsorUserId, sponsorName, email, amountCents, token, deadline, req.user.id]
+      );
+      sponsorship = rows[0];
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
     await logBookingAudit(booking.id, 'sponsorship_invited', req.user.id, 'booker', booking.status, booking.status);
     if (sponsorUserId) {
       await recipientSvc.notifyAccountParty({
@@ -1390,6 +1568,20 @@ exports.createSponsorship = async (req, res) => {
         actionUrl: `/bookings/status/${token}`,
         idempotencyKey: `booking-sponsor-invite:${sponsorship.id}`,
       });
+    }
+    // D-578 (item 121, G3-11): the invite link is emailed to the
+    // sponsor email in every case, so delivery never depends on the
+    // booker forwarding it by hand.
+    if (email) {
+      try {
+        await sendEmail({
+          to: email,
+          subject: `You were invited to sponsor a visit on OxSteed`,
+          text: `You were invited to sponsor ${booking.service_name} on ${booking.requested_date} for $${(amountCents / 100).toFixed(2)}. Open ${safeBaseUrl()}/bookings/status/${token} to preview the amount, accept or decline, and pay with your own card. The invitation expires ${deadline.toISOString()}.`,
+        });
+      } catch (err) {
+        logger.warn('Failed to email sponsor invite', { sponsorshipId: sponsorship.id, error: err.message });
+      }
     }
     return res.status(201).json({
       success: true,
@@ -1490,6 +1682,67 @@ exports.respondToSponsorshipByToken = async (req, res) => {
   }
 };
 
+/**
+ * Void an unpaid sponsorship (G3-15, item 127): an accepted sponsor who
+ * cannot pay — or the booker — closes the invitation instead of waiting
+ * for the deadline. Only invited/accepted rows void; a paid row refunds
+ * through the terminal settlement instead. Voided rows leave the live
+ * cap, so the amount frees up for another sponsor.
+ */
+async function doVoidSponsorship(booking, party, sponsorship) {
+  const { rows } = await pool.query(
+    `UPDATE booking_sponsorships SET status = 'voided', updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND status IN ('invited', 'accepted') RETURNING *`,
+    [sponsorship.id]
+  );
+  if (!rows.length) return null;
+  // Best-effort: cancel a live-but-unpaid intent so it can never
+  // complete after the void.
+  if (sponsorship.stripe_payment_intent_id && process.env.STRIPE_SECRET_KEY) {
+    try {
+      await stripeClient().paymentIntents.cancel(sponsorship.stripe_payment_intent_id);
+    } catch (err) {
+      logger.warn('Failed to cancel voided sponsorship intent', { sponsorshipId: sponsorship.id, error: err.message });
+    }
+  }
+  await logBookingAudit(booking.id, 'sponsorship_voided', party.userId || null, party.role, booking.status, booking.status);
+  await notifySponsorUpdate(booking, rows[0], 'The sponsorship was voided');
+  return rows[0];
+}
+
+exports.voidSponsorship = async (req, res) => {
+  try {
+    const loaded = await loadAccountBooking(req, res, ['booker', 'sponsor']);
+    if (!loaded) return;
+    const sponsorship = await loadSponsorship(loaded.booking.id, String(req.params.sponsorshipId || ''));
+    if (!sponsorship) return sendError(res, 404, 'Sponsorship not found');
+    if (loaded.party.role === 'sponsor' && !isOwnSponsorship(loaded.party, sponsorship)) {
+      return sendError(res, 403, 'Only the sponsor can void this sponsorship');
+    }
+    const voided = await doVoidSponsorship(loaded.booking, loaded.party, sponsorship);
+    if (!voided) return sendError(res, 409, `This sponsorship cannot be voided while ${sponsorship.status}`, 'sponsorship_not_voidable');
+    return res.json({ success: true, data: sponsorshipShape(voided, loaded.party) });
+  } catch (err) {
+    logger.error('Error voiding sponsorship', { error: err.message });
+    sendError(res, 500, 'Failed to void sponsorship');
+  }
+};
+
+exports.voidSponsorshipByToken = async (req, res) => {
+  try {
+    const loaded = await loadTokenBooking(req, res, ['sponsor']);
+    if (!loaded) return;
+    const sponsorship = await loadSponsorship(loaded.booking.id, loaded.party.sponsorshipId);
+    if (!sponsorship) return sendError(res, 404, 'Sponsorship not found');
+    const voided = await doVoidSponsorship(loaded.booking, loaded.party, sponsorship);
+    if (!voided) return sendError(res, 409, `This sponsorship cannot be voided while ${sponsorship.status}`, 'sponsorship_not_voidable');
+    return res.json({ success: true, data: sponsorshipShape(voided, loaded.party) });
+  } catch (err) {
+    logger.error('Error voiding sponsorship by token', { error: err.message });
+    sendError(res, 500, 'Failed to void sponsorship');
+  }
+};
+
 exports.getSponsorPreviewByToken = async (req, res) => {
   try {
     const loaded = await loadTokenBooking(req, res, ['sponsor']);
@@ -1504,7 +1757,10 @@ exports.getSponsorPreviewByToken = async (req, res) => {
         ...sponsorshipShape(sponsorship, loaded.party),
         serviceName: loaded.booking.service_name,
         requestedDate: loaded.booking.requested_date,
-        status: loaded.booking.status,
+        // G3-1 (items 122/124/125/127): the sponsorship status is the
+        // status the page branches on; the booking status rides along
+        // under its own key instead of overwriting it.
+        bookingStatus: loaded.booking.status,
       },
     });
   } catch (err) {
@@ -1540,6 +1796,14 @@ async function createIntentFor({ booking, sponsorship, charge, payerEmail }) {
     currency: 'usd',
     receipt_email: payerEmail || undefined,
     metadata,
+  }, {
+    // G3-26: one logical intent per sponsorship/charge. A retry or a
+    // concurrent create with the same key returns the same Stripe
+    // intent instead of minting a second one the sponsor could pay
+    // into a void.
+    idempotencyKey: charge
+      ? `sponsorship-charge-intent:${charge.id}`
+      : `sponsorship-intent:${sponsorship.id}`,
   });
   if (!intent || typeof intent.id !== 'string' || !intent.client_secret) {
     throw new Error('Stripe did not return a usable PaymentIntent');
@@ -1571,59 +1835,27 @@ exports.createSponsorPaymentIntent = async (req, res) => {
       await loadSponsorship(loaded.booking.id, String(req.params.sponsorshipId || ''))
     );
     if (!sponsorship) return sendError(res, 404, 'Sponsorship not found');
-    if (sponsorship.status !== 'accepted') {
-      return sendError(res, 409, `This sponsorship cannot be paid while ${sponsorship.status}`, 'sponsorship_not_payable');
-    }
-    if (loaded.party.sponsorshipId !== String(sponsorship.id)
-      && !(sponsorship.sponsor_user_id && String(sponsorship.sponsor_user_id) === String(loaded.party.userId))) {
+    // G3-7: only the invited sponsor pays their own sponsorship.
+    if (!isOwnSponsorship(loaded.party, sponsorship)) {
       return sendError(res, 403, 'Only the sponsor can pay this sponsorship');
     }
-    if (sponsorship.stripe_payment_intent_id) {
-      const existing = await loadLiveIntent(stripe, sponsorship.stripe_payment_intent_id);
-      if (existing && Number(existing.amount) === Number(sponsorship.amount_cents)
-        && !['succeeded', 'canceled'].includes(existing.status)) {
-        return res.json({
-          success: true,
-          data: {
-            sponsorshipId: sponsorship.id,
-            clientSecret: existing.client_secret,
-            paymentIntentId: existing.id,
-            amountCents: Number(sponsorship.amount_cents),
-            publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-          },
-        });
-      }
-      if (existing && existing.status === 'succeeded') {
-        return sendError(res, 409, 'This sponsorship is already paid', 'sponsorship_already_paid');
-      }
-    }
-    const intent = await createIntentFor({
-      booking: loaded.booking,
-      sponsorship,
-      payerEmail: sponsorship.sponsor_email,
-    });
-    await pool.query(
-      `UPDATE booking_sponsorships SET stripe_payment_intent_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-      [sponsorship.id, intent.id]
-    );
-    return res.json({
-      success: true,
-      data: {
-        sponsorshipId: sponsorship.id,
-        clientSecret: intent.client_secret,
-        paymentIntentId: intent.id,
-        amountCents: Number(sponsorship.amount_cents),
-        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-      },
-    });
+    const issued = await issueSponsorIntent(stripe, loaded.booking, sponsorship);
+    if (!issued.ok) return sendError(res, issued.status, issued.error, issued.code || 'sponsor_payment_mismatch');
+    return res.json({ success: true, data: issued.data });
   } catch (err) {
     logger.error('Error creating sponsor PaymentIntent', { error: err.message });
     sendError(res, 500, 'Failed to create sponsor payment');
   }
 };
 
-async function confirmIntent({ stripe, booking, row, table, intentId, amountCents }) {
-  const intent = await stripe.paymentIntents.retrieve(intentId);
+async function confirmIntent({ stripe, booking, row, table, intentId, amountCents, live: preloaded }) {
+  // Payment verification at confirm time, like the booker leg: the
+  // intent must exist, belong to this row (already checked by the
+  // stored intent id), have the row amount, be USD, and be succeeded.
+  // Callers that already retrieved the intent pass it in, so Stripe is
+  // hit once per confirm.
+  const intent = preloaded || (await stripe.paymentIntents.retrieve(intentId));
+  if (!intent) return { ok: false, status: 409, error: 'Payment intent not found', code: 'payment_intent_not_found' };
   const expected = Number(amountCents);
   const actual = Number(intent.amount_received || intent.amount || 0);
   if (String(intent.metadata?.booking_request_id || '') !== String(booking.id)
@@ -1640,7 +1872,162 @@ async function confirmIntent({ stripe, booking, row, table, intentId, amountCent
       WHERE id = $1 AND status = 'accepted' RETURNING *`,
     [row.id]
   );
-  return { ok: true, row: rows[0] || row };
+  // G3-27: a confirm that marks nothing paid (already settled, expired,
+  // refunded) must not report success.
+  if (!rows.length) {
+    return { ok: false, status: 409, error: 'This payment was already settled or is no longer payable', code: 'payment_already_settled' };
+  }
+  return { ok: true, row: rows[0] };
+}
+
+/**
+ * Shared sponsor-intent issuance (D-583, G3-26): the account and token
+ * handlers differ only in credential; the money checks are identical.
+ * Refuses an intent that would push paid sponsorships past gross.
+ */
+async function issueSponsorIntent(stripe, booking, sponsorship) {
+  if (sponsorship.status !== 'accepted') {
+    return { ok: false, status: 409, error: `This sponsorship cannot be paid while ${sponsorship.status}`, code: 'sponsorship_not_payable' };
+  }
+  if (await sponsorshipWouldExceedGross(booking, sponsorship.amount_cents)) {
+    return { ok: false, status: 409, error: 'This booking is already fully covered by sponsors', code: 'sponsorship_over_gross' };
+  }
+  if (sponsorship.stripe_payment_intent_id) {
+    const existing = await loadLiveIntent(stripe, sponsorship.stripe_payment_intent_id);
+    if (existing && Number(existing.amount) === Number(sponsorship.amount_cents)
+      && !['succeeded', 'canceled'].includes(existing.status)) {
+      return {
+        ok: true,
+        data: {
+          sponsorshipId: sponsorship.id,
+          clientSecret: existing.client_secret,
+          paymentIntentId: existing.id,
+          amountCents: Number(sponsorship.amount_cents),
+          publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+        },
+      };
+    }
+    if (existing && existing.status === 'succeeded') {
+      return { ok: false, status: 409, error: 'This sponsorship is already paid', code: 'sponsorship_already_paid' };
+    }
+  }
+  const intent = await createIntentFor({
+    booking,
+    sponsorship,
+    payerEmail: sponsorship.sponsor_email,
+  });
+  await pool.query(
+    `UPDATE booking_sponsorships SET stripe_payment_intent_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+    [sponsorship.id, intent.id]
+  );
+  return {
+    ok: true,
+    data: {
+      sponsorshipId: sponsorship.id,
+      clientSecret: intent.client_secret,
+      paymentIntentId: intent.id,
+      amountCents: Number(sponsorship.amount_cents),
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+    },
+  };
+}
+
+/**
+ * Shared sponsor-intent confirmation (D-583, D-595, G3-27): deadline and
+ * cumulative-cap re-checks run before the row is marked paid. A payment
+ * that already succeeded at Stripe but lands late or over gross is
+ * refunded immediately and never marked paid.
+ */
+async function confirmSponsorIntent(stripe, booking, sponsorship, paymentIntentId, party) {
+  const refreshed = await refreshSponsorship(sponsorship);
+  if (!refreshed) return { ok: false, status: 404, error: 'Sponsorship not found' };
+  const intent = await loadLiveIntent(stripe, paymentIntentId);
+  if (intent && intent.status === 'succeeded') {
+    if (['expired', 'voided', 'declined', 'refunded'].includes(refreshed.status)) {
+      await refundIntentBestEffort(stripe, paymentIntentId, booking.id, 'sponsorship_closed');
+      return { ok: false, status: 409, error: `This sponsorship is ${refreshed.status}`, code: 'sponsorship_closed' };
+    }
+    if (await sponsorshipWouldExceedGross(booking, refreshed.amount_cents)) {
+      // D-595: void only once the money is actually back with the
+      // sponsor. A failed refund leaves the sponsorship accepted (and a
+      // reconciliation exception) so the confirm can be retried.
+      const refunded = await refundIntentBestEffort(stripe, paymentIntentId, booking.id, 'sponsorship_over_gross');
+      if (refunded) {
+        const { rows: voided } = await pool.query(
+          `UPDATE booking_sponsorships SET status = 'voided', updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1 AND status = 'accepted' RETURNING *`,
+          [refreshed.id]
+        );
+        if (voided.length) {
+          await notifySponsorUpdate(booking, voided[0], 'The sponsored payment was refunded because the booking is already fully covered');
+        }
+      }
+      return { ok: false, status: 409, error: 'This booking is already fully covered by sponsors', code: 'sponsorship_over_gross' };
+    }
+  }
+  const result = await confirmIntent({
+    stripe,
+    booking,
+    row: refreshed,
+    table: 'booking_sponsorships',
+    intentId: paymentIntentId,
+    amountCents: refreshed.amount_cents,
+    live: intent,
+  });
+  if (!result.ok) return result;
+  await logBookingAudit(booking.id, 'sponsorship_paid', party.userId || null, 'sponsor', booking.status, booking.status);
+  await notifySponsorUpdate(booking, result.row, 'The sponsor paid the sponsored amount');
+  return { ok: true, row: result.row };
+}
+
+/**
+ * Shared charge-intent issuance: same shape as the sponsor intent, but a
+ * charge is extra work on top of the booking total, so no gross cap
+ * applies (D-581). Party ownership is checked by the caller.
+ */
+async function issueChargeIntent(stripe, booking, charge, sponsorship) {
+  if (charge.status !== 'accepted') {
+    return { ok: false, status: 409, error: `This charge cannot be paid while ${charge.status}`, code: 'charge_not_payable' };
+  }
+  if (charge.stripe_payment_intent_id) {
+    const existing = await loadLiveIntent(stripe, charge.stripe_payment_intent_id);
+    if (existing && Number(existing.amount) === Number(charge.amount_cents)
+      && !['succeeded', 'canceled'].includes(existing.status)) {
+      return {
+        ok: true,
+        data: {
+          chargeId: charge.id,
+          clientSecret: existing.client_secret,
+          paymentIntentId: existing.id,
+          amountCents: Number(charge.amount_cents),
+          publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+        },
+      };
+    }
+    if (existing && existing.status === 'succeeded') {
+      return { ok: false, status: 409, error: 'This charge is already paid', code: 'charge_already_paid' };
+    }
+  }
+  const intent = await createIntentFor({
+    booking,
+    sponsorship,
+    charge,
+    payerEmail: sponsorship?.sponsor_email,
+  });
+  await pool.query(
+    `UPDATE booking_sponsorship_charges SET stripe_payment_intent_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+    [charge.id, intent.id]
+  );
+  return {
+    ok: true,
+    data: {
+      chargeId: charge.id,
+      clientSecret: intent.client_secret,
+      paymentIntentId: intent.id,
+      amountCents: Number(charge.amount_cents),
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+    },
+  };
 }
 
 exports.confirmSponsorPayment = async (req, res) => {
@@ -1651,19 +2038,14 @@ exports.confirmSponsorPayment = async (req, res) => {
     if (!loaded) return;
     const sponsorship = await loadSponsorship(loaded.booking.id, String(req.params.sponsorshipId || ''));
     if (!sponsorship) return sendError(res, 404, 'Sponsorship not found');
+    // G3-7: only the invited sponsor confirms their own sponsorship.
+    if (!isOwnSponsorship(loaded.party, sponsorship)) {
+      return sendError(res, 403, 'Only the sponsor can confirm this sponsorship');
+    }
     const paymentIntentId = String(req.body?.paymentIntentId || sponsorship.stripe_payment_intent_id || '');
     if (!paymentIntentId) return sendValidationError(res, { paymentIntentId: 'Payment intent is required' });
-    const result = await confirmIntent({
-      stripe,
-      booking: loaded.booking,
-      row: sponsorship,
-      table: 'booking_sponsorships',
-      intentId: paymentIntentId,
-      amountCents: sponsorship.amount_cents,
-    });
-    if (!result.ok) return sendError(res, result.status, result.error, 'sponsor_payment_mismatch');
-    await logBookingAudit(loaded.booking.id, 'sponsorship_paid', loaded.party.userId || null, 'sponsor', loaded.booking.status, loaded.booking.status);
-    await notifySponsorUpdate(loaded.booking, result.row, 'The sponsor paid the sponsored amount');
+    const result = await confirmSponsorIntent(stripe, loaded.booking, sponsorship, paymentIntentId, loaded.party);
+    if (!result.ok) return sendError(res, result.status, result.error, result.code || 'sponsor_payment_mismatch');
     return res.json({
       success: true,
       data: { ...sponsorshipShape(result.row, loaded.party), paidAt: result.row.paid_at },
@@ -1724,47 +2106,9 @@ exports.createSponsorPaymentIntentByToken = async (req, res) => {
       await loadSponsorship(loaded.booking.id, loaded.party.sponsorshipId)
     );
     if (!sponsorship) return sendError(res, 404, 'Sponsorship not found');
-    if (sponsorship.status !== 'accepted') {
-      return sendError(res, 409, `This sponsorship cannot be paid while ${sponsorship.status}`, 'sponsorship_not_payable');
-    }
-    if (sponsorship.stripe_payment_intent_id) {
-      const existing = await loadLiveIntent(stripe, sponsorship.stripe_payment_intent_id);
-      if (existing && Number(existing.amount) === Number(sponsorship.amount_cents)
-        && !['succeeded', 'canceled'].includes(existing.status)) {
-        return res.json({
-          success: true,
-          data: {
-            sponsorshipId: sponsorship.id,
-            clientSecret: existing.client_secret,
-            paymentIntentId: existing.id,
-            amountCents: Number(sponsorship.amount_cents),
-            publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-          },
-        });
-      }
-      if (existing && existing.status === 'succeeded') {
-        return sendError(res, 409, 'This sponsorship is already paid', 'sponsorship_already_paid');
-      }
-    }
-    const intent = await createIntentFor({
-      booking: loaded.booking,
-      sponsorship,
-      payerEmail: sponsorship.sponsor_email,
-    });
-    await pool.query(
-      `UPDATE booking_sponsorships SET stripe_payment_intent_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-      [sponsorship.id, intent.id]
-    );
-    return res.json({
-      success: true,
-      data: {
-        sponsorshipId: sponsorship.id,
-        clientSecret: intent.client_secret,
-        paymentIntentId: intent.id,
-        amountCents: Number(sponsorship.amount_cents),
-        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-      },
-    });
+    const issued = await issueSponsorIntent(stripe, loaded.booking, sponsorship);
+    if (!issued.ok) return sendError(res, issued.status, issued.error, issued.code || 'sponsor_payment_mismatch');
+    return res.json({ success: true, data: issued.data });
   } catch (err) {
     logger.error('Error creating sponsor PaymentIntent by token', { error: err.message });
     sendError(res, 500, 'Failed to create sponsor payment');
@@ -1781,17 +2125,8 @@ exports.confirmSponsorPaymentByToken = async (req, res) => {
     if (!sponsorship) return sendError(res, 404, 'Sponsorship not found');
     const paymentIntentId = String(req.body?.paymentIntentId || sponsorship.stripe_payment_intent_id || '');
     if (!paymentIntentId) return sendValidationError(res, { paymentIntentId: 'Payment intent is required' });
-    const result = await confirmIntent({
-      stripe,
-      booking: loaded.booking,
-      row: sponsorship,
-      table: 'booking_sponsorships',
-      intentId: paymentIntentId,
-      amountCents: sponsorship.amount_cents,
-    });
-    if (!result.ok) return sendError(res, result.status, result.error, 'sponsor_payment_mismatch');
-    await logBookingAudit(loaded.booking.id, 'sponsorship_paid', loaded.party.userId || null, 'sponsor', loaded.booking.status, loaded.booking.status);
-    await notifySponsorUpdate(loaded.booking, result.row, 'The sponsor paid the sponsored amount');
+    const result = await confirmSponsorIntent(stripe, loaded.booking, sponsorship, paymentIntentId, loaded.party);
+    if (!result.ok) return sendError(res, result.status, result.error, result.code || 'sponsor_payment_mismatch');
     return res.json({
       success: true,
       data: { ...sponsorshipShape(result.row, loaded.party), paidAt: result.row.paid_at },
@@ -1879,52 +2214,13 @@ exports.createChargePaymentIntentByToken = async (req, res) => {
     );
     const charge = rows[0];
     if (!charge) return sendError(res, 404, 'Additional charge not found');
-    if (charge.status !== 'accepted') {
-      return sendError(res, 409, `This charge cannot be paid while ${charge.status}`, 'charge_not_payable');
-    }
     if (loaded.party.sponsorshipId !== String(charge.sponsorship_id)) {
       return sendError(res, 403, 'Only the sponsor can pay this charge');
     }
     const sponsorship = await loadSponsorship(loaded.booking.id, charge.sponsorship_id);
-    if (charge.stripe_payment_intent_id) {
-      const existing = await loadLiveIntent(stripe, charge.stripe_payment_intent_id);
-      if (existing && Number(existing.amount) === Number(charge.amount_cents)
-        && !['succeeded', 'canceled'].includes(existing.status)) {
-        return res.json({
-          success: true,
-          data: {
-            chargeId: charge.id,
-            clientSecret: existing.client_secret,
-            paymentIntentId: existing.id,
-            amountCents: Number(charge.amount_cents),
-            publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-          },
-        });
-      }
-      if (existing && existing.status === 'succeeded') {
-        return sendError(res, 409, 'This charge is already paid', 'charge_already_paid');
-      }
-    }
-    const intent = await createIntentFor({
-      booking: loaded.booking,
-      sponsorship,
-      charge,
-      payerEmail: sponsorship?.sponsor_email,
-    });
-    await pool.query(
-      `UPDATE booking_sponsorship_charges SET stripe_payment_intent_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-      [charge.id, intent.id]
-    );
-    return res.json({
-      success: true,
-      data: {
-        chargeId: charge.id,
-        clientSecret: intent.client_secret,
-        paymentIntentId: intent.id,
-        amountCents: Number(charge.amount_cents),
-        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-      },
-    });
+    const issued = await issueChargeIntent(stripe, loaded.booking, charge, sponsorship);
+    if (!issued.ok) return sendError(res, issued.status, issued.error, issued.code || 'charge_payment_mismatch');
+    return res.json({ success: true, data: issued.data });
   } catch (err) {
     logger.error('Error creating charge PaymentIntent by token', { error: err.message });
     sendError(res, 500, 'Failed to create charge payment');
@@ -1985,6 +2281,32 @@ exports.requestAdditionalCharge = async (req, res) => {
     }
     const reason = cleanText(req.body?.reason, 500);
     if (!reason) return sendValidationError(res, { reason: 'A reason for the additional charge is required' });
+    // D-582 (item 126): charges need an open booking, cap at $50,000
+    // cumulative per booking, and at most 10 open charges per
+    // sponsorship — the count cannot be used to spam the sponsor.
+    if (!['pending', 'accepted'].includes(loaded.booking.status)) {
+      return sendError(res, 400, 'Additional charges can only be requested on an open booking', 'booking_not_open');
+    }
+    const { rows: chargeTotals } = await pool.query(
+      `SELECT COALESCE(SUM(amount_cents), 0)::int AS total,
+              COUNT(*) FILTER (WHERE status = 'requested')::int AS open_count
+         FROM booking_sponsorship_charges
+        WHERE booking_id = $1 AND sponsorship_id = $2
+          AND status IN ('requested', 'accepted', 'paid')`,
+      [loaded.booking.id, sponsorship.id]
+    );
+    const { rows: bookingChargeTotals } = await pool.query(
+      `SELECT COALESCE(SUM(amount_cents), 0)::int AS total
+         FROM booking_sponsorship_charges
+        WHERE booking_id = $1 AND status IN ('requested', 'accepted', 'paid')`,
+      [loaded.booking.id]
+    );
+    if (Number(bookingChargeTotals[0]?.total || 0) + amountCents > MAX_SPONSORSHIP_CENTS) {
+      return sendValidationError(res, { amountCents: 'Additional charges already total $50,000 for this booking' });
+    }
+    if (Number(chargeTotals[0]?.open_count || 0) >= 10) {
+      return sendError(res, 409, 'This sponsorship already has 10 open charges', 'too_many_open_charges');
+    }
     const { rows } = await pool.query(
       `INSERT INTO booking_sponsorship_charges
          (sponsorship_id, booking_id, amount_cents, reason, status, requested_by)
@@ -2004,6 +2326,13 @@ exports.listAdditionalCharges = async (req, res) => {
   try {
     const loaded = await loadAccountBooking(req, res, ['booker', 'sponsor']);
     if (!loaded) return;
+    // G3-7: a sponsor lists only their own sponsorship's charges.
+    if (loaded.party.role === 'sponsor') {
+      const sponsorship = await loadSponsorship(loaded.booking.id, String(req.params.sponsorshipId || ''));
+      if (!sponsorship || !isOwnSponsorship(loaded.party, sponsorship)) {
+        return sendError(res, 403, 'Only the sponsor can list these charges');
+      }
+    }
     const { rows } = await pool.query(
       `SELECT * FROM booking_sponsorship_charges
         WHERE booking_id = $1 AND sponsorship_id = $2 ORDER BY created_at ASC`,
@@ -2083,49 +2412,14 @@ exports.createChargePaymentIntent = async (req, res) => {
     );
     const charge = rows[0];
     if (!charge) return sendError(res, 404, 'Additional charge not found');
-    if (charge.status !== 'accepted') {
-      return sendError(res, 409, `This charge cannot be paid while ${charge.status}`, 'charge_not_payable');
-    }
     const sponsorship = await loadSponsorship(loaded.booking.id, charge.sponsorship_id);
-    if (charge.stripe_payment_intent_id) {
-      const existing = await loadLiveIntent(stripe, charge.stripe_payment_intent_id);
-      if (existing && Number(existing.amount) === Number(charge.amount_cents)
-        && !['succeeded', 'canceled'].includes(existing.status)) {
-        return res.json({
-          success: true,
-          data: {
-            chargeId: charge.id,
-            clientSecret: existing.client_secret,
-            paymentIntentId: existing.id,
-            amountCents: Number(charge.amount_cents),
-            publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-          },
-        });
-      }
-      if (existing && existing.status === 'succeeded') {
-        return sendError(res, 409, 'This charge is already paid', 'charge_already_paid');
-      }
+    // G3-7: only the sponsor who owns the charge pays it.
+    if (!isOwnSponsorship(loaded.party, sponsorship)) {
+      return sendError(res, 403, 'Only the sponsor can pay this charge');
     }
-    const intent = await createIntentFor({
-      booking: loaded.booking,
-      sponsorship,
-      charge,
-      payerEmail: sponsorship?.sponsor_email,
-    });
-    await pool.query(
-      `UPDATE booking_sponsorship_charges SET stripe_payment_intent_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-      [charge.id, intent.id]
-    );
-    return res.json({
-      success: true,
-      data: {
-        chargeId: charge.id,
-        clientSecret: intent.client_secret,
-        paymentIntentId: intent.id,
-        amountCents: Number(charge.amount_cents),
-        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-      },
-    });
+    const issued = await issueChargeIntent(stripe, loaded.booking, charge, sponsorship);
+    if (!issued.ok) return sendError(res, issued.status, issued.error, issued.code || 'charge_payment_mismatch');
+    return res.json({ success: true, data: issued.data });
   } catch (err) {
     logger.error('Error creating charge PaymentIntent', { error: err.message });
     sendError(res, 500, 'Failed to create charge payment');
@@ -2144,6 +2438,14 @@ exports.confirmChargePayment = async (req, res) => {
     );
     const charge = rows[0];
     if (!charge) return sendError(res, 404, 'Additional charge not found');
+    const sponsorship = await loadSponsorship(loaded.booking.id, charge.sponsorship_id);
+    // G3-7: only the sponsor who owns the charge confirms it.
+    if (!isOwnSponsorship(loaded.party, sponsorship)) {
+      return sendError(res, 403, 'Only the sponsor can confirm this charge payment');
+    }
+    if (charge.status !== 'accepted') {
+      return sendError(res, 409, `This charge cannot be paid while ${charge.status}`, 'charge_not_payable');
+    }
     const paymentIntentId = String(req.body?.paymentIntentId || charge.stripe_payment_intent_id || '');
     if (!paymentIntentId) return sendValidationError(res, { paymentIntentId: 'Payment intent is required' });
     const result = await confirmIntent({
@@ -2154,8 +2456,7 @@ exports.confirmChargePayment = async (req, res) => {
       intentId: paymentIntentId,
       amountCents: charge.amount_cents,
     });
-    if (!result.ok) return sendError(res, result.status, result.error, 'charge_payment_mismatch');
-    const sponsorship = await loadSponsorship(loaded.booking.id, charge.sponsorship_id);
+    if (!result.ok) return sendError(res, result.status, result.error, result.code || 'charge_payment_mismatch');
     await notifySponsorUpdate(loaded.booking, sponsorship, 'The sponsor paid the additional charge');
     return res.json({ success: true, data: chargeShape(result.row, loaded.party) });
   } catch (err) {
@@ -2283,6 +2584,11 @@ async function doSupportIntake(booking, party, body) {
     booking_id: String(booking.id),
     reporter_role: party.role,
     kind,
+    // D-594 (item 139): a token-filed ticket carries the filing token's
+    // hash, so a token timeline shows only tickets filed with that token.
+    ...(party.via === 'token' && party.token
+      ? { filing_token_hash: recipientSvc.tokenHash(party.token) }
+      : {}),
     ...(callbackWindow ? { callback_window: callbackWindow } : {}),
   };
   const client = await pool.connect();
@@ -2339,6 +2645,8 @@ async function doSupportIntake(booking, party, body) {
     await recipientSvc.notifyBookerOfSiteAction(booking, {
       actionLabel: kind === 'missed_provider' ? 'Reported a missed provider' : 'Opened a support request',
       detail: subject,
+      // G3-30: the ticket id is the stable per-event key.
+      idempotencyKey: `booking-support-intake:${booking.id}:${ticket.id}`,
     });
     return { ticket };
   } catch (err) {
@@ -2377,6 +2685,12 @@ exports.submitTokenSupportIntake = async (req, res) => {
   try {
     const loaded = await loadTokenBooking(req, res, ['recipient', 'site_contact', 'sponsor']);
     if (!loaded) return;
+    // G3-23: the token intake enforces the same sponsor kind
+    // restriction as the account intake — sponsors open payment
+    // support only.
+    if (loaded.party.role === 'sponsor' && String(req.body?.kind || '') !== 'payment') {
+      return sendValidationError(res, { kind: 'Sponsors open payment support only' });
+    }
     const result = await doSupportIntake(loaded.booking, loaded.party, req.body || {});
     if (result.error === 'kind') return sendValidationError(res, { kind: 'Unknown support kind' });
     if (result.error === 'message') return sendValidationError(res, { message: 'A message is required' });
@@ -2394,17 +2708,37 @@ exports.submitTokenSupportIntake = async (req, res) => {
   }
 };
 
-/** Scoped timeline (item 139): the party's own tickets, public messages only. */
+/** Scoped timeline (item 139, D-594): the party's own tickets, public messages only. */
 async function listScopedTickets(booking, party) {
+  // D-594: a token timeline shows only tickets filed with that token;
+  // an account timeline shows the account's own tickets plus token-filed
+  // tickets whose recorded email matches the account's email (the same
+  // person filing before linking their account).
+  let userEmail = null;
+  if (party.userId && party.via !== 'token') {
+    const { rows: me } = await pool.query('SELECT lower(email) AS email FROM users WHERE id = $1', [party.userId]);
+    userEmail = me[0]?.email || null;
+  }
   const { rows } = await pool.query(
     `SELECT t.id, t.ticket_number, t.subject, t.category, t.status, t.created_at,
             t.metadata
        FROM support_tickets t
       WHERE (t.metadata ->> 'booking_id') = $1
         AND (t.metadata ->> 'reporter_role') = $2
-        AND ($3::uuid IS NULL OR t.user_id = $3)
+        AND (
+          ($3::uuid IS NOT NULL AND t.user_id = $3)
+          OR ($4::text IS NOT NULL AND (t.metadata ->> 'filing_token_hash') = $4)
+          OR ($3::uuid IS NOT NULL AND (t.metadata ->> 'filing_token_hash') IS NOT NULL
+              AND t.user_id IS NULL AND lower(t.email) = $5)
+        )
       ORDER BY t.created_at DESC LIMIT 50`,
-    [String(booking.id), party.role, party.userId || null]
+    [
+      String(booking.id),
+      party.role,
+      party.via === 'token' ? null : (party.userId || null),
+      party.via === 'token' && party.token ? recipientSvc.tokenHash(party.token) : null,
+      userEmail,
+    ]
   );
   const tickets = [];
   for (const ticket of rows) {
@@ -2482,6 +2816,35 @@ exports.listCallbacks = async (req, res) => {
   }
 };
 
+// D-593 (items 107/140): a token party lists the callbacks they
+// requested — their own requests only, never another party's.
+exports.listTokenCallbacks = async (req, res) => {
+  try {
+    const loaded = await loadTokenBooking(req, res, ['recipient', 'site_contact', 'sponsor']);
+    if (!loaded) return;
+    const { rows } = await pool.query(
+      `SELECT * FROM booking_callbacks
+        WHERE booking_id = $1 AND requested_by_type = $2
+        ORDER BY created_at DESC LIMIT 50`,
+      [loaded.booking.id, loaded.party.role]
+    );
+    return res.json({
+      success: true,
+      data: rows.map((r) => ({
+        id: String(r.id),
+        requestedBy: r.requested_by_type,
+        target: r.target,
+        preferredWindow: r.preferred_window || null,
+        status: r.status,
+        createdAt: r.created_at,
+      })),
+    });
+  } catch (err) {
+    logger.error('Error listing token callbacks', { error: err.message });
+    sendError(res, 500, 'Failed to list callbacks');
+  }
+};
+
 // ─── feedback (item 145) ──────────────────────────────────────────────────
 
 async function doFeedback(booking, party, body) {
@@ -2497,6 +2860,8 @@ async function doFeedback(booking, party, body) {
   await recipientSvc.notifyBookerOfSiteAction(booking, {
     actionLabel: 'Shared visit feedback',
     detail: rating ? `${rating}/5` : null,
+    // G3-30: the feedback row id is the stable per-event key.
+    idempotencyKey: `booking-feedback:${booking.id}:${rows[0].id}`,
   });
   return { row: rows[0] };
 }
