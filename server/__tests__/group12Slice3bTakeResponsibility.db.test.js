@@ -227,6 +227,37 @@ describeDb('Group 12 Slice 3b: Take responsibility (608, 606, 607, 609, 610)', (
       const after = await applicantDetail(applicant, applicationId).expect(200);
       expect(after.body.responsibilities.filter((entry) => entry.status === 'acknowledged')).toHaveLength(0);
     });
+
+    test('a non-operator applicant gets 403 on acknowledge; the assigned operator succeeds', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+      // HQ assigns a different operator, so the applicant of record is no
+      // longer the operator (G12-A4, D-646).
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ owner_user_id: operator })
+        .expect(200);
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      const item = detail.body.responsibilities[0];
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/responsibilities/${item.id}/acknowledge`)
+        .set('x-test-user', applicant)
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+      const stillPending = await applicantDetail(applicant, applicationId).expect(200);
+      expect(stillPending.body.responsibilities.filter((entry) => entry.status === 'acknowledged')).toHaveLength(0);
+
+      const acknowledged = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/responsibilities/${item.id}/acknowledge`)
+        .set('x-test-user', operator)
+        .expect(200);
+      expect(acknowledged.body.responsibilities.find((entry) => entry.id === item.id).status).toBe('acknowledged');
+    });
   });
   describe('606: territory acceptance', () => {
     // The territory-stats/helpers routes sit behind the franchise
@@ -616,6 +647,37 @@ describeDb('Group 12 Slice 3b: Take responsibility (608, 606, 607, 609, 610)', (
         [applicationId],
       );
       expect(rows).toHaveLength(2);
+    });
+
+    test('a non-operator applicant gets 403 on step status; the assigned operator succeeds', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ owner_user_id: operator })
+        .expect(200);
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      const step = detail.body.launch_plan_steps.find((entry) => entry.code === 'secure_location');
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/launch-plan/${step.id}/status`)
+        .set('x-test-user', applicant)
+        .send({ status: 'completed' })
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+      const stillPending = await applicantDetail(applicant, applicationId).expect(200);
+      expect(stillPending.body.launch_plan_steps.find((entry) => entry.id === step.id).status).toBe('pending');
+
+      const updated = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/launch-plan/${step.id}/status`)
+        .set('x-test-user', operator)
+        .send({ status: 'completed' })
+        .expect(200);
+      expect(updated.body.launch_plan_steps.find((entry) => entry.id === step.id).status).toBe('completed');
     });
   });
 

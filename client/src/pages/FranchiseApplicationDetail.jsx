@@ -314,7 +314,8 @@ export default function FranchiseApplicationDetail({ applicationId }) {
 
   // Group 12 Slice 3d (616): invite someone to the territory by email,
   // and cancel an outstanding invite. Only the assigned operator sees
-  // the form — the detail payload is operator-scoped already.
+  // the form — gated by canInvite on is_operator, not by payload scoping:
+  // the detail payload is applicant-or-operator scoped (G12-A4, D-646).
   async function inviteTerritoryMember(body) {
     setBusy(true);
     setError('');
@@ -1018,7 +1019,7 @@ export default function FranchiseApplicationDetail({ applicationId }) {
                           <div className="fr-doc-file-meta">{formatDate(item.acknowledged_at)}</div>
                         )}
                       </div>
-                      {!acknowledged && (
+                      {!acknowledged && isOperator && (
                         <button type="button" className="fr-btn-primary" disabled={busy} onClick={() => acknowledgeResponsibility(item.id)} data-track="ui.38155fa446.9">
                           {copy('responsibilityAcknowledge')}
                         </button>
@@ -1036,24 +1037,29 @@ export default function FranchiseApplicationDetail({ applicationId }) {
       </section>
 
       {/* Group 12 Slice 3b (609): the territory launch plan. */}
+      {/* G12-A4 (D-646): the status control is operator-only; a null
+          handler hides the select instead of showing a dead button. */}
       <FranchiseLaunchPlan
         steps={detail.launch_plan_steps || []}
         readinessStatus={detail.application?.launch_readiness_status || null}
-        onStatusChange={updateLaunchPlanStatus}
+        onStatusChange={isOperator ? updateLaunchPlanStatus : null}
         disabled={busy}
       />
 
       {/* Group 12 Slice 3c (611): the open locations with their launch
           milestones. */}
+      {/* G12-A4 (D-646): milestone/service/launch/confirm controls are
+          operator-only; null handlers hide them instead of showing dead
+          buttons that 403. */}
       <FranchiseOpenLocations
         locations={detail.locations || []}
         launchPlanSteps={detail.launch_plan_steps || []}
         openingTeam={detail.opening_team || []}
         businessServices={detail.business_services || []}
-        onMilestoneStatusChange={updateMilestoneStatus}
-        onServiceSave={saveLocationService}
-        onLaunchLocation={launchLocation}
-        onConfirmOpening={confirmOpening}
+        onMilestoneStatusChange={isOperator ? updateMilestoneStatus : null}
+        onServiceSave={isOperator ? saveLocationService : null}
+        onLaunchLocation={isOperator ? launchLocation : null}
+        onConfirmOpening={isOperator ? confirmOpening : null}
         disabled={busy}
       />
 

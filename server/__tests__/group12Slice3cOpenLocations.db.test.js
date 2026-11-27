@@ -384,6 +384,45 @@ describeDb('Group 12 Slice 3c: Open locations (611-615)', () => {
       ]);
     });
 
+    test('a non-operator applicant gets 403 on milestone status; the assigned operator succeeds', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ owner_user_id: operator })
+        .expect(200);
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      const location = detail.body.locations[0];
+      const added = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/locations/${location.id}/milestones`)
+        .set('x-test-user', admin)
+        .send({ title: 'Fit out the store' })
+        .expect(201);
+      const milestone = added.body.locations[0].milestones[0];
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${location.id}/milestones/${milestone.id}/status`)
+        .set('x-test-user', applicant)
+        .send({ status: 'completed' })
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+      const stillPending = await applicantDetail(applicant, applicationId).expect(200);
+      expect(stillPending.body.locations[0].milestones[0].status).toBe('pending');
+
+      const updated = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${location.id}/milestones/${milestone.id}/status`)
+        .set('x-test-user', operator)
+        .send({ status: 'completed' })
+        .expect(200);
+      const done = updated.body.locations[0].milestones[0];
+      expect(done.status).toBe('completed');
+      expect(done.completed_by).toBe(operator);
+    });
+
     test('milestones are scoped per application: a second application sees none of the first', async () => {
       const first = await addUser();
       const second = await addUser();

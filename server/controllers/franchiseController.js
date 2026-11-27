@@ -3228,10 +3228,19 @@ async function acknowledgeResponsibilityItem(req, res) {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      const owned = await loadOwnedApplication(client, id, req.user.id);
-      if (!owned) {
+      // G12-A4 (D-646): responsibilities belong to the assigned operator
+      // only — the applicant record alone must not acknowledge them.
+      const { application, isOperator, isAssociated } = await loadOperatorApplication(client, id, req.user.id);
+      if (!application || !isAssociated) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can acknowledge responsibilities.',
+          code: 'franchise_operator_only',
+        });
       }
       const { rows: itemRows } = await client.query(
         `SELECT * FROM franchise_responsibility_items
@@ -3727,10 +3736,19 @@ async function updateLaunchPlanStepStatus(req, res) {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      const owned = await loadOwnedApplication(client, id, req.user.id);
-      if (!owned) {
+      // G12-A4 (D-646): launch-plan steps belong to the assigned operator
+      // only — the applicant record alone must not move them.
+      const { application, isOperator, isAssociated } = await loadOperatorApplication(client, id, req.user.id);
+      if (!application || !isAssociated) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can update launch plan steps.',
+          code: 'franchise_operator_only',
+        });
       }
       const { rows } = await client.query(
         `UPDATE franchise_launch_plan_steps
@@ -4110,10 +4128,19 @@ async function updateLocationMilestoneStatus(req, res) {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      const owned = await loadOwnedApplication(client, id, req.user.id);
-      if (!owned) {
+      // G12-A4 (D-646): location milestones belong to the assigned
+      // operator only — the applicant record alone must not move them.
+      const { application, isOperator, isAssociated } = await loadOperatorApplication(client, id, req.user.id);
+      if (!application || !isAssociated) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can update location milestones.',
+          code: 'franchise_operator_only',
+        });
       }
       const completing = nextStatus === 'completed';
       const { rows } = await client.query(
