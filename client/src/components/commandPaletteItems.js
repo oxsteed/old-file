@@ -5,8 +5,7 @@
  */
 import api from '../api/axios';
 import { REGULAR_NAV, SUPER_NAV } from '../admin/layouts/AdminLayout';
-import { getLaunchRedirect } from '../utils/launchScope';
-import { paletteAllowedDestinations, isPalettePageVisible, derivePalettePages } from '../utils/paletteVisibility';
+import { buildPaletteIndex } from '../utils/paletteIndex';
 
 // Search, scoring, and recents live in the pure module so they are
 // unit-testable with plain node --test; re-exported here so the lazy
@@ -16,95 +15,14 @@ export { RECENT_STORAGE_KEY, fuzzyScore, searchItems, readRecentIds, pushRecentI
 const MAX_DYNAMIC = 5;
 const MAX_LIVE = 5;
 
-// Pages the app offers that the projection navigation does not render.
-// The palette index itself is derived from the navigation (palette item 1,
-// D-721): buildClientItems takes every nav destination first, then adds
-// these extras only for paths the nav does not already cover. An extra
-// with `requires` still shows only when the projection offers one of those
-// destinations. labelKey reuses existing `nav.*` keys where they exist;
-// the rest live under `commandPalette.pages.*` in every locale.
-const CLIENT_PAGE_EXTRAS = [
-  { id: 'page:bookings', path: '/my-bookings', labelKey: 'commandPalette.pages.bookings', keywordsKey: 'commandPalette.keywords.bookings' },
-  { id: 'page:browse-jobs', path: '/jobs', labelKey: 'nav.browseJobs', keywordsKey: 'commandPalette.keywords.browseJobs' },
-  { id: 'page:calendar', path: '/calendar', labelKey: 'nav.calendar', keywordsKey: 'commandPalette.keywords.calendar' },
-  { id: 'page:food', path: '/food', labelKey: 'commandPalette.pages.food', keywordsKey: 'commandPalette.keywords.food' },
-  { id: 'page:tool-rentals', path: '/tool-rentals', labelKey: 'commandPalette.pages.toolRentals', keywordsKey: 'commandPalette.keywords.toolRentals' },
-  { id: 'page:direct', path: '/direct', labelKey: 'commandPalette.pages.direct', keywordsKey: 'commandPalette.keywords.direct' },
-  // Universal finder step 1: the Discover entry points at the live /discover
-  // route (the homepage submit has since PR #815). While discoverEverything
-  // is off, the launch-redirect filter below hides it and /jobs stays
-  // reachable through the browse-jobs entry.
-  { id: 'page:discover', path: '/discover', labelKey: 'commandPalette.pages.discover', keywordsKey: 'commandPalette.keywords.discover' },
-  { id: 'page:invoices', path: '/invoices', labelKey: 'commandPalette.pages.invoices', keywordsKey: 'commandPalette.keywords.invoices' },
-  { id: 'page:disputes', path: '/disputes', labelKey: 'commandPalette.pages.disputes', keywordsKey: 'commandPalette.keywords.disputes' },
-  // Universal finder step 1: `requires` lists projection-derived
-  // destinations; the entry shows only when the projection offers one of
-  // them. /logistics itself is not a nav destination (only its buyer and
-  // organizer pages are), so it stays a gated extra.
-  { id: 'page:logistics', path: '/logistics', labelKey: 'nav.logistics', keywordsKey: 'commandPalette.keywords.logistics', requires: ['/logistics/buyer', '/logistics/organizer'] },
-  { id: 'page:activity', path: '/activity', labelKey: 'commandPalette.pages.activity', keywordsKey: 'commandPalette.keywords.activity' },
-];
-
-const CLIENT_ACTIONS = [
-  { id: 'action:new-booking', path: '/helpers', labelKey: 'commandPalette.actions.newBooking', keywordsKey: 'commandPalette.keywords.newBooking' },
-  { id: 'action:new-job', path: '/post-job', labelKey: 'commandPalette.actions.newJob', keywordsKey: 'commandPalette.keywords.newJob' },
-  { id: 'action:new-quote', path: '/quote-request', labelKey: 'commandPalette.actions.newQuote', keywordsKey: 'commandPalette.keywords.newQuote' },
-  { id: 'action:order-food', path: '/food', labelKey: 'commandPalette.actions.orderFood', keywordsKey: 'commandPalette.keywords.orderFood' },
-  { id: 'action:open-wallet', path: '/wallet', labelKey: 'commandPalette.actions.openWallet', keywordsKey: 'commandPalette.keywords.openWallet' },
-  { id: 'action:get-support', path: '/support', labelKey: 'commandPalette.actions.getSupport', keywordsKey: 'commandPalette.keywords.getSupport' },
-];
-
+/**
+ * The client palette index. The assembly lives in the pure
+ * `paletteIndex.js` so the Discover page builds the same index without
+ * pulling in the admin layout; this is a thin wrapper for the lazy
+ * palette module.
+ */
 export function buildClientItems(t, projection) {
-  // Review P1-222: don't offer pages the launch scope redirects away
-  // (e.g. /discover while discoverEverything is off).
-  // Palette item 1 (D-721): the page index is derived from the projection
-  // navigation, the same navigation the navbar renders. Every nav
-  // destination becomes a palette page with the nav's own label, so a page
-  // the user can see is always findable. A missing or not-ready projection
-  // fails closed to the customer baseline (D-614). Curated extras below
-  // fill only the paths the nav does not render; an extra carrying
-  // `requires` still shows only when the projection offers one of those
-  // destinations.
-  const allowed = paletteAllowedDestinations(projection);
-  const pages = [];
-  const seen = new Set();
-  for (const entry of derivePalettePages(projection)) {
-    if (getLaunchRedirect(entry.to)) continue;
-    const label = t(entry.labelKey);
-    seen.add(entry.to);
-    pages.push({
-      id: entry.id,
-      path: entry.to,
-      label,
-      keywords: `${label} ${entry.to}`,
-      group: 'pages',
-    });
-  }
-  for (const entry of CLIENT_PAGE_EXTRAS) {
-    if (seen.has(entry.path) || getLaunchRedirect(entry.path)) continue;
-    if (!isPalettePageVisible(entry, allowed)) continue;
-    seen.add(entry.path);
-    pages.push({
-      id: entry.id,
-      path: entry.path,
-      label: t(entry.labelKey),
-      // Palette item 2 (D-722): keywords are localized strings from the
-      // catalog, resolved here; English is the i18n fallback (fallbackLng).
-      keywords: t(entry.keywordsKey),
-      group: 'pages',
-    });
-  }
-  // D-612: actions are application entries (post a job, order food, get
-  // support). They stay visible to every account, un-gated, so a user can
-  // always find the way in to something they cannot do yet.
-  const actions = CLIENT_ACTIONS.map((entry) => ({
-    id: entry.id,
-    path: entry.path,
-    label: t(entry.labelKey),
-    keywords: t(entry.keywordsKey),
-    group: 'actions',
-  }));
-  return { pages, actions };
+  return buildPaletteIndex(t, projection);
 }
 
 /**

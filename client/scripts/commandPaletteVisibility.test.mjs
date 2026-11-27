@@ -63,7 +63,11 @@ test('isPalettePageVisible: no requires means always visible, any match shows', 
 // node --test: it pulls in the admin layout. Pin its annotations by reading
 // the source, the same way adaptiveNavbar.test.mjs pins locale parity.
 const registrySource = () => readFile(
-  new URL('../src/components/commandPaletteItems.js', import.meta.url),
+  new URL('../src/utils/paletteRegistry.js', import.meta.url),
+  'utf8',
+);
+const paletteIndexSource = () => readFile(
+  new URL('../src/utils/paletteIndex.js', import.meta.url),
   'utf8',
 );
 const paletteSource = () => readFile(
@@ -123,7 +127,15 @@ test('palette index is empty for a nonhuman projection (fail closed)', () => {
 });
 
 test('registry: buildClientItems derives pages from the projection navigation', async () => {
-  const source = await registrySource();
+  // The assembly moved to the pure paletteIndex.js (palette item 7, D-727)
+  // so the Discover page can build the same index without the admin
+  // layout; buildClientItems is now a thin delegation.
+  const itemsSource = await readFile(
+    new URL('../src/components/commandPaletteItems.js', import.meta.url),
+    'utf8',
+  );
+  assert.match(itemsSource, /return buildPaletteIndex\(t, projection\)/);
+  const source = await paletteIndexSource();
   assert.match(source, /derivePalettePages\(projection\)/);
   assert.match(source, /CLIENT_PAGE_EXTRAS/);
 });
@@ -148,9 +160,11 @@ test('locale parity: every palette keywords key exists in all five locales', asy
   }
 });
 
-test('registry: buildClientItems gates pages by the projection and leaves actions un-gated', async () => {
-  const source = await registrySource();
-  assert.match(source, /export function buildClientItems\(t, projection\)/);
+test('registry: buildPaletteIndex gates pages by the projection and leaves actions un-gated', async () => {
+  // The gating assembly lives in the pure paletteIndex.js (palette item 7,
+  // D-727); buildClientItems delegates to it.
+  const source = await paletteIndexSource();
+  assert.match(source, /export function buildPaletteIndex\(t, projection\)/);
   assert.match(source, /paletteAllowedDestinations\(projection\)/);
   assert.match(source, /isPalettePageVisible\(entry, allowed\)/);
 });

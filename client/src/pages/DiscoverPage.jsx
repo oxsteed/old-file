@@ -17,6 +17,9 @@ import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
+import useAccessProjection from '../hooks/useAccessProjection';
+import { buildPaletteIndex } from '../utils/paletteIndex';
+import { searchItems } from '../utils/paletteSearch';
 import RecentlyViewedStrip from '../components/RecentlyViewedStrip';
 
 // Group 1, item 2: map search. Keep the MapLibre engine off the discovery
@@ -154,6 +157,21 @@ export default function DiscoverPage() {
       return true;
     });
   }, [q, expandedTerms]);
+
+  // Palette item 7 (D-727): Discover is the second door of the same index.
+  // The "Pages & actions" section ranks the palette's own pages and actions
+  // against the same query, with the same fuzzy/typo/synonym scoring, so a
+  // search for "delivery" finds the Food Orders page as well as helpers.
+  // The index is projection-gated like the palette, and the /discover entry
+  // itself is dropped (it would link to this page).
+  const projection = useAccessProjection(user);
+  const pageMatches = useMemo(() => {
+    const query = q.trim();
+    if (!query) return [];
+    const { pages, actions } = buildPaletteIndex(t, projection);
+    const entries = [...pages, ...actions].filter((entry) => entry.path !== '/discover');
+    return searchItems(entries, query).slice(0, 8);
+  }, [q, t, projection]);
 
   // Group 1, item 2: map search. The rows on screen (search results while
   // querying, popular listings otherwise) that carry coordinates become map
@@ -647,6 +665,37 @@ export default function DiscoverPage() {
               </button>
             )}
           </>
+        )}
+
+        {/* Palette item 7 (D-727): "Pages & actions" — the second door of
+            the palette index. Shows even when no helpers, jobs, or tools
+            match, so a page match is never hidden behind an empty result
+            list. */}
+        {!loading && !error && q.trim() && pageMatches.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-sm font-semibold text-gray-300 mb-3">{t('discover.pagesActions')}</h2>
+            <ul className="space-y-3">
+              {pageMatches.map((entry) => (
+                <li key={entry.id}>
+                  <Link
+                    to={entry.path}
+                    className="block rounded-xl border border-gray-700 bg-gray-900/50 p-4 hover:border-orange-500/50 hover:bg-gray-900 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center shrink-0 text-orange-300">
+                        <Search className="w-5 h-5" aria-hidden />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base font-semibold text-white">{entry.label}</h3>
+                        <p className="text-sm text-gray-400 mt-1">{entry.path}</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-500 shrink-0" aria-hidden />
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     </PageShell>
