@@ -332,6 +332,14 @@ async function listPendingMoneyMovementApprovals({ limit = 50, offset = 0 } = {}
           [payload.orderId]
         );
         if (order) { resolvedSubject = `${order.restaurant_name || 'Restaurant'} - order ${payload.orderId}`; subjectStatus = order.payment_status; }
+      } else if (row.movement_type === 'job_refund' && payload.jobId) {
+        // G1-B8: a customer- or business-filed job refund. The checker
+        // sees the job title and status, not just a job id and an amount.
+        const { rows: [job] } = await pool.query(
+          `SELECT title, status FROM jobs WHERE id = $1`,
+          [payload.jobId]
+        );
+        if (job) { resolvedSubject = `Job ${payload.jobId}: ${job.title || 'Untitled job'}`; subjectStatus = job.status; }
       } else if (row.movement_type === 'support_resolution_refund' && payload.caseId) {
         const { rows: [supportCase] } = await pool.query(
           `SELECT rsc.status, fr.display_name AS restaurant_name FROM restaurant_support_cases rsc

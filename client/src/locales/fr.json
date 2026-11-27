@@ -17591,6 +17591,7 @@
     "paymentStatusRequiresPayment": "Paiement requis",
     "paymentStatusProcessing": "En cours",
     "paymentStatusRefunded": "Remboursé",
+    "refundStatus": "Remboursement {{status}}",
     "paymentStatusInvited": "Invité",
     "paymentStatusAccepted": "Accepté",
     "paymentStatusDeclined": "Refusé",

@@ -17591,6 +17591,7 @@
     "paymentStatusRequiresPayment": "Peman obligatwa",
     "paymentStatusProcessing": "Nan pwosesis",
     "paymentStatusRefunded": "Ranbouse",
+    "refundStatus": "Ranbousman {{status}}",
     "paymentStatusInvited": "Envite",
     "paymentStatusAccepted": "Aksepte",
     "paymentStatusDeclined": "Refize",

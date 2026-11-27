@@ -84,6 +84,12 @@ const reauthGuards = [authenticate, rejectImpersonated, checkRestrictions('check
 router.get('/:id/payment-reauthorization', authenticate, generalLimiter, getPaymentReauthorization);
 router.post('/:id/payment-reauthorization', ...reauthGuards, requireCardPaymentsEnabled, startPaymentReauthorization);
 router.post('/:id/payment-reauthorization/:attemptId/confirm', ...reauthGuards, requirePaymentsEnabled, confirmPaymentReauthorization);
+// G1-B8: the job owner files a refund request and reads its status. The
+// request always queues in the Money Approvals queue (job_refund,
+// forceQueue); the requester can never approve or execute it.
+const customerRefundRequests = require('../controllers/customerRefundRequestController');
+router.post('/:id/refund-request', authenticate, rejectImpersonated, paymentsLimiter, customerRefundRequests.requestRefund);
+router.get('/:id/refund-requests', authenticate, generalLimiter, customerRefundRequests.listRefundRequests);
 router.post('/:id/cancel',    authenticate, cancelJob);
 router.post('/:id/start',    authenticate, startJob);
 // G-15: helper marks arrival (customer notified); either party marks a no-show.

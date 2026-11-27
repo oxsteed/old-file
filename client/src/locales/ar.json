@@ -16852,6 +16852,7 @@
     "paymentStatusRequiresPayment": "الدفع مطلوب",
     "paymentStatusProcessing": "قيد المعالجة",
     "paymentStatusRefunded": "مسترد",
+    "refundStatus": "استرداد {{status}}",
     "paymentStatusInvited": "مدعو",
     "paymentStatusAccepted": "مقبول",
     "paymentStatusDeclined": "مرفوض",

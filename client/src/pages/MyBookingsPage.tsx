@@ -10,6 +10,7 @@ import { useAuth } from '../hooks/useAuth';
 import { toolRentalsApi } from '../api/toolRentals';
 import api from '../api/axios';
 import { cancelBookingRequest, fetchBookingPrefillForJob, listMySponsorships } from '../api/bookings';
+import { listCustomerJobRefundRequests } from '../api/jobs';
 import BookingParticipantView from '../components/booking/BookingParticipantView';
 import BookingRescheduleBox from '../components/calendar/BookingRescheduleBox';
 import { prefillBookingDraft } from '../components/booking/BookingFlow';
@@ -50,6 +51,9 @@ interface HelperBooking {
   declinedAt?: string | null;
   helperResponseReason?: string | null;
   createdAt: string;
+  // G1-B8: the job this booking converted into, when it converted.
+  // The card shows that job's refund status from it.
+  convertedToJobId?: number | string | null;
   pendingRescheduleProposal?: {
     id: string;
     proposedBy: string;
@@ -110,6 +114,39 @@ interface Booking {
   payment_proof_reference?: string | null;
   payment_proof_amount?: number | string | null;
   payment_proof_submitted_at?: string | null;
+}
+
+// G1-B8: the latest refund request on the job this booking converted
+// into, with a link to the job for the full request + status. Renders
+// nothing when the booking never converted or no request was filed.
+function HelperBookingRefundStatus({ jobId }: { jobId: number | string }) {
+  const { t } = useTranslation();
+  // Static keys only: verify-i18n cannot resolve a concatenated key, and
+  // the money-approval status domain is closed (pending/approved/
+  // rejected/executed/failed per migration 865).
+  const refundStatusLabels: Record<string, string> = {
+    pending: t('jobDetail.refundStatus.pending'),
+    approved: t('jobDetail.refundStatus.approved'),
+    rejected: t('jobDetail.refundStatus.rejected'),
+    executed: t('jobDetail.refundStatus.executed'),
+    failed: t('jobDetail.refundStatus.failed'),
+  };
+  const [latest, setLatest] = useState<any | null>(null);
+  useEffect(() => {
+    let current = true;
+    listCustomerJobRefundRequests(jobId).then((rows) => {
+      if (current && rows.length > 0) setLatest(rows[0]);
+    }).catch(() => {});
+    return () => { current = false; };
+  }, [jobId]);
+  if (!latest) return null;
+  return (
+    <p className="hb-refund-status">
+      {t('booking.refundStatus', { status: refundStatusLabels[latest.status] || latest.status })}
+      {' · '}
+      <Link to={`/jobs/${jobId}`}>{t('jobsDir.viewJob')}</Link>
+    </p>
+  );
 }
 
 const MyBookingsPageContent = () => {
@@ -1328,6 +1365,9 @@ const MyBookingsPageContent = () => {
         )}
         {b.helperResponseReason && (
           <p className="hb-reason">{b.helperResponseReason}</p>
+        )}
+        {b.convertedToJobId != null && (
+          <HelperBookingRefundStatus jobId={b.convertedToJobId} />
         )}
         {b.status === 'accepted' && (
           <BookingRescheduleBox

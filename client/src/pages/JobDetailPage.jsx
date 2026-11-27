@@ -45,6 +45,7 @@ import JobRevisionHistory from '../components/JobRevisionHistory';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 import { listManagedBusinesses, requestJobRefund, listJobRefundRequests } from '../api/businesses';
+import { requestCustomerJobRefund, listCustomerJobRefundRequests } from '../api/jobs';
 
 function formatBudget(job, t) {
   if (!job) return '-';
@@ -112,6 +113,11 @@ const DISPUTABLE_JOB_STATUSES = ['accepted', 'in_progress', 'pending_completion'
 // a paid job; the request always queues for platform-admin approval and the
 // requester can never execute it. The business is the owner's business
 // (jobs carry no business_id; the job belongs to the business via its client).
+// G1-B8: a plain customer with no managed business files the same kind of
+// request through the customer endpoint instead (POST /jobs/:id/
+// refund-request), which queues the identical job_refund movement. The
+// customer path is the default; the business path applies only when the
+// owner has a managed business with refunds.request.
 function JobRefundRequestSection({ job, fieldId }) {
   const { t } = useTranslation();
   // Static keys only: verify-i18n cannot resolve a concatenated key, and the
@@ -133,6 +139,9 @@ function JobRefundRequestSection({ job, fieldId }) {
 
   useEffect(() => {
     let current = true;
+    const loadCustomerRequests = () => {
+      listCustomerJobRefundRequests(job.id).then((rows) => { if (current) setRequests(rows); }).catch(() => {});
+    };
     listManagedBusinesses()
       .then((businesses) => {
         if (!current) return;
@@ -141,14 +150,16 @@ function JobRefundRequestSection({ job, fieldId }) {
         if (owned) {
           setBusinessId(owned.id);
           listJobRefundRequests(owned.id, job.id).then((rows) => { if (current) setRequests(rows); }).catch(() => {});
+        } else {
+          loadCustomerRequests();
         }
       })
-      .catch(() => {});
+      .catch(() => { if (current) loadCustomerRequests(); });
     return () => { current = false; };
   }, [job.id]);
 
   const submit = async () => {
-    if (!businessId || submitting) return;
+    if (submitting) return;
     const cleanReason = reason.trim();
     if (!cleanReason) { setError(t('jobDetail.refundReasonRequired')); return; }
     const parsed = amount.trim() === '' ? null : Number(amount);
@@ -159,10 +170,18 @@ function JobRefundRequestSection({ job, fieldId }) {
       const payload = { reason: cleanReason, idempotencyKey: `job-refund-${job.id}-${Date.now()}` };
       if (parsed === null) payload.fullRefund = true;
       else payload.amount_cents = Math.round(parsed * 100);
-      await requestJobRefund(businessId, job.id, payload);
+      if (businessId) {
+        await requestJobRefund(businessId, job.id, payload);
+      } else {
+        await requestCustomerJobRefund(job.id, payload);
+      }
       toast.success(t('jobDetail.refundRequestQueued'));
       setAmount(''); setReason('');
-      listJobRefundRequests(businessId, job.id).then(setRequests).catch(() => {});
+      if (businessId) {
+        listJobRefundRequests(businessId, job.id).then(setRequests).catch(() => {});
+      } else {
+        listCustomerJobRefundRequests(job.id).then(setRequests).catch(() => {});
+      }
     } catch (err) {
       setError(err?.response?.data?.error || t('jobDetail.refundRequestFailed'));
     } finally { setSubmitting(false); }
@@ -172,7 +191,7 @@ function JobRefundRequestSection({ job, fieldId }) {
     <section className="jdp-card" aria-labelledby={`${fieldId}-refund`}>
       <h2 id={`${fieldId}-refund`} className="jdp-section-title">{t('jobDetail.refundTitle')}</h2>
       <p className="jdp-count">{t('jobDetail.refundHelp')}</p>
-      {businessId ? <>
+      <>
         <label htmlFor={`${fieldId}-refund-amount`}>{t('jobDetail.refundAmountLabel')}</label>
         <div className="jdp-input-prefix">
           <span>{job.currency || 'USD'}</span>
@@ -186,7 +205,7 @@ function JobRefundRequestSection({ job, fieldId }) {
         <button type="button" className="jdp-btn-ghost" onClick={submit} disabled={submitting} data-track="ui.573dfef74b.18">
           {submitting ? t('jobDetail.refundSubmitting') : t('jobDetail.requestRefund')}
         </button>
-      </> : <p className="jdp-count">{t('jobDetail.refundNoBusiness')}</p>}
+      </>
       {requests.length > 0 && <div className="jdp-refund-list">
         <h3 className="jdp-small-heading">{t('jobDetail.refundRequestsHeading')}</h3>
         {requests.map((r) => (

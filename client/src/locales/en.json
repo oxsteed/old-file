@@ -16849,6 +16849,7 @@
     "paymentStatusRequiresPayment": "Payment required",
     "paymentStatusProcessing": "Processing",
     "paymentStatusRefunded": "Refunded",
+    "refundStatus": "Refund {{status}}",
     "paymentStatusInvited": "Invited",
     "paymentStatusAccepted": "Accepted",
     "paymentStatusDeclined": "Declined",
