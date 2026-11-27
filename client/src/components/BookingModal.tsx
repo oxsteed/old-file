@@ -203,6 +203,24 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
         toast.error(t('equipmentOperations.changed'));
       } else if (err.response?.data?.code === 'fulfillment_not_available') {
         toast.error(t('toolRentals.fulfillmentNotAvailable'));
+      } else if (err.response?.data?.code === 'previous_rental_overdue') {
+        // G11-B4 (D-611): the tool is out on an overdue rental; the renter
+        // cannot book it on any dates until the return is recorded. Offer
+        // replacement listings for the same dates, like the conflict path.
+        toast.error(t('toolRentals.previousRentalOverdue'));
+        setAlternativesLoading(true);
+        try {
+          const found = await toolRentalsApi.getAlternatives(tool.id, { startDate, endDate });
+          setAlternatives(found);
+        } catch {
+          setAlternatives([]);
+        } finally {
+          setAlternativesLoading(false);
+        }
+      } else if (err.response?.data?.code === 'owner_access_revoked') {
+        // G11-A6 (D-610): the owner's equipment-owner grant was revoked
+        // after the detail page loaded; the listing is unpublished now.
+        toast.error(t('toolRentals.ownerAccessRevoked'));
       } else if (err.response?.data?.code === 'conflict') {
         // 584: the dates are taken; offer replacement listings for the
         // same dates instead of leaving the renter at a dead end.

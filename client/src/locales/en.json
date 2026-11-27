@@ -13951,6 +13951,8 @@
     "paymentConfirmed": "Payment confirmed",
     "cancelled": "Cancelled",
     "dateConflict": "Tool is already booked for these dates",
+    "previousRentalOverdue": "A previous rental of this tool is overdue and has not been returned yet, so new bookings are blocked until it comes back.",
+    "ownerAccessRevoked": "This listing is no longer available because the owner no longer has equipment-owner access.",
     "completed": "Completed",
     "markCompleted": "Mark completed",
     "returned": "Returned",

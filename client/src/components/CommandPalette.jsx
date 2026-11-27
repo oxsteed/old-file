@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
+import useAccessProjection from '../hooks/useAccessProjection';
 import { useMyScopes } from '../admin/lib/GrantGuard';
 import './CommandPalette.css';
 
@@ -207,6 +208,10 @@ function PaletteDialog({ open, onClose, items, loading, itemsApi }) {
 function ClientCommandPalette({initialOpen = false}) {
   const { t } = useTranslation();
   const { user } = useAuth();
+  // Universal finder step 1: the palette index is projection-only, the same
+  // projection the navbar renders from. While it loads, the index fails
+  // closed to the customer baseline.
+  const projection = useAccessProjection(user);
   const [open, setOpen] = useState(initialOpen);
   const [dynamicItems, setDynamicItems] = useState([]);
   const [dynamicLoading, setDynamicLoading] = useState(false);
@@ -221,9 +226,9 @@ function ClientCommandPalette({initialOpen = false}) {
 
   const staticItems = useMemo(() => {
     if (!itemsModule) return [];
-    const { pages, actions } = itemsModule.buildClientItems(t);
+    const { pages, actions } = itemsModule.buildClientItems(t, projection);
     return [...pages, ...actions];
-  }, [itemsModule, t]);
+  }, [itemsModule, t, projection]);
 
   useEffect(() => {
     if (open && user && itemsModule && !fetchedRef.current) {

@@ -32,6 +32,10 @@ const errorHandler = (err, req, res, next) => {
 
   if (err.code === '23514' && err.constraint === 'equipment_calendar_conflict') {
     status=409;code='equipment_calendar_conflict';message='Equipment dates conflict with another booking.';
+  } else if (err.code === '23514' && err.constraint === 'equipment_previous_rental_overdue') {
+    // G11-B4 (D-611): the calendar-guard trigger refused a direct insert
+    // while an earlier rental of the tool is overdue and unreturned.
+    status = 409; code = 'previous_rental_overdue'; message = 'A previous rental of this tool is overdue and has not been returned yet.';
   } else if (err.code === '23514' && ['helper_daily_capacity','helper_travel_conflict'].includes(err.constraint)) {
     status = 409; code = err.constraint; message = 'The helper capacity or travel buffer does not allow this booking.';
   } else if (err instanceof AppError) {

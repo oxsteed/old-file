@@ -397,10 +397,102 @@ async function sendPaymentConfirmed(booking, tool, customer) {
   }
 }
 
+// G11-A5 (D-609): the owner confirmed receipt. The owner gets a
+// confirmation record of their own: booking paid, deposit held.
+async function sendPaymentConfirmedToOwner(booking, tool, owner) {
+  try {
+    const language = normalizeLanguage(resolveLanguage(owner));
+    const startDate = formatDate(booking.start_date, language);
+    const endDate = formatDate(booking.end_date, language);
+    const totalPrice = `${formatMoney(booking.total_price)}`;
+    const subject = `${translateTitle('tool_rental_payment_confirmed_owner', language)} - ${escape(tool.name)}`;
+    const body = translateBody('tool_rental_payment_confirmed_owner', language, {
+      toolName: escape(tool.name),
+      firstName: escape(owner.first_name),
+      startDate,
+      endDate,
+      totalPrice,
+    });
+
+    await emailService.send({
+      to: owner.email,
+      subject,
+      html: `
+        <h2>${escape(translateTitle('tool_rental_payment_confirmed_owner', language, { toolName: tool.name }))}</h2>
+        <p>${escape(localizeLabel('hi', language))} ${escape(owner.first_name)},</p>
+        <p>${escape(body)}</p>
+
+        <h3>${escape(localizeLabel('details', language))}</h3>
+        <ul>
+          <li><strong>${escape(localizeLabel('tool', language))}:</strong> ${escape(tool.name)}</li>
+          <li><strong>${escape(localizeLabel('fromDate', language))}:</strong> ${escape(startDate)}</li>
+          <li><strong>${escape(localizeLabel('toDate', language))}:</strong> ${escape(endDate)}</li>
+          <li><strong>${escape(localizeLabel('totalPrice', language))}:</strong> $${escape(totalPrice)}</li>
+        </ul>
+
+        <p><a href="${process.env.CLIENT_URL}/my-bookings">${escape(localizeLabel('myBookings', language))}</a></p>
+
+        <p>${escape(localizeLabel('bestRegards', language))},<br>${escape(localizeLabel('oxTeam', language))}</p>
+      `,
+    });
+
+    logger.info('Rental payment confirmed email sent to owner', { bookingId: booking.id });
+  } catch (err) {
+    logger.error('Failed to send rental payment confirmed email to owner', { err });
+  }
+}
+
+// G11-A5 (D-609): the renter cancelled. The owner is told the booking
+// is cancelled; the renter already gets sendBookingDeclined.
+async function sendBookingCancelledToOwner(booking, tool, owner) {
+  try {
+    const language = normalizeLanguage(resolveLanguage(owner));
+    const startDate = formatDate(booking.start_date, language);
+    const endDate = formatDate(booking.end_date, language);
+    const totalPrice = `${formatMoney(booking.total_price)}`;
+    const subject = `${translateTitle('tool_rental_booking_cancelled', language)} - ${escape(tool.name)}`;
+    const body = translateBody('tool_rental_booking_cancelled', language, {
+      toolName: escape(tool.name),
+      firstName: escape(owner.first_name),
+      startDate,
+      endDate,
+      totalPrice,
+    });
+
+    await emailService.send({
+      to: owner.email,
+      subject,
+      html: `
+        <h2>${escape(translateTitle('tool_rental_booking_cancelled', language, { toolName: tool.name }))}</h2>
+        <p>${escape(localizeLabel('hi', language))} ${escape(owner.first_name)},</p>
+        <p>${escape(body)}</p>
+
+        <h3>${escape(localizeLabel('details', language))}</h3>
+        <ul>
+          <li><strong>${escape(localizeLabel('tool', language))}:</strong> ${escape(tool.name)}</li>
+          <li><strong>${escape(localizeLabel('fromDate', language))}:</strong> ${escape(startDate)}</li>
+          <li><strong>${escape(localizeLabel('toDate', language))}:</strong> ${escape(endDate)}</li>
+          <li><strong>${escape(localizeLabel('totalPrice', language))}:</strong> $${escape(totalPrice)}</li>
+        </ul>
+
+        <p><a href="${process.env.CLIENT_URL}/my-bookings">${escape(localizeLabel('myBookings', language))}</a></p>
+
+        <p>${escape(localizeLabel('bestRegards', language))},<br>${escape(localizeLabel('oxTeam', language))}</p>
+      `,
+    });
+
+    logger.info('Rental booking cancelled email sent to owner', { bookingId: booking.id });
+  } catch (err) {
+    logger.error('Failed to send rental booking cancelled email to owner', { err });
+  }
+}
+
 module.exports = {
   sendBookingConfirmation,
   sendBookingApproved,
   sendBookingDeclined,
   sendPaymentProofReceived,
   sendPaymentConfirmed,
+  sendBookingCancelledToOwner,
+  sendPaymentConfirmedToOwner,
 };

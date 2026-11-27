@@ -348,6 +348,27 @@ const NOTIFICATION_TYPES = [
   // G11-A1/A3 (D-603): payment proof recorded, payment confirmed.
   { type: 'tool_rental_payment_proof_submitted', group: 'support' },
   { type: 'tool_rental_payment_confirmed', group: 'support' },
+  // G11-A5/B2 (D-609): booking lifecycle + dispute/flow transitions.
+  { type: 'tool_rental_booking_approved', group: 'support' },
+  { type: 'tool_rental_booking_declined', group: 'support' },
+  { type: 'tool_rental_invoice_sent', group: 'support' },
+  { type: 'tool_rental_booking_cancelled', group: 'support' },
+  { type: 'tool_rental_return_marked', group: 'support' },
+  { type: 'tool_rental_damage_claim_filed', group: 'support' },
+  { type: 'tool_rental_damage_claim_resolved', group: 'support' },
+  { type: 'tool_rental_damage_claim_acknowledged', group: 'support' },
+  { type: 'tool_rental_escalation_replied', group: 'support' },
+  { type: 'tool_rental_reschedule_proposed', group: 'support' },
+  { type: 'tool_rental_reschedule_approved', group: 'support' },
+  { type: 'tool_rental_reschedule_declined', group: 'support' },
+  { type: 'tool_rental_refund_proposed', group: 'support' },
+  { type: 'tool_rental_refund_confirmed', group: 'support' },
+  { type: 'tool_rental_refund_settled', group: 'support' },
+  { type: 'tool_rental_deposit_resolved', group: 'support' },
+  { type: 'tool_rental_deposit_acknowledged', group: 'support' },
+  // G11-A5 (D-609): email-only copy for the owner's payment
+  // confirmation email; never sent in-app.
+  { type: 'tool_rental_payment_confirmed_owner', group: 'support' },
   { type: 'intake_request_received', group: 'support' },
   { type: 'new_review', group: 'support' },
   { type: 'report_resolved', group: 'support' },

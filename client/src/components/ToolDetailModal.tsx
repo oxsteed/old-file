@@ -31,6 +31,9 @@ interface ToolDetailModalProps {
     image_gallery?: string[];
     description?: string;
     is_available: boolean;
+    // G11-B4 (D-611): a previous rental is overdue and unreturned; the
+    // tool cannot be booked on any dates until the return is recorded.
+    overdue_unreturned?: boolean;
     owner_name?: string;
     first_name?: string;
     last_name?: string;
@@ -282,7 +285,14 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
                   {t('toolRentals.unavailableNotice')}
                 </div>
               )}
-              {tool.is_available && (
+              {/* G11-B4 (D-611): the tool is out on an overdue rental; the
+                  renter sees why it cannot be booked instead of a dead end. */}
+              {tool.is_available && tool.overdue_unreturned === true && (
+                <div className="tool-modal-unavailable-notice">
+                  {t('toolRentals.previousRentalOverdue')}
+                </div>
+              )}
+              {tool.is_available && tool.overdue_unreturned !== true && (
                 <button
                   onClick={() => setIsBookingModalOpen(true)}
                   className="tool-modal-booking-btn"

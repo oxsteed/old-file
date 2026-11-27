@@ -7,6 +7,11 @@ const db = require('../db');
 const logger = require('../utils/logger');
 const { uploadFile, getPublicUrl, deleteFile } = require('../utils/storage');
 const { parseDateOnlyUTC } = require('../utils/dateOnly');
+// G11-B2 (D-609): booking-flow notices go through the shared helper
+// (notify_bookings toggle honored). Escalation-thread replies keep the
+// Wave 3 sender below: an escalation is a safety thread, so the
+// bookings toggle does not silence it.
+const { notifyRental, notifyRentalCounterparty } = require('../utils/toolRentalNotifications');
 
 const MAX_TEXT = 2000;
 const MAX_TITLE = 200;
@@ -147,6 +152,12 @@ const fileDamageClaim = async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [booking.id, booking.tool_id, req.user.id, amount, description, evidenceReportId],
     );
+    // G11-B2 (D-609): the counterparty is told a claim was filed.
+    await notifyRentalCounterparty({
+      booking, actorId: req.user.id, type: 'tool_rental_damage_claim_filed',
+      eventKey: `filed:${rows[0].created_at}`,
+      data: { claim_id: String(rows[0].id) },
+    });
     return res.status(201).json({ claim: rows[0] });
   } catch (err) {
     logger.error('fileDamageClaim error', { err });
@@ -214,6 +225,14 @@ const resolveDamageClaim = async (req, res) => {
       [claim.id, decision === 'agreed' ? 'resolved' : 'declined', agreedAmount, reason || null, req.user.id],
     );
     if (!rows.length) return fail(res, 409, 'state_conflict', 'This claim is already resolved');
+    // G11-B2 (D-609): the filer is told the claim was resolved.
+    await notifyRental({
+      userId: claim.filed_by,
+      type: 'tool_rental_damage_claim_resolved',
+      bookingId: party.booking.id,
+      eventKey: `resolved:${rows[0].resolved_at}`,
+      data: { claim_id: String(claim.id) },
+    });
     return res.json({ claim: rows[0] });
   } catch (err) {
     logger.error('resolveDamageClaim error', { err });
@@ -246,6 +265,14 @@ const acknowledgeDamageClaim = async (req, res) => {
           WHERE id = $1 AND ack_status = 'pending' RETURNING *`,
         [claim.id, req.user.id],
       );
+      // G11-B2 (D-609): the resolver is told the filer acknowledged.
+      await notifyRental({
+        userId: claim.resolved_by,
+        type: 'tool_rental_damage_claim_acknowledged',
+        bookingId: party.booking.id,
+        eventKey: `ack:${rows[0].acknowledged_at}`,
+        data: { claim_id: String(claim.id) },
+      });
       return res.json({ claim: rows[0] });
     }
     const { rows } = await db.query(
@@ -256,6 +283,16 @@ const acknowledgeDamageClaim = async (req, res) => {
         WHERE id = $1 AND ack_status = 'pending' RETURNING *`,
       [claim.id, req.user.id],
     );
+    // G11-B2 (D-609): the resolver is told the filer disputed, so the
+    // claim is open again. resolved_by was cleared by the UPDATE above,
+    // so it is read from the pre-update claim row.
+    await notifyRental({
+      userId: claim.resolved_by,
+      type: 'tool_rental_damage_claim_acknowledged',
+      bookingId: party.booking.id,
+      eventKey: `ack:${rows[0].acknowledged_at}`,
+      data: { claim_id: String(claim.id) },
+    });
     return res.json({ claim: rows[0] });
   } catch (err) {
     logger.error('acknowledgeDamageClaim error', { err });
@@ -364,6 +401,36 @@ function serializeEscalation(row, messages) {
   return { ...row, messages: messages || [] };
 }
 
+// G11-B2 (D-609): an escalation-thread reply tells the other side.
+// Same shape as the open/resolved senders: direct sendNotification (the
+// safety thread is not silenced by the bookings toggle), per-recipient
+// key scoped to the message row, so a retry cannot duplicate the row.
+// A party reply tells the counterparty; an admin reply tells both
+// parties. Awaited by the caller but failure-safe.
+async function notifyEscalationReplied({ escalation, booking, messageId, authorId, authorRole }) {
+  try {
+    const { sendNotification } = require('../services/notificationService');
+    const recipients = authorRole === 'admin'
+      ? [booking.customer_id, booking.owner_id]
+      : [String(authorId) === String(booking.owner_id) ? booking.customer_id : booking.owner_id];
+    const results = await Promise.allSettled(
+      recipients
+        .filter((userId) => String(userId) !== String(authorId))
+        .map((userId) => sendNotification({
+          userId: String(userId),
+          type: 'tool_rental_escalation_replied',
+          data: { escalation_id: String(escalation.id), booking_id: String(booking.id), category: escalation.category },
+          action_url: '/my-bookings',
+          idempotencyKey: `tool-rental-escalation-replied:${escalation.id}:${messageId}:${userId}`,
+        })),
+    );
+    const failed = results.filter((r) => r.status === 'rejected' || r.value?.success === false).length;
+    if (failed) logger.warn('Rental escalation reply notification had failures', { escalationId: escalation.id, failed });
+  } catch (err) {
+    logger.warn('Rental escalation reply notification failed', { escalationId: escalation?.id, error: err.message });
+  }
+}
+
 const listEscalations = async (req, res) => {
   try {
     const party = await loadBookingParty(req, res, req.params.bookingId);
@@ -453,7 +520,7 @@ const postEscalationMessage = async (req, res) => {
     if (body === null) return fail(res, 400, 'validation_failed', 'A message is required');
     if (body === undefined) return fail(res, 400, 'validation_failed', 'Message is too long');
     const { rows: bookingRows } = await db.query(
-      'SELECT owner_id FROM tool_rentals_bookings WHERE id = $1',
+      'SELECT owner_id, customer_id FROM tool_rentals_bookings WHERE id = $1',
       [escalation.booking_id],
     );
     const role = String(bookingRows[0].owner_id) === String(req.user.id) ? 'owner' : 'renter';
@@ -462,6 +529,14 @@ const postEscalationMessage = async (req, res) => {
        VALUES ($1, $2, $3, $4) RETURNING id, author_id, author_role, body, created_at`,
       [escalation.id, req.user.id, role, body],
     );
+    // G11-B2 (D-609): the counterparty is told a reply landed.
+    await notifyEscalationReplied({
+      escalation,
+      booking: { owner_id: bookingRows[0].owner_id, customer_id: bookingRows[0].customer_id, id: escalation.booking_id },
+      messageId: rows[0].id,
+      authorId: req.user.id,
+      authorRole: role,
+    });
     return res.status(201).json({ message: rows[0] });
   } catch (err) {
     logger.error('postEscalationMessage error', { err });
@@ -541,6 +616,18 @@ const adminPostEscalationMessage = async (req, res) => {
        VALUES ($1, $2, 'admin', $3) RETURNING id, author_id, author_role, body, created_at`,
       [escalation.id, req.user.id, body],
     );
+    // G11-B2 (D-609): both parties are told the admin replied.
+    const { rows: bookingRows } = await db.query(
+      'SELECT owner_id, customer_id FROM tool_rentals_bookings WHERE id = $1',
+      [escalation.booking_id],
+    );
+    await notifyEscalationReplied({
+      escalation,
+      booking: { owner_id: bookingRows[0].owner_id, customer_id: bookingRows[0].customer_id, id: escalation.booking_id },
+      messageId: saved[0].id,
+      authorId: req.user.id,
+      authorRole: 'admin',
+    });
     return res.status(201).json({ message: saved[0] });
   } catch (err) {
     logger.error('adminPostEscalationMessage error', { err });
@@ -718,6 +805,14 @@ const acknowledgeDepositResolution = async (req, res) => {
         RETURNING id, deposit_status, deposit_ack_status, deposit_acknowledged_by, deposit_acknowledged_at`,
       [booking.id, decision, req.user.id],
     );
+    // G11-B2 (D-609): the owner resolved the deposit, so the owner is
+    // told the renter acknowledged (or disputed) it.
+    await notifyRental({
+      userId: booking.owner_id,
+      type: 'tool_rental_deposit_acknowledged',
+      bookingId: booking.id,
+      eventKey: `ack:${rows[0].deposit_acknowledged_at}`,
+    });
     return res.json({ deposit: rows[0] });
   } catch (err) {
     logger.error('acknowledgeDepositResolution error', { err });

@@ -45,7 +45,10 @@ test('withholding needs a reason and an amount within the deposit', async () => 
   mockQuery.mockResolvedValueOnce(held).mockResolvedValueOnce({ rows: [{ id: 5, deposit_status: 'partially_withheld' }] });
   r = res();
   await ctrl.resolveDeposit(req({ action: 'withhold', amount: 20, note: 'scratched housing and missing bit' }), r);
-  expect(mockQuery.mock.calls.at(-1)[1].slice(1, 3)).toEqual(['partially_withheld', 20]);
+  // G11-B2 (D-609): resolveDeposit notifies the renter after the
+  // UPDATE, so the UPDATE is located by SQL, not by call position.
+  const updateCall = mockQuery.mock.calls.find(([sql]) => String(sql).includes('UPDATE tool_rentals_bookings'));
+  expect(updateCall[1].slice(1, 3)).toEqual(['partially_withheld', 20]);
 });
 
 test('only the owner of a held deposit can resolve it', async () => {

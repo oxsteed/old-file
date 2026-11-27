@@ -274,6 +274,21 @@ async function changeGrant(user, grantId, { action, expectedVersion, reasonCode 
         WHERE id = $1 RETURNING id, user_id, capability, subject_type, subject_id, status, version, provenance`,
       [g.id, t.to, user.id, reasonCode],
     );
+    // G11-A6 (D-610): revoking the equipment-owner grant unpublishes the
+    // owner's listings immediately, in the same transaction as the revoke,
+    // so a revoked owner cannot keep taking bookings for a recalled tool.
+    // Suspension does not flip: it is temporary, the listings stay hidden
+    // by the browse/booking grant checks meanwhile, and reinstatement
+    // restores them without a re-publish. Reinstatement does not
+    // re-publish either: the owner re-publishes explicitly via PUT, which
+    // re-runs the return-to-availability checklist.
+    if (t.to === 'revoked' && g.capability === 'tool_owner.list_equipment') {
+      await client.query(
+        `UPDATE tool_rentals SET is_available = FALSE, updated_at = NOW()
+          WHERE user_id = $1 AND is_available = TRUE`,
+        [g.user_id],
+      );
+    }
     await enqueue(client, {
       eventType: `access_grant.${t.to}`, userId: g.user_id, grantId: g.id,
       payload: { capability: g.capability, reasonCode }, dedupeKey: `grant:${g.id}:${out[0].version}`,

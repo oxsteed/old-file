@@ -466,7 +466,10 @@ ddescribe('Track C preference toggles (DB)', () => {
         // ones its callers pass (payment proof submitted / confirmed).
         // Later G11 checkpoints that send more types through it must
         // extend this list, or N3 fails on purpose.
-        { file: 'utils/toolRentalNotifications.js', name: 'type', expansions: ['tool_rental_payment_proof_submitted', 'tool_rental_payment_confirmed'] },
+        // G11 checkpoint 4 (D-609): the full lifecycle set. The
+        // escalation-reply type is NOT here: it is sent by the disputes
+        // controller's own sender (safety thread), with a literal type.
+        { file: 'utils/toolRentalNotifications.js', name: 'type', expansions: ['tool_rental_payment_proof_submitted', 'tool_rental_payment_confirmed', 'tool_rental_booking_approved', 'tool_rental_booking_declined', 'tool_rental_invoice_sent', 'tool_rental_booking_cancelled', 'tool_rental_return_marked', 'tool_rental_damage_claim_filed', 'tool_rental_damage_claim_resolved', 'tool_rental_damage_claim_acknowledged', 'tool_rental_reschedule_proposed', 'tool_rental_reschedule_approved', 'tool_rental_reschedule_declined', 'tool_rental_refund_proposed', 'tool_rental_refund_confirmed', 'tool_rental_refund_settled', 'tool_rental_deposit_resolved', 'tool_rental_deposit_acknowledged'] },
         // Redis job-data replay: the queued payload is a full
         // notification object produced by a sendNotification caller
         // upstream, so the type already passed through the central

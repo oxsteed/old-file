@@ -153,6 +153,42 @@ function attachPublicOwnerNames(rows) {
   });
 }
 
+// G11-A6 (D-610): a listing is publicly visible only while its owner holds
+// an active, unexpired tool_owner.list_equipment grant. This mirrors GET
+// /tool-rentals/me (publication_blocked) and applies whenever tool-owner
+// enforcement is not 'off', so revocations through any path and
+// expirations (which have no transition event) hide the listing
+// immediately, including listings published before this check shipped.
+// The grant flip in reviewService.changeGrant is the immediate unpublish;
+// this filter is the fail-closed layer underneath it.
+function ownerGrantFilterSql() {
+  return `EXISTS (
+    SELECT 1 FROM access_grants ag
+     WHERE ag.user_id = t.user_id
+       AND ag.capability = 'tool_owner.list_equipment'
+       AND ag.status = 'active'
+       AND (ag.expires_at IS NULL OR ag.expires_at > NOW())
+  )`;
+}
+
+function ownerGrantFilterApplies() {
+  try {
+    return require('../services/access/flags').toolOwnerEnforcement() !== 'off';
+  } catch { return true; }
+}
+
+// G11-B4 (D-611): a previous rental that is paid, past its return date,
+// and not yet marked returned. The tool is physically out, so no new
+// booking for it can proceed until the return is recorded.
+function overdueUnreturnedSql() {
+  return `EXISTS (
+    SELECT 1 FROM tool_rentals_bookings b
+     WHERE b.tool_id = t.id
+       AND b.status = 'payment_confirmed'
+       AND b.end_date < CURRENT_DATE
+  )`;
+}
+
 // Seeded common tool categories (also merged with DB distinct values)
 const SEED_TOOL_CATEGORIES = [
   'Power Tools','Hand Tools','Measuring & Layout','Cutting Tools',
@@ -643,6 +679,9 @@ async function browseTools(req, res) {
     // An admin moderation hold (e.g. safety recall) keeps the tool out of the
     // public listing even if the owner flips is_available back on.
     if (hasModerationHold) where += ' AND NOT t.moderation_hold';
+    // G11-A6 (D-610): a revoked/expired equipment-owner grant hides the
+    // listing from browse, even if is_available is still on.
+    if (ownerGrantFilterApplies()) where += ` AND ${ownerGrantFilterSql()}`;
 
     if (category) { where += ` AND t.category ILIKE $${idx++}`; params.push(`%${category}%`); }
     if (city)     { where += ` AND t.location_city ILIKE $${idx++}`; params.push(`%${city}%`); }
@@ -808,6 +847,9 @@ async function getToolAlternatives(req, res) {
     }
     const category = toolResult.rows[0].category;
     const { toolFields, ownerRatingExpr, hasAvatarUrl, hasResponseTime, hasModerationHold, hasLocationColumns } = await getToolFields();
+    // G11-A6 (D-610): alternatives never surface a listing whose owner
+    // lost the equipment-owner grant.
+    const grantFilter = ownerGrantFilterApplies() ? `\n            AND ${ownerGrantFilterSql()}` : '';
 
     // 564: optional distance filter/ordering. lat+lng+radius arrive
     // together; a partial set is a 400, like browse.
@@ -849,7 +891,7 @@ async function getToolAlternatives(req, res) {
           WHERE t.is_available = TRUE
             AND t.category = $1
             AND t.id <> $2
-            ${hasModerationHold ? 'AND NOT t.moderation_hold' : ''}
+            ${hasModerationHold ? 'AND NOT t.moderation_hold' : ''}${grantFilter}
             AND t.location_lat IS NOT NULL AND t.location_lng IS NOT NULL
             AND ${haversine} <= $${radiusIdx}
             AND NOT EXISTS (
@@ -883,7 +925,7 @@ async function getToolAlternatives(req, res) {
         WHERE t.is_available = TRUE
           AND t.category = $1
           AND t.id <> $2
-          ${hasModerationHold ? 'AND NOT t.moderation_hold' : ''}
+          ${hasModerationHold ? 'AND NOT t.moderation_hold' : ''}${grantFilter}
           AND NOT EXISTS (
             SELECT 1 FROM tool_rentals_bookings b
              WHERE b.tool_id = t.id
@@ -916,11 +958,15 @@ router.get('/public/:id', async (req, res) => {
     const { toolFields, ownerRatingExpr, hasAvatarUrl, hasResponseTime, hasModerationHold } = await getToolFields();
     // An admin moderation hold hides the listing even if is_available is on.
     const holdFilter = hasModerationHold ? ' AND NOT t.moderation_hold' : '';
+    // G11-A6 (D-610): a revoked/expired equipment-owner grant hides the
+    // listing from the public detail read, even if is_available is on.
+    const grantFilter = ownerGrantFilterApplies() ? ` AND ${ownerGrantFilterSql()}` : '';
     const result = await pool.query(
       `SELECT ${toolFields},
               ${buildUserFields(hasAvatarUrl, hasResponseTime)},
               t.user_id AS owner_id,
-              ${ownerRatingExpr} AS owner_rating
+              ${ownerRatingExpr} AS owner_rating,
+              ${overdueUnreturnedSql()} AS overdue_unreturned
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
          LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
@@ -929,7 +975,7 @@ router.get('/public/:id', async (req, res) => {
           AND u.is_active = TRUE
           AND u.deleted_at IS NULL
           AND u.email_verified = TRUE
-          AND u.onboarding_completed = TRUE${holdFilter}`,
+          AND u.onboarding_completed = TRUE${holdFilter}${grantFilter}`,
       [id],
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Tool not found' });

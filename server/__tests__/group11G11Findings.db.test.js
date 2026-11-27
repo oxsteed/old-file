@@ -61,12 +61,16 @@ jest.mock('../services/notificationService', () => ({
 }));
 const mockSendPaymentProofReceived = jest.fn();
 const mockSendPaymentConfirmed = jest.fn();
+const mockSendBookingCancelledToOwner = jest.fn();
+const mockSendPaymentConfirmedToOwner = jest.fn();
 jest.mock('../services/bookingEmailService', () => ({
   sendBookingConfirmation: jest.fn(),
   sendBookingApproved: jest.fn(),
   sendBookingDeclined: jest.fn(),
   sendPaymentProofReceived: (...args) => mockSendPaymentProofReceived(...args),
   sendPaymentConfirmed: (...args) => mockSendPaymentConfirmed(...args),
+  sendBookingCancelledToOwner: (...args) => mockSendBookingCancelledToOwner(...args),
+  sendPaymentConfirmedToOwner: (...args) => mockSendPaymentConfirmedToOwner(...args),
 }));
 jest.mock('../growth/emit', () => ({
   emitDomainEvent: jest.fn().mockResolvedValue(undefined),
@@ -75,6 +79,11 @@ jest.mock('../growth/emit', () => ({
 jest.mock('../utils/invoiceEmail', () => ({
   sendInvoiceEmail: jest.fn().mockResolvedValue({ success: true }),
 }));
+
+// G11-A6 (D-610): the revoke-flip tests call the review service directly;
+// it reads DATABASE_URL at require time, which the block above already
+// pointed at the g11g database.
+const reviewService = require('../services/access/reviewService');
 
 const describeDb = dbUrl ? describe : describe.skip;
 
@@ -617,6 +626,407 @@ describeDb('G11 findings batch: payment, delete guard, identity, notifications',
         .send({ reason: 'Need it back for another job.' });
       expect(declined.status).toBe(200);
       expect(declined.body.return_reschedule_status).toBe('declined');
+    });
+  });
+
+  describe('G11-B2/A5: rental lifecycle events notify the other party (D-609)', () => {
+    // The notification service is mocked, so the assertion is on its
+    // calls: type + recipient. Cleared before each test so an earlier
+    // flow (approve inside invoiceSentBooking, etc.) cannot leak in.
+    beforeEach(() => {
+      mockSendNotification.mockClear();
+      mockSendBookingCancelledToOwner.mockClear();
+      mockSendPaymentConfirmedToOwner.mockClear();
+    });
+    const notified = (type, userId) => mockSendNotification.mock.calls
+      .filter(([call]) => call?.type === type && String(call?.userId) === String(userId));
+
+    async function pendingBooking() {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner);
+      const created = await request(app)
+        .post('/api/tool-rentals/bookings')
+        .set('x-test-user', renter)
+        .send({ toolId: tool.id, startDate: '2026-12-10', endDate: '2026-12-12', renterAgreementAccepted: true });
+      expect(created.status).toBe(201);
+      return { owner, renter, tool, booking: created.body };
+    }
+
+    async function openEscalation(owner, renter, booking) {
+      const opened = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/escalations`)
+        .set('x-test-user', renter)
+        .send({ category: 'damage', message: 'The drill came back cracked.' });
+      expect(opened.status).toBe(201);
+      return opened.body.escalation.id;
+    }
+
+    async function setNotifyBookings(userId, value) {
+      await db.query(
+        `INSERT INTO tool_rental_notifications (user_id, notify_bookings) VALUES ($1, $2)
+         ON CONFLICT (user_id) DO UPDATE SET notify_bookings = EXCLUDED.notify_bookings`,
+        [userId, value],
+      );
+    }
+
+    test('approval and decline notify the renter in-app', async () => {
+      const first = await pendingBooking();
+      await request(app).post(`/api/tool-rentals/bookings/${first.booking.id}/approve`).set('x-test-user', first.owner).expect(200);
+      expect(notified('tool_rental_booking_approved', first.renter).length).toBe(1);
+
+      const second = await pendingBooking();
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${second.booking.id}/decline`)
+        .set('x-test-user', second.owner)
+        .send({ reason: 'Out on loan that week.' })
+        .expect(200);
+      expect(notified('tool_rental_booking_declined', second.renter).length).toBe(1);
+    });
+
+    test('invoice sent notifies the renter even for in-platform delivery', async () => {
+      const { renter } = await invoiceSentBooking();
+      expect(notified('tool_rental_invoice_sent', renter).length).toBe(1);
+    });
+
+    test('payment confirmation notifies the renter and emails the owner a record', async () => {
+      const { owner, renter } = await paymentConfirmedBooking();
+      expect(notified('tool_rental_payment_confirmed', renter).length).toBe(1);
+      expect(mockSendPaymentConfirmedToOwner.mock.calls.length).toBe(1);
+      expect(mockSendPaymentConfirmedToOwner.mock.calls[0][2].email).toContain('g11g-');
+      expect(mockSendPaymentConfirmedToOwner.mock.calls[0][0].id).toBeTruthy();
+      expect(owner).toBeTruthy();
+    });
+
+    test('renter cancel tells the owner by email and in-app; owner cancel tells the renter in-app only', async () => {
+      const first = await paymentConfirmedBooking();
+      await setStatus(first.booking.id, first.renter, 'cancelled').then((r) => expect(r.status).toBe(200));
+      expect(notified('tool_rental_booking_cancelled', first.owner).length).toBe(1);
+      expect(mockSendBookingCancelledToOwner.mock.calls.length).toBe(1);
+
+      mockSendNotification.mockClear();
+      mockSendBookingCancelledToOwner.mockClear();
+      const second = await paymentConfirmedBooking();
+      await setStatus(second.booking.id, second.owner, 'cancelled').then((r) => expect(r.status).toBe(200));
+      expect(notified('tool_rental_booking_cancelled', second.renter).length).toBe(1);
+      expect(mockSendBookingCancelledToOwner.mock.calls.length).toBe(0);
+    });
+
+    test('marking a return notifies the counterparty', async () => {
+      const { owner, renter, booking } = await paymentConfirmedBooking();
+      await setStatus(booking.id, owner, 'returned').then((r) => expect(r.status).toBe(200));
+      expect(notified('tool_rental_return_marked', renter).length).toBe(1);
+    });
+
+    test('damage claim filed, resolved and acknowledged each notify the waiting party', async () => {
+      const { owner, renter, booking } = await paymentConfirmedBooking();
+      const filed = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/damage-claims`)
+        .set('x-test-user', owner)
+        .send({ amount: 25, description: 'Cracked housing.' });
+      expect(filed.status).toBe(201);
+      expect(notified('tool_rental_damage_claim_filed', renter).length).toBe(1);
+
+      const resolved = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/damage-claims/${filed.body.claim.id}/resolve`)
+        .set('x-test-user', renter)
+        .send({ decision: 'agreed', agreed_amount: 20 });
+      expect(resolved.status).toBe(200);
+      expect(notified('tool_rental_damage_claim_resolved', owner).length).toBe(1);
+
+      const acked = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/damage-claims/${filed.body.claim.id}/acknowledge`)
+        .set('x-test-user', owner)
+        .send({ decision: 'acknowledged' });
+      expect(acked.status).toBe(200);
+      expect(notified('tool_rental_damage_claim_acknowledged', renter).length).toBe(1);
+    });
+
+    test('escalation replies notify the counterparty; an admin reply tells both parties', async () => {
+      const { owner, renter, booking } = await paymentConfirmedBooking();
+      const escalationId = await openEscalation(owner, renter, booking);
+      mockSendNotification.mockClear();
+      const reply = await request(app)
+        .post(`/api/tool-rentals/escalations/${escalationId}/messages`)
+        .set('x-test-user', renter)
+        .send({ message: 'Here is a photo of the crack.' });
+      expect(reply.status).toBe(201);
+      expect(notified('tool_rental_escalation_replied', owner).length).toBe(1);
+      expect(notified('tool_rental_escalation_replied', renter).length).toBe(0);
+
+      mockSendNotification.mockClear();
+      const admin = await addUser('super_admin');
+      const adminReply = await request(app)
+        .post(`/api/tool-rentals/admin/escalations/${escalationId}/messages`)
+        .set('x-test-user', admin)
+        .send({ message: 'Looking into this now.' });
+      expect(adminReply.status).toBe(201);
+      expect(notified('tool_rental_escalation_replied', owner).length).toBe(1);
+      expect(notified('tool_rental_escalation_replied', renter).length).toBe(1);
+    });
+
+    test('reschedule proposed, approved and declined notify the waiting party', async () => {
+      const first = await paymentConfirmedBooking();
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${first.booking.id}/return-reschedule`)
+        .set('x-test-user', first.renter)
+        .send({ proposedEndDate: '2026-12-20' })
+        .expect(200);
+      expect(notified('tool_rental_reschedule_proposed', first.owner).length).toBe(1);
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${first.booking.id}/return-reschedule/approve`)
+        .set('x-test-user', first.owner)
+        .expect(200);
+      expect(notified('tool_rental_reschedule_approved', first.renter).length).toBe(1);
+
+      const second = await paymentConfirmedBooking();
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${second.booking.id}/return-reschedule`)
+        .set('x-test-user', second.renter)
+        .send({ proposedEndDate: '2026-12-20' })
+        .expect(200);
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${second.booking.id}/return-reschedule/decline`)
+        .set('x-test-user', second.owner)
+        .send({ reason: 'Need it back for another job.' })
+        .expect(200);
+      expect(notified('tool_rental_reschedule_declined', second.renter).length).toBe(1);
+    });
+
+    test('refund proposed, confirmed and settled notify the waiting party', async () => {
+      const { owner, renter, booking } = await paymentConfirmedBooking();
+      await setStatus(booking.id, renter, 'cancelled').then((r) => expect(r.status).toBe(200));
+      mockSendNotification.mockClear();
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/recovery/refund`)
+        .set('x-test-user', owner)
+        .send({ amount: 18, direction: 'owner_to_renter', note: 'Half back for the unused days.' })
+        .expect(200);
+      expect(notified('tool_rental_refund_proposed', renter).length).toBe(1);
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/recovery/confirm`)
+        .set('x-test-user', renter)
+        .expect(200);
+      expect(notified('tool_rental_refund_confirmed', owner).length).toBe(1);
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/recovery/settle`)
+        .set('x-test-user', owner)
+        .send({ reference: 'VENMO-999' })
+        .expect(200);
+      expect(notified('tool_rental_refund_settled', renter).length).toBe(1);
+    });
+
+    test('deposit resolved and acknowledged notify the waiting party', async () => {
+      const { owner, renter, booking } = await paymentConfirmedBooking();
+      await setStatus(booking.id, owner, 'returned').then((r) => expect(r.status).toBe(200));
+      mockSendNotification.mockClear();
+      await resolveDeposit(booking.id, owner, { action: 'return' }).then((r) => expect(r.status).toBe(200));
+      expect(notified('tool_rental_deposit_resolved', renter).length).toBe(1);
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/deposit/acknowledge`)
+        .set('x-test-user', renter)
+        .send({ decision: 'acknowledged' })
+        .expect(200);
+      expect(notified('tool_rental_deposit_acknowledged', owner).length).toBe(1);
+    });
+
+    test('a renter who silenced booking notices gets none, but a safety-thread reply still arrives', async () => {
+      const { owner, renter, booking } = await pendingBooking();
+      await setNotifyBookings(renter, false);
+      await request(app).post(`/api/tool-rentals/bookings/${booking.id}/approve`).set('x-test-user', owner).expect(200);
+      expect(notified('tool_rental_booking_approved', renter).length).toBe(0);
+
+      // The same renter, toggle still off, opens an escalation; the
+      // owner's reply reaches them because the safety thread ignores
+      // the bookings toggle.
+      const escalationId = await openEscalation(owner, renter, booking);
+      mockSendNotification.mockClear();
+      await request(app)
+        .post(`/api/tool-rentals/escalations/${escalationId}/messages`)
+        .set('x-test-user', owner)
+        .send({ message: 'Can you describe the damage?' })
+        .expect(201);
+      expect(notified('tool_rental_escalation_replied', renter).length).toBe(1);
+    });
+  });
+
+  // Dates relative to the database CURRENT_DATE (America/New_York on the
+  // test database): an overdue booking ends before today, a booking ending
+  // today is not overdue yet.
+  function nyToday() {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  }
+  function dayOffset(days) {
+    const [y, m, d] = nyToday().split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+  }
+  async function grantRow(userId) {
+    const { rows } = await db.query(
+      `SELECT id, version, status, expires_at FROM access_grants
+        WHERE user_id = $1 AND capability = 'tool_owner.list_equipment'`,
+      [userId],
+    );
+    return rows[0];
+  }
+  const browseIds = (toolId) => request(app).get(`/api/tool-rentals?ids=${toolId}`);
+  const bookAs = (renterId, toolId, startDate, endDate) => request(app)
+    .post('/api/tool-rentals/bookings')
+    .set('x-test-user', renterId)
+    .send({ toolId, startDate, endDate, renterAgreementAccepted: true });
+
+  describe('G11-A6: grant revocation unpublishes listings (D-610)', () => {
+    test('revoking the grant through the review API flips listings to unavailable in the same step', async () => {
+      const owner = await addUser();
+      const admin = await addUser('super_admin');
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner);
+      const before = await grantRow(owner);
+      expect(before.status).toBe('active');
+      const out = await reviewService.changeGrant({ id: admin }, String(before.id), {
+        action: 'revoke', expectedVersion: before.version, reasonCode: 'policy_not_met',
+      });
+      expect(out.status).toBe(200);
+      expect(out.body.grant.status).toBe('revoked');
+      const { rows } = await db.query('SELECT is_available FROM tool_rentals WHERE id = $1', [tool.id]);
+      expect(rows[0].is_available).toBe(false);
+    });
+
+    test('a revoked owner’s listing disappears from browse and public detail, and booking is refused', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner);
+      expect((await browseIds(tool.id)).body.tools.map((t) => t.id)).toContain(tool.id);
+      await revokeToolOwner(owner);
+      expect((await browseIds(tool.id)).body.tools).toEqual([]);
+      await request(app).get(`/api/tool-rentals/public/${tool.id}`).expect(404);
+      const res = await bookAs(renter, tool.id, dayOffset(10), dayOffset(12));
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('owner_access_revoked');
+    });
+
+    test('an expired grant hides the listing too', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner);
+      await db.query(
+        `UPDATE access_grants SET expires_at = NOW() - INTERVAL '1 day'
+          WHERE user_id = $1 AND capability = 'tool_owner.list_equipment'`,
+        [owner],
+      );
+      expect((await browseIds(tool.id)).body.tools).toEqual([]);
+      await request(app).get(`/api/tool-rentals/public/${tool.id}`).expect(404);
+    });
+
+    test('a revoked owner cannot re-publish via PUT', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner);
+      await revokeToolOwner(owner);
+      const res = await request(app)
+        .put(`/api/tool-rentals/${tool.id}`)
+        .set('x-test-user', owner)
+        .send({ is_available: true });
+      expect(res.status).toBe(200);
+      expect(res.body.tool.is_available).toBe(false);
+      expect(res.body.publication_blocked).toBe(true);
+    });
+
+    test('suspension hides but does not unpublish; reinstate restores', async () => {
+      const owner = await addUser();
+      const admin = await addUser('super_admin');
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner);
+      const g1 = await grantRow(owner);
+      const suspended = await reviewService.changeGrant({ id: admin }, String(g1.id), {
+        action: 'suspend', expectedVersion: g1.version, reasonCode: 'policy_not_met',
+      });
+      expect(suspended.status).toBe(200);
+      const { rows: stillAvailable } = await db.query('SELECT is_available FROM tool_rentals WHERE id = $1', [tool.id]);
+      expect(stillAvailable[0].is_available).toBe(true);
+      expect((await browseIds(tool.id)).body.tools).toEqual([]);
+      const g2 = await grantRow(owner);
+      const reinstated = await reviewService.changeGrant({ id: admin }, String(g2.id), {
+        action: 'reinstate', expectedVersion: g2.version, reasonCode: 'review_complete',
+      });
+      expect(reinstated.status).toBe(200);
+      expect((await browseIds(tool.id)).body.tools.map((t) => t.id)).toContain(tool.id);
+    });
+  });
+
+  describe('G11-B4: an overdue unreturned rental hard-blocks the next booking (D-611)', () => {
+    async function overdueSetup() {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner);
+      const firstRenter = await addUser();
+      // A paid rental that ended two days ago and was never returned.
+      const overdue = await insertBooking(tool.id, firstRenter, owner, dayOffset(-9), dayOffset(-2), 'payment_confirmed');
+      return { owner, renter, tool, overdue };
+    }
+
+    test('a new booking is refused while a previous rental is overdue and unreturned', async () => {
+      const { renter, tool, overdue } = await overdueSetup();
+      // Dates that do not overlap the overdue booking: only the B4 block
+      // can refuse this, not the calendar conflict.
+      const res = await bookAs(renter, tool.id, dayOffset(10), dayOffset(12));
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('previous_rental_overdue');
+      const { rows } = await db.query('SELECT COUNT(*) AS n FROM tool_rentals_bookings WHERE tool_id = $1', [tool.id]);
+      expect(Number(rows[0].n)).toBe(1);
+      expect(overdue.status).toBe('payment_confirmed');
+    });
+
+    test('a booking ending today is not overdue', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner);
+      const firstRenter = await addUser();
+      await insertBooking(tool.id, firstRenter, owner, dayOffset(-3), dayOffset(0), 'payment_confirmed');
+      const res = await bookAs(renter, tool.id, dayOffset(10), dayOffset(12));
+      expect(res.status).toBe(201);
+    });
+
+    test('marking the overdue rental returned unblocks booking', async () => {
+      const { renter, tool, overdue } = await overdueSetup();
+      await db.query(`UPDATE tool_rentals_bookings SET status = 'returned' WHERE id = $1`, [overdue.id]);
+      const res = await bookAs(renter, tool.id, dayOffset(10), dayOffset(12));
+      expect(res.status).toBe(201);
+    });
+
+    test('a pending booking in the past does not block', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner);
+      const firstRenter = await addUser();
+      await insertBooking(tool.id, firstRenter, owner, dayOffset(-9), dayOffset(-2), 'pending');
+      const res = await bookAs(renter, tool.id, dayOffset(10), dayOffset(12));
+      expect(res.status).toBe(201);
+    });
+
+    test('the calendar-guard trigger refuses a direct insert while a rental is overdue', async () => {
+      const { tool, owner } = await overdueSetup();
+      const otherRenter = await addUser();
+      await expect(
+        insertBooking(tool.id, otherRenter, owner, dayOffset(10), dayOffset(12), 'pending'),
+      ).rejects.toThrow(/overdue/i);
+    });
+
+    test('the public detail carries overdue_unreturned', async () => {
+      const { tool } = await overdueSetup();
+      const res = await request(app).get(`/api/tool-rentals/public/${tool.id}`);
+      expect(res.status).toBe(200);
+      expect(res.body.tool.overdue_unreturned).toBe(true);
+      const owner2 = await addUser();
+      await grantToolOwner(owner2);
+      const tool2 = await insertTool(owner2);
+      const res2 = await request(app).get(`/api/tool-rentals/public/${tool2.id}`);
+      expect(res2.status).toBe(200);
+      expect(res2.body.tool.overdue_unreturned).toBe(false);
     });
   });
 });
