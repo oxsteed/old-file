@@ -11,10 +11,11 @@ import { toolRentalsApi } from '../api/toolRentals';
 import api from '../api/axios';
 import { cancelBookingRequest, fetchBookingPrefillForJob, listMySponsorships } from '../api/bookings';
 import { listCustomerJobRefundRequests } from '../api/jobs';
+import { receiptsApi } from '../api/receipts';
 import BookingParticipantView from '../components/booking/BookingParticipantView';
 import BookingRescheduleBox from '../components/calendar/BookingRescheduleBox';
 import { prefillBookingDraft } from '../components/booking/BookingFlow';
-import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag, Clock, CheckCircle, XCircle, Briefcase, Wrench } from 'lucide-react';
+import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag, Clock, CheckCircle, XCircle, Briefcase, Wrench, Receipt } from 'lucide-react';
 import toast from 'react-hot-toast';
 import InvoiceModal from '../components/InvoiceModal';
 import TermsAcceptanceModal from '../components/TermsAcceptanceModal';
@@ -173,6 +174,13 @@ const MyBookingsPageContent = () => {
   const [receiptOpen, setReceiptOpen] = useState<Record<number, boolean>>({});
   const [receipts, setReceipts] = useState<Record<number, any>>({});
   const [receiptLoading, setReceiptLoading] = useState<Record<number, boolean>>({});
+  // G1-A2 (item 23): helper-booking receipt, loaded lazily per booking.
+  // The receipt comes from the converted job's captured payment; a
+  // booking that never converted has no payment to render, so the toggle
+  // only appears once convertedToJobId is set.
+  const [helperReceiptOpen, setHelperReceiptOpen] = useState<Record<string, boolean>>({});
+  const [helperReceipts, setHelperReceipts] = useState<Record<string, any>>({});
+  const [helperReceiptLoading, setHelperReceiptLoading] = useState<Record<string, boolean>>({});
   // Group 11 item 576: renter return-reschedule draft per booking.
   const [rescheduleDraft, setRescheduleDraft] = useState<Record<number, { date: string; time: string }>>({});
   // G11-A1/A3 (D-603): renter payment-proof draft per booking.
@@ -971,6 +979,62 @@ const MyBookingsPageContent = () => {
     );
   };
 
+  // G1-A2 (item 23): helper-booking receipt panel, reusing the rental
+  // card's receipt shape (booking-receipt dl). The amount comes from the
+  // converted job's captured payment; a converted booking whose job was
+  // never paid shows the no-receipt note instead of an amount.
+  const renderHelperReceipt = (booking: HelperBooking) => {
+    const receipt = helperReceipts[booking.id];
+    if (!helperReceiptOpen[booking.id]) return null;
+    if (helperReceiptLoading[booking.id] || !receipt) {
+      return <p className="booking-card-note">{t('common.loading')}</p>;
+    }
+    if (receipt.unavailable) {
+      return <p className="booking-card-note" data-testid={`helper-receipt-${booking.id}`}>{t('receipts.noReceiptYet')}</p>;
+    }
+    const paidAt = receipt.paidAt ? new Date(receipt.paidAt).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+    return (
+      <div className="booking-receipt" data-testid={`helper-receipt-${booking.id}`}>
+        <h4>{t('receipts.title')}</h4>
+        <dl>
+          <div><dt>{t('receipts.service')}</dt><dd>{receipt.serviceName || booking.serviceName}</dd></div>
+          <div><dt>{t('receipts.date')}</dt><dd>{receipt.requestedDate ? new Date(`${receipt.requestedDate}T12:00:00`).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</dd></div>
+          {receipt.helperName && (
+            <div><dt>{t('receipts.helper')}</dt><dd>{receipt.helperName}</dd></div>
+          )}
+          <div><dt>{t('receipts.total')}</dt><dd>{new Intl.NumberFormat(locale, { style: 'currency', currency: (receipt.currency || 'usd').toUpperCase() }).format(Number(receipt.amount || 0))}</dd></div>
+          <div><dt>{t('receipts.paidOn')}</dt><dd>{paidAt}</dd></div>
+          <div><dt>{t('receipts.status')}</dt><dd>{receipt.status}</dd></div>
+        </dl>
+        {receipt.jobId && (
+          <Link to={`/jobs/${receipt.jobId}`}>{t('receipts.viewJob')}</Link>
+        )}
+      </div>
+    );
+  };
+
+  const handleToggleHelperReceipt = async (booking: HelperBooking) => {
+    const open = !helperReceiptOpen[booking.id];
+    setHelperReceiptOpen((prev) => ({ ...prev, [booking.id]: open }));
+    if (!open || helperReceipts[booking.id]) return;
+    setHelperReceiptLoading((prev) => ({ ...prev, [booking.id]: true }));
+    try {
+      const data = await receiptsApi.getHelperBookingReceipt(booking.id);
+      setHelperReceipts((prev) => ({ ...prev, [booking.id]: data }));
+    } catch (err: any) {
+      // No captured payment yet: the panel says so instead of erroring.
+      // Anything else is a load failure.
+      if (err?.response?.data?.code === 'receipt_not_available') {
+        setHelperReceipts((prev) => ({ ...prev, [booking.id]: { unavailable: true } }));
+      } else {
+        toast.error(t('receipts.receiptLoadFailed'));
+        setHelperReceiptOpen((prev) => ({ ...prev, [booking.id]: false }));
+      }
+    } finally {
+      setHelperReceiptLoading((prev) => ({ ...prev, [booking.id]: false }));
+    }
+  };
+
   // Group 11 item 571 (D-259): identity is the platform Didit state.
   // Shown to both parties; a renter who has not verified cannot
   // complete pickup (enforced server-side on the acknowledgment).
@@ -1413,7 +1477,18 @@ const MyBookingsPageContent = () => {
               {t('common.cancel')}
             </button>
           )}
+          {b.convertedToJobId != null && (
+            <button
+              onClick={() => handleToggleHelperReceipt(b)}
+              className="booking-action-btn booking-action-invoice" data-track="ui.5655b990ea.32"
+            >
+              {helperReceiptOpen[b.id]
+                ? t('receipts.hideReceipt')
+                : t('receipts.viewReceipt')}
+            </button>
+          )}
         </div>
+        {b.convertedToJobId != null && renderHelperReceipt(b)}
       </div>
     );
   };
@@ -1483,6 +1558,10 @@ const MyBookingsPageContent = () => {
               <Link to="/tool-rentals" className="my-bookings-hero-btn secondary">
                 <Wrench size={17} aria-hidden="true" />
                 {t('myBookings.browseTools')}
+              </Link>
+              <Link to="/receipts" className="my-bookings-hero-btn secondary">
+                <Receipt size={17} aria-hidden="true" />
+                {t('receipts.viewReceipts')}
               </Link>
             </div>
           </div>
