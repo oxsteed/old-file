@@ -534,6 +534,10 @@ jobs:
         working-directory: server
         env:
           NODE_ENV: test
+          # D-635: the in-band full suite OOMs at Node's default ~2 GB heap
+          # (run 45941671841 attempts 1-3, and PR #816's run 45938766993 with
+          # no LOW changes); local full suites already run at 4 GB.
+          NODE_OPTIONS: --max-old-space-size=4096
           STATEMENT_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test?sslmode=disable
           STATEMENT_JOB_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test?sslmode=disable
           STATEMENT_INVESTIGATION_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test?sslmode=disable
