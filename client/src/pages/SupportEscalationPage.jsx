@@ -989,6 +989,11 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
           priority: 'normal',
           clientRequestId,
           accessRequestId: handoff?.accessRequestId || undefined,
+          // G1-B7: booking-linked support — the server validates both ids
+          // against the caller's own booking/job and stores them on the
+          // conversation for the support workspace.
+          jobId: handoff?.jobId || undefined,
+          bookingId: handoff?.bookingId || undefined,
         });
 
       localStorage.setItem('oxs:visitorName', visitorName);
@@ -1298,6 +1303,15 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
                   <div>
                     <h2 className="text-white font-semibold text-lg mb-2">{t('support.escalation.ticketFormTitle')}</h2>
                     <p className="text-slate-300 leading-7">{t('support.escalation.ticketCTA')}</p>
+                    {/* G1-B7: the booking or job this ticket is about, carried
+                        in from the booking/job detail page. Display only. */}
+                    {(handoff?.jobId || handoff?.bookingId) && (
+                      <p className="mt-2 text-sm leading-6 text-orange-200" role="status">
+                        {handoff.bookingLabel
+                          ? t('support.escalation.bookingHelpContext', { label: handoff.bookingLabel })
+                          : t('support.escalation.bookingHelpContextGeneric')}
+                      </p>
+                    )}
                   </div>
                 </div>
 

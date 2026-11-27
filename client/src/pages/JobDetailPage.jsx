@@ -36,6 +36,7 @@ import JobSuitabilityPreview from '../components/JobSuitabilityPreview';
 import JobPortfolioConsent from '../components/JobPortfolioConsent';
 import { JobWorkRecord } from '../components/HelperWorkPanel';
 import HelperJobSupport from '../components/HelperJobSupport';
+import { buildBookingSupportHandoff } from '../components/helperProfile/chat/supportEscalationHandoff';
 import JobRescheduleProposals from '../components/JobRescheduleProposals';
 import JobHandback from '../components/JobHandback';
 import JobChangeRequests from '../components/JobChangeRequests';
@@ -928,6 +929,12 @@ function JobDetailContent() {
           {(isOwner || isAssignedHelper) && job.assigned_helper_id && <JobExceptions jobId={id} canRaise={['accepted', 'in_progress'].includes(job.status)} />}
           {isAssignedHelper && job.status === 'accepted' && !job.arrived_at && <JobHandback jobId={id} onDone={(msg) => { toast.success(msg); navigate('/dashboard'); }} />}
           {isAssignedHelper && <HelperJobSupport jobId={id} />}
+          {/* G1-B7: the customer files booking-linked support from the job
+              detail. The helper-only entry above is unchanged. The server
+              derives the booking from the job, so only the job id travels. */}
+          {isOwner && <div className="jdp-secondary-action">
+            <button type="button" className="jdp-btn-ghost" onClick={() => navigate(buildBookingSupportHandoff({ jobId: id, bookingLabel: job.title || null, returnTo: `/jobs/${id}` }))} data-track="ui.573dfef74b.29">{t('jobDetail.getHelp')}</button>
+          </div>}
           {isOwner && job.assigned_helper_id && ['completed', 'closed'].includes(job.status) && <JobSkillEndorsements jobId={id} />}
           {(isOwner || (user && String(job.assigned_helper_id) === String(user.id))) && <PaymentReauthorizationBanner jobId={id} job={job} onResolved={() => fetchJob(id)} />}
           <JobPaymentLayersPanel job={job} isOwner={isOwner} isAssignedHelper={isAssignedHelper} onChanged={() => fetchJob(id)} />

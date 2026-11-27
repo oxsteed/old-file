@@ -385,6 +385,67 @@ exports.createConversation = async (req, res) => {
     if (!validPriorities.has(normalizedPriority)) {
       return sendValidationError(res, { priority: 'Invalid priority' });
     }
+
+    // G1-B7: booking-linked support. A customer filing from a booking or
+    // job detail may pass job_id / booking_id. Both are validated against
+    // the caller's own records and fail closed (403) when the id is not
+    // theirs; a malformed id is a 400. The linkage is stored on the
+    // conversation's channel_metadata JSONB (migration 403), so no new
+    // column and no new migration is needed. The missing side is derived:
+    // a job resolves its booking via booking_requests.converted_to_job_id
+    // and a booking resolves its job the same way, each side re-checked
+    // for ownership before it is attached.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const rawJobId = req.body?.job_id ?? req.body?.jobId ?? null;
+    const rawBookingId = req.body?.booking_id ?? req.body?.bookingId ?? null;
+    if (rawJobId != null && !UUID_RE.test(String(rawJobId))) {
+      return sendValidationError(res, { jobId: 'Must be a valid UUID' });
+    }
+    if (rawBookingId != null && !UUID_RE.test(String(rawBookingId))) {
+      return sendValidationError(res, { bookingId: 'Must be a valid UUID' });
+    }
+    let linkedJobId = rawJobId ? String(rawJobId) : null;
+    let linkedBookingId = rawBookingId ? String(rawBookingId) : null;
+    if (linkedBookingId) {
+      const { rows: bookingRows } = await pool.query(
+        `SELECT id, customer_id, booked_by_user_id, converted_to_job_id
+           FROM booking_requests WHERE id = $1`,
+        [linkedBookingId]
+      );
+      const booking = bookingRows[0];
+      if (!booking || (String(booking.customer_id) !== String(customerId)
+          && String(booking.booked_by_user_id || '') !== String(customerId))) {
+        return sendError(res, 403, 'Access denied');
+      }
+      if (!linkedJobId && booking.converted_to_job_id) linkedJobId = String(booking.converted_to_job_id);
+    }
+    if (linkedJobId) {
+      const { rows: jobRows } = await pool.query(
+        `SELECT id, client_id, assigned_helper_id FROM jobs
+          WHERE id = $1 AND deleted_at IS NULL`,
+        [linkedJobId]
+      );
+      const job = jobRows[0];
+      if (!job || (String(job.client_id) !== String(customerId)
+          && String(job.assigned_helper_id || '') !== String(customerId))) {
+        return sendError(res, 403, 'Access denied');
+      }
+      if (!linkedBookingId) {
+        const { rows: derivedRows } = await pool.query(
+          `SELECT id, customer_id, booked_by_user_id FROM booking_requests
+            WHERE converted_to_job_id = $1 LIMIT 1`,
+          [linkedJobId]
+        );
+        const derived = derivedRows[0];
+        if (derived && (String(derived.customer_id) === String(customerId)
+            || String(derived.booked_by_user_id || '') === String(customerId))) {
+          linkedBookingId = String(derived.id);
+        }
+      }
+    }
+    const linkedMetadata = {};
+    if (linkedJobId) linkedMetadata.job_id = linkedJobId;
+    if (linkedBookingId) linkedMetadata.booking_id = linkedBookingId;
     if (visitorEmail != null && (String(visitorEmail).trim().length > 255 || !normalizedVisitorEmail || !/^\S+@\S+\.\S+$/.test(normalizedVisitorEmail))) {
       return sendValidationError(res, { visitorEmail: 'Must be a valid email address' });
     }
@@ -396,15 +457,15 @@ exports.createConversation = async (req, res) => {
     // customer and admin surfaces read these same tables.
     const conversationQuery = clientRequestId ? `
       INSERT INTO support_conversations (
-        customer_id, business_id, subject, description, category, priority, status, access_request_id, created_at, client_request_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, 'open', $7, NOW(), $8)
+        customer_id, business_id, subject, description, category, priority, status, access_request_id, created_at, client_request_id, channel_metadata
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'open', $7, NOW(), $8, $9::jsonb)
       ON CONFLICT (client_request_id)
       WHERE client_request_id IS NOT NULL DO NOTHING
       RETURNING id, created_at, status, agent_id
     ` : `
       INSERT INTO support_conversations (
-        customer_id, business_id, subject, description, category, priority, status, access_request_id, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, 'open', $7, NOW())
+        customer_id, business_id, subject, description, category, priority, status, access_request_id, created_at, channel_metadata
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'open', $7, NOW(), $8::jsonb)
       RETURNING id, created_at
     `;
 
@@ -440,6 +501,7 @@ exports.createConversation = async (req, res) => {
         normalizedPriority,
         ownedAccessRequestId,
         ...(clientRequestId ? [clientRequestId] : []),
+        JSON.stringify(linkedMetadata),
       ]);
 
       if (!conversationResult.rows[0] && clientRequestId) {
@@ -487,6 +549,8 @@ exports.createConversation = async (req, res) => {
         routedTo: createdConversation.agent_id ? 'agent' : 'queue',
         resumed: true,
         idempotent: true,
+        ...(linkedJobId ? { jobId: linkedJobId } : {}),
+        ...(linkedBookingId ? { bookingId: linkedBookingId } : {}),
       });
     }
 
@@ -504,6 +568,8 @@ exports.createConversation = async (req, res) => {
       ticketId,
       routedTo: routing.routedTo,
       confidence: routing.confidence,
+      ...(linkedJobId ? { jobId: linkedJobId } : {}),
+      ...(linkedBookingId ? { bookingId: linkedBookingId } : {}),
     };
 
     // If routed to agent, assign immediately

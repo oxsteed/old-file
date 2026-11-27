@@ -431,6 +431,13 @@ router.post('/conversations', conversationMessageLimiter, async (req, res, next)
 });
 
 router.get('/conversations/:conversationId', supportConversationsController.getConversation);
+
+// G1-B7 / D-15: the same redacted booking read admins use, for the
+// platform's own support agents (non-admin). The controller gates to
+// admin/super_admin + active platform support agent; this route is
+// authenticated (router.use(requireAuth)) but NOT admin-only, so the
+// support workspace can open the booking linked to a conversation.
+router.get('/bookings/:bookingId', supportTicketController.getSupportBooking);
 router.get('/conversations/:conversationId/lifecycle', supportConversationsController.getConversationLifecycle);
 router.get('/conversations/:conversationId/customer-360', supportConversationsController.getCustomer360);
 router.get('/conversations/:conversationId/download', supportConversationsController.downloadConversation);

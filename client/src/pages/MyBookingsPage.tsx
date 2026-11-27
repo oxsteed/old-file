@@ -21,6 +21,7 @@ import InvoiceModal from '../components/InvoiceModal';
 import TermsAcceptanceModal from '../components/TermsAcceptanceModal';
 import UserReportModal from '../components/UserReportModal';
 import './MyBookingsPage.css';
+import { buildBookingSupportHandoff } from '../components/helperProfile/chat/supportEscalationHandoff';
 // Groups 5-6 item 225: customer service-issue reports on business visits.
 import MyBusinessVisits from '../components/businessHub/g56/MyBusinessVisits';
 import MyFormerWorkplaces from '../components/businessHub/g56/MyFormerWorkplaces';
@@ -1461,6 +1462,14 @@ const MyBookingsPageContent = () => {
               {t('booking.viewCalendar')}
             </Link>
           )}
+          {/* G1-B7: booking-linked support. The server validates the booking
+              (and the converted job, when there is one) against the caller. */}
+          <Link
+            to={buildBookingSupportHandoff({ bookingId: b.id, jobId: typeof b.convertedToJobId === 'string' ? b.convertedToJobId : null, bookingLabel: b.serviceName, returnTo: '/my-bookings' })}
+            className="booking-action-btn booking-action-invoice"
+          >
+            {t('booking.getHelp')}
+          </Link>
           {canConvert && (
             <button
               onClick={() => handleConvertHelperBookingToJob(b.id)}
