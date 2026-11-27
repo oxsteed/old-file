@@ -134,3 +134,32 @@ export function acceptedExpiryDaysLeft(job, now = Date.now()) {
   const elapsedDays = (now - acceptedMs) / 86_400_000;
   return Math.max(0, Math.ceil(ACCEPTED_JOB_EXPIRY_DAYS - elapsedDays));
 }
+
+// G1-A3 (item 24): warranty summary for a job. The page already fetches
+// GET /work-agreements/by-job/:jobId for parties of an assigned job and
+// stores the agreement row in agreementInfo; this shapes it for the card.
+// An agreement carries its own warranty_months / warranty_terms /
+// reimbursement_terms (migration 697, DEFAULT 6 months). With no agreement
+// the OxSteed platform warranty applies: 6 months, Emile's figure from his
+// work-agreement vision, with claims routed to support. Returns null when
+// the fetch has not resolved (agreementInfo null), so the card never
+// renders on a failed or pending read, and never for a viewer who is not
+// a party (the endpoint returns hasAgreement:false to non-parties and the
+// page only fetches for owner/assigned helper).
+export const PLATFORM_WARRANTY_MONTHS = 6;
+export function buildJobWarranty(agreementInfo) {
+  if (!agreementInfo || typeof agreementInfo !== 'object') return null;
+  if (agreementInfo.id) {
+    const months = Number(agreementInfo.warrantyMonths);
+    return {
+      source: 'agreement',
+      agreementId: agreementInfo.id,
+      months: Number.isFinite(months) && months >= 0 ? months : PLATFORM_WARRANTY_MONTHS,
+      terms: typeof agreementInfo.warrantyTerms === 'string' && agreementInfo.warrantyTerms.trim() !== ''
+        ? agreementInfo.warrantyTerms : null,
+      reimbursementTerms: typeof agreementInfo.reimbursementTerms === 'string' && agreementInfo.reimbursementTerms.trim() !== ''
+        ? agreementInfo.reimbursementTerms : null,
+    };
+  }
+  return { source: 'platform_default', agreementId: null, months: PLATFORM_WARRANTY_MONTHS, terms: null, reimbursementTerms: null };
+}

@@ -2520,6 +2520,14 @@
     "timelineStarted": "Travay la kòmanse",
     "timelineCompleted": "Fini",
     "timelineCancelled": "Anile",
+    "warrantyTitle": "Garanti",
+    "warrantyMonths": "Garanti (mwa)",
+    "warrantyTerms": "Tèm garanti yo",
+    "warrantyReimbursement": "Tèm ranbousman yo",
+    "warrantyNoTerms": "Pa gen tèm garanti ekri ki te ajoute.",
+    "warrantyPlatformDefault": "Pa gen akò travay ki te siyen pou travay sa a, kidonk garanti platfòm OxSteed la aplike.",
+    "warrantyPlatformNote": "OxSteed anrejistre reklamasyon an. Pati yo regle li ant yo.",
+    "warrantyFileClaim": "Depoze yon reklamasyon garanti",
     "imagePosition": "Imaj {{current}} sou {{total}}"
   },
   "jobEdit": {

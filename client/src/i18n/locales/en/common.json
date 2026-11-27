@@ -2520,6 +2520,14 @@
     "timelineStarted": "Work started",
     "timelineCompleted": "Completed",
     "timelineCancelled": "Cancelled",
+    "warrantyTitle": "Warranty",
+    "warrantyMonths": "Warranty (months)",
+    "warrantyTerms": "Warranty terms",
+    "warrantyReimbursement": "Reimbursement terms",
+    "warrantyNoTerms": "No written warranty terms were added.",
+    "warrantyPlatformDefault": "No work agreement was signed for this job, so the OxSteed platform warranty applies.",
+    "warrantyPlatformNote": "OxSteed records the claim. The parties resolve it between themselves.",
+    "warrantyFileClaim": "File a warranty claim",
     "imagePosition": "Image {{current}} of {{total}}"
   },
   "jobEdit": {

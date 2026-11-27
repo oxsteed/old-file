@@ -2520,6 +2520,14 @@
     "timelineStarted": "بدأ العمل",
     "timelineCompleted": "مكتملة",
     "timelineCancelled": "ملغاة",
+    "warrantyTitle": "الضمان",
+    "warrantyMonths": "الضمان (بالأشهر)",
+    "warrantyTerms": "شروط الضمان",
+    "warrantyReimbursement": "شروط الاسترداد",
+    "warrantyNoTerms": "لم تتم إضافة شروط ضمان مكتوبة.",
+    "warrantyPlatformDefault": "لم يتم توقيع اتفاقية عمل لهذه المهمة، لذا تسري ضمانة منصة OxSteed.",
+    "warrantyPlatformNote": "تسجّل OxSteed المطالبة. ويقوم الطرفان بحلّها بينهما.",
+    "warrantyFileClaim": "تقديم مطالبة ضمان",
     "imagePosition": "الصورة {{current}} من {{total}}"
   },
   "jobEdit": {

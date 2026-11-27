@@ -2520,6 +2520,14 @@
     "timelineStarted": "Travail commencé",
     "timelineCompleted": "Terminée",
     "timelineCancelled": "Annulée",
+    "warrantyTitle": "Garantie",
+    "warrantyMonths": "Garantie (mois)",
+    "warrantyTerms": "Conditions de garantie",
+    "warrantyReimbursement": "Conditions de remboursement",
+    "warrantyNoTerms": "Aucune condition de garantie écrite n'a été ajoutée.",
+    "warrantyPlatformDefault": "Aucun accord de travail n'a été signé pour cette tâche, la garantie de la plateforme OxSteed s'applique donc.",
+    "warrantyPlatformNote": "OxSteed enregistre la réclamation. Les parties la règlent entre elles.",
+    "warrantyFileClaim": "Déposer une réclamation de garantie",
     "imagePosition": "Image {{current}} sur {{total}}"
   },
   "jobEdit": {

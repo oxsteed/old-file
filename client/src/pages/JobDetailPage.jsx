@@ -28,7 +28,7 @@ import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
 import JobImageViewer from '../components/JobImageViewer';
 import { useJobDetailBids } from '../hooks/useJobDetailBids';
-import { JOB_STATUS_KEYS, buildJobTimeline, jobDetailView, jobList, jobMediaType, matchingHelpersPath, samePartyId } from '../utils/jobDetailModel';
+import { JOB_STATUS_KEYS, buildJobTimeline, buildJobWarranty, jobDetailView, jobList, jobMediaType, matchingHelpersPath, samePartyId } from '../utils/jobDetailModel';
 import { bidNeedingReconfirm, canEditJob } from '../utils/jobEditModel';
 import PaymentReauthorizationBanner from '../components/PaymentReauthorizationBanner';
 import JobPaymentLayersPanel from '../components/paymentLayers/JobPaymentLayersPanel';
@@ -331,7 +331,9 @@ function JobDetailContent() {
           if (!current) return;
           const a = r.data?.agreement;
           const mine = r.data?.myRole && (r.data?.signatures || []).some((sig) => sig.signer_role === r.data.myRole);
-          setAgreementInfo(a ? { id: a.id, status: a.status, needsMySignature: a.status === 'pending_signatures' && !mine } : { id: null });
+          // G1-A3: carry the agreement's warranty fields for the summary
+          // card; without an agreement the card shows the platform default.
+          setAgreementInfo(a ? { id: a.id, status: a.status, needsMySignature: a.status === 'pending_signatures' && !mine, warrantyMonths: a.warranty_months, warrantyTerms: a.warranty_terms, reimbursementTerms: a.reimbursement_terms } : { id: null });
         })
         .catch(() => { if (current) setAgreementInfo(null); });
     }
@@ -671,6 +673,10 @@ function JobDetailContent() {
   // payload already carries plus the earliest visible bid. Events that
   // have not happened yet are omitted, never fabricated.
   const timeline = buildJobTimeline(job, visibleBids);
+  // G1-A3: warranty summary from the by-job agreement fetch. Null until
+  // the fetch resolves and for viewers who are not a party, so the card
+  // below never renders for strangers or on a failed read.
+  const warranty = buildJobWarranty(agreementInfo);
   const timelineLabels = {
     posted: t('jobDetail.timelinePosted'),
     bidsReceived: t('jobDetail.timelineBidsReceived'),
@@ -883,6 +889,31 @@ function JobDetailContent() {
             <p className="jd-aftercare-text">{job.private_notes}</p>
             <p className="jd-aftercare-hint">{t('jobDetail.privateNotesOnlyYou')}</p>
             {canEditJob(job, user) && <Link className="jdp-btn-ghost" to={`/jobs/${id}/edit`}>{t('jobDetail.privateNotesEdit')}</Link>}
+          </div>}
+          {/* G1-A3: warranty summary. Agreement terms when one exists (the
+              View agreement link already sits in the actions above; filing
+              happens on the agreement page), the 6-month platform default
+              when none does, with the claim routed to support through the
+              booking-linked Get help flow. */}
+          {warranty && <div className="jdp-card" role="region" aria-label={t('jobDetail.warrantyTitle')}>
+            <h3>{t('jobDetail.warrantyTitle')}</h3>
+            <p><strong>{t('jobDetail.warrantyMonths')}:</strong>{' '}<span dir="ltr">{warranty.months}</span></p>
+            {warranty.source === 'agreement' ? (<>
+              {warranty.terms
+                ? <p><strong>{t('jobDetail.warrantyTerms')}:</strong>{' '}{warranty.terms}</p>
+                : <p className="jd-aftercare-hint">{t('jobDetail.warrantyNoTerms')}</p>}
+              {warranty.reimbursementTerms && <p><strong>{t('jobDetail.warrantyReimbursement')}:</strong>{' '}{warranty.reimbursementTerms}</p>}
+              <p className="jd-aftercare-hint">{t('jobDetail.warrantyPlatformNote')}</p>
+              <div className="jdp-modal-actions">
+                <Link className="jdp-btn-primary" to={`/agreements/${warranty.agreementId}`}>{t('jobDetail.warrantyFileClaim')}</Link>
+              </div>
+            </>) : (<>
+              <p>{t('jobDetail.warrantyPlatformDefault')}</p>
+              <p className="jd-aftercare-hint">{t('jobDetail.warrantyPlatformNote')}</p>
+              <div className="jdp-modal-actions">
+                <button type="button" className="jdp-btn-ghost" onClick={() => navigate(buildBookingSupportHandoff({ jobId: id, bookingLabel: job.title || null, returnTo: `/jobs/${id}` }))} data-track="ui.573dfef74b.34">{t('jobDetail.getHelp')}</button>
+              </div>
+            </>)}
           </div>}
           {/* D-451 (270, G5-4): the assigned helper confirms attendance; the
               exact address stays hidden until this stamp exists. */}
