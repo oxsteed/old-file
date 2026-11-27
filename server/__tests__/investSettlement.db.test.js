@@ -479,6 +479,26 @@ describeDatabase('invest settlement', () => {
     const reconciliation = await reconcileInvestments({ opportunityId: opportunity.id });
     expect(reconciliation.ok).toBe(true);
     expect(reconciliation.differences).toEqual([]);
+    // N15 (D-744): the money legs notify. The investor hears the close
+    // and the distribution; the entity owner hears the proceeds release.
+    const { rows: investorNotices } = await pool.query(
+      `SELECT type, title, body, action_url FROM notifications WHERE user_id = $1 AND type LIKE 'invest_%' ORDER BY created_at ASC`,
+      [userId],
+    );
+    expect(investorNotices.map((row) => row.type)).toEqual(['invest_raise_closed', 'invest_distribution_paid']);
+    expect(investorNotices[0].title).toBe('Raise closed');
+    expect(investorNotices[0].body).toContain('$100.00');
+    expect(investorNotices[0].action_url).toBe('/invest/my-investments');
+    expect(investorNotices[1].title).toBe('Distribution paid');
+    expect(investorNotices[1].body).toContain('$15.00');
+    const { rows: entityNotices } = await pool.query(
+      `SELECT type, title, body, action_url FROM notifications WHERE user_id = $1 AND type = 'invest_proceeds_released'`,
+      [entityOwnerId],
+    );
+    expect(entityNotices).toHaveLength(1);
+    expect(entityNotices[0].title).toBe('Proceeds released');
+    expect(entityNotices[0].body).toContain('$100.00');
+    expect(entityNotices[0].action_url).toBe('/investments');
   });
 
   test('fail-close releases reservations to the original lots and marks the opportunity unsuccessful', async () => {

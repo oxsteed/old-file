@@ -50,6 +50,7 @@ const { reserveFunds, releaseReservation } = require('../oxsteedCreditReservatio
 const { allocateEligibleLots, createLot } = require('./creditLots');
 const { appendEntry } = require('./investmentSubledger');
 const { requireInvestEnabled, requireInvestCommitmentsEnabled } = require('./flags');
+const { notifyInvestor, moneyText } = require('./investNotifications');
 
 function fail(message, code, status = 400) {
   throw new AppError(message, status, code);
@@ -647,7 +648,11 @@ async function closeOpportunity(input, dbPool = pool) {
   const { opportunityId, executorUserId } = input || {};
   if (!opportunityId || !executorUserId) fail('opportunityId and executorUserId are required to close', 'invest_close_actor_required');
   requireInvestCommitmentsEnabled(executorUserId);
-  return withTransaction(dbPool, async (client) => {
+  // N15 (D-744): the excluded commitments' notice rows are captured here
+  // and notified after the close commits (below); the notice leg must
+  // never run inside the money transaction.
+  let excludedForNotice = [];
+  const result = await withTransaction(dbPool, async (client) => {
     await assertCreditRailEnabled(client);
     const opportunity = await lockOpportunity(client, opportunityId);
     if (!['published', 'closing'].includes(opportunity.status)) {
@@ -872,6 +877,12 @@ async function closeOpportunity(input, dbPool = pool) {
       [opportunityId],
     );
 
+    excludedForNotice = excludedCommitments.map((row) => ({
+      userId: String(row.user_id),
+      amountCents: Number(row.amount_cents || 0),
+      currencyCode: row.currency_code,
+      commitmentId: String(row.id),
+    }));
     return {
       opportunityId: String(opportunityId),
       status: 'closed',
@@ -882,6 +893,30 @@ async function closeOpportunity(input, dbPool = pool) {
       excludedCents: excludedCommitments.reduce((sum, row) => sum + Number(row.amount_cents || 0), 0),
     };
   }, 'invest_close_opportunity');
+  // N15 (D-744): the close committed, so the money moved — now the
+  // investors hear it. A notice failure is recorded by the helper and
+  // never fails the close.
+  for (const position of result.positions || []) {
+    await notifyInvestor({
+      userId: position.userId,
+      type: 'invest_raise_closed',
+      body: `Your investment of ${moneyText(position.amountCents, position.currencyCode)} closed. Your Credit was debited and your position was created.`,
+      data: { opportunityId: String(opportunityId), positionId: position.id, commitmentId: position.commitmentId, amountCents: position.amountCents },
+      actionUrl: '/invest/my-investments',
+      idempotencyKey: `invest-raise-closed:${opportunityId}:${position.id}`,
+    });
+  }
+  for (const excluded of excludedForNotice) {
+    await notifyInvestor({
+      userId: excluded.userId,
+      type: 'invest_commitment_excluded',
+      body: `Your commitment of ${moneyText(excluded.amountCents, excluded.currencyCode)} was excluded from the closing because it was not reconfirmed against the current agreement version. It stays reserved.`,
+      data: { opportunityId: String(opportunityId), commitmentId: excluded.commitmentId, amountCents: excluded.amountCents },
+      actionUrl: '/invest/my-investments',
+      idempotencyKey: `invest-commitment-excluded:${opportunityId}:${excluded.commitmentId}`,
+    });
+  }
+  return result;
 }
 
 /**
@@ -895,7 +930,9 @@ async function releaseProceeds(input, dbPool = pool) {
   // The live commitment gate is enforced here in the service, not only
   // at the route: a direct service caller cannot release past it.
   requireInvestCommitmentsEnabled(releasedBy);
-  return withTransaction(dbPool, async (client) => {
+  // N15 (D-744): captured for the post-commit notice (below).
+  let releaseNotice = null;
+  const released = await withTransaction(dbPool, async (client) => {
     await assertCreditRailEnabled(client);
     const opportunity = await lockOpportunity(client, opportunityId);
     if (String(opportunity.created_by) === String(releasedBy)) {
@@ -951,6 +988,12 @@ async function releaseProceeds(input, dbPool = pool) {
       referenceId: String(proceeds.id),
       idempotencyKey: `invest-proceeds:${proceeds.id}:released`,
     });
+    releaseNotice = {
+      userId: String(opportunity.created_by),
+      proceedsId: String(updated[0].id),
+      amountCents: amount,
+      currencyCode: proceeds.currency_code,
+    };
     return {
       proceedsId: String(updated[0].id),
       opportunityId: String(opportunityId),
@@ -959,6 +1002,19 @@ async function releaseProceeds(input, dbPool = pool) {
       releasedAt: updated[0].released_at || null,
     };
   }, 'invest_release_proceeds');
+  // N15 (D-744): the proceeds released — the entity representative hears
+  // it. The notice never fails the release.
+  if (releaseNotice) {
+    await notifyInvestor({
+      userId: releaseNotice.userId,
+      type: 'invest_proceeds_released',
+      body: `Proceeds of ${moneyText(releaseNotice.amountCents, releaseNotice.currencyCode)} were released for your opportunity.`,
+      data: { opportunityId: String(opportunityId), proceedsId: releaseNotice.proceedsId, amountCents: releaseNotice.amountCents },
+      actionUrl: '/investments',
+      idempotencyKey: `invest-proceeds-released:${releaseNotice.proceedsId}`,
+    });
+  }
+  return released;
 }
 
 /**
@@ -989,7 +1045,7 @@ async function recordDistribution(input, dbPool = pool) {
   requireInvestCommitmentsEnabled(actorUserId || userId);
   const key = String(idempotencyKey).slice(0, 160);
 
-  return withTransaction(dbPool, async (client) => {
+  const outcome = await withTransaction(dbPool, async (client) => {
     const { rows: existing } = await client.query(
       `SELECT * FROM investment_distributions WHERE idempotency_key = $1`, [key],
     );
@@ -1091,6 +1147,19 @@ async function recordDistribution(input, dbPool = pool) {
     });
     return { distribution: distributionRows[0], lot, replayed: false };
   }, 'invest_record_distribution');
+  // N15 (D-744): a replay is the same distribution re-requested, so it
+  // must not re-notify. A fresh credit notifies the investor once.
+  if (!outcome.replayed) {
+    await notifyInvestor({
+      userId,
+      type: 'invest_distribution_paid',
+      body: `A distribution of ${moneyText(amount, currencyCode)} was credited to your OxSteed Credit balance.`,
+      data: { opportunityId: String(opportunityId), positionId: String(positionId), distributionId: String(outcome.distribution.id), amountCents: amount },
+      actionUrl: '/invest/my-investments',
+      idempotencyKey: `invest-distribution-paid:${key}`,
+    });
+  }
+  return outcome;
 }
 
 // ── R-1: distribution proceeds cap ────────────────────────────────────

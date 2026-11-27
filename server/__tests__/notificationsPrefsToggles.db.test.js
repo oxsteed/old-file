@@ -643,6 +643,9 @@ ddescribe('Track C preference toggles (DB)', () => {
         // upstream, so the type already passed through the central
         // path once; the worker adds no type of its own.
         { file: 'workers/paymentWorker.js', name: 'type', expansions: [] },
+        // N15 (D-744): notifyInvestor in the Invest notice helper; the
+        // five types are the only ones its four send sites pass.
+        { file: 'services/invest/investNotifications.js', name: 'type', expansions: ['invest_distribution_paid', 'invest_proceeds_released', 'invest_raise_closed', 'invest_commitment_excluded', 'invest_amendment_reconfirmation_requested'] },
       ];
 
       // Spread sites: sendNotification(payload) with the payload built
@@ -1046,6 +1049,39 @@ ddescribe('Track C preference toggles (DB)', () => {
         const result = await sendNotification({
           userId: user.id, type, body, data: {}, action_url: actionUrl,
           idempotencyKey: `r9-real-send-${type}-${user.id}`,
+        });
+        expect(result.success).toBe(true);
+      }
+      const { rows } = await pool.query(
+        `SELECT type, title, body, action_url FROM notifications WHERE user_id = $1 ORDER BY created_at ASC`,
+        [user.id],
+      );
+      expect(rows.map((row) => row.type)).toEqual(sends.map(([t]) => t));
+      const byType = new Map(rows.map((row) => [row.type, row]));
+      for (const [type, title, templateBody, callerBody, actionUrl] of sends) {
+        const row = byType.get(type);
+        expect(row.title).toBe(title);
+        expect(row.body).toBe(`${templateBody} ${callerBody}`);
+        expect(row.action_url).toBe(actionUrl);
+      }
+    });
+
+    // N15 (D-744): the 5 Invest money-event types send through the real
+    // path. They did not exist before — Invest money events notified
+    // nobody. The sends below mirror the real sites' bodies and URLs.
+    test('the 5 N15 Invest money-event types send with resolved titles, bodies and links', async () => {
+      const user = await makeUser();
+      const sends = [
+        ['invest_raise_closed', 'Raise closed', 'Your investment closed. Your Credit was debited and your position was created.', 'Your investment of $100.00 closed. Your Credit was debited and your position was created.', '/invest/my-investments'],
+        ['invest_commitment_excluded', 'Commitment excluded from closing', 'Your commitment was excluded from the closing because it was not reconfirmed against the current agreement version. It stays reserved.', 'Your commitment of $50.00 was excluded from the closing because it was not reconfirmed against the current agreement version. It stays reserved.', '/invest/my-investments'],
+        ['invest_proceeds_released', 'Proceeds released', 'The proceeds for your opportunity were released.', 'Proceeds of $100.00 were released for your opportunity.', '/investments'],
+        ['invest_distribution_paid', 'Distribution paid', 'A distribution was credited to your OxSteed Credit balance.', 'A distribution of $10.00 was credited to your OxSteed Credit balance.', '/invest/my-investments'],
+        ['invest_amendment_reconfirmation_requested', 'Reconfirmation requested', 'An amendment was proposed for an opportunity you invested in. Review it and reconfirm before the deadline.', 'An amendment was proposed for an opportunity you invested in. Review it and reconfirm before 2027-01-15.', '/invest/my-investments'],
+      ];
+      for (const [type, , , body, actionUrl] of sends) {
+        const result = await sendNotification({
+          userId: user.id, type, body, data: {}, action_url: actionUrl,
+          idempotencyKey: `n15-real-send-${type}-${user.id}`,
         });
         expect(result.success).toBe(true);
       }

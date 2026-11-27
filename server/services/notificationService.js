@@ -505,6 +505,11 @@ exports.sendNotification = async ({
       // Notifications audit item 20: cash-out settlement mail (paid/failed)
       // never sent because neither type was in this allow-list.
       'credit_cashout_failed', 'credit_cashout_paid',
+      // N15 (D-744): Invest money events email like the cash-out
+      // settlements — in-app always, email when the recipient allows it
+      // (non-transactional: respects the email toggle).
+      'invest_distribution_paid', 'invest_proceeds_released', 'invest_raise_closed',
+      'invest_commitment_excluded', 'invest_amendment_reconfirmation_requested',
       'credit_identity_verification_requested', 'credit_identity_verification_approved',
       'credit_identity_verification_rejected', 'credit_sanctions_review_required',
       'credit_sanctions_cleared', 'credit_sanctions_confirmed',

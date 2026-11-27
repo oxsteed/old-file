@@ -454,6 +454,89 @@ const T = {
       ar: 'راجع نشاط OxSteed Credit الخاص بك.',
     },
   },
+  // N15 (D-744): Invest money-event notices. The caller body appends
+  // after these template bodies (amounts, deadlines), so the templates
+  // stay generic with no placeholders.
+  invest_distribution_paid: {
+    title: {
+      en: 'Distribution paid',
+      fr: 'Distribution versée',
+      es: 'Distribución pagada',
+      ht: 'Distribisyon peye',
+      ar: 'تم دفع التوزيعات',
+    },
+    body: {
+      en: 'A distribution was credited to your OxSteed Credit balance.',
+      fr: 'Une distribution a été créditée sur votre solde OxSteed Credit.',
+      es: 'Se acreditó una distribución a tu saldo de OxSteed Credit.',
+      ht: 'Yo kredite yon distribisyon nan balans OxSteed Credit ou.',
+      ar: 'تمت إضافة توزيعات إلى رصيد OxSteed Credit الخاص بك.',
+    },
+  },
+  invest_proceeds_released: {
+    title: {
+      en: 'Proceeds released',
+      fr: 'Fonds libérés',
+      es: 'Fondos liberados',
+      ht: 'Lajan yo libere',
+      ar: 'تم تحرير العائدات',
+    },
+    body: {
+      en: 'The proceeds for your opportunity were released.',
+      fr: 'Les fonds de votre opportunité ont été libérés.',
+      es: 'Se liberaron los fondos de tu oportunidad.',
+      ht: 'Yo libere lajan opòtinite ou.',
+      ar: 'تم تحرير عائدات فرصتك.',
+    },
+  },
+  invest_raise_closed: {
+    title: {
+      en: 'Raise closed',
+      fr: 'Levée clôturée',
+      es: 'Ronda cerrada',
+      ht: 'Leve a fèmen',
+      ar: 'تم إغلاق الجولة',
+    },
+    body: {
+      en: 'Your investment closed. Your Credit was debited and your position was created.',
+      fr: 'Votre investissement est clôturé. Votre Crédit a été débité et votre position créée.',
+      es: 'Tu inversión se cerró. Se debitó tu Crédito y se creó tu posición.',
+      ht: 'Envestisman ou fèmen. Yo debite Kredi ou epi yo kreye pozisyon ou.',
+      ar: 'تم إغلاق استثمارك. تم خصم رصيدك وإنشاء مركزك.',
+    },
+  },
+  invest_commitment_excluded: {
+    title: {
+      en: 'Commitment excluded from closing',
+      fr: 'Engagement exclu de la clôture',
+      es: 'Compromiso excluido del cierre',
+      ht: 'Angajman eskli nan fèmti a',
+      ar: 'تم استبعاد الالتزام من الإغلاق',
+    },
+    body: {
+      en: 'Your commitment was excluded from the closing because it was not reconfirmed against the current agreement version. It stays reserved.',
+      fr: 'Votre engagement a été exclu de la clôture car il n’a pas été reconfirmé sur la version actuelle de l’accord. Il reste réservé.',
+      es: 'Tu compromiso quedó excluido del cierre porque no lo reconfirmaste con la versión vigente del acuerdo. Sigue reservado.',
+      ht: 'Yo eskli angajman ou nan fèmti a paske ou pa t rekonfime l sou vèsyon aktyèl akò a. Li rete rezève.',
+      ar: 'تم استبعاد التزامك من الإغلاق لأنه لم تتم إعادة تأكيده وفق النسخة الحالية من الاتفاقية. ويبقى محجوزًا.',
+    },
+  },
+  invest_amendment_reconfirmation_requested: {
+    title: {
+      en: 'Reconfirmation requested',
+      fr: 'Reconfirmation demandée',
+      es: 'Reconfirmación solicitada',
+      ht: 'Yo mande rekonfimasyon',
+      ar: 'تم طلب إعادة التأكيد',
+    },
+    body: {
+      en: 'An amendment was proposed for an opportunity you invested in. Review it and reconfirm before the deadline.',
+      fr: 'Une modification a été proposée pour une opportunité dans laquelle vous avez investi. Relisez-la et reconfirmez avant la date limite.',
+      es: 'Se propuso una modificación para una oportunidad en la que invertiste. Revísala y reconfírmala antes de la fecha límite.',
+      ht: 'Yo pwopoze yon modifikasyon pou yon opòtinite ou te envesti ladan l. Revize l epi rekonfime anvan dat limit la.',
+      ar: 'تم اقتراح تعديل على فرصة استثمرت فيها. راجعه وأعد تأكيده قبل الموعد النهائي.',
+    },
+  },
   credit_identity_verification_requested: {
     title: { en: 'Identity review requested', es: 'Solicitud de revisión de identidad', fr: 'Demande de vérification d’identité', ht: 'Demann verifikasyon idantite', ar: 'تم طلب مراجعة الهوية' },
     body: { en: 'Your identity review request is in the compliance queue.', es: 'Tu solicitud de revisión de identidad está en la cola de cumplimiento.', fr: 'Votre demande de vérification d’identité est dans la file de conformité.', ht: 'Demann verifikasyon idantite ou nan ke konformite a.', ar: 'طلب مراجعة هويتك في قائمة الامتثال.' },
@@ -3090,6 +3173,42 @@ const EMAIL_TEMPLATES = {
       es: 'Ver encargo',
       ht: 'Gade angajman an',
       ar: 'عرض المهمة',
+    },
+    // N15 (D-744): Invest money-event buttons.
+    invest_distribution_paid: {
+      en: 'View Investments',
+      fr: 'Voir les investissements',
+      es: 'Ver inversiones',
+      ht: 'Gade envestisman yo',
+      ar: 'عرض الاستثمارات',
+    },
+    invest_proceeds_released: {
+      en: 'View Investments',
+      fr: 'Voir les investissements',
+      es: 'Ver inversiones',
+      ht: 'Gade envestisman yo',
+      ar: 'عرض الاستثمارات',
+    },
+    invest_raise_closed: {
+      en: 'View Investments',
+      fr: 'Voir les investissements',
+      es: 'Ver inversiones',
+      ht: 'Gade envestisman yo',
+      ar: 'عرض الاستثمارات',
+    },
+    invest_commitment_excluded: {
+      en: 'View Investments',
+      fr: 'Voir les investissements',
+      es: 'Ver inversiones',
+      ht: 'Gade envestisman yo',
+      ar: 'عرض الاستثمارات',
+    },
+    invest_amendment_reconfirmation_requested: {
+      en: 'Review Amendment',
+      fr: 'Revoir la modification',
+      es: 'Revisar modificación',
+      ht: 'Revize modifikasyon an',
+      ar: 'مراجعة التعديل',
     },
     // G10-1: consultant payout leg.
     consultant_payout_paid: {

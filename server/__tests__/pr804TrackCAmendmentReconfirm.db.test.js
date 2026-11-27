@@ -272,6 +272,26 @@ describe('R-5 amendment reconfirmation fail-closed', () => {
     await pool.end();
   });
 
+  // N15 (D-744): proposing the amendment in beforeAll notified every
+  // investor with a live stake — the reconfirmation request. The review
+  // queue below confirms the same two investors (A and B) hold the live
+  // stake; investor C has no application or commitment yet at proposal
+  // time, so C gets no request.
+  test('proposing the amendment notifies every investor with a live stake', async () => {
+    const { rows } = await pool.query(
+      `SELECT user_id, title, body, action_url FROM notifications
+        WHERE type = 'invest_amendment_reconfirmation_requested' AND data->>'opportunityId' = $1
+        ORDER BY user_id`,
+      [opportunityId],
+    );
+    expect(rows.map((row) => row.user_id).sort()).toEqual([investorAId, investorBId].sort());
+    for (const row of rows) {
+      expect(row.title).toBe('Reconfirmation requested');
+      expect(row.body).toContain('2027-01-01');
+      expect(row.action_url).toBe('/invest/my-investments');
+    }
+  });
+
   test('the review queue names exactly who has not reconfirmed', async () => {
     const state = await amendmentReconfirmationState(pool, {
       opportunity_id: opportunityId,

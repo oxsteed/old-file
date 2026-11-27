@@ -329,6 +329,12 @@ const NOTIFICATION_TYPES = [
   { type: 'restaurant_temperature_breach', group: 'restaurant' },
   { type: 'credit_cashout_failed', group: 'credit' },
   { type: 'credit_cashout_paid', group: 'credit' },
+  // N15 (D-744): Invest money-event notices.
+  { type: 'invest_distribution_paid', group: 'credit' },
+  { type: 'invest_proceeds_released', group: 'credit' },
+  { type: 'invest_raise_closed', group: 'credit' },
+  { type: 'invest_commitment_excluded', group: 'credit' },
+  { type: 'invest_amendment_reconfirmation_requested', group: 'credit' },
   { type: 'credit_card_frozen', group: 'credit' },
   { type: 'credit_card_revoked', group: 'credit' },
   // Group 13 (694, D-401/D-402): participant eligibility/status change.
