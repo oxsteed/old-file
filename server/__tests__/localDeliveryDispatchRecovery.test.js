@@ -107,7 +107,15 @@ function fixture(jobPatch = {}, options = {}) {
       if (q.startsWith('UPDATE delivery_returns')) { const row = db().returns.find((entry) => String(entry.id) === String(args[2])); row.status = args[0]; return rows([row]); }
       if (q.startsWith('UPDATE delivery_issues')) { const row = db().issues.find((entry) => String(entry.id) === String(args[2])); row.status = 'resolved'; row.resolution = args[0]; return rows([row]); }
       if (q.startsWith('UPDATE delivery_proofs')) return rows();
+      // S-G1 (D-641): reviewReturn completed ends the live tracking
+      // session in the same transaction. The fixture jobs hold no live
+      // tracking assignment, so the lookup finds nothing and the end is
+      // a no-op; a fixture with an active assignment would extend state.
+      if (q.startsWith('SELECT id FROM delivery_tracking_assignments')) return rows([]);
       if (q.startsWith('UPDATE delivery_tracking_assignments')) return rows([]);
+      // S-G2 (D-642): the same terminal transition ends the job's phone
+      // relays. The fixture jobs hold no relays, so nothing is ended.
+      if (q.startsWith('UPDATE delivery_phone_relays')) return rows([]);
       if (q.startsWith('SELECT captured_at, status FROM delivery_payments')) return rows([{ captured_at: new Date().toISOString(), status: 'paid' }]);
       if (q.startsWith('UPDATE delivery_jobs')) {
         const job = db().job;
