@@ -897,6 +897,27 @@ const T = {
       ar: 'إن حاجة العناية الشخصية الخاصة بك {title} ستحين غداً وستُنشر للمساعدين حينها. راجعها أو ألغِها الآن إذا تغيرت خططك.',
     },
   },
+  // Group 1, item 27 (G1-B2): the vehicle owner is reminded when an
+  // oil change or service is due or due soon. The body names the
+  // vehicle via params; the kind and status ride in data, and Car Care
+  // renders the exact derivation. One type for both kinds and both
+  // statuses: the recipient action is the same (open Car Care).
+  vehicle_service_reminder: {
+    title: {
+      en: 'Vehicle service reminder',
+      fr: 'Rappel d’entretien du véhicule',
+      es: 'Recordatorio de servicio del vehículo',
+      ht: 'Rapèl antretyen machin',
+      ar: 'تذكير بصيانة المركبة',
+    },
+    body: {
+      en: 'Your {vehicle} is due for service, or coming due soon. Open Car Care to see what is due.',
+      fr: 'Votre {vehicle} doit être entretenu, ou le devra bientôt. Ouvrez Car Care pour voir ce qui est dû.',
+      es: 'Tu {vehicle} necesita servicio, o lo necesitará pronto. Abre Car Care para ver qué se debe.',
+      ht: 'Machin ou {vehicle} bezwen antretyen, oswa li prèt pou li. Louvri Car Care pou wè sa ki dwe fèt.',
+      ar: 'مركبتك {vehicle} مستحقة للصيانة أو ستستحق قريباً. افتح Car Care لمعرفة ما هو مستحق.',
+    },
+  },
   // Group 4 Slice C (166-170): counterparty notices for the helper-quote
   // negotiation flow. Bodies stay generic (no names or amounts); the
   // job and quote ride in data with an action_url to the job page.

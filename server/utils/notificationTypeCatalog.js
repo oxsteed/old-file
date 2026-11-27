@@ -425,6 +425,10 @@ const NOTIFICATION_TYPES = [
   // G1-B3 (D-689): the customer is reminded once, the day before a
   // personal-care need activates, that it posts for helpers tomorrow.
   { type: 'planned_need_reminder', group: 'account' },
+  // G1-B2 (D-693): the vehicle owner is reminded once per
+  // vehicle+kind+status+service-anchor when an oil change or service
+  // is due or due soon (weekly sweeper).
+  { type: 'vehicle_service_reminder', group: 'account' },
   { type: 'planned_need_request', group: 'account' },
   { type: 'preferred_helper_accepted', group: 'account' },
   { type: 'preferred_helper_declined', group: 'account' },
