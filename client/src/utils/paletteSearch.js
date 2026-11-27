@@ -5,6 +5,7 @@
  * `node --test`. The registry (commandPaletteItems.js) imports these and
  * re-exports them for the lazy palette module.
  */
+import { expandSearchTerms } from './discoverTermExpansion.js';
 
 export const RECENT_STORAGE_KEY = 'oxsteed:cmdk:recent';
 const MAX_RECENT = 8;
@@ -38,20 +39,90 @@ export function fuzzyScore(query, text) {
   return qi === q.length ? score : -1;
 }
 
-/** Rank items against a query across label, keywords, and path. */
+/**
+ * Bounded Levenshtein distance between two words, bailing out as soon as
+ * the distance must exceed `max`. Keeps typo matching cheap on short
+ * palette haystacks.
+ */
+export function levenshteinBounded(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i += 1) {
+    const cur = [i];
+    let rowMin = cur[0];
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      if (cur[j] < rowMin) rowMin = cur[j];
+    }
+    if (rowMin > max) return max + 1;
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/**
+ * Typo-tolerant score: every query word must land within a small edit
+ * distance of some haystack word (1 edit for short words, 2 for longer
+ * ones). Returns -1 when any word is too far off, else a small score that
+ * grows as the matches get closer. Catches wrong or transposed letters
+ * the subsequence score misses ("plubmer" -> "plumber").
+ */
+export function typoScore(query, text) {
+  const qWords = String(query || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  const tWords = String(text || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  if (!qWords.length || !tWords.length) return -1;
+  let total = 0;
+  for (const qw of qWords) {
+    const tol = qw.length <= 4 ? 1 : 2;
+    let best = Infinity;
+    for (const tw of tWords) {
+      if (Math.abs(tw.length - qw.length) > tol) continue;
+      const d = levenshteinBounded(qw, tw, tol);
+      if (d < best) best = d;
+      if (best === 0) break;
+    }
+    if (best > tol) return -1;
+    total += tol - best;
+  }
+  return total;
+}
+
+/** Direct match: subsequence first, then typo tolerance. -1 means no match. */
+function matchScore(query, haystack) {
+  const direct = fuzzyScore(query, haystack);
+  return direct >= 0 ? direct : typoScore(query, haystack);
+}
+
+/**
+ * Rank items against a query across label, keywords, and path. Direct
+ * matches rank above synonym matches: a query word that matches only
+ * through Discover's synonym expansion (e.g. "maid" -> "housekeeping")
+ * still surfaces, but never above an item the query matches directly.
+ * Within each tier the score decides, with recent/live boosts.
+ */
 export function searchItems(items, query) {
   const q = String(query || '').trim();
   if (!q) return items;
+  const expanded = expandSearchTerms(q);
   const scored = [];
   for (const item of items) {
     const haystack = `${item.label} ${item.keywords || ''} ${item.path || ''}`;
-    const score = fuzzyScore(q, haystack);
+    let score = matchScore(q, haystack);
+    let viaSynonym = false;
+    if (score < 0) {
+      for (const term of expanded) {
+        const synonym = matchScore(term, haystack);
+        if (synonym >= 0) score = Math.max(score, synonym - 2);
+      }
+      if (score >= 0) viaSynonym = true;
+    }
     // Live items (the user's own open orders, deliveries, active bookings,
     // conversations) rank above plain recents, which rank above static
     // pages and actions.
-    if (score >= 0) scored.push({ item, score: score + (item.recentPick ? 60 : 0) + (item.livePick ? 40 : 0) });
+    if (score >= 0) scored.push({ item, score: score + (item.recentPick ? 60 : 0) + (item.livePick ? 40 : 0), viaSynonym });
   }
-  scored.sort((a, b) => b.score - a.score);
+  scored.sort((a, b) => (a.viaSynonym - b.viaSynonym) || (b.score - a.score));
   return scored.map(({ item }) => item);
 }
 
