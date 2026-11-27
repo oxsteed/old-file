@@ -91,3 +91,14 @@ export function orderForEmptyQuery(allItems, recentIds) {
   const seen = new Set([...live.map((item) => item.id), ...recents.map((item) => item.id)]);
   return [...live, ...recents, ...allItems.filter((item) => !seen.has(item.id))];
 }
+
+/**
+ * Append ranked Discover results after the user's own items, never before
+ * them and never duplicating an own destination. Discover is a finder of
+ * last resort in the palette: it surfaces things the user does not own.
+ */
+export function mergeDiscoverResults(ownVisible, discoverVisible, maxDiscover = 5) {
+  const ownPaths = new Set(ownVisible.map((item) => item.path));
+  const extra = discoverVisible.filter((item) => item.path && !ownPaths.has(item.path));
+  return [...ownVisible, ...extra.slice(0, maxDiscover)];
+}

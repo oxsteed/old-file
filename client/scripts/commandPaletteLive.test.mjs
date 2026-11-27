@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { searchItems, orderForEmptyQuery } from '../src/utils/paletteSearch.js';
+import { searchItems, orderForEmptyQuery, mergeDiscoverResults } from '../src/utils/paletteSearch.js';
 
 const item = (id, extra = {}) => ({
   id, path: `/${id}`, label: id, keywords: id, group: 'pages', ...extra,
@@ -73,10 +73,48 @@ test('locale parity: the live groups exist in all five locales', async () => {
       new URL(`../src/locales/${locale}.json`, import.meta.url),
       'utf8',
     ));
-    for (const key of ['orders', 'deliveries']) {
+    for (const key of ['orders', 'deliveries', 'discover']) {
       const value = catalog?.commandPalette?.groups?.[key];
       assert.equal(typeof value, 'string', `${locale}: missing groups.${key}`);
       assert.ok(value.trim().length > 0, `${locale}: empty groups.${key}`);
     }
   }
+});
+
+// Palette item 4 (D-724): Discover results rank after the user's own items.
+test('mergeDiscoverResults appends Discover after own items, capped at 5', () => {
+  const own = [item('page:jobs', { label: 'Jobs' })];
+  const discover = Array.from({ length: 7 }, (_, i) => item(`discover:job:${i}`, {
+    label: `Job ${i}`, path: `/jobs/${i}`, group: 'discover',
+  }));
+  const merged = mergeDiscoverResults(own, discover);
+  assert.equal(merged.length, 6);
+  assert.equal(merged[0].id, 'page:jobs');
+  assert.ok(merged.slice(1).every((i) => i.group === 'discover'));
+});
+
+test('mergeDiscoverResults never duplicates an own destination', () => {
+  const own = [item('page:jobs', { label: 'Jobs', path: '/jobs' })];
+  const discover = [item('discover:job:1', { label: 'Job 1', path: '/jobs', group: 'discover' })];
+  assert.deepEqual(mergeDiscoverResults(own, discover).map((i) => i.id), ['page:jobs']);
+});
+
+test('live Discover fetch hits /discover with the query, capped at 5', async () => {
+  const source = await registrySource();
+  assert.match(source, /export async function fetchDiscoverItems\(t, query\)/);
+  // The axios instance already carries the /api base URL; hand-writing it
+  // would double-prefix to /api/api/discover (apiPrefixGuard).
+  assert.match(source, /api\.get\('\/discover', \{ params: \{ q, limit: 5 \} \}/);
+  assert.doesNotMatch(source, /api\.get\('\/api\/discover'/);
+  assert.match(source, /result\.url\.startsWith\('\/'\)/);
+  assert.match(source, /group: 'discover'/);
+  assert.match(source, /id: `discover:\$\{result\.type\}:\$\{result\.id\}`/);
+});
+
+test('palette dialog debounces Discover and appends it after own items', async () => {
+  const source = await paletteSource();
+  assert.match(source, /setTimeout\(\(\) => \{\n\s+fetchDiscover\(q\)/);
+  assert.match(source, /300\)/);
+  assert.match(source, /mergeDiscoverResults\(own, itemsApi\.searchItems\(discoverItems, query\)\)/);
+  assert.match(source, /fetchDiscover=\{fetchDiscover\}/);
 });

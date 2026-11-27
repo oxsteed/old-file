@@ -11,7 +11,7 @@ import { paletteAllowedDestinations, isPalettePageVisible, derivePalettePages } 
 // Search, scoring, and recents live in the pure module so they are
 // unit-testable with plain node --test; re-exported here so the lazy
 // palette module keeps one API.
-export { RECENT_STORAGE_KEY, fuzzyScore, searchItems, readRecentIds, pushRecentId, orderForEmptyQuery } from '../utils/paletteSearch';
+export { RECENT_STORAGE_KEY, fuzzyScore, searchItems, readRecentIds, pushRecentId, orderForEmptyQuery, mergeDiscoverResults } from '../utils/paletteSearch';
 
 const MAX_DYNAMIC = 5;
 const MAX_LIVE = 5;
@@ -259,4 +259,31 @@ export async function fetchLiveItems(t) {
     }))),
   ]);
   return [...orders, ...deliveries, ...bookings, ...conversations];
+}
+
+/**
+ * Live Discover results for the palette (palette item 4, D-724): the same
+ * `/discover` search the Discover page runs, capped at 5. Results carry
+ * their own `url`, so the palette navigates straight to the result. Only
+ * relative in-app URLs are kept; anything else is dropped. Never throws.
+ * The caller ranks these after the user's own items (mergeDiscoverResults).
+ */
+export async function fetchDiscoverItems(t, query) {
+  const q = String(query || '').trim();
+  if (!q) return [];
+  return api.get('/discover', { params: { q, limit: 5 } })
+    .then(({ data }) => {
+      const list = Array.isArray(data?.results) ? data.results : [];
+      return list
+        .filter((result) => result && typeof result.url === 'string' && result.url.startsWith('/'))
+        .slice(0, 5)
+        .map((result) => ({
+          id: `discover:${result.type}:${result.id}`,
+          path: result.url,
+          label: result.title || result.url,
+          keywords: `${result.subtitle || ''} ${result.type || ''}`,
+          group: 'discover',
+        }));
+    })
+    .catch(() => []);
 }

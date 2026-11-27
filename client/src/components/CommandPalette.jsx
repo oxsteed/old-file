@@ -59,12 +59,13 @@ function usePaletteHotkey(onToggle) {
   }, [onToggle]);
 }
 
-function PaletteDialog({ open, onClose, items, loading, itemsApi }) {
+function PaletteDialog({ open, onClose, items, loading, itemsApi, fetchDiscover }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [recentIds, setRecentIds] = useState([]);
+  const [discoverItems, setDiscoverItems] = useState([]);
   const inputRef = useRef(null);
   const listRef = useRef(null);
   const activeRef = useRef(null);
@@ -84,11 +85,32 @@ function PaletteDialog({ open, onClose, items, loading, itemsApi }) {
     return undefined;
   }, [open, itemsApi ]);
 
+  // Palette item 4 (D-724): live Discover results, debounced 300ms, only
+  // while the palette is open and the query is non-empty. A stale response
+  // for an older query is discarded by the cleanup flag.
+  useEffect(() => {
+    if (!open || !fetchDiscover) { setDiscoverItems([]); return undefined; }
+    const q = query.trim();
+    if (!q) { setDiscoverItems([]); return undefined; }
+    let active = true;
+    const timer = setTimeout(() => {
+      fetchDiscover(q)
+        .then((found) => { if (active) setDiscoverItems(found); })
+        .catch(() => { if (active) setDiscoverItems([]); });
+    }, 300);
+    return () => { active = false; clearTimeout(timer); };
+  }, [open, query, fetchDiscover]);
+
   const visibleItems = useMemo(() => {
     if (!itemsApi) return [];
-    if (!query.trim()) return itemsApi.orderForEmptyQuery(items, recentIds).slice(0, MAX_VISIBLE);
-    return itemsApi.searchItems(items, query).slice(0, MAX_VISIBLE);
-  }, [items, query, recentIds, itemsApi]);
+    const own = !query.trim()
+      ? itemsApi.orderForEmptyQuery(items, recentIds).slice(0, MAX_VISIBLE)
+      : itemsApi.searchItems(items, query).slice(0, MAX_VISIBLE);
+    if (!query.trim() || !discoverItems.length) return own;
+    // Palette item 4 (D-724): Discover results rank after the user's own
+    // stuff, capped at 5, never duplicating an own destination.
+    return itemsApi.mergeDiscoverResults(own, itemsApi.searchItems(discoverItems, query));
+  }, [items, discoverItems, query, recentIds, itemsApi]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -257,7 +279,14 @@ function ClientCommandPalette({initialOpen = false}) {
 
   const items = useMemo(() => [...dynamicItems, ...staticItems], [dynamicItems, staticItems]);
 
-  return <PaletteDialog open={open} onClose={close} items={items} loading={dynamicLoading || !itemsModule} itemsApi={itemsModule} />;
+  // Palette item 4 (D-724): the client palette also searches Discover live.
+  // The admin palette passes no fetcher and stays tabs-only.
+  const fetchDiscover = useCallback(
+    (q) => (itemsModule ? itemsModule.fetchDiscoverItems(t, q) : Promise.resolve([])),
+    [itemsModule, t],
+  );
+
+  return <PaletteDialog open={open} onClose={close} items={items} loading={dynamicLoading || !itemsModule} itemsApi={itemsModule} fetchDiscover={fetchDiscover} />;
 }
 
 function AdminCommandPalette({initialOpen = false}) {
