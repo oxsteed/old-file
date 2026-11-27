@@ -67,6 +67,20 @@ test('palette refetches live items on every open, not once per mount', async () 
   assert.match(source, /fetchDynamicRecents\(t\)/);
 });
 
+// D-728 regression: the per-open-session fetch guard. The live effect's
+// deps include `user` by object identity; a caller returning a fresh user
+// object on every render (the first-click fixture's useAuth mock) would
+// otherwise re-run the effect forever and starve the main thread.
+test('live fetch is guarded to once per open session, resetting on close', async () => {
+  const source = await paletteSource();
+  assert.match(source, /fetchedForOpenRef = useRef\(false\)/);
+  assert.match(source, /if \(!open\) \{ fetchedForOpenRef\.current = false;/);
+  assert.match(source, /if \(fetchedForOpenRef\.current\) return undefined;/);
+  assert.match(source, /fetchedForOpenRef\.current = true;/);
+  // The Discover empty branch keeps the previous array when already empty.
+  assert.match(source, /setDiscoverItems\(\(prev\) => \(prev\.length === 0 \? prev : \[\]\)\)/);
+});
+
 test('locale parity: the live groups exist in all five locales', async () => {
   for (const locale of ['en', 'es', 'fr', 'ht', 'ar']) {
     const catalog = JSON.parse(await readFile(

@@ -29,9 +29,12 @@ const fixtureApi = `export default {get: async path => ({data: path==='/notifica
 const fixtureItems = `export const buildClientItems=()=>({pages:[],actions:[]});
 export const buildAdminItems=()=>[];
 export const fetchDynamicRecents=async()=>[];
+export const fetchLiveItems=async()=>[];
+export const fetchDiscoverItems=async()=>[];
 export const readRecentIds=()=>[];
 export const orderForEmptyQuery=(items)=>items;
 export const searchItems=(items)=>items;
+export const mergeDiscoverResults=(own)=>own;
 export const pushRecentId=()=>{};`;
 
 test('navbar palette trigger opens the palette on the first click', { timeout: 120_000 }, async () => {

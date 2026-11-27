@@ -87,11 +87,14 @@ function PaletteDialog({ open, onClose, items, loading, itemsApi, fetchDiscover 
 
   // Palette item 4 (D-724): live Discover results, debounced 300ms, only
   // while the palette is open and the query is non-empty. A stale response
-  // for an older query is discarded by the cleanup flag.
+  // for an older query is discarded by the cleanup flag. D-728: the empty
+  // branch keeps the previous array when it is already empty, so the
+  // setter never re-renders on its own (same guard class as the live
+  // fetch below: a fresh [] every run would loop if a dep ever churned).
   useEffect(() => {
-    if (!open || !fetchDiscover) { setDiscoverItems([]); return undefined; }
+    if (!open || !fetchDiscover) { setDiscoverItems((prev) => (prev.length === 0 ? prev : [])); return undefined; }
     const q = query.trim();
-    if (!q) { setDiscoverItems([]); return undefined; }
+    if (!q) { setDiscoverItems((prev) => (prev.length === 0 ? prev : [])); return undefined; }
     let active = true;
     const timer = setTimeout(() => {
       fetchDiscover(q)
@@ -254,26 +257,35 @@ function ClientCommandPalette({initialOpen = false}) {
   // Palette item 3 (D-723): live items are fetched fresh on every open,
   // not once per mount, so an order placed or a booking accepted since
   // the last open shows up. Recents ride along; live wins on id clashes.
+  // D-728: the fetch is guarded to once per open session. The effect's
+  // deps include `user` by object identity, and a caller may hand back a
+  // fresh user object on every render (the first-click fixture's useAuth
+  // mock does exactly that). Without the guard, each fetch's setState
+  // re-renders, the user identity changes, and the effect re-runs forever,
+  // starving the main thread so the palette never opens. The guard resets
+  // on close, so every open still gets fresh data, and a late module load
+  // still fetches because the guard is only set once a fetch starts.
+  const fetchedForOpenRef = useRef(false);
   useEffect(() => {
-    if (open && user && itemsModule) {
-      let active = true;
-      setDynamicLoading(true);
-      Promise.all([
-        itemsModule.fetchLiveItems(t),
-        itemsModule.fetchDynamicRecents(t),
-      ])
-        .then(([live, recents]) => {
-          if (!active) return;
-          const seen = new Set();
-          setDynamicItems([...live, ...recents].filter((item) => {
-            if (seen.has(item.id)) return false;
-            seen.add(item.id);
-            return true;
-          }));
-        })
-        .finally(() => { if (active) setDynamicLoading(false); });
-      return () => { active = false; };
-    }
+    if (!open) { fetchedForOpenRef.current = false; return undefined; }
+    if (!user || !itemsModule) return undefined;
+    if (fetchedForOpenRef.current) return undefined;
+    fetchedForOpenRef.current = true;
+    setDynamicLoading(true);
+    Promise.all([
+      itemsModule.fetchLiveItems(t),
+      itemsModule.fetchDynamicRecents(t),
+    ])
+      .then(([live, recents]) => {
+        if (!fetchedForOpenRef.current) return;
+        const seen = new Set();
+        setDynamicItems([...live, ...recents].filter((item) => {
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        }));
+      })
+      .finally(() => { if (fetchedForOpenRef.current) setDynamicLoading(false); });
     return undefined;
   }, [open, user, t, itemsModule]);
 
