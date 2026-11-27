@@ -1743,6 +1743,400 @@ const T = {
       ar: 'جدول عميل جلسة استشارية معك. افتح لوحة التحكم لعرض التفاصيل والاستعداد.',
     },
   },
+  // S-C2 (D-730): the 9 consulting proposal/session types were sent
+  // with no template and no title, so the notices were lost on the
+  // NOT NULL title insert. Copy is static: the send sites pass ids
+  // only (no render params), so there is nothing to interpolate.
+  consulting_proposal_sent: {
+    title: {
+      en: 'Proposal sent',
+      fr: 'Proposition envoyée',
+      es: 'Propuesta enviada',
+      ht: 'Pwopozisyon voye',
+      ar: 'تم إرسال الاقتراح',
+    },
+    body: {
+      en: 'A consulting proposal was sent. Open the portal to review it.',
+      fr: 'Une proposition de consultation a été envoyée. Ouvrez le portail pour la relire.',
+      es: 'Se envió una propuesta de consultoría. Abre el portal para revisarla.',
+      ht: 'Yo voye yon pwopozisyon konsiltasyon. Louvri pòtay la pou w revize l.',
+      ar: 'تم إرسال اقتراح استشاري. افتح البوابة لمراجعته.',
+    },
+  },
+  consulting_proposal_approved: {
+    title: {
+      en: 'Proposal approved',
+      fr: 'Proposition approuvée',
+      es: 'Propuesta aprobada',
+      ht: 'Pwopozisyon apwouve',
+      ar: 'تمت الموافقة على الاقتراح',
+    },
+    body: {
+      en: 'Your consulting proposal was approved.',
+      fr: 'Votre proposition de consultation a été approuvée.',
+      es: 'Tu propuesta de consultoría fue aprobada.',
+      ht: 'Pwopozisyon konsiltasyon ou an apwouve.',
+      ar: 'تمت الموافقة على اقتراحك الاستشاري.',
+    },
+  },
+  consulting_proposal_rejected: {
+    title: {
+      en: 'Proposal declined',
+      fr: 'Proposition refusée',
+      es: 'Propuesta rechazada',
+      ht: 'Pwopozisyon refize',
+      ar: 'تم رفض الاقتراح',
+    },
+    body: {
+      en: 'Your consulting proposal was declined.',
+      fr: 'Votre proposition de consultation a été refusée.',
+      es: 'Tu propuesta de consultoría fue rechazada.',
+      ht: 'Pwopozisyon konsiltasyon ou an refize.',
+      ar: 'تم رفض اقتراحك الاستشاري.',
+    },
+  },
+  consulting_proposal_withdrawn: {
+    title: {
+      en: 'Proposal withdrawn',
+      fr: 'Proposition retirée',
+      es: 'Propuesta retirada',
+      ht: 'Pwopozisyon retire',
+      ar: 'تم سحب الاقتراح',
+    },
+    body: {
+      en: 'A consulting proposal was withdrawn.',
+      fr: 'Une proposition de consultation a été retirée.',
+      es: 'Se retiró una propuesta de consultoría.',
+      ht: 'Yo retire yon pwopozisyon konsiltasyon.',
+      ar: 'تم سحب اقتراح استشاري.',
+    },
+  },
+  consulting_session_reschedule_proposed: {
+    title: {
+      en: 'Session reschedule proposed',
+      fr: 'Report proposé',
+      es: 'Reprogramación propuesta',
+      ht: 'Nouvo lè pwopoze',
+      ar: 'تم اقتراح موعد جديد',
+    },
+    body: {
+      en: 'A new time was proposed for your consulting session. Open the portal to review it.',
+      fr: 'Un nouvel horaire a été proposé pour votre séance de consultation. Ouvrez le portail pour le relire.',
+      es: 'Se propuso una nueva hora para tu sesión de consultoría. Abre el portal para revisarla.',
+      ht: 'Yo pwopoze yon nouvo lè pou sesyon konsiltasyon ou. Louvri pòtay la pou w revize l.',
+      ar: 'تم اقتراح موعد جديد لجلسة الاستشارة الخاصة بك. افتح البوابة لمراجعته.',
+    },
+  },
+  consulting_session_reschedule_accepted: {
+    title: {
+      en: 'Reschedule accepted',
+      fr: 'Report accepté',
+      es: 'Reprogramación aceptada',
+      ht: 'Nouvo lè a aksepte',
+      ar: 'تم قبول الموعد الجديد',
+    },
+    body: {
+      en: 'The proposed time for your consulting session was accepted.',
+      fr: 'L’horaire proposé pour votre séance de consultation a été accepté.',
+      es: 'Se aceptó la hora propuesta para tu sesión de consultoría.',
+      ht: 'Yo aksepte nouvo lè yo te pwopoze pou sesyon konsiltasyon ou.',
+      ar: 'تم قبول الموعد المقترح لجلسة الاستشارة الخاصة بك.',
+    },
+  },
+  consulting_session_reschedule_declined: {
+    title: {
+      en: 'Reschedule declined',
+      fr: 'Report refusé',
+      es: 'Reprogramación rechazada',
+      ht: 'Nouvo lè a refize',
+      ar: 'تم رفض الموعد الجديد',
+    },
+    body: {
+      en: 'The proposed time for your consulting session was declined.',
+      fr: 'L’horaire proposé pour votre séance de consultation a été refusé.',
+      es: 'Se rechazó la hora propuesta para tu sesión de consultoría.',
+      ht: 'Yo refize nouvo lè yo te pwopoze pou sesyon konsiltasyon ou.',
+      ar: 'تم رفض الموعد المقترح لجلسة الاستشارة الخاصة بك.',
+    },
+  },
+  consulting_session_cancelled: {
+    title: {
+      en: 'Session cancelled',
+      fr: 'Séance annulée',
+      es: 'Sesión cancelada',
+      ht: 'Sesyon anile',
+      ar: 'تم إلغاء الجلسة',
+    },
+    body: {
+      en: 'A consulting session was cancelled.',
+      fr: 'Une séance de consultation a été annulée.',
+      es: 'Se canceló una sesión de consultoría.',
+      ht: 'Yo anile yon sesyon konsiltasyon.',
+      ar: 'تم إلغاء جلسة استشارية.',
+    },
+  },
+  consulting_session_attendance_confirmed: {
+    title: {
+      en: 'Attendance confirmed',
+      fr: 'Présence confirmée',
+      es: 'Asistencia confirmada',
+      ht: 'Prezans konfime',
+      ar: 'تم تأكيد الحضور',
+    },
+    body: {
+      en: 'Attendance for a consulting session was confirmed.',
+      fr: 'La présence à une séance de consultation a été confirmée.',
+      es: 'Se confirmó la asistencia a una sesión de consultoría.',
+      ht: 'Yo konfime prezans pou yon sesyon konsiltasyon.',
+      ar: 'تم تأكيد الحضور لجلسة استشارية.',
+    },
+  },
+  // S-D2 (D-731): the 15 shared-notifyUser types arrived title-only
+  // with an empty body and no link (the helper passed `message` and
+  // `metadata`, which sendNotification drops). Templates give them
+  // localized copy; the helper now forwards the caller's body/data and
+  // an action URL, so the specific message still appends after the
+  // template body.
+  consulting_change_requested: {
+    title: {
+      en: 'Change requested',
+      fr: 'Modification demandée',
+      es: 'Cambio solicitado',
+      ht: 'Chanjman mande',
+      ar: 'تم طلب تغيير',
+    },
+    body: {
+      en: 'A change was requested on your consulting engagement.',
+      fr: 'Une modification a été demandée sur votre mission de consultation.',
+      es: 'Se solicitó un cambio en tu encargo de consultoría.',
+      ht: 'Yo mande yon chanjman sou angajman konsiltasyon ou.',
+      ar: 'تم طلب تغيير على مهمتك الاستشارية.',
+    },
+  },
+  consulting_change_approved: {
+    title: {
+      en: 'Change approved',
+      fr: 'Modification approuvée',
+      es: 'Cambio aprobado',
+      ht: 'Chanjman apwouve',
+      ar: 'تمت الموافقة على التغيير',
+    },
+    body: {
+      en: 'Your change request was approved.',
+      fr: 'Votre demande de modification a été approuvée.',
+      es: 'Tu solicitud de cambio fue aprobada.',
+      ht: 'Yo apwouve demann chanjman ou.',
+      ar: 'تمت الموافقة على طلب التغيير الخاص بك.',
+    },
+  },
+  consulting_change_rejected: {
+    title: {
+      en: 'Change declined',
+      fr: 'Modification refusée',
+      es: 'Cambio rechazado',
+      ht: 'Chanjman refize',
+      ar: 'تم رفض التغيير',
+    },
+    body: {
+      en: 'Your change request was declined.',
+      fr: 'Votre demande de modification a été refusée.',
+      es: 'Tu solicitud de cambio fue rechazada.',
+      ht: 'Yo refize demann chanjman ou.',
+      ar: 'تم رفض طلب التغيير الخاص بك.',
+    },
+  },
+  consulting_engagement_paused: {
+    title: {
+      en: 'Engagement paused',
+      fr: 'Mission en pause',
+      es: 'Encargo en pausa',
+      ht: 'Angajman an poz',
+      ar: 'تم إيقاف المهمة مؤقتًا',
+    },
+    body: {
+      en: 'Your consulting engagement was paused.',
+      fr: 'Votre mission de consultation a été mise en pause.',
+      es: 'Tu encargo de consultoría quedó en pausa.',
+      ht: 'Angajman konsiltasyon ou an poz.',
+      ar: 'تم إيقاف مهمتك الاستشارية مؤقتًا.',
+    },
+  },
+  consulting_engagement_resumed: {
+    title: {
+      en: 'Engagement resumed',
+      fr: 'Mission reprise',
+      es: 'Encargo reanudado',
+      ht: 'Angajman an rekòmanse',
+      ar: 'تم استئناف المهمة',
+    },
+    body: {
+      en: 'Your consulting engagement resumed.',
+      fr: 'Votre mission de consultation a repris.',
+      es: 'Tu encargo de consultoría se reanudó.',
+      ht: 'Angajman konsiltasyon ou an rekòmanse.',
+      ar: 'تم استئناف مهمتك الاستشارية.',
+    },
+  },
+  consulting_closeout_confirmed: {
+    title: {
+      en: 'Closeout confirmed',
+      fr: 'Clôture confirmée',
+      es: 'Cierre confirmado',
+      ht: 'Fèmti konfime',
+      ar: 'تم تأكيد الإغلاق',
+    },
+    body: {
+      en: 'A closeout was confirmed on your consulting engagement.',
+      fr: 'Une clôture a été confirmée sur votre mission de consultation.',
+      es: 'Se confirmó un cierre en tu encargo de consultoría.',
+      ht: 'Yo konfime yon fèmti sou angajman konsiltasyon ou.',
+      ar: 'تم تأكيد إغلاق على مهمتك الاستشارية.',
+    },
+  },
+  consulting_follow_up_scheduled: {
+    title: {
+      en: 'Follow-up scheduled',
+      fr: 'Suivi planifié',
+      es: 'Seguimiento programado',
+      ht: 'Swivi pwograme',
+      ar: 'تمت جدولة متابعة',
+    },
+    body: {
+      en: 'A follow-up was scheduled on your consulting engagement.',
+      fr: 'Un suivi a été planifié sur votre mission de consultation.',
+      es: 'Se programó un seguimiento en tu encargo de consultoría.',
+      ht: 'Yo pwograme yon swivi sou angajman konsiltasyon ou.',
+      ar: 'تمت جدولة متابعة على مهمتك الاستشارية.',
+    },
+  },
+  consulting_feedback_requested: {
+    title: {
+      en: 'Feedback requested',
+      fr: 'Avis demandé',
+      es: 'Opinión solicitada',
+      ht: 'Opinyon mande',
+      ar: 'تم طلب ملاحظات',
+    },
+    body: {
+      en: 'Your consultant requested your feedback on the engagement.',
+      fr: 'Votre consultant a demandé votre avis sur la mission.',
+      es: 'Tu consultor solicitó tu opinión sobre el encargo.',
+      ht: 'Konsiltan ou mande opinyon ou sou angajman an.',
+      ar: 'طلب مستشارك ملاحظاتك حول المهمة.',
+    },
+  },
+  consulting_engagement_archived: {
+    title: {
+      en: 'Engagement archived',
+      fr: 'Mission archivée',
+      es: 'Encargo archivado',
+      ht: 'Angajman achive',
+      ar: 'تمت أرشفة المهمة',
+    },
+    body: {
+      en: 'Your consulting engagement was archived.',
+      fr: 'Votre mission de consultation a été archivée.',
+      es: 'Tu encargo de consultoría fue archivado.',
+      ht: 'Angajman konsiltasyon ou an achive.',
+      ar: 'تمت أرشفة مهمتك الاستشارية.',
+    },
+  },
+  consulting_participant_added: {
+    title: {
+      en: 'Added to an engagement',
+      fr: 'Ajouté(e) à une mission',
+      es: 'Añadido a un encargo',
+      ht: 'Yo ajoute ou nan yon angajman',
+      ar: 'تمت إضافتك إلى مهمة',
+    },
+    body: {
+      en: 'You were added to a consulting engagement.',
+      fr: 'Vous avez été ajouté(e) à une mission de consultation.',
+      es: 'Te añadieron a un encargo de consultoría.',
+      ht: 'Yo ajoute ou nan yon angajman konsiltasyon.',
+      ar: 'تمت إضافتك إلى مهمة استشارية.',
+    },
+  },
+  consulting_confidentiality_acknowledged: {
+    title: {
+      en: 'Confidentiality acknowledged',
+      fr: 'Confidentialité reconnue',
+      es: 'Confidencialidad reconocida',
+      ht: 'Konfidansyalite rekonèt',
+      ar: 'تم الإقرار بالسرية',
+    },
+    body: {
+      en: 'Confidentiality was acknowledged on your consulting engagement.',
+      fr: 'La confidentialité a été reconnue sur votre mission de consultation.',
+      es: 'Se reconoció la confidencialidad en tu encargo de consultoría.',
+      ht: 'Yo rekonèt konfidansyalite sou angajman konsiltasyon ou.',
+      ar: 'تم الإقرار بالسرية على مهمتك الاستشارية.',
+    },
+  },
+  consulting_engagement_started: {
+    title: {
+      en: 'Engagement started',
+      fr: 'Mission démarrée',
+      es: 'Encargo iniciado',
+      ht: 'Angajman an kòmanse',
+      ar: 'بدأت المهمة',
+    },
+    body: {
+      en: 'Work started on your consulting engagement.',
+      fr: 'Le travail a démarré sur votre mission de consultation.',
+      es: 'Comenzó el trabajo en tu encargo de consultoría.',
+      ht: 'Travay la kòmanse sou angajman konsiltasyon ou.',
+      ar: 'بدأ العمل على مهمتك الاستشارية.',
+    },
+  },
+  consulting_draft_delivered: {
+    title: {
+      en: 'Draft delivered',
+      fr: 'Brouillon livré',
+      es: 'Borrador entregado',
+      ht: 'Bouyon delivre',
+      ar: 'تم تسليم مسودة',
+    },
+    body: {
+      en: 'A draft was delivered on your consulting engagement.',
+      fr: 'Un brouillon a été livré sur votre mission de consultation.',
+      es: 'Se entregó un borrador en tu encargo de consultoría.',
+      ht: 'Yo delivre yon bouyon sou angajman konsiltasyon ou.',
+      ar: 'تم تسليم مسودة على مهمتك الاستشارية.',
+    },
+  },
+  consulting_deliverable_feedback: {
+    title: {
+      en: 'Feedback left',
+      fr: 'Avis reçu',
+      es: 'Opinión recibida',
+      ht: 'Opinyon resevwa',
+      ar: 'تم تلقي ملاحظات',
+    },
+    body: {
+      en: 'Feedback was left on your delivered work.',
+      fr: 'Un avis a été laissé sur votre travail livré.',
+      es: 'Se dejó una opinión sobre tu trabajo entregado.',
+      ht: 'Yo kite yon opinyon sou travay ou te delivre a.',
+      ar: 'تم ترك ملاحظات على العمل الذي سلمته.',
+    },
+  },
+  consulting_milestone_accepted: {
+    title: {
+      en: 'Milestone accepted',
+      fr: 'Jalon accepté',
+      es: 'Hito aceptado',
+      ht: 'Etap aksepte',
+      ar: 'تم قبول مرحلة',
+    },
+    body: {
+      en: 'A milestone was accepted on your consulting engagement.',
+      fr: 'Un jalon a été accepté sur votre mission de consultation.',
+      es: 'Se aceptó un hito en tu encargo de consultoría.',
+      ht: 'Yo aksepte yon etap sou angajman konsiltasyon ou.',
+      ar: 'تم قبول مرحلة على مهمتك الاستشارية.',
+    },
+  },
   // G10-1: consultant payout leg (OxSteed Credit settlement on completion).
   consultant_payout_paid: {
     title: {
@@ -2424,6 +2818,177 @@ const EMAIL_TEMPLATES = {
       es: 'Ver sesiones',
       ht: 'Gade sesyon yo',
       ar: 'عرض الجلسات',
+    },
+    // S-C2 (D-730) + S-D2 (D-731): button labels for the 24 consulting
+    // types; proposals point at the proposal, sessions at the sessions,
+    // engagement events at the engagement.
+    consulting_proposal_sent: {
+      en: 'View Proposal',
+      fr: 'Voir la proposition',
+      es: 'Ver propuesta',
+      ht: 'Gade pwopozisyon an',
+      ar: 'عرض الاقتراح',
+    },
+    consulting_proposal_approved: {
+      en: 'View Proposal',
+      fr: 'Voir la proposition',
+      es: 'Ver propuesta',
+      ht: 'Gade pwopozisyon an',
+      ar: 'عرض الاقتراح',
+    },
+    consulting_proposal_rejected: {
+      en: 'View Proposal',
+      fr: 'Voir la proposition',
+      es: 'Ver propuesta',
+      ht: 'Gade pwopozisyon an',
+      ar: 'عرض الاقتراح',
+    },
+    consulting_proposal_withdrawn: {
+      en: 'View Proposal',
+      fr: 'Voir la proposition',
+      es: 'Ver propuesta',
+      ht: 'Gade pwopozisyon an',
+      ar: 'عرض الاقتراح',
+    },
+    consulting_session_reschedule_proposed: {
+      en: 'View Sessions',
+      fr: 'Voir les séances',
+      es: 'Ver sesiones',
+      ht: 'Gade sesyon yo',
+      ar: 'عرض الجلسات',
+    },
+    consulting_session_reschedule_accepted: {
+      en: 'View Sessions',
+      fr: 'Voir les séances',
+      es: 'Ver sesiones',
+      ht: 'Gade sesyon yo',
+      ar: 'عرض الجلسات',
+    },
+    consulting_session_reschedule_declined: {
+      en: 'View Sessions',
+      fr: 'Voir les séances',
+      es: 'Ver sesiones',
+      ht: 'Gade sesyon yo',
+      ar: 'عرض الجلسات',
+    },
+    consulting_session_cancelled: {
+      en: 'View Sessions',
+      fr: 'Voir les séances',
+      es: 'Ver sesiones',
+      ht: 'Gade sesyon yo',
+      ar: 'عرض الجلسات',
+    },
+    consulting_session_attendance_confirmed: {
+      en: 'View Sessions',
+      fr: 'Voir les séances',
+      es: 'Ver sesiones',
+      ht: 'Gade sesyon yo',
+      ar: 'عرض الجلسات',
+    },
+    consulting_change_requested: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_change_approved: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_change_rejected: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_engagement_paused: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_engagement_resumed: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_closeout_confirmed: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_follow_up_scheduled: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_feedback_requested: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_engagement_archived: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_participant_added: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_confidentiality_acknowledged: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_engagement_started: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_draft_delivered: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_deliverable_feedback: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_milestone_accepted: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
     },
     // G10-1: consultant payout leg.
     consultant_payout_paid: {

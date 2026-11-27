@@ -913,16 +913,6 @@ ddescribe('Track C preference toggles (DB)', () => {
       // except by a checkpoint that owns the fix; a stale entry (a type
       // that gained a template or a title) fails on purpose.
       const KNOWN_UNTITLED = {
-        // S-C2 (checkpoint 2): the 9 consulting proposal/session types.
-        consulting_proposal_sent: 'S-C2',
-        consulting_proposal_approved: 'S-C2',
-        consulting_proposal_rejected: 'S-C2',
-        consulting_proposal_withdrawn: 'S-C2',
-        consulting_session_reschedule_proposed: 'S-C2',
-        consulting_session_reschedule_accepted: 'S-C2',
-        consulting_session_reschedule_declined: 'S-C2',
-        consulting_session_cancelled: 'S-C2',
-        consulting_session_attendance_confirmed: 'S-C2',
         // R9 (checkpoint 6): the 4 auto-notice types plus the adjacent
         // counter accept/decline pair the guard caught at the same site.
         booking_auto_posted: 'R9',
@@ -969,6 +959,81 @@ ddescribe('Track C preference toggles (DB)', () => {
       expect(rows[1].title).toBe('Account restored');
       expect(rows[2].title).toBe('Delivery tracking went quiet');
       expect(rows[3].title).toBe('Weekly delivery report ready');
+    });
+
+    // S-C2 + S-D2 (D-730, D-731): the 24 consulting types send through
+    // the real path. The 9 S-C2 types were lost before (no template, no
+    // title at the send site); the 15 S-D2 types arrived title-only with
+    // an empty body and no link (the shared helper passed `message` /
+    // `metadata`, which sendNotification drops). The S-D2 sends below
+    // carry a caller body and an action URL the way the rewritten helper
+    // now forwards them, and assert both land in the stored row.
+    test('the 24 S-C2/S-D2 consulting types send with resolved titles, bodies and links', async () => {
+      const user = await makeUser();
+      // S-C2: data-only sends, exactly as notifyProposalParty /
+      // notifySessionParty call them; the template is the whole body.
+      const sc2 = [
+        ['consulting_proposal_sent', 'Proposal sent', 'A consulting proposal was sent. Open the portal to review it.'],
+        ['consulting_proposal_approved', 'Proposal approved', 'Your consulting proposal was approved.'],
+        ['consulting_proposal_rejected', 'Proposal declined', 'Your consulting proposal was declined.'],
+        ['consulting_proposal_withdrawn', 'Proposal withdrawn', 'A consulting proposal was withdrawn.'],
+        ['consulting_session_reschedule_proposed', 'Session reschedule proposed', 'A new time was proposed for your consulting session. Open the portal to review it.'],
+        ['consulting_session_reschedule_accepted', 'Reschedule accepted', 'The proposed time for your consulting session was accepted.'],
+        ['consulting_session_reschedule_declined', 'Reschedule declined', 'The proposed time for your consulting session was declined.'],
+        ['consulting_session_cancelled', 'Session cancelled', 'A consulting session was cancelled.'],
+        ['consulting_session_attendance_confirmed', 'Attendance confirmed', 'Attendance for a consulting session was confirmed.'],
+      ];
+      // S-D2: [type, title, template body, action URL]. The caller body
+      // is the same marker for every send; the stored body must be the
+      // template body joined with it, and the action URL must land.
+      const sd2 = [
+        ['consulting_change_requested', 'Change requested', 'A change was requested on your consulting engagement.', '/consulting/portal'],
+        ['consulting_change_approved', 'Change approved', 'Your change request was approved.', '/consulting/contractor-dashboard'],
+        ['consulting_change_rejected', 'Change declined', 'Your change request was declined.', '/consulting/contractor-dashboard'],
+        ['consulting_engagement_paused', 'Engagement paused', 'Your consulting engagement was paused.', '/consulting/contractor-dashboard'],
+        ['consulting_engagement_resumed', 'Engagement resumed', 'Your consulting engagement resumed.', '/consulting/contractor-dashboard'],
+        ['consulting_closeout_confirmed', 'Closeout confirmed', 'A closeout was confirmed on your consulting engagement.', '/consulting/portal'],
+        ['consulting_follow_up_scheduled', 'Follow-up scheduled', 'A follow-up was scheduled on your consulting engagement.', '/consulting/portal'],
+        ['consulting_feedback_requested', 'Feedback requested', 'Your consultant requested your feedback on the engagement.', '/consulting/portal'],
+        ['consulting_engagement_archived', 'Engagement archived', 'Your consulting engagement was archived.', '/consulting/portal'],
+        ['consulting_participant_added', 'Added to an engagement', 'You were added to a consulting engagement.', '/consulting/portal'],
+        ['consulting_confidentiality_acknowledged', 'Confidentiality acknowledged', 'Confidentiality was acknowledged on your consulting engagement.', '/consulting/contractor-dashboard'],
+        ['consulting_engagement_started', 'Engagement started', 'Work started on your consulting engagement.', '/consulting/portal'],
+        ['consulting_draft_delivered', 'Draft delivered', 'A draft was delivered on your consulting engagement.', '/consulting/portal'],
+        ['consulting_deliverable_feedback', 'Feedback left', 'Feedback was left on your delivered work.', '/consulting/contractor-dashboard'],
+        ['consulting_milestone_accepted', 'Milestone accepted', 'A milestone was accepted on your consulting engagement.', '/consulting/contractor-dashboard'],
+      ];
+      for (const [type] of sc2) {
+        const result = await sendNotification({
+          userId: user.id, type, data: {}, action_url: null,
+          idempotencyKey: `sc2-real-send-${type}-${user.id}`,
+        });
+        expect(result.success).toBe(true);
+      }
+      for (const [type, , , actionUrl] of sd2) {
+        const result = await sendNotification({
+          userId: user.id, type, body: 'Caller specifics here.', data: {}, action_url: actionUrl,
+          idempotencyKey: `sd2-real-send-${type}-${user.id}`,
+        });
+        expect(result.success).toBe(true);
+      }
+      const { rows } = await pool.query(
+        `SELECT type, title, body, action_url FROM notifications WHERE user_id = $1 ORDER BY created_at ASC`,
+        [user.id],
+      );
+      expect(rows.map((row) => row.type)).toEqual([...sc2.map(([t]) => t), ...sd2.map(([t]) => t)]);
+      const byType = new Map(rows.map((row) => [row.type, row]));
+      for (const [type, title, body] of sc2) {
+        const row = byType.get(type);
+        expect(row.title).toBe(title);
+        expect(row.body).toBe(body);
+      }
+      for (const [type, title, body, actionUrl] of sd2) {
+        const row = byType.get(type);
+        expect(row.title).toBe(title);
+        expect(row.body).toBe(`${body} Caller specifics here.`);
+        expect(row.action_url).toBe(actionUrl);
+      }
     });
   });
 

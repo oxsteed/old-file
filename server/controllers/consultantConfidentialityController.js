@@ -226,10 +226,15 @@ async function addParticipant(req, res) {
     });
     if (result.status === 201) {
       const { participantId, user, session } = result.body;
-      await notifyUser(user.id, 'consulting_participant_added',
-        'You were added to an engagement',
-        `You were added as a ${role.replace('_', ' ')} on a consulting engagement. Open the consulting portal to review it.`,
-        { sessionId: String(session.id) });
+      await notifyUser({
+        userId: user.id, type: 'consulting_participant_added',
+        title: 'You were added to an engagement',
+        body: `You were added as a ${role.replace('_', ' ')} on a consulting engagement. Open the consulting portal to review it.`,
+        data: { sessionId: String(session.id) },
+        // Added participants are site contacts or observers, both
+        // client-side, and the message itself points at the portal.
+        actionUrl: '/consulting/portal',
+      });
       await emailParty(user.email, 'You were added to a consulting engagement',
         'You were added to a consulting engagement',
         `You were added as a ${role.replace('_', ' ')} on a consulting engagement. Open the consulting portal to review the engagement and acknowledge confidentiality.`);
@@ -390,10 +395,15 @@ async function acknowledgeConfidentiality(req, res) {
       // Tell the other core party the acknowledgment landed.
       const otherId = role === 'client' ? session.consultant_assigned_id : session.user_id;
       if (otherId && String(otherId) !== String(req.user.id)) {
-        await notifyUser(otherId, 'consulting_confidentiality_acknowledged',
-          'Confidentiality acknowledged',
-          `The ${role.replace('_', ' ')} on your engagement acknowledged confidentiality.`,
-          { sessionId: String(session.id) });
+        await notifyUser({
+          userId: otherId, type: 'consulting_confidentiality_acknowledged',
+          title: 'Confidentiality acknowledged',
+          body: `The ${role.replace('_', ' ')} on your engagement acknowledged confidentiality.`,
+          data: { sessionId: String(session.id) },
+          // The other party from the acknowledger: the client's other
+          // side is the consultant, and vice versa.
+          actionUrl: role === 'client' ? '/consulting/contractor-dashboard' : '/consulting/portal',
+        });
       }
       return res.status(201).json({
         acknowledgment: {
