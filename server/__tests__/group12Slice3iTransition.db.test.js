@@ -685,6 +685,114 @@ describeDb('Group 12 Slice 3i: Transition (641-645)', () => {
         .expect(404);
     });
 
+    test('HQ removes a member with live residue: manager cleared, open remediation reassigned to the operator, open training cancelled, roster directory entry removed, my-remediations empty', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApprovedApplication(operator);
+      const helper = await addOpeningTeamMember(operator, applicationId);
+      const locationId = await locationIdFor(operator, applicationId);
+
+      // (a) The helper is the location's manager of record (HQ-assigned).
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/locations/${locationId}/manager`)
+        .set('x-test-user', admin.id)
+        .send({ manager_user_id: helper.id })
+        .expect(201);
+      // (b) The helper owns an open remediation.
+      const ticket = await addTicket(operator, { applicationId, priority: 'high', subject: 'Fridge down' });
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${ticket.ticket_number}/remediation`)
+        .set('x-test-user', operator.id)
+        .send({ owner_user_id: helper.id, due_date: '2026-12-01' })
+        .expect(201);
+      // (c) The helper has one open and one completed training assignment.
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training`)
+        .set('x-test-user', operator.id)
+        .send({ assignee_user_id: helper.id, module_title: 'Food safety basics', due_date: '2026-12-15' })
+        .expect(201);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training`)
+        .set('x-test-user', operator.id)
+        .send({ assignee_user_id: helper.id, module_title: 'Knife skills', due_date: '2026-12-15' })
+        .expect(201);
+      const { rows: [doneRow] } = await db.query(
+        `SELECT id FROM franchise_training_assignments WHERE application_id = $1 AND assignee_user_id = $2 AND module_title = 'Knife skills'`,
+        [applicationId, helper.id],
+      );
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training/${doneRow.id}/complete`)
+        .set('x-test-user', helper.id)
+        .expect(200);
+      // (d) The helper is listed in the contact directory (roster), plus a
+      // manual entry that must survive the removal.
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/contact-directory`)
+        .set('x-test-user', operator.id)
+        .send({ contact_user_id: helper.id, role: 'Opening lead' })
+        .expect(201);
+      const manual = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/contact-directory`)
+        .set('x-test-user', operator.id)
+        .send({ name: 'City permits desk', email: 'permits@example.invalid', role: 'Permits' })
+        .expect(201);
+
+      // The helper sees their remediation before removal.
+      const before = await request(app)
+        .get('/api/franchise/my-remediations')
+        .set('x-test-user', helper.id)
+        .expect(200);
+      expect(before.body.total).toBe(1);
+
+      const removed = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/access-removals`)
+        .set('x-test-user', admin.id)
+        .send({ user_id: helper.id, reason: 'Left the opening team' })
+        .expect(201);
+      expect(removed.body.residue.managers_cleared).toHaveLength(1);
+      expect(removed.body.residue.remediations_reassigned_to_operator).toHaveLength(1);
+      expect(removed.body.residue.remediations_reassigned_to_operator[0].ticket_id).toBe(ticket.id);
+      expect(removed.body.residue.training_assignments_cancelled).toHaveLength(1);
+      expect(removed.body.residue.directory_entries_removed).toHaveLength(1);
+
+      const { rows: managerRows } = await db.query(
+        'SELECT id FROM franchise_location_managers WHERE application_id = $1 AND manager_user_id = $2',
+        [applicationId, helper.id],
+      );
+      expect(managerRows).toHaveLength(0);
+      const { rows: [remediation] } = await db.query(
+        'SELECT owner_user_id FROM franchise_remediations WHERE application_id = $1 AND ticket_id = $2',
+        [applicationId, ticket.id],
+      );
+      expect(remediation.owner_user_id).toBe(operator.id);
+      const { rows: openTrainingRows } = await db.query(
+        `SELECT id FROM franchise_training_assignments WHERE application_id = $1 AND assignee_user_id = $2 AND status IN ('assigned', 'in_progress')`,
+        [applicationId, helper.id],
+      );
+      expect(openTrainingRows).toHaveLength(0);
+      const { rows: doneTrainingRows } = await db.query(
+        `SELECT id FROM franchise_training_assignments WHERE application_id = $1 AND assignee_user_id = $2 AND status = 'completed'`,
+        [applicationId, helper.id],
+      );
+      expect(doneTrainingRows).toHaveLength(1);
+      const { rows: directoryRows } = await db.query(
+        'SELECT id FROM franchise_contact_directory WHERE application_id = $1 AND contact_user_id = $2',
+        [applicationId, helper.id],
+      );
+      expect(directoryRows).toHaveLength(0);
+      const { rows: manualRows } = await db.query(
+        'SELECT id FROM franchise_contact_directory WHERE application_id = $1 AND id = $2',
+        [applicationId, manual.body.contact.id],
+      );
+      expect(manualRows).toHaveLength(1);
+      // The removed member's own remediation list is now empty.
+      const after = await request(app)
+        .get('/api/franchise/my-remediations')
+        .set('x-test-user', helper.id)
+        .expect(200);
+      expect(after.body.total).toBe(0);
+    });
+
     test('HQ cannot remove the operator through the removal endpoint: 409, use a handoff', async () => {
       const operator = await addUser();
       const admin = await addUser('super_admin');

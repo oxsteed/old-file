@@ -6375,6 +6375,11 @@ async function listRemediationsAsAdmin(req, res) {
 
 // 632 (D-332): the remediations assigned to the viewer, across all
 // territories — the assigned owner's own list, no application scoping.
+// G12-B2 (D-639): a remediation is visible only while the viewer is still
+// a live member of that remediation's territory (owner, accepted invitee,
+// or opening-team member). Without the check, a removed member kept
+// reading their assigned tickets' subjects, categories, priorities,
+// statuses, and location names after removal.
 async function listMyRemediations(req, res) {
   try {
     const { rows } = await db.query(
@@ -6387,6 +6392,18 @@ async function listMyRemediations(req, res) {
          LEFT JOIN franchise_locations l ON l.id = t.franchise_location_id
          LEFT JOIN users u ON u.id = r.owner_user_id
         WHERE r.owner_user_id = $1
+          AND EXISTS (
+            SELECT 1 FROM franchise_applications fa
+             WHERE fa.id = t.franchise_application_id AND fa.owner_user_id = $1
+            UNION
+            SELECT 1 FROM franchise_territory_invitations i
+             WHERE i.application_id = t.franchise_application_id
+               AND lower(i.email) = lower((SELECT email FROM users WHERE id = $1))
+               AND i.status = 'accepted'
+            UNION
+            SELECT 1 FROM franchise_opening_team_members m
+             WHERE m.application_id = t.franchise_application_id AND m.helper_user_id = $1
+          )
         ORDER BY r.due_date ASC, r.created_at DESC, r.id DESC`,
       [req.user?.id]
     );
@@ -11961,6 +11978,59 @@ async function removeTerritoryAccessAsAdmin(req, res) {
         [userId, req.user?.id || null, String(id)]
       );
       if (revoked.length) await access.bumpProjection(client, userId);
+      // G12-B2 (D-639): a removal must leave no live residue behind. All
+      // four cleanups run in the same transaction as the membership
+      // removal, so a failure anywhere rolls the removal back with them.
+      // (a) The member stops being any location's manager of record, so
+      // the location honestly reports no manager until HQ assigns one.
+      const { rows: managersCleared } = await client.query(
+        `DELETE FROM franchise_location_managers
+          WHERE application_id = $1 AND manager_user_id = $2
+          RETURNING id, location_id`,
+        [id, userId]
+      );
+      // (b) Open remediations (ticket not resolved/closed) move to the
+      // territory operator, who is accountable for them until HQ
+      // reassigns; the ids ride in the response so HQ sees what moved.
+      // Remediations on resolved/closed tickets keep their owner as
+      // history. owner_user_id is NOT NULL, so there is no "unassigned"
+      // state to clear to — deletion would silently drop the fix.
+      const operatorId = appRows[0].owner_user_id;
+      const { rows: remediationsReassigned } = await client.query(
+        `UPDATE franchise_remediations r
+            SET owner_user_id = $3, updated_at = NOW()
+           FROM support_tickets t
+          WHERE r.ticket_id = t.id
+            AND r.application_id = $1 AND r.owner_user_id = $2
+            AND t.status NOT IN ('resolved', 'closed')
+          RETURNING r.id, r.ticket_id`,
+        [id, userId, operatorId]
+      );
+      // (c) Open training assignments are cancelled (deleted): the member
+      // is gone, so their pending training is moot. Completed
+      // assignments stay as history.
+      const { rows: trainingCancelled } = await client.query(
+        `DELETE FROM franchise_training_assignments
+          WHERE application_id = $1 AND assignee_user_id = $2
+            AND status IN ('assigned', 'in_progress')
+          RETURNING id`,
+        [id, userId]
+      );
+      // (d) Roster-linked directory entries (the member's own listing)
+      // are removed. Manual entries stay: they belong to the territory,
+      // not to the removed member, even when the member created them.
+      const { rows: directoryRemoved } = await client.query(
+        `DELETE FROM franchise_contact_directory
+          WHERE application_id = $1 AND contact_user_id = $2
+          RETURNING id`,
+        [id, userId]
+      );
+      const residue = {
+        managers_cleared: managersCleared.map((row) => row.id),
+        remediations_reassigned_to_operator: remediationsReassigned.map((row) => ({ id: row.id, ticket_id: row.ticket_id })),
+        training_assignments_cancelled: trainingCancelled.map((row) => row.id),
+        directory_entries_removed: directoryRemoved.map((row) => row.id),
+      };
       const { rows } = await client.query(
         `INSERT INTO franchise_access_removals
            (application_id, user_id, membership_kind, reason, removed_by)
@@ -11970,9 +12040,9 @@ async function removeTerritoryAccessAsAdmin(req, res) {
       );
       await logActivity(client, id, req.user?.id || null, 'territory_access_removed',
         `HQ removed a territory member's access (${membershipKind}).`,
-        { access_removal_id: rows[0].id, user_id: userId, membership_kind: membershipKind, reason });
+        { access_removal_id: rows[0].id, user_id: userId, membership_kind: membershipKind, reason, residue });
       await client.query('COMMIT');
-      return res.status(201).json({ access_removal: rows[0] });
+      return res.status(201).json({ access_removal: rows[0], residue });
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
