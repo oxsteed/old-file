@@ -26,6 +26,45 @@ export const PERSONA_NAVIGATION_CATALOG = Object.freeze([
 
 const link = (id, to, labelKey, extra = {}) => ({ id, to, labelKey, primary: false, ...extra });
 const STAFF_CAPABILITIES = new Set(['staff.review', 'staff.support', 'admin.access', 'manage_operations']);
+
+// Account-menu sections. The flat `account` array keeps its build order
+// (tests pin the ids) and grouping happens at render time via
+// groupAccountItems(). An item without a known section falls into
+// 'account' so it is never lost from the menu.
+export const ACCOUNT_MENU_SECTIONS = Object.freeze([
+  { id: 'lead', labelKey: null },
+  { id: 'money', labelKey: 'nav.sectionMoney' },
+  { id: 'ordersWork', labelKey: 'nav.sectionOrdersWork' },
+  { id: 'business', labelKey: 'nav.sectionBusiness' },
+  { id: 'learn', labelKey: 'nav.sectionLearnEarn' },
+  { id: 'account', labelKey: 'nav.sectionAccount' },
+]);
+
+// Persona family -> menu section for the contextual shortcuts
+// addPersonaLinks() adds. Kept out of PERSONA_NAV_TARGETS so the
+// investPages file-shape assertion on that literal keeps matching.
+const PERSONA_SECTION = Object.freeze({
+  helper: 'ordersWork',
+  'business-owner': 'business',
+  'business-team': 'business',
+  'restaurant-owner': 'business',
+  'restaurant-team': 'business',
+  logistics: 'ordersWork',
+  consultant: 'ordersWork',
+  'equipment-owner': 'business',
+  franchise: 'business',
+  'investor-reporting': 'money',
+});
+
+export function groupAccountItems(items) {
+  const groups = ACCOUNT_MENU_SECTIONS.map((section) => ({ ...section, items: [] }));
+  for (const item of items || []) {
+    const section = ACCOUNT_MENU_SECTIONS.some((s) => s.id === item.section) ? item.section : 'account';
+    groups.find((g) => g.id === section).items.push(item);
+  }
+  return groups.filter((g) => g.items.length > 0);
+}
+
 const PROJECTION_NOTICE_STATES = new Set(['loading', 'temporary_failure', 'rollback']);
 const PERSONA_NAV_TARGETS = Object.freeze({
   helper: [
@@ -144,6 +183,7 @@ function addPersonaLinks(target, projection, approved) {
       addUnique(target, link(item.id, item.to, item.labelKey, {
         protected: true,
         persona: family.id,
+        section: PERSONA_SECTION[family.id] || 'account',
         ...(item.reportingOnly ? { reportingOnly: true } : {}),
       }));
     }
@@ -166,13 +206,13 @@ function organizationLinks(projection) {
     if (isRestaurantLocation) {
       for (const tool of scope.shortcuts || scope.navigation || []) {
         if (!tool || !tool.to || tool.protected === false) continue;
-        links.push(link(`restaurant-${scopeId}-${tool.id || tool.to}`, tool.to, tool.labelKey || 'nav.businessWorkspace', { scopeId: String(scopeId), protected: true }));
+        links.push(link(`restaurant-${scopeId}-${tool.id || tool.to}`, tool.to, tool.labelKey || 'nav.businessWorkspace', { scopeId: String(scopeId), protected: true, section: 'business' }));
       }
       // The parent workspace comes from its business membership above.
       // A location ID identifies location tools, never a business workspace.
       continue;
     }
-    links.push(link(`workspace-${scopeId}`, `/business/${encodeURIComponent(scopeId)}/workspace`, scope.name || scope.business_name || 'nav.businessWorkspace', { scopeId: String(scopeId), workspace: true, protected: true }));
+    links.push(link(`workspace-${scopeId}`, `/business/${encodeURIComponent(scopeId)}/workspace`, scope.name || scope.business_name || 'nav.businessWorkspace', { scopeId: String(scopeId), workspace: true, protected: true, section: 'business' }));
   }
   return links;
 }
@@ -197,18 +237,18 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
     link('postJob', '/post-job', 'nav.postJob', { primary: true }),
   ];
   const account = [
-    link('dashboard', '/dashboard', 'nav.dashboard'),
-    link('foodOrders', '/orders', 'nav.foodOrders'),
+    link('dashboard', '/dashboard', 'nav.dashboard', { section: 'lead' }),
+    link('foodOrders', '/orders', 'nav.foodOrders', { section: 'ordersWork' }),
     link('applications', '/settings/applications', 'nav.myApplications', { count: isProjectionReady(projection) ? Number(projection.access.openRequestCount || 0) : 0 }),
     // G-9: these pages have no grant behind them, so they live in the
     // customer baseline, not behind a persona capability. They are reachable
     // for every signed-in account and promise no access.
-    link('credit', '/oxsteed-credit', 'nav.credit'),
-    link('partner', '/affiliate', 'nav.partner'),
-    link('learning', '/learn', 'nav.learning'),
+    link('credit', '/oxsteed-credit', 'nav.credit', { section: 'money' }),
+    link('partner', '/affiliate', 'nav.partner', { section: 'learn' }),
+    link('learning', '/learn', 'nav.learning', { section: 'learn' }),
   ];
   if (!isProjectionReady(projection)) {
-    account.push(link('settings', '/settings', 'nav.settings'), link('help', '/support', 'nav.help'), link('wallet', '/wallet', 'nav.wallet'), link('statements', '/statements', 'statementCenter.title'));
+    account.push(link('settings', '/settings', 'nav.settings', { section: 'account' }), link('help', '/support', 'nav.help', { section: 'account' }), link('wallet', '/wallet', 'nav.wallet', { section: 'money' }), link('statements', '/statements', 'statementCenter.title', { section: 'money' }));
     return { mode: 'customer', primary, account, workspaces: [], personas: ['customer'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'], showBusinessSwitcher: false, projectionNotice };
   }
 
@@ -218,18 +258,18 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
   const hasBusinessWorkspace = workspaces.some((item) => item.workspace);
   const approved = (capability) => hasCapability(projection, capability) && activationReady(projection, capability);
   if (approved('helper.offer_services')) {
-    addUnique(account, link('browseJobs', '/jobs', 'nav.browseJobs', { protected: true }));
-    addUnique(account, link('myWork', '/helper-dashboard', 'nav.myWork', { protected: true }));
+    addUnique(account, link('browseJobs', '/jobs', 'nav.browseJobs', { protected: true, section: 'ordersWork' }));
+    addUnique(account, link('myWork', '/helper-dashboard', 'nav.myWork', { protected: true, section: 'ordersWork' }));
   } else if (hasCapability(projection, 'helper.offer_services')) {
     addUnique(account, link('helperSetup', '/settings/applications', 'nav.myApplications'));
   }
-  if (approved('consultant.accept_paying_clients')) addUnique(account, link('consultantReferrals', '/consulting/contractor-dashboard', 'consultantContractorDashboard.page.title', { protected: true }));
+  if (approved('consultant.accept_paying_clients')) addUnique(account, link('consultantReferrals', '/consulting/contractor-dashboard', 'consultantContractorDashboard.page.title', { protected: true, section: 'ordersWork' }));
   if (approved('logistics.ship')) {
-    addUnique(account, link('logisticsBuyer', '/logistics/buyer', 'logistics.nav.buyer', { protected: true }));
-    addUnique(account, link('logisticsOrganizer', '/logistics/organizer', 'logistics.nav.organizer', { protected: true }));
+    addUnique(account, link('logisticsBuyer', '/logistics/buyer', 'logistics.nav.buyer', { protected: true, section: 'ordersWork' }));
+    addUnique(account, link('logisticsOrganizer', '/logistics/organizer', 'logistics.nav.organizer', { protected: true, section: 'ordersWork' }));
   }
   if (approved('investor.reporting') && access.investorAudience) {
-    addUnique(account, link('investments', '/investments', 'nav.investments', { protected: true }));
+    addUnique(account, link('investments', '/investments', 'nav.investments', { protected: true, section: 'money' }));
   }
   if (hasCapability(projection, 'business.own') && !activationReady(projection, 'business.own')) {
     for (const to of setupLinksFor('business-owner')) addUnique(account, link('businessSetup', to, 'nav.businessLaunchStatus'));
@@ -238,7 +278,7 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
     for (const to of setupLinksFor('restaurant-owner')) addUnique(account, link('restaurantSetup', to, 'nav.businessLaunchStatus'));
   }
   if (approved('business.own') || approved('restaurant.own') || hasBusinessWorkspace) {
-    addUnique(account, link('workspace', '/business-hub', 'nav.businessWorkspace', { protected: true }));
+    addUnique(account, link('workspace', '/business-hub', 'nav.businessWorkspace', { protected: true, section: 'business' }));
   }
   for (const workspace of workspaces) addUnique(account, workspace);
 
@@ -252,8 +292,8 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
   // through the live /support/agent/me check (showSupportWorkspace) or a
   // staff capability, both above.
   const staffAccess = showSupportWorkspace || (access.personal || []).some((capability) => STAFF_CAPABILITIES.has(capability));
-  if (staffAccess) addUnique(account, link('support', '/support/agent', 'nav.supportWorkspace', { staffShell: true }));
-  account.push(link('settings', '/settings', 'nav.settings'), link('help', '/support', 'nav.help'), link('wallet', '/wallet', 'nav.wallet'), link('statements', '/statements', 'statementCenter.title'));
+  if (staffAccess) addUnique(account, link('support', '/support/agent', 'nav.supportWorkspace', { staffShell: true, section: 'account' }));
+  account.push(link('settings', '/settings', 'nav.settings', { section: 'account' }), link('help', '/support', 'nav.help', { section: 'account' }), link('wallet', '/wallet', 'nav.wallet', { section: 'money' }), link('statements', '/statements', 'statementCenter.title', { section: 'money' }));
   return { mode: 'customer', primary, account, workspaces, personas: personas.length ? personas : ['customer'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'], showBusinessSwitcher: hasBusinessWorkspace, projectionNotice };
 }
 

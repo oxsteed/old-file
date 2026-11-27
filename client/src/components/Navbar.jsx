@@ -8,6 +8,7 @@ import ThemeToggle from './ThemeToggle';
 import LanguageSelector from './LanguageSelector';
 import BusinessSwitcher from './BusinessSwitcher';
 import { navbarNavigation, navbarLinkActive } from '../utils/navbarNavigation';
+import { groupAccountItems } from '../utils/personaNavigation';
 import useAccessProjection from '../hooks/useAccessProjection';
 import { useNavDisclosure } from '../hooks/useNavDisclosure';
 import { useSupportWorkspaceAccess } from '../hooks/useSupportWorkspaceAccess';
@@ -103,7 +104,7 @@ export default function Navbar() {
                 ))}
 
                 {applicationItems.length > 0 && <ApplicationsDisclosure items={applicationItems} mode={currentMode} />}
-                <AccountDisclosure items={accountItems} mode={currentMode} logout={logout} />
+                <AccountDisclosure items={accountItems} mode={currentMode} logout={logout} user={user} />
               </>
             ) : (
               <>
@@ -212,15 +213,17 @@ export default function Navbar() {
                     </MobileNavLink>
                   ))}
                 </div>}
-                <div className="ox-nav-account-section">
-                  <span className="ox-nav-section-label">{t('nav.account')}</span>
-                  {accountItems.map(item => (
-                    <MobileNavLink key={item.id} to={item.to} onClick={() => setMobileOpen(false)} active={navbarLinkActive(item, location.pathname, currentMode)}>
-                      {t(item.labelKey)}{item.count > 0 && <UnreadBadge count={item.count} />}
-                    </MobileNavLink>
-                  ))}
-                  <button type="button" className="ox-nav-signout" onClick={() => { logout(); setMobileOpen(false); }} data-track="ui.0b9e115b87.3">{t('nav.signOut')}</button>
-                </div>
+                {groupAccountItems(accountItems).map((group) => (
+                  <div key={group.id} className="ox-nav-account-section">
+                    {group.labelKey && <span className="ox-nav-section-label">{t(group.labelKey)}</span>}
+                    {group.items.map(item => (
+                      <MobileNavLink key={item.id} to={item.to} onClick={() => setMobileOpen(false)} active={navbarLinkActive(item, location.pathname, currentMode)}>
+                        {t(item.labelKey)}{item.count > 0 && <UnreadBadge count={item.count} />}
+                      </MobileNavLink>
+                    ))}
+                  </div>
+                ))}
+                <button type="button" className="ox-nav-signout" onClick={() => { logout(); setMobileOpen(false); }} data-track="ui.0b9e115b87.3">{t('nav.signOut')}</button>
               </>
             ) : (
               <>
@@ -382,10 +385,24 @@ function ApplicationsDisclosure({ items, mode }) {
   );
 }
 
-function AccountDisclosure({ items, mode, logout }) {
+// Identity shown at the top of the account menu. The /auth/me user shape
+// varies, so resolve defensively: name fields first, email as the fallback,
+// and no header at all when neither resolves.
+function accountIdentity(user) {
+  const name = user?.name || user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || '';
+  const email = user?.email || '';
+  if (!name && !email) return null;
+  const source = name || email;
+  const initials = source.split(/\s+/).filter(Boolean).slice(0, 2).map((s) => s[0]).join('').toUpperCase() || '?';
+  return { name, email, initials };
+}
+
+function AccountDisclosure({ items, mode, logout, user }) {
   const { t } = useTranslation();
   const location = useLocation();
   const { open, setOpen, containerRef, triggerRef, panelId } = useNavDisclosure(mode);
+  const groups = groupAccountItems(items);
+  const identity = accountIdentity(user);
   return (
     <div ref={containerRef} data-nav-disclosure className="ox-nav-account">
       <button ref={triggerRef} type="button" className="ox-btn ox-btn-ghost ox-btn-sm ox-nav-account-trigger" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)} data-track="ui.0b9e115b87.4">
@@ -393,8 +410,22 @@ function AccountDisclosure({ items, mode, logout }) {
       </button>
       {open && (
         <div id={panelId} className="ox-nav-account-panel">
-          {items.map(item => (
-            <NavLink key={item.id} to={item.to} active={navbarLinkActive(item, location.pathname, mode)}>{t(item.labelKey)}{item.count > 0 && <UnreadBadge count={item.count} />}</NavLink>
+          {identity && (
+            <div className="ox-nav-account-identity">
+              <span className="ox-nav-account-avatar" aria-hidden="true">{identity.initials}</span>
+              <span className="ox-nav-account-identity-text">
+                {identity.name && <span className="ox-nav-account-name">{identity.name}</span>}
+                {identity.email && <span className="ox-nav-account-email">{identity.email}</span>}
+              </span>
+            </div>
+          )}
+          {groups.map((group) => (
+            <div key={group.id} className={group.id === 'lead' ? 'ox-nav-account-lead' : 'ox-nav-account-section'}>
+              {group.labelKey && <span className="ox-nav-section-label">{t(group.labelKey)}</span>}
+              {group.items.map(item => (
+                <NavLink key={item.id} to={item.to} active={navbarLinkActive(item, location.pathname, mode)}>{t(item.labelKey)}{item.count > 0 && <UnreadBadge count={item.count} />}</NavLink>
+              ))}
+            </div>
           ))}
           <button type="button" className="ox-nav-signout" onClick={logout} data-track="ui.0b9e115b87.5">{t('nav.signOut')}</button>
         </div>

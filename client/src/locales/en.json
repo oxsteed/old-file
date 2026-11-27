@@ -2495,7 +2495,7 @@
     "closeMenu": "Close menu",
     "openMenu": "Open menu",
     "qrGenerator": "QR Generator",
-    "wallet": "wallet",
+    "wallet": "Wallet",
     "calendar": "Calendar",
     "resources": "Resources",
     "businessLaunchStatus": "My Business Launch",
@@ -2509,7 +2509,12 @@
     "mainNavigation": "Authentication navigation",
     "credit": "OxSteed Credit",
     "partner": "Partner program",
-    "learning": "Workforce learning"
+    "learning": "Workforce learning",
+    "sectionMoney": "Money",
+    "sectionOrdersWork": "Orders & work",
+    "sectionBusiness": "Business",
+    "sectionLearnEarn": "Learn & earn",
+    "sectionAccount": "Account"
   ,
     "household": "Household"
   },
