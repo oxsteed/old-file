@@ -245,6 +245,14 @@ describe('incident alert dispatch', () => {
         expect.stringContaining('persistently failing'),
         expect.objectContaining({ type: 'BACKUP_FAILURE' })
       );
+      // Item 49 residual: the escalation is durable now, not log-only —
+      // a medium incident (no notification window, so it cannot re-enter
+      // the failing dispatch loop) deduped per failing incident type.
+      expect(incidentStore.recordIncident).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'incident_alert_channel_failed',
+        severity: 'medium',
+        dedupeKey: 'incident-alert-channel:BACKUP_FAILURE',
+      }));
     } finally {
       errorSpy.mockRestore();
     }

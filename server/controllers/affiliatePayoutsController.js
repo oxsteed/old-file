@@ -603,7 +603,7 @@ async function runAffiliatePayout({ payoutId, adminId, req, skipDualApproval = f
     // left 'processing' concurrently) notifies nobody: nothing settled.
     if (updated) {
       try {
-        await sendNotification({
+        const result = await sendNotification({
           userId: payout.owner_id,
           type: 'affiliate_payout_processed',
           data: {
@@ -615,6 +615,26 @@ async function runAffiliatePayout({ payoutId, adminId, req, skipDualApproval = f
           action_url: '/affiliate',
           idempotencyKey: `affiliate-payout:processed:${payoutId}`,
         });
+        // Notifications audit item 54: the void half records an incident
+        // on { success: false } (N6, affiliatePayoutVoidOnRefund.js), but
+        // this half discarded the result entirely, so a failed
+        // processed-payout notice was invisible. Same shape: warn, then a
+        // deduped incident, so a stuck provider is visible to an operator.
+        // The payout itself stays settled; only the notice failed.
+        if (result && result.success !== true) {
+          logger.warn('Failed to notify affiliate of processed payout', { payoutId, error: result.error || 'send_failed' });
+          try {
+            await require('../services/incidentStore').recordIncident({
+              type: 'affiliate_payout_processed_notice_failed',
+              severity: 'medium',
+              message: `Affiliate processed-payout notice failed for payout ${payoutId}`,
+              dedupeKey: `affiliate-processed-notify:${payoutId}`,
+              details: { payoutId, error: result.error || 'send_failed' },
+            });
+          } catch (incidentError) {
+            logger.warn('Affiliate processed notice incident failed', { payoutId, error: incidentError.message });
+          }
+        }
       } catch (err) {
         logger.warn('Failed to notify affiliate of processed payout', { payoutId, error: err.message });
       }

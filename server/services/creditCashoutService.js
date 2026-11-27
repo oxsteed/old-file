@@ -413,6 +413,22 @@ async function notifySettlement(row, status) {
     result = await notify(row, status);
   } catch (err) {
     logger.warn('cashout.notify_failed', { cashoutId: String(row.id), status, error: err.message });
+    // Notifications audit item 47: the { success: false } path below
+    // records an incident, but this throw path only warn-logged, so a
+    // notify() throw left no operator-side record. Same incident, same
+    // dedupe key — a throw and a false result for one cash-out collapse
+    // to one row.
+    try {
+      await require('./incidentStore').recordIncident({
+        type: 'credit_cashout_settlement_notice_failed',
+        severity: 'high',
+        message: `Cash-out ${row.id} settled as ${status} but the holder notice failed`,
+        dedupeKey: `credit-cashout-notify:${row.id}:${status}`,
+        details: { cashoutId: String(row.id), userId: String(row.user_id), status, error: err.message },
+      });
+    } catch (incidentError) {
+      logger.warn('cashout.notify_incident_failed', { cashoutId: String(row.id), status, error: incidentError.message });
+    }
     return null;
   }
   if (result && result.success !== true) {

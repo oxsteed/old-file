@@ -458,5 +458,24 @@ describeDatabase('credit notice sent-gating (notifications audit items 1, 8, 45,
       );
       expect(rows).toHaveLength(0);
     });
+
+    test('item 47: a throw in the settlement notify path records the same incident', async () => {
+      const userId = await createUser('helper', { country: 'HT' });
+      const row = await openCashoutRow(userId);
+      sendNotification.mockRejectedValue(new Error('provider down'));
+      const cashout = require('../services/creditCashoutService');
+      const status = await cashout.settle(row, { status: 'failed', failureCode: 'partner_failed' });
+      expect(status).toBe('failed');
+      expect(warnSpy).toHaveBeenCalledWith(
+        'cashout.notify_failed',
+        expect.objectContaining({ cashoutId: String(row.id), status: 'failed', error: 'provider down' })
+      );
+      const { rows } = await pool.query(
+        'SELECT type, severity FROM incident_log WHERE dedupe_key = $1',
+        [`credit-cashout-notify:${row.id}:failed`]
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toEqual({ type: 'credit_cashout_settlement_notice_failed', severity: 'high' });
+    });
   });
 });

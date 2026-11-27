@@ -162,3 +162,27 @@ test('per-user lookup misses purge the user rows instead of rescanning them', as
   expect(purgeCalls[0][1]).toEqual(['user-1']);
   expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('SET sent_at = CURRENT_TIMESTAMP'))).toBe(false);
 });
+
+test('item 28(c): a prepare-only user with no pending notifications counts as processed 0', async () => {
+  // The prepare loop used to count processSingleUserDigest's `true`
+  // (nothing to prepare) as processed, so a run over users with empty
+  // queues reported digests that never existed. Real prepared digests
+  // are counted once the batch send succeeds; a no-op counts nothing.
+  const email = require('../utils/email');
+  email.sendEmailBatch = jest.fn(async (messages) => messages.map((_, i) => ({ id: String(i) })));
+  let processEmailDigest;
+  jest.isolateModules(() => { ({ processEmailDigest } = require('../jobs/emailDigestBatch')); });
+  const userId = '00000000-0000-4000-8000-000000000001';
+  let distinctCalls = 0;
+  mockQuery.mockImplementation(async (sql) => {
+    if (sql.includes('MAX(id)')) return { rows: [{ id: 2000 }] };
+    // One page with the user, then an empty page so the cursor loop ends.
+    if (sql.includes('SELECT DISTINCT edq.user_id')) return { rows: distinctCalls++ === 0 ? [{ user_id: userId }] : [] };
+    if (sql.includes('SELECT email, first_name')) return { rows: [{ email: 'a@example.test', first_name: 'Test', preferred_language: 'en' }] };
+    if (sql.includes('LEFT JOIN notifications')) return { rows: [] };
+    return { rows: [] };
+  });
+  const result = await processEmailDigest('daily');
+  expect(result).toEqual({ processed: 0, failed: 0 });
+  expect(email.sendEmailBatch).not.toHaveBeenCalled();
+});

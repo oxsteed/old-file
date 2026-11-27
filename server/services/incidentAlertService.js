@@ -176,6 +176,31 @@ class IncidentAlertService {
           claimedAt: incident.notification_claimed_at,
           leaseMinutes,
         });
+        // Item 49: the escalation used to be log-only — an operator who
+        // never reads the error log would never learn the alert channel
+        // itself is down. Record a durable incident for the channel
+        // failure, deduped per failing incident type while unresolved,
+        // so it shows up in the incident log. Severity 'medium' on
+        // purpose: it must NOT claim a notification window (only
+        // critical/high do), or the escalation would re-enter the same
+        // failing dispatch loop and escalate itself forever.
+        try {
+          await incidentStore.recordIncident({
+            type: 'incident_alert_channel_failed',
+            severity: 'medium',
+            message: `Incident alert channel persistently failing for ${incident.type} (incident ${incident.id ?? 'unknown'})`,
+            dedupeKey: `incident-alert-channel:${incident.type}`,
+            details: {
+              incidentType: incident.type,
+              severity: incident.severity,
+              incidentId: incident.id ?? null,
+              claimedAt: incident.notification_claimed_at || null,
+              leaseMinutes,
+            },
+          });
+        } catch (escalationError) {
+          logger.warn('Incident channel escalation record failed', { type: incident.type, error: escalationError.message });
+        }
       }
       await pool.query(`UPDATE incident_log SET
         last_notified_at=CASE WHEN $3 THEN NOW() ELSE last_notified_at END,

@@ -15,8 +15,12 @@ jest.mock('../services/sanctionsScreeningService', () => ({ assertSanctionsClear
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue({ success: true }),
 }));
+jest.mock('../services/incidentStore', () => ({
+  recordIncident: jest.fn().mockResolvedValue({ persisted: true, incident: { id: 1 }, notificationClaimed: false }),
+}));
 
 const { sendNotification } = require('../services/notificationService');
+const { recordIncident } = require('../services/incidentStore');
 const { processPayout } = require('../controllers/affiliatePayoutsController');
 const { voidClaimedCommissionsForRefund, notifyVoidedAffiliates } = require('../services/affiliatePayoutVoidOnRefund');
 const { tNotif } = require('../utils/i18n');
@@ -73,6 +77,22 @@ test('a failed transfer sends no payout-processed notice', async () => {
   await processPayout({ user: { id: 'admin' }, params: { payoutId: 7 } }, { json: jest.fn() }, next);
   expect(next.mock.calls[0][0].code).toBe('stripe_error');
   expect(sendNotification).not.toHaveBeenCalled();
+});
+
+test('item 54: a failed processed-payout notice records an incident, and the payout still settles', async () => {
+  route([...base, [/SET status = 'completed'/, { rows: [{ id: 7, status: 'completed' }] }]]);
+  mockTransfers.create.mockResolvedValue({ id: 'tr_1' });
+  sendNotification.mockResolvedValueOnce({ success: false, error: 'provider down' });
+  const res = { json: jest.fn() };
+  const next = jest.fn();
+  await processPayout({ user: { id: 'admin' }, params: { payoutId: 7 } }, res, next);
+  expect(next).not.toHaveBeenCalled();
+  expect(res.json).toHaveBeenCalledWith({ success: true, data: { id: 7, status: 'completed' } });
+  expect(recordIncident).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'affiliate_payout_processed_notice_failed',
+    severity: 'medium',
+    dedupeKey: 'affiliate-processed-notify:7',
+  }));
 });
 
 test('a refund-void notifies the affiliate whose commissions were voided', async () => {

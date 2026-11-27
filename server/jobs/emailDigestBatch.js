@@ -96,7 +96,11 @@ async function processEmailDigest(digestType = 'daily') {
       const prepared = await mapBounded(users, 5, async ({ user_id }) => {
         const item = await processSingleUserDigest(user_id, digestType, { prepareOnly: true, highWater: watermark.id });
         if (item === false) failed++;
-        else if (item === true) processed++;
+        // Item 28(c): a prepare-only `true` is a no-op — the user had no
+        // pending notifications, so nothing was prepared and nothing will
+        // be sent. It used to count as `processed`, inflating the run's
+        // tally with users whose digests never existed. Real prepared
+        // digests are counted below, once the batch send succeeds.
         return item;
       });
       const batch = prepared.filter(item => item && item.message);

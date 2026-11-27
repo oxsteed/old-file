@@ -133,6 +133,19 @@ describe('item 26: boundary idempotency derivation', () => {
     expect(a).not.toBe(laterBucket);
   });
 
+  test('item 26: entity-scoped derivation dedupes within a bucket, not across buckets', () => {
+    // The entity path used to carry no time component, so two distinct
+    // events for one entity with identical payloads collapsed forever.
+    // Same pinned mid-bucket shape as the payload-only test above.
+    const now = Date.UTC(2026, 10, 15, 12, 7, 0);
+    const args = { type: 'booking_accepted', userId: 'u1', data: { bookingId: 'b-1' }, title: 't', body: 'b' };
+    const a = deriveIdempotencyKey({ ...args, now });
+    const sameBucket = deriveIdempotencyKey({ ...args, now: now + 60 * 1000 });
+    const laterBucket = deriveIdempotencyKey({ ...args, now: now + 60 * 60 * 1000 });
+    expect(a).toBe(sameBucket);
+    expect(a).not.toBe(laterBucket);
+  });
+
   test('N5: a long entity value no longer truncates the payload hash off', () => {
     // Repro: with a 300-char entity value the old layout
     // `...:<field>:<value>:<hash>` sliced the hash off past 255 chars,

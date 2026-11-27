@@ -201,8 +201,16 @@ function deriveIdempotencyKey({ type, userId, title, body, data, sequence = null
   // layout (value then hash) sliced the hash off long entity keys, so
   // two events for the same entity with different payloads collapsed
   // to one key and the second was silently deduped away.
-  if (entity) return `${base}:${entity.field}:${payloadHash}${seq}:${entity.value}`.slice(0, 255);
+  // Item 26: the entity path had no time component, so two distinct
+  // events for one entity with identical payloads collapsed forever —
+  // the second was silently deduped away no matter how much later it
+  // happened. The bucket sits between the hash and the entity value,
+  // like the payload-only path, so a retry inside one 15-minute bucket
+  // still dedupes while a distinct identical event in a later bucket
+  // gets its own key; placing it before the value keeps a long value
+  // from truncating it off.
   const bucket = Math.floor(Number(now || Date.now()) / PAYLOAD_BUCKET_MS);
+  if (entity) return `${base}:${entity.field}:${payloadHash}:${bucket}${seq}:${entity.value}`.slice(0, 255);
   return `${base}:payload:${payloadHash}:${bucket}${seq}`.slice(0, 255);
 }
 

@@ -358,8 +358,13 @@ async function dispatchNotification(row) {
   // SMS — Item 14: through sendSMSIfOptedIn, which checks the verified
   // number, sms_enabled, the SMS master toggle, the per-type key, the
   // sms_opt_outs STOP list, and the 5-minute rate limit. The old sendSMS
-  // path (sendTransactionalSMS) checked none of those. Reminder types map
-  // to the sms_reminder toggle, which is the only reminder SMS column.
+  // path (sendTransactionalSMS) checked none of those. Reminder types pass
+  // smsType 'reminder', but there is NO sms_reminder column on
+  // notification_preferences — the only sms_reminder columns are
+  // per-interview flags on careers interview tables — so the per-type
+  // lookup reads absent and defaults to allowed. Reminder SMS is governed
+  // by the checks above, not by a reminder toggle; the behaviour is safe,
+  // the earlier comment claiming a toggle was wrong.
   if (channels.includes('sms') && recipientPhone) {
     try {
       const body = renderAppointmentSms(notification_type, {
