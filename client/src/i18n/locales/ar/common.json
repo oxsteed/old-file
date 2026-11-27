@@ -6901,7 +6901,10 @@
       "review_complete": "اكتملت المراجعة.",
       "territory_assigned": "تم إسناد المنطقة.",
       "territory_assignment_ended": "انتهى إسناد المنطقة."
-    }
+    },
+    "accessHistoryTitle": "سجل الوصول",
+    "accessHistoryEmpty": "لا توجد تغييرات وصول بعد.",
+    "historyGranted": "تم المنح"
   },
   "businessLaunchAttachments": {
     "download": "تنزيل",

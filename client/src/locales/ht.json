@@ -5030,6 +5030,25 @@
       "archiveButton": "Achive",
       "unarchiveButton": "Dezachive",
       "showArchivedLabel": "Montre kote yo achive yo"
+    },
+    "intent": {
+      "title": "Objektif ou",
+      "subtitle": "Ou chanje lide sou sa ou vle fè isit la? Chwazi objektif ou ankò.",
+      "currentGoal": "Objektif kounye a: {{goal}}",
+      "goalChanged": "Objektif la mete ajou",
+      "goalNeedsApplication": "Objektif sa a bezwen yon aplikasyon anvan. N ap louvri Aplikasyon yo.",
+      "goalChangeFailed": "Pa t kapab chanje objektif ou. Eseye ankò.",
+      "otherRolesHint": "Wòl ekip, anplwaye ak patnè yo akòde, yo pa chwazi:",
+      "options": {
+        "customer": "Chèche èd",
+        "helper": "Ofri sèvis",
+        "businessOwner": "Jere yon biznis",
+        "restaurantOwner": "Jere yon restoran",
+        "logistics": "Voye machandiz",
+        "consultant": "Bay konsèy",
+        "toolOwner": "Mete ekipman",
+        "franchiseApplicant": "Franchiz"
+      }
     }
   },
   "partsList": {
@@ -5879,7 +5898,26 @@
       "floodZone": "Zòn Inondasyon {{zone}}",
       "savedHelperFallback": "Asistan",
       "newHelper": "Nouvo",
-      "jobsLabel": "travay"
+      "jobsLabel": "travay",
+      "setupChecklistTitle": "Mete ou sou pye",
+      "setupProgress": "{{done}} sou {{total}} fini",
+      "setupVerifyEmail": "Verifye imèl ou",
+      "setupVerifyEmailAction": "Verifye",
+      "setupAddLocation": "Mete yon adrès sèvis",
+      "setupAddLocationAction": "Mete adrès",
+      "setupNotificationPrefs": "Mete preferans notifikasyon yo",
+      "setupNotificationPrefsAction": "Mete preferans",
+      "setupSaveHelper": "Sere yon edè",
+      "setupSaveHelperAction": "Chèche edè",
+      "setupComplete": "Enstalasyon an fini. Bèl travay.",
+      "setupDismiss": "Fèmen",
+      "savedHelperNoteLabel": "Nòt prive",
+      "savedHelperNotePlaceholder": "Mete yon nòt prive sou edè sa a",
+      "savedHelperNoteSave": "Sere nòt la",
+      "savedHelperNoteSaved": "Nòt la sere",
+      "savedHelperNoteFailed": "Pa t kapab sere nòt la",
+      "savedHelperNoteEdit": "Modifye nòt la",
+      "savedHelperNoteAdd": "Mete yon nòt"
     },
     "goals": {
       "title": "Objektif mwen yo",
@@ -7394,7 +7432,10 @@
     "aftercareLabel": "Enstriksyon swen apre travay la pou kliyan an",
     "aftercarePlaceholder": "Egzanp: Kenbe zòn nan sèk pandan 24 èdtan, apre sa siye l ak yon twal mouye.",
     "aftercareHint": "Opsyonèl. Kliyan an wè sa apre travay la fini.",
-    "aftercareTitle": "Swen apre"
+    "aftercareTitle": "Swen apre",
+    "privateNotesTitle": "Nòt prive ou yo",
+    "privateNotesOnlyYou": "Se ou sèl ki ka wè nòt sa yo.",
+    "privateNotesEdit": "Modifye nòt yo"
   },
   "myJobs": {
     "cancelUndoNote": "W ap gen 5 segonn pou defèt li apre konfimasyon.",
@@ -7600,7 +7641,8 @@
     "compareJobs": "Travay ki fèt",
     "comparePrice": "Pri kòmansman",
     "compareServices": "Sèvis",
-    "compareAvailable": "Disponib jodi a"
+    "compareAvailable": "Disponib jodi a",
+    "compareLimit": "Konpare jiska 3 edè"
   },
   "jobsDir": {
     "metaTitle": "Gade travay ki disponib",
@@ -16426,7 +16468,9 @@
       "omittedItem": "Pa disponib: {{name}}",
       "useInstead": "Sèvi ak sa a",
       "noSubstitutes": "Pa gen ranplasan pou atik sa a.",
-      "previewFailed": "Nou pa t kapab chaje apèsi a."
+      "previewFailed": "Nou pa t kapab chaje apèsi a.",
+      "matchedHint": "{{count}} twous matche kategori travay sa a ({{category}}). Li parèt an premye.",
+      "matchedBadge": "Matche travay sa a"
     },
     "paidLink": "(lyen peye)",
     "affiliateDisclosure": "OxSteed ka resevwa yon komisyon si ou achte nan lyen sa a, san okenn frè anplis pou ou."
@@ -17638,7 +17682,10 @@
   ,
     "bookForLabel": "Rezève pou",
     "bookForMyself": "Mwen menm",
-    "templatePrefillNotice": "Rezèvasyon soti nan modèl ou a: {{serviceName}}. Chwazi yon lè anba a."
+    "templatePrefillNotice": "Rezèvasyon soti nan modèl ou a: {{serviceName}}. Chwazi yon lè anba a.",
+    "addToCalendar": "Mete nan kalandriye (.ics)",
+    "calendarExport": "Kalandriye",
+    "downloadIcal": "Telechaje .ics"
   },
   "household": {
     "title": "Kay",
@@ -19242,7 +19289,21 @@
       "subtitle": "Swiv pwogrè ou pou chak objektif.",
       "empty": "Ou poko gen objektif.",
       "completed": "Fini",
-      "progress": "{{current}} sou {{target}}"
+      "progress": "{{current}} sou {{target}}",
+      "createGoal": "Nouvo objektif",
+      "editGoal": "Modifye objektif la",
+      "titleLabel": "Tit",
+      "typeLabel": "Kalite",
+      "targetLabel": "Sib",
+      "currentLabel": "Kounye a",
+      "dueLabel": "Dat limit",
+      "goalTitlePlaceholder": "pa egzanp. Ekonomize pou yon nouvo chofaj dlo",
+      "goalTypeFinancial": "Finansye",
+      "goalTypeTask": "Travay",
+      "goalTypeCareer": "Karyè",
+      "titleRequired": "Mete yon tit pou objektif la.",
+      "goalSaveFailed": "Pa t kapab sere objektif la. Eseye ankò.",
+      "confirmDelete": "Konfime efasman an"
     },
     "homeTasks": {
       "title": "Travay kay",

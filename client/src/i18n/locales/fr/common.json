@@ -6901,7 +6901,10 @@
       "review_complete": "Examen terminé.",
       "territory_assigned": "Territoire attribué.",
       "territory_assignment_ended": "Attribution du territoire terminée."
-    }
+    },
+    "accessHistoryTitle": "Historique des accès",
+    "accessHistoryEmpty": "Aucun changement d’accès pour l’instant.",
+    "historyGranted": "Accordé"
   },
   "businessLaunchAttachments": {
     "download": "Télécharger",

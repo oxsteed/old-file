@@ -4729,6 +4729,25 @@
       "archiveButton": "Archivar",
       "unarchiveButton": "Desarchivar",
       "showArchivedLabel": "Mostrar ubicaciones archivadas"
+    },
+    "intent": {
+      "title": "Tu objetivo",
+      "subtitle": "¿Cambiaste de opinión sobre lo que quieres hacer aquí? Elige tu objetivo de nuevo.",
+      "currentGoal": "Objetivo actual: {{goal}}",
+      "goalChanged": "Objetivo actualizado",
+      "goalNeedsApplication": "Ese objetivo requiere una solicitud primero. Abriendo Solicitudes.",
+      "goalChangeFailed": "No se pudo cambiar tu objetivo. Inténtalo de nuevo.",
+      "otherRolesHint": "Los roles de equipo, personal y socios se otorgan, no se eligen:",
+      "options": {
+        "customer": "Buscar ayuda",
+        "helper": "Ofrecer servicios",
+        "businessOwner": "Dirigir un negocio",
+        "restaurantOwner": "Dirigir un restaurante",
+        "logistics": "Enviar mercancías",
+        "consultant": "Asesorar",
+        "toolOwner": "Publicar equipos",
+        "franchiseApplicant": "Franquicia"
+      }
     }
   },
   "partsList": {
@@ -5578,7 +5597,26 @@
       "floodZone": "Zona de inundación {{zone}}",
       "savedHelperFallback": "Ayudante",
       "newHelper": "Nuevo",
-      "jobsLabel": "trabajos"
+      "jobsLabel": "trabajos",
+      "setupChecklistTitle": "Empieza",
+      "setupProgress": "{{done}} de {{total}} listos",
+      "setupVerifyEmail": "Verifica tu correo",
+      "setupVerifyEmailAction": "Verificar",
+      "setupAddLocation": "Agrega una ubicación de servicio",
+      "setupAddLocationAction": "Agregar ubicación",
+      "setupNotificationPrefs": "Configura las notificaciones",
+      "setupNotificationPrefsAction": "Configurar",
+      "setupSaveHelper": "Guarda un ayudante",
+      "setupSaveHelperAction": "Buscar ayudantes",
+      "setupComplete": "Configuración completa. Buen trabajo.",
+      "setupDismiss": "Descartar",
+      "savedHelperNoteLabel": "Nota privada",
+      "savedHelperNotePlaceholder": "Agrega una nota privada sobre este ayudante",
+      "savedHelperNoteSave": "Guardar nota",
+      "savedHelperNoteSaved": "Nota guardada",
+      "savedHelperNoteFailed": "No se pudo guardar la nota",
+      "savedHelperNoteEdit": "Editar nota",
+      "savedHelperNoteAdd": "Agregar nota"
     },
     "goals": {
       "title": "Mis Metas",
@@ -7093,7 +7131,10 @@
     "aftercareLabel": "Instrucciones de cuidado posterior para el cliente",
     "aftercarePlaceholder": "Ej.: Mantén la zona seca durante 24 horas y luego limpia con un paño húmedo.",
     "aftercareHint": "Opcional. El cliente lo ve cuando el trabajo termina.",
-    "aftercareTitle": "Cuidado posterior"
+    "aftercareTitle": "Cuidado posterior",
+    "privateNotesTitle": "Tus notas privadas",
+    "privateNotesOnlyYou": "Solo tú puedes ver estas notas.",
+    "privateNotesEdit": "Editar notas"
   },
   "myJobs": {
     "cancelUndoNote": "Tendrás 5 segundos para deshacerlo después de confirmar.",
@@ -7299,7 +7340,8 @@
     "compareJobs": "Trabajos realizados",
     "comparePrice": "Precio inicial",
     "compareServices": "Servicios",
-    "compareAvailable": "Disponible hoy"
+    "compareAvailable": "Disponible hoy",
+    "compareLimit": "Compara hasta 3 ayudantes"
   },
   "jobsDir": {
     "metaTitle": "Explorar trabajos abiertos",
@@ -16426,7 +16468,9 @@
       "omittedItem": "No disponible: {{name}}",
       "useInstead": "Usar este",
       "noSubstitutes": "No se encontró sustituto para este artículo.",
-      "previewFailed": "No se pudo cargar la vista previa."
+      "previewFailed": "No se pudo cargar la vista previa.",
+      "matchedHint": "{{count}} kit coincide con la categoría de este trabajo ({{category}}). Aparece primero.",
+      "matchedBadge": "Coincide con este trabajo"
     },
     "paidLink": "(enlace patrocinado)",
     "affiliateDisclosure": "OxSteed puede ganar una comisión si compras a través de este enlace, sin costo adicional para ti."
@@ -17638,7 +17682,10 @@
   ,
     "bookForLabel": "Reservar para",
     "bookForMyself": "Mí mismo",
-    "templatePrefillNotice": "Reserva desde tu plantilla: {{serviceName}}. Elige una hora abajo."
+    "templatePrefillNotice": "Reserva desde tu plantilla: {{serviceName}}. Elige una hora abajo.",
+    "addToCalendar": "Agregar al calendario (.ics)",
+    "calendarExport": "Calendario",
+    "downloadIcal": "Descargar .ics"
   },
   "household": {
     "title": "Hogar",
@@ -19242,7 +19289,21 @@
       "subtitle": "Sigue tu progreso hacia cada meta.",
       "empty": "Aún no tienes metas.",
       "completed": "Completada",
-      "progress": "{{current}} de {{target}}"
+      "progress": "{{current}} de {{target}}",
+      "createGoal": "Nueva meta",
+      "editGoal": "Editar meta",
+      "titleLabel": "Título",
+      "typeLabel": "Tipo",
+      "targetLabel": "Meta",
+      "currentLabel": "Actual",
+      "dueLabel": "Fecha límite",
+      "goalTitlePlaceholder": "p. ej. Ahorrar para un calentador nuevo",
+      "goalTypeFinancial": "Financiera",
+      "goalTypeTask": "Tarea",
+      "goalTypeCareer": "Profesional",
+      "titleRequired": "Agrega un título para la meta.",
+      "goalSaveFailed": "No se pudo guardar la meta. Inténtalo de nuevo.",
+      "confirmDelete": "Confirmar eliminación"
     },
     "homeTasks": {
       "title": "Tareas del hogar",

@@ -37,6 +37,7 @@ import {
 import { getPublicSiteUrl } from '../utils/seoDescription';
 import { fetchHelpers } from '../api/helpers';
 import api from '../api/axios';
+import toast from 'react-hot-toast';
 import PageMeta from '../components/PageMeta';
 
 const PAGE_SIZE = 9;
@@ -545,13 +546,21 @@ const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({
     }
   }, [savedByHelper, loadSaved]);
 
+  // Group 1, item 7: the compare cap is 3 (D-28, unchanged). A fourth tap
+  // used to be a silent no-op; it now says so instead of leaving the
+  // button looking broken. One stable toast id so repeated taps replace
+  // the toast instead of stacking it.
   const handleToggleCompare = useCallback((helperId: string) => {
-    setCompareIds((prev) => {
-      if (prev.includes(helperId)) return prev.filter((x) => x !== helperId);
-      if (prev.length >= 3) return prev;
-      return [...prev, helperId];
-    });
-  }, []);
+    if (compareIds.includes(helperId)) {
+      setCompareIds((prev) => prev.filter((x) => x !== helperId));
+      return;
+    }
+    if (compareIds.length >= 3) {
+      toast.error(t('helpersDir.compareLimit'), { id: 'compare-limit' });
+      return;
+    }
+    setCompareIds((prev) => [...prev, helperId]);
+  }, [compareIds, t]);
 
   useEffect(()=>{saveNavigationState('helpers:'+entryPoint,{filters,sort,page,tileId:selectedTileId,search:rememberedSearch});},[filters,sort,page,selectedTileId,entryPoint,rememberedSearch]);
 

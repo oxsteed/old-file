@@ -159,6 +159,12 @@
   margin-bottom: 1.125rem;
 }
 
+/* Group 1, item 47 (intent card): muted paragraph text without an
+   inline style={} attribute. */
+.sp-muted-text {
+  color: var(--muted-text, #94a3b8);
+}
+
 /* ── Danger card ─────────────────────────────────────────── */
 .sp-card.sp-danger-card {
   background: rgba(127,29,29,.18);

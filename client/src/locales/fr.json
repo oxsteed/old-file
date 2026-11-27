@@ -4729,6 +4729,25 @@
       "archiveButton": "Archiver",
       "unarchiveButton": "Désarchiver",
       "showArchivedLabel": "Afficher les lieux archivés"
+    },
+    "intent": {
+      "title": "Votre objectif",
+      "subtitle": "Vous avez changé d’avis sur ce que vous voulez faire ici ? Choisissez à nouveau votre objectif.",
+      "currentGoal": "Objectif actuel : {{goal}}",
+      "goalChanged": "Objectif mis à jour",
+      "goalNeedsApplication": "Cet objectif nécessite d’abord une demande. Ouverture des demandes.",
+      "goalChangeFailed": "Impossible de changer votre objectif. Réessayez.",
+      "otherRolesHint": "Les rôles d’équipe, de personnel et de partenaire sont accordés, pas choisis :",
+      "options": {
+        "customer": "Trouver de l’aide",
+        "helper": "Offrir des services",
+        "businessOwner": "Gérer une entreprise",
+        "restaurantOwner": "Gérer un restaurant",
+        "logistics": "Expédier des marchandises",
+        "consultant": "Conseiller",
+        "toolOwner": "Proposer du matériel",
+        "franchiseApplicant": "Franchise"
+      }
     }
   },
   "partsList": {
@@ -5578,7 +5597,26 @@
       "floodZone": "Zone d'inondation {{zone}}",
       "savedHelperFallback": "Aide",
       "newHelper": "Nouveau",
-      "jobsLabel": "travaux"
+      "jobsLabel": "travaux",
+      "setupChecklistTitle": "Mettez-vous en route",
+      "setupProgress": "{{done}} sur {{total}} terminés",
+      "setupVerifyEmail": "Vérifiez votre e-mail",
+      "setupVerifyEmailAction": "Vérifier",
+      "setupAddLocation": "Ajoutez un lieu de service",
+      "setupAddLocationAction": "Ajouter un lieu",
+      "setupNotificationPrefs": "Réglez vos notifications",
+      "setupNotificationPrefsAction": "Régler",
+      "setupSaveHelper": "Enregistrez un aidant",
+      "setupSaveHelperAction": "Trouver des aidants",
+      "setupComplete": "Configuration terminée. Beau travail.",
+      "setupDismiss": "Ignorer",
+      "savedHelperNoteLabel": "Note privée",
+      "savedHelperNotePlaceholder": "Ajoutez une note privée sur cet aidant",
+      "savedHelperNoteSave": "Enregistrer la note",
+      "savedHelperNoteSaved": "Note enregistrée",
+      "savedHelperNoteFailed": "Impossible d’enregistrer la note",
+      "savedHelperNoteEdit": "Modifier la note",
+      "savedHelperNoteAdd": "Ajouter une note"
     },
     "goals": {
       "title": "Mes Objectifs",
@@ -7093,7 +7131,10 @@
     "aftercareLabel": "Consignes d'entretien pour le client",
     "aftercarePlaceholder": "Ex. : Gardez la zone sèche pendant 24 heures, puis essuyez avec un chiffon humide.",
     "aftercareHint": "Facultatif. Le client voit ces consignes une fois le travail terminé.",
-    "aftercareTitle": "Entretien"
+    "aftercareTitle": "Entretien",
+    "privateNotesTitle": "Vos notes privées",
+    "privateNotesOnlyYou": "Vous seul pouvez voir ces notes.",
+    "privateNotesEdit": "Modifier les notes"
   },
   "myJobs": {
     "cancelUndoNote": "Vous aurez 5 secondes pour annuler après confirmation.",
@@ -7299,7 +7340,8 @@
     "compareJobs": "Travaux réalisés",
     "comparePrice": "Prix de départ",
     "compareServices": "Services",
-    "compareAvailable": "Disponible aujourd'hui"
+    "compareAvailable": "Disponible aujourd'hui",
+    "compareLimit": "Comparez jusqu’à 3 aidants"
   },
   "jobsDir": {
     "metaTitle": "Parcourir les missions ouvertes",
@@ -16426,7 +16468,9 @@
       "omittedItem": "Indisponible : {{name}}",
       "useInstead": "Utiliser celui-ci",
       "noSubstitutes": "Aucun remplacement trouvé pour cet article.",
-      "previewFailed": "Impossible de charger l'aperçu."
+      "previewFailed": "Impossible de charger l'aperçu.",
+      "matchedHint": "{{count}} kit correspond à la catégorie de ce travail ({{category}}). Il est listé en premier.",
+      "matchedBadge": "Correspond à ce travail"
     },
     "paidLink": "(lien rémunéré)",
     "affiliateDisclosure": "OxSteed peut percevoir une commission si vous achetez via ce lien, sans frais supplémentaires pour vous."
@@ -17638,7 +17682,10 @@
   ,
     "bookForLabel": "Réserver pour",
     "bookForMyself": "Moi-même",
-    "templatePrefillNotice": "Réservation depuis votre modèle : {{serviceName}}. Choisissez un horaire ci-dessous."
+    "templatePrefillNotice": "Réservation depuis votre modèle : {{serviceName}}. Choisissez un horaire ci-dessous.",
+    "addToCalendar": "Ajouter au calendrier (.ics)",
+    "calendarExport": "Calendrier",
+    "downloadIcal": "Télécharger .ics"
   },
   "household": {
     "title": "Foyer",
@@ -19242,7 +19289,21 @@
       "subtitle": "Suivez vos progrès vers chaque objectif.",
       "empty": "Vous n'avez pas encore d'objectifs.",
       "completed": "Terminé",
-      "progress": "{{current}} sur {{target}}"
+      "progress": "{{current}} sur {{target}}",
+      "createGoal": "Nouvel objectif",
+      "editGoal": "Modifier l’objectif",
+      "titleLabel": "Titre",
+      "typeLabel": "Type",
+      "targetLabel": "Cible",
+      "currentLabel": "Actuel",
+      "dueLabel": "Échéance",
+      "goalTitlePlaceholder": "p. ex. Épargner pour un chauffe-eau neuf",
+      "goalTypeFinancial": "Financier",
+      "goalTypeTask": "Tâche",
+      "goalTypeCareer": "Carrière",
+      "titleRequired": "Ajoutez un titre pour l’objectif.",
+      "goalSaveFailed": "Impossible d’enregistrer l’objectif. Réessayez.",
+      "confirmDelete": "Confirmer la suppression"
     },
     "homeTasks": {
       "title": "Tâches ménagères",

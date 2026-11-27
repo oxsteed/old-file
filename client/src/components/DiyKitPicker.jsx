@@ -12,8 +12,13 @@ import { formatMoney } from '../lib/format';
  * cart. Prices are live DB prices, re-read at build time by the server.
  * Items the catalog cannot supply are reported as omitted, never silently
  * swapped (see item 34 for the substitution preview).
+ *
+ * Group 1, item 31: when the caller passes the job's category, the kits
+ * whose items share that catalog category surface first, marked as
+ * matching this job. No skill taxonomy is invented: the match is derived
+ * from the kits' live product categories (listJobKits `categories`).
  */
-export default function DiyKitPicker({ signedIn }) {
+export default function DiyKitPicker({ signedIn, category }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [kits, setKits] = useState([]);
@@ -86,14 +91,34 @@ export default function DiyKitPicker({ signedIn }) {
 
   if (!signedIn || !loaded || kits.length === 0) return null;
 
+  // Group 1, item 31: rank the kits matching the job's category first.
+  // A kit matches when one of its items' catalog categories appears in
+  // the job category (or vice versa), compared case-insensitively on
+  // words of at least 4 characters so "Plumbing - General" matches
+  // "plumbing" but a short fragment cannot match everything.
+  const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const nCategory = norm(category);
+  const kitMatchesCategory = (kit) => nCategory.length >= 4 && (kit.categories || []).some((c) => {
+    const nc = norm(c);
+    return nc.length >= 4 && (nCategory.includes(nc) || nc.includes(nCategory));
+  });
+  const matchedKits = category ? kits.filter(kitMatchesCategory) : [];
+  const orderedKits = [...matchedKits, ...kits.filter((k) => !kitMatchesCategory(k))];
+
   return (
     <section aria-label={t('marketplace.kits.title')} className="rounded-2xl border border-gray-800 bg-gray-900/60 p-4">
       <h2 className="text-lg font-semibold text-white">{t('marketplace.kits.title')}</h2>
       <p className="text-sm text-gray-400 mt-1">{t('marketplace.kits.hint')}</p>
+      {matchedKits.length > 0 && (
+        <p className="text-sm text-orange-300 mt-1">{t('marketplace.kits.matchedHint', { category, count: matchedKits.length })}</p>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
-        {kits.map((kit) => (
+        {orderedKits.map((kit) => (
           <div key={kit.jobType} className="rounded-xl border border-gray-700 bg-gray-900 p-3 flex flex-col gap-2">
             <span className="font-medium text-white">{kit.jobType}</span>
+            {kitMatchesCategory(kit) && (
+              <span className="text-[11px] font-semibold text-orange-400">{t('marketplace.kits.matchedBadge')}</span>
+            )}
             <span className="text-sm text-gray-400">
               {t('marketplace.kits.items', { available: kit.availableCount, total: kit.itemCount })}
               {kit.missingCount > 0 && ` · ${t('marketplace.kits.missing', { count: kit.missingCount })}`}

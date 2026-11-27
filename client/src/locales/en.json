@@ -4729,6 +4729,25 @@
       "archiveButton": "Archive",
       "unarchiveButton": "Unarchive",
       "showArchivedLabel": "Show archived locations"
+    },
+    "intent": {
+      "title": "Your goal",
+      "subtitle": "Changed your mind about what you want to do here? Pick your goal again.",
+      "currentGoal": "Current goal: {{goal}}",
+      "goalChanged": "Goal updated",
+      "goalNeedsApplication": "That goal needs an application first. Opening Applications.",
+      "goalChangeFailed": "Could not change your goal. Try again.",
+      "otherRolesHint": "Team, staff, and partner roles are granted, not picked:",
+      "options": {
+        "customer": "Find help",
+        "helper": "Offer services",
+        "businessOwner": "Run a business",
+        "restaurantOwner": "Run a restaurant",
+        "logistics": "Ship goods",
+        "consultant": "Consult",
+        "toolOwner": "List equipment",
+        "franchiseApplicant": "Franchise"
+      }
     }
   },
   "partsList": {
@@ -5578,7 +5597,26 @@
       "floodZone": "Flood Zone {{zone}}",
       "savedHelperFallback": "Helper",
       "newHelper": "New",
-      "jobsLabel": "jobs"
+      "jobsLabel": "jobs",
+      "setupChecklistTitle": "Get set up",
+      "setupProgress": "{{done}} of {{total}} done",
+      "setupVerifyEmail": "Verify your email",
+      "setupVerifyEmailAction": "Verify",
+      "setupAddLocation": "Add a service location",
+      "setupAddLocationAction": "Add location",
+      "setupNotificationPrefs": "Set notification preferences",
+      "setupNotificationPrefsAction": "Set preferences",
+      "setupSaveHelper": "Save a helper",
+      "setupSaveHelperAction": "Find helpers",
+      "setupComplete": "Setup complete. Nice work.",
+      "setupDismiss": "Dismiss",
+      "savedHelperNoteLabel": "Private note",
+      "savedHelperNotePlaceholder": "Add a private note about this helper",
+      "savedHelperNoteSave": "Save note",
+      "savedHelperNoteSaved": "Note saved",
+      "savedHelperNoteFailed": "Could not save the note",
+      "savedHelperNoteEdit": "Edit note",
+      "savedHelperNoteAdd": "Add note"
     },
     "goals": {
       "title": "My Goals",
@@ -7093,7 +7131,10 @@
     "aftercareLabel": "Aftercare instructions for the customer",
     "aftercarePlaceholder": "e.g. Keep the area dry for 24 hours, then wipe with a damp cloth.",
     "aftercareHint": "Optional. The customer sees this after the job is complete.",
-    "aftercareTitle": "Aftercare"
+    "aftercareTitle": "Aftercare",
+    "privateNotesTitle": "Your private notes",
+    "privateNotesOnlyYou": "Only you can see these notes.",
+    "privateNotesEdit": "Edit notes"
   },
   "myJobs": {
     "cancelUndoNote": "You will have 5 seconds to undo after confirming.",
@@ -7299,7 +7340,8 @@
     "compareJobs": "Jobs done",
     "comparePrice": "Starting price",
     "compareServices": "Services",
-    "compareAvailable": "Available today"
+    "compareAvailable": "Available today",
+    "compareLimit": "Compare up to 3 helpers"
   },
   "jobsDir": {
     "metaTitle": "Browse Open Jobs",
@@ -16895,7 +16937,10 @@
   ,
     "bookForLabel": "Book for",
     "bookForMyself": "Myself",
-    "templatePrefillNotice": "Booking from your template: {{serviceName}}. Pick a time below."
+    "templatePrefillNotice": "Booking from your template: {{serviceName}}. Pick a time below.",
+    "addToCalendar": "Add to calendar (.ics)",
+    "calendarExport": "Calendar",
+    "downloadIcal": "Download .ics"
   },
   "household": {
     "title": "Household",
@@ -17308,7 +17353,9 @@
       "omittedItem": "Not available: {{name}}",
       "useInstead": "Use instead",
       "noSubstitutes": "No substitute found for this item.",
-      "previewFailed": "Could not load the preview. Please try again."
+      "previewFailed": "Could not load the preview. Please try again.",
+      "matchedHint": "{{count}} kit matches this job’s category ({{category}}). It is listed first.",
+      "matchedBadge": "Matches this job"
     },
     "paidLink": "(paid link)",
     "affiliateDisclosure": "OxSteed may earn a commission if you buy through this link, at no extra cost to you."
@@ -19242,7 +19289,21 @@
       "subtitle": "Track your progress toward each goal.",
       "empty": "You have no goals yet.",
       "completed": "Completed",
-      "progress": "{{current}} of {{target}}"
+      "progress": "{{current}} of {{target}}",
+      "createGoal": "New goal",
+      "editGoal": "Edit goal",
+      "titleLabel": "Title",
+      "typeLabel": "Type",
+      "targetLabel": "Target",
+      "currentLabel": "Current",
+      "dueLabel": "Due date",
+      "goalTitlePlaceholder": "e.g. Save for a new water heater",
+      "goalTypeFinancial": "Financial",
+      "goalTypeTask": "Task",
+      "goalTypeCareer": "Career",
+      "titleRequired": "Add a title for the goal.",
+      "goalSaveFailed": "Could not save the goal. Try again.",
+      "confirmDelete": "Confirm delete"
     },
     "homeTasks": {
       "title": "Home tasks",

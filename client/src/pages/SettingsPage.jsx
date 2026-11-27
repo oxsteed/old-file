@@ -28,6 +28,20 @@ import '../styles/SettingsPage.css';
 
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
 
+// Group 1, item 48: post-signup intent correction. These are the modes
+// with a public signup persona; team, staff, and domain intents are not
+// modes, so they route to Applications instead of a switch attempt.
+const INTENT_OPTIONS = [
+  { mode: 'customer', key: 'customer' },
+  { mode: 'helper', key: 'helper' },
+  { mode: 'business_owner', key: 'businessOwner' },
+  { mode: 'restaurant_owner', key: 'restaurantOwner' },
+  { mode: 'logistics', key: 'logistics' },
+  { mode: 'consultant', key: 'consultant' },
+  { mode: 'tool_owner', key: 'toolOwner' },
+  { mode: 'franchise_applicant', key: 'franchiseApplicant' },
+];
+
 // ── SVG icons ────────────────────────────────────────────────────────────────
 const IconUser = () => (
   <svg className="sp-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -97,7 +111,7 @@ const IconBox = () => (
 
 export default function SettingsPage() {
   const { t } = useTranslation();
-  const { user, logout, refreshUser, setUser, hasHelperAccess } = useAuth();
+  const { user, logout, refreshUser, setUser, hasHelperAccess, switchRole } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -141,6 +155,7 @@ export default function SettingsPage() {
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [intentBusy, setIntentBusy] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [allowGuestContact, setAllowGuestContact] = useState(true);
   const [allowBooking, setAllowBooking] = useState(true);
@@ -560,7 +575,64 @@ export default function SettingsPage() {
 
   // ── Tab panels ──────────────────────────────────────────────────────────────
 
+  // Group 1, item 48: post-signup intent correction. "Change goal" used
+  // to exist only on the unsubmitted signup form; after signup the intent
+  // is corrected here. A mode the account already holds switches through
+  // the existing /auth/switch-role path (which writes default_mode and
+  // keeps role in lockstep). A mode that needs a grant is refused by the
+  // server with access_required, and the user is routed to Applications
+  // to apply for it instead of silently changing mode under them.
+  const currentMode = user?.default_mode || 'customer';
+  const currentModeKey = (INTENT_OPTIONS.find((o) => o.mode === currentMode) || INTENT_OPTIONS[0]).key;
+
+  const changeIntent = async (mode) => {
+    if (intentBusy || mode === currentMode) return;
+    setIntentBusy(true);
+    try {
+      await switchRole(mode);
+      toast.success(t('settings.intent.goalChanged'));
+    } catch (err) {
+      const code = err?.response?.data?.code || err?.response?.data?.error;
+      if (code === 'access_required') {
+        toast(t('settings.intent.goalNeedsApplication'));
+        navigate('/settings/applications');
+      } else {
+        toast.error(t('settings.intent.goalChangeFailed'));
+      }
+    } finally {
+      setIntentBusy(false);
+    }
+  };
+
+  const intentCard = (
+    <div className="sp-card">
+      <h2 className="sp-card-title">{t('settings.intent.title')}</h2>
+      <p className="sp-card-subtitle">{t('settings.intent.subtitle')}</p>
+      <p className="text-sm mb-3 sp-muted-text">
+        {t('settings.intent.currentGoal', { goal: t(`settings.intent.options.${currentModeKey}`) })}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {INTENT_OPTIONS.map((opt) => (
+          <button
+            key={opt.mode}
+            type="button"
+            disabled={intentBusy || opt.mode === currentMode}
+            onClick={() => changeIntent(opt.mode)}
+            className={`sp-btn ${opt.mode === currentMode ? 'sp-btn-primary' : 'sp-btn-ghost'}`} data-track="ui.9d994c4cb4.34"
+          >
+            {t(`settings.intent.options.${opt.key}`)}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs mt-3 sp-muted-text">
+        {t('settings.intent.otherRolesHint')}{' '}
+        <Link to="/settings/applications" className="underline">{t('progressiveAccess.openApplications', { ns: 'common' })}</Link>
+      </p>
+    </div>
+  );
+
   const tabProfile = (
+    <>
     <div className="sp-profile-grid">
       <form onSubmit={saveProfile} data-track="ui.9d994c4cb4.1">
         <div className="sp-card">
@@ -801,6 +873,8 @@ export default function SettingsPage() {
         </div>
       </aside>
     </div>
+    {intentCard}
+    </>
   );
 
   const tabSecurity = (

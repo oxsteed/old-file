@@ -1,0 +1,32 @@
+/* Group 1, item 30 (LifeGoalsPage): theme tokens for the goals page.
+   These were inline style={} attributes; they live here now so the CSP
+   no-new-inline-styles gate stays green. */
+.life-goals-page {
+  background: var(--color-bg, #030712);
+  color: var(--color-text, #f3f4f6);
+}
+
+.life-goals-muted {
+  color: var(--color-text-muted, #9ca3af);
+}
+
+.life-goals-bordered {
+  border-color: var(--color-border, #1f2937);
+}
+
+.life-goals-error-text {
+  color: #fca5a5;
+}
+
+.life-goals-error-box {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.life-goals-progress-track {
+  background: rgba(148, 163, 184, 0.15);
+}
+
+.life-goals-progress-fill {
+  background: #f97316;
+}

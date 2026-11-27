@@ -6901,7 +6901,10 @@
       "review_complete": "Revizyon an fini.",
       "territory_assigned": "Teritwa a asiyen.",
       "territory_assignment_ended": "Asiyasyon teritwa a fini."
-    }
+    },
+    "accessHistoryTitle": "Istorik aksè",
+    "accessHistoryEmpty": "Pa gen chanjman aksè pou kounye a.",
+    "historyGranted": "Akòde"
   },
   "businessLaunchAttachments": {
     "download": "Telechaje",

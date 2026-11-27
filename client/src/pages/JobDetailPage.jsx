@@ -18,6 +18,7 @@ import CancellationStats from '../components/CancellationStats';
 import UserReputationCard from '../components/UserReputationCard';
 import ReportModal from '../components/ReportModal';
 import JobMaterialsPanel from '../components/JobMaterialsPanel';
+import DiyKitPicker from '../components/DiyKitPicker';
 import DirectPaymentRecordModal from '../components/DirectPaymentRecordModal';
 import JobAutoExpiryWarning from '../components/JobAutoExpiryWarning';
 import { useTranslation } from 'react-i18next';
@@ -873,6 +874,16 @@ function JobDetailContent() {
             <h3>{t('jobDetail.aftercareTitle')}</h3>
             <p className="jd-aftercare-text">{job.aftercare_instructions}</p>
           </div>}
+          {/* Group 1, item 25: the owner's private notes. The server
+              strips private_notes for every other viewer (jobSerializer
+              OWNER_ONLY), so this block is owner-only by construction;
+              it never renders for helpers, recipients, or the public. */}
+          {isOwner && job.private_notes && <div className="jdp-card" role="region" aria-label={t('jobDetail.privateNotesTitle')}>
+            <h3>{t('jobDetail.privateNotesTitle')}</h3>
+            <p className="jd-aftercare-text">{job.private_notes}</p>
+            <p className="jd-aftercare-hint">{t('jobDetail.privateNotesOnlyYou')}</p>
+            {canEditJob(job, user) && <Link className="jdp-btn-ghost" to={`/jobs/${id}/edit`}>{t('jobDetail.privateNotesEdit')}</Link>}
+          </div>}
           {/* D-451 (270, G5-4): the assigned helper confirms attendance; the
               exact address stays hidden until this stamp exists. */}
           {isAssignedHelper && ['accepted', 'in_progress'].includes(job.status) && !job.attendance_confirmed_at && <div className="jdp-secondary-action">
@@ -904,7 +915,7 @@ function JobDetailContent() {
           {job.status === 'no_show' && <p role="status" className="jdp-completion-pending">
             {t('jobDetail.noShowNotice', { reason: job.no_show_reason || '' })}
           </p>}
-          {isOwner && job.status === 'no_show' && <div className="jdp-secondary-action">
+          {isOwner && ['no_show', 'completed'].includes(job.status) && <div className="jdp-secondary-action">
             <button type="button" className="jdp-btn-primary" onClick={handleRebook} data-track="ui.573dfef74b.22">{t('jobDetail.rebookJob')}</button>
           </div>}
           {/* G-16: the customer asks for changes on a completion request
@@ -1050,6 +1061,10 @@ function JobDetailContent() {
           {job.assigned_helper_id && <><UserReputationCard userId={job.assigned_helper_id} />
             {user && !isOwner && <button className="jdp-btn-danger" onClick={() => setReportModalOpen(true)} data-track="ui.573dfef74b.15">{t('jobDetail.reportHelper')}</button>}</>}
           {LAUNCH_VISIBILITY.jobMaterialsLogistics && isHelper && job.category_name && <JobMaterialsPanel category={job.category_name} jobId={id} />}
+          {/* Group 1, item 31: the customer sees the DIY kits matching
+              this job's category on the job itself, not only on the
+              marketplace page. */}
+          {isOwner && job.category_name && <DiyKitPicker signedIn={!!user} category={job.category_name} />}
         </aside>
       </div>
       {mediaIndex !== null && <JobImageViewer images={imageUrls} index={mediaIndex} onIndexChange={setMediaIndex} onClose={() => setMediaIndex(null)} />}

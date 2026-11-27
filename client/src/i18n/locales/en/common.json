@@ -6901,7 +6901,10 @@
       "review_complete": "Review complete.",
       "territory_assigned": "Territory assigned.",
       "territory_assignment_ended": "Territory assignment ended."
-    }
+    },
+    "accessHistoryTitle": "Access history",
+    "accessHistoryEmpty": "No access changes yet.",
+    "historyGranted": "Granted"
   },
   "businessLaunchAttachments": {
     "download": "Download",

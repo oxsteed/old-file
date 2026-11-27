@@ -149,7 +149,8 @@ async function listJobKits() {
             COUNT(*) AS definition_count,
             COUNT(p.id) FILTER (WHERE p.is_active AND p.is_available AND p.price_cents IS NOT NULL) AS available_count,
             COALESCE(SUM(d.quantity * p.price_cents) FILTER (WHERE p.is_active AND p.is_available AND p.price_cents IS NOT NULL), 0) AS estimated_total_cents,
-            MIN(COALESCE(p.currency, 'USD')) AS currency
+            MIN(COALESCE(p.currency, 'USD')) AS currency,
+            COALESCE(ARRAY_AGG(DISTINCT p.category) FILTER (WHERE p.category IS NOT NULL), '{}') AS categories
        FROM job_kit_definitions d
        LEFT JOIN marketplace_products p ON p.sku = d.sku
       WHERE d.is_active = TRUE
@@ -164,6 +165,11 @@ async function listJobKits() {
     estimatedTotalCents: Number(row.estimated_total_cents),
     currency: row.currency || 'USD',
     buildable: Number(row.available_count) > 0,
+    // G1-B5: the distinct catalog categories of the kit's items, so a
+    // job page can surface the kits matching the job's category without
+    // inventing a skill taxonomy. Rows from mocked pools carry no
+    // categories column, so default to [].
+    categories: Array.isArray(row.categories) ? row.categories.filter(Boolean) : [],
   }));
 }
 

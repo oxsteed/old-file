@@ -600,6 +600,70 @@ async function listOwnGrants(userId, db = pool) {
   return rows.map((g) => ({ ...g, id: String(g.id) }));
 }
 
+// G1-B11: one chronological access history for the applicant. Request
+// decisions come from access_request_decisions (the full per-request
+// history getMine already serves); grant changes have no audit table,
+// so a grant contributes its granted_at event plus, when it is no longer
+// active, one event at its status_changed_at stamp (the latest change
+// only). Only the applicant's own rows are ever read.
+async function listAccessHistory(userId) {
+  const { rows: decisions } = await pool.query(
+    `SELECT d.action, d.from_status, d.to_status, d.public_reason_code, d.created_at,
+            ar.capability, ar.id AS request_id
+       FROM access_request_decisions d
+       JOIN access_requests ar ON ar.id = d.request_id
+      WHERE ar.applicant_id = $1
+      ORDER BY d.created_at DESC, d.id DESC`,
+    [userId],
+  );
+  const { rows: grants } = await pool.query(
+    `SELECT id, capability, status, status_reason_code, granted_at, status_changed_at
+       FROM access_grants WHERE user_id = $1 ORDER BY granted_at DESC, id DESC`,
+    [userId],
+  );
+  const events = [];
+  for (const d of decisions) {
+    events.push({
+      kind: 'request',
+      requestId: String(d.request_id),
+      capability: d.capability,
+      action: d.action,
+      fromStatus: d.from_status,
+      toStatus: d.to_status,
+      publicReasonCode: d.public_reason_code || null,
+      at: d.created_at,
+    });
+  }
+  for (const g of grants) {
+    events.push({
+      kind: 'grant',
+      grantId: String(g.id),
+      capability: g.capability,
+      action: 'granted',
+      fromStatus: null,
+      toStatus: 'active',
+      publicReasonCode: null,
+      at: g.granted_at,
+    });
+    // A grant created already non-active has one event, not two.
+    if (g.status && g.status !== 'active' && g.status_changed_at
+      && new Date(g.status_changed_at).getTime() !== new Date(g.granted_at).getTime()) {
+      events.push({
+        kind: 'grant',
+        grantId: String(g.id),
+        capability: g.capability,
+        action: g.status,
+        fromStatus: 'active',
+        toStatus: g.status,
+        publicReasonCode: g.status_reason_code || null,
+        at: g.status_changed_at,
+      });
+    }
+  }
+  events.sort((a, b) => new Date(b.at) - new Date(a.at));
+  return { events: events.slice(0, 100) };
+}
+
 module.exports = {
   // facts / projection
   loadFacts,
@@ -615,6 +679,7 @@ module.exports = {
   listMine,
   getMine,
   listOwnGrants,
+  listAccessHistory,
   // shared internals for reviewer service / tests
   _internal: { tx, idempotent, writeDecision, enqueue, assertVersion, toApplicantView, toApplicantSummary, err, safeReturnTo, subjectKey },
   safeReturnTo,

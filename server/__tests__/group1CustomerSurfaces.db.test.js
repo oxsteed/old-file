@@ -5,8 +5,14 @@
  * group, against the real migrated schema, through the real controllers:
  *
  *   item  4  shortlist: save a helper, list the shortlist, remove it;
+ *   item 13  booking calendar export: a booking exports a valid .ics
+ *            for its parties only; strangers 403, unknown 404, and a
+ *            request-only booking with no time 400s;
  *   item 20  aftercare: completing a job with aftercare instructions
  *            stores them on the job; completing without leaves them null;
+ *   item 25  private notes: getJob and getMyJobs return private_notes
+ *            only to the owner; helper, linked recipient and stranger
+ *            reads strip them;
  *   item 26  home care calendar data: home tasks carry their due dates;
  *   item 27  vehicle reminders: an overdue oil change and service surface
  *            as due; a fresh vehicle surfaces no reminders;
@@ -27,6 +33,8 @@
  *            one default at a time;
  *   item 44  marketing preferences: the marketing toggle and frequency
  *            persist through GET/PUT /notifications/email.
+ *   item 50  access history: request decisions and grant changes merge
+ *            into one chronological list, own rows only.
  *
  * DB: disposable loopback database credit_statement_test only; the suite
  * skips otherwise. Run with STATEMENT_TEST_DATABASE_URL pointed at it.
@@ -73,6 +81,9 @@ if (CAN_RUN_DB) {
 }
 
 const pool = require('../db');
+const jobCtrl = require('../controllers/jobController');
+const bookingCtrl = require('../controllers/bookingController');
+const accessService = require('../services/access/accessService');
 const { completeJobCore } = require('../controllers/jobController');
 const lifeCtrl = require('../controllers/lifeDashboardController');
 const vehicleCtrl = require('../controllers/vehicleController');
@@ -89,6 +100,9 @@ function mockRes() {
   res.statusCode = 200;
   res.status = jest.fn((code) => { res.statusCode = code; return res; });
   res.json = jest.fn((payload) => { res.payload = payload; return res; });
+  res.set = jest.fn((key, value) => { res.headers[key] = value; return res; });
+  res.setHeader = jest.fn((key, value) => { res.headers[key] = value; });
+  res.send = jest.fn((body) => { res.body = body; return res; });
   return res;
 }
 
@@ -179,6 +193,19 @@ ddescribe('Group 1 customer surfaces', () => {
     const listed = mockRes();
     await lifeCtrl.getSavedHelpers({ user: { id: customer } }, listed);
     expect(listed.payload.saved_helpers.map((r) => r.helper_id)).toContain(helper);
+
+    // G1-A5: re-saving with a note replaces it, re-saving with no note
+    // key leaves it untouched, and an empty note clears it.
+    const noted = mockRes();
+    await lifeCtrl.saveHelper({ user: { id: customer }, body: { helper_id: helper, note: 'Prefers mornings' } }, noted);
+    expect(noted.statusCode).toBe(201);
+    expect(noted.payload.note).toBe('Prefers mornings');
+    const kept = mockRes();
+    await lifeCtrl.saveHelper({ user: { id: customer }, body: { helper_id: helper } }, kept);
+    expect(kept.payload.note).toBe('Prefers mornings');
+    const cleared = mockRes();
+    await lifeCtrl.saveHelper({ user: { id: customer }, body: { helper_id: helper, note: '' } }, cleared);
+    expect(cleared.payload.note).toBe('');
 
     const removed = mockRes();
     await lifeCtrl.removeSavedHelper({ user: { id: customer }, params: { id: saved.payload.id } }, removed);
@@ -290,6 +317,9 @@ ddescribe('Group 1 customer surfaces', () => {
     expect(kit).toBeDefined();
     expect(kit.availableCount).toBe(1);
     expect(kit.missingCount).toBe(1);
+    // G1-B5: the kit carries its items' catalog categories, so a job page
+    // can surface the kits matching the job's category.
+    expect(kit.categories).toEqual(['g1-test-plumbing']);
 
     const preview = await previewKit('g1-test-kit');
     expect(preview.resolved).toHaveLength(1);
@@ -483,5 +513,132 @@ ddescribe('Group 1 customer surfaces', () => {
     }, back);
     expect(back.payload.data.marketingEmails).toBe(true);
     expect(back.payload.data.frequency).toBe('daily');
+  });
+
+  test('item 13: a booking exports a valid .ics for its parties only', async () => {
+    const bookingId = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO booking_requests (id, customer_id, helper_id, service_name, requested_date,
+              requested_start_time, requested_end_time, service_location, description, status)
+       VALUES ($1, $2, $3, 'G1 test booking', '2026-12-05', '14:00:00', '15:30:00',
+              '12 Main St', 'Fix the sink', 'accepted')`,
+      [bookingId, customer, helper],
+    );
+
+    const res = mockRes();
+    await bookingCtrl.getBookingIcal({ params: { bookingId }, user: { id: customer } }, res);
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['Content-Type']).toMatch(/text\/calendar/);
+    expect(res.body).toContain('BEGIN:VCALENDAR');
+    expect(res.body).toContain('DTSTART:20261205T140000');
+    expect(res.body).toContain('DTEND:20261205T153000');
+    expect(res.body).toContain('SUMMARY:G1 test booking');
+    expect(res.body).toContain('LOCATION:12 Main St');
+    expect(res.body).toContain('END:VCALENDAR');
+
+    // The assigned helper is a provider party, so they export too.
+    const helperRes = mockRes();
+    await bookingCtrl.getBookingIcal({ params: { bookingId }, user: { id: helper } }, helperRes);
+    expect(helperRes.statusCode).toBe(200);
+
+    // A stranger gets 403, not the file.
+    const strangerRes = mockRes();
+    await bookingCtrl.getBookingIcal({ params: { bookingId }, user: { id: stranger } }, strangerRes);
+    expect(strangerRes.statusCode).toBe(403);
+
+    // An unknown booking 404s.
+    const missingRes = mockRes();
+    await bookingCtrl.getBookingIcal({ params: { bookingId: crypto.randomUUID() }, user: { id: customer } }, missingRes);
+    expect(missingRes.statusCode).toBe(404);
+
+    // A request-only booking has no time to export.
+    const noTimeId = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO booking_requests (id, customer_id, helper_id, service_name, requested_date,
+              requested_start_time, requested_end_time, availability_mode, status)
+       VALUES ($1, $2, $3, 'G1 flexible booking', '2026-12-06', NULL, NULL, 'request_only', 'pending')`,
+      [noTimeId, customer, helper],
+    );
+    const noTimeRes = mockRes();
+    await bookingCtrl.getBookingIcal({ params: { bookingId: noTimeId }, user: { id: customer } }, noTimeRes);
+    expect(noTimeRes.statusCode).toBe(400);
+  });
+
+  test('item 25: private notes are stripped for everyone but the owner', async () => {
+    const recipient = await makeUser('customer');
+    const jobId = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO jobs(id, client_id, assigned_helper_id, recipient_user_id, status, transaction_mode, metadata, title, description, private_notes)
+       VALUES($1, $2, $3, $4, 'in_progress', 'direct', '{}'::jsonb, 'G1 private notes job', 'Fix the sink', 'Owner only: spare key under the mat')`,
+      [jobId, customer, helper, recipient],
+    );
+    const baseReq = (userId) => ({ params: { id: jobId }, user: { id: userId }, headers: {}, get: () => undefined });
+
+    const ownerCall = await callWithNext(jobCtrl.getJob, baseReq(customer));
+    expect(ownerCall.nextErr).toBeNull();
+    expect(ownerCall.res.payload.private_notes).toBe('Owner only: spare key under the mat');
+
+    const helperCall = await callWithNext(jobCtrl.getJob, baseReq(helper));
+    expect(helperCall.nextErr).toBeNull();
+    expect(helperCall.res.payload.private_notes).toBeUndefined();
+
+    const linkedCall = await callWithNext(jobCtrl.getJob, baseReq(recipient));
+    expect(linkedCall.nextErr).toBeNull();
+    expect(linkedCall.res.payload.private_notes).toBeUndefined();
+
+    const strangerCall = await callWithNext(jobCtrl.getJob, baseReq(stranger));
+    expect(strangerCall.nextErr).toBeNull();
+    expect(strangerCall.res.payload.private_notes).toBeUndefined();
+
+    // getMyJobs: the helper list nulls them, the owner list keeps them,
+    // and a linked recipient list nulls them.
+    const helperList = await callWithNext(jobCtrl.getMyJobs, { user: { id: helper }, query: { role: 'helper' }, headers: {}, get: () => undefined });
+    expect(helperList.nextErr).toBeNull();
+    expect(helperList.res.payload.find((j) => j.id === jobId).private_notes).toBeNull();
+
+    const ownerList = await callWithNext(jobCtrl.getMyJobs, { user: { id: customer }, query: {}, headers: {}, get: () => undefined });
+    expect(ownerList.nextErr).toBeNull();
+    expect(ownerList.res.payload.find((j) => j.id === jobId).private_notes).toBe('Owner only: spare key under the mat');
+
+    const recipientList = await callWithNext(jobCtrl.getMyJobs, { user: { id: recipient }, query: {}, headers: {}, get: () => undefined });
+    expect(recipientList.nextErr).toBeNull();
+    expect(recipientList.res.payload.find((j) => j.id === jobId).private_notes).toBeNull();
+  });
+
+  test('item 50: access history merges request decisions and grant changes', async () => {
+    const { rows: [request] } = await pool.query(
+      `INSERT INTO access_requests (applicant_id, capability, subject_key, policy_version, status, submitted_at)
+       VALUES ($1, 'helper.offer_services', 'self', 'test-1', 'approved', NOW() - INTERVAL '1 day')
+       RETURNING id`,
+      [customer],
+    );
+    await pool.query(
+      `INSERT INTO access_request_decisions (request_id, action, from_status, to_status, request_version, actor_type, created_at)
+       VALUES ($1, 'submit', 'draft', 'submitted', 1, 'applicant', NOW() - INTERVAL '1 day'),
+              ($1, 'approve', 'in_review', 'approved', 2, 'reviewer', NOW() - INTERVAL '1 day')`,
+      [request.id],
+    );
+    await pool.query(
+      `INSERT INTO access_grants (user_id, capability, subject_key, status, provenance, granted_at, status_changed_at, status_reason_code)
+       VALUES ($1, 'helper.offer_services', 'self', 'revoked', 'request', NOW() - INTERVAL '2 days', NOW(), 'policy_violation')`,
+      [customer],
+    );
+
+    const history = await accessService.listAccessHistory(customer);
+    const byKey = new Map(history.events.map((e) => [`${e.kind}:${e.action}:${e.capability}`, e]));
+    expect(byKey.get('request:approve:helper.offer_services')).toBeDefined();
+    expect(byKey.get('request:submit:helper.offer_services')).toBeDefined();
+    expect(byKey.get('grant:granted:helper.offer_services')).toBeDefined();
+    const revoked = byKey.get('grant:revoked:helper.offer_services');
+    expect(revoked).toBeDefined();
+    expect(revoked.publicReasonCode).toBe('policy_violation');
+    // Newest first: the revocation (now) precedes the approval (yesterday),
+    // which precedes the grant (two days ago).
+    expect(history.events[0].action).toBe('revoked');
+    expect(history.events[history.events.length - 1].action).toBe('granted');
+
+    // Another applicant sees none of it.
+    const strangerHistory = await accessService.listAccessHistory(stranger);
+    expect(strangerHistory.events.filter((e) => e.capability === 'helper.offer_services')).toHaveLength(0);
   });
 });

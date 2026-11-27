@@ -4729,6 +4729,25 @@
       "archiveButton": "أرشفة",
       "unarchiveButton": "إلغاء الأرشفة",
       "showArchivedLabel": "إظهار المواقع المؤرشفة"
+    },
+    "intent": {
+      "title": "هدفك",
+      "subtitle": "غيرت رأيك بشأن ما تريد فعله هنا؟ اختر هدفك مرة أخرى.",
+      "currentGoal": "الهدف الحالي: {{goal}}",
+      "goalChanged": "تم تحديث الهدف",
+      "goalNeedsApplication": "هذا الهدف يحتاج إلى طلب أولا. جار فتح الطلبات.",
+      "goalChangeFailed": "تعذر تغيير هدفك. حاول مرة أخرى.",
+      "otherRolesHint": "أدوار الفريق والموظفين والشركاء تمنح ولا تختار:",
+      "options": {
+        "customer": "ابحث عن مساعدة",
+        "helper": "قدم خدمات",
+        "businessOwner": "أدر نشاطا تجاريا",
+        "restaurantOwner": "أدر مطعما",
+        "logistics": "اشحن بضائع",
+        "consultant": "قدم استشارات",
+        "toolOwner": "اعرض معدات",
+        "franchiseApplicant": "امتياز"
+      }
     }
   },
   "partsList": {
@@ -5578,7 +5597,26 @@
       "floodZone": "منطقة الفيضان {{zone}}",
       "savedHelperFallback": "المساعد",
       "newHelper": "جديد",
-      "jobsLabel": "وظائف"
+      "jobsLabel": "وظائف",
+      "setupChecklistTitle": "ابدأ الإعداد",
+      "setupProgress": "{{done}} من {{total}} مكتملة",
+      "setupVerifyEmail": "تحقق من بريدك الإلكتروني",
+      "setupVerifyEmailAction": "تحقق",
+      "setupAddLocation": "أضف موقع خدمة",
+      "setupAddLocationAction": "أضف موقعا",
+      "setupNotificationPrefs": "اضبط تفضيلات الإشعارات",
+      "setupNotificationPrefsAction": "اضبط التفضيلات",
+      "setupSaveHelper": "احفظ مساعدا",
+      "setupSaveHelperAction": "ابحث عن مساعدين",
+      "setupComplete": "اكتمل الإعداد. عمل رائع.",
+      "setupDismiss": "تجاهل",
+      "savedHelperNoteLabel": "ملاحظة خاصة",
+      "savedHelperNotePlaceholder": "أضف ملاحظة خاصة عن هذا المساعد",
+      "savedHelperNoteSave": "احفظ الملاحظة",
+      "savedHelperNoteSaved": "تم حفظ الملاحظة",
+      "savedHelperNoteFailed": "تعذر حفظ الملاحظة",
+      "savedHelperNoteEdit": "عدل الملاحظة",
+      "savedHelperNoteAdd": "أضف ملاحظة"
     },
     "goals": {
       "title": "أهدافي",
@@ -7093,7 +7131,10 @@
     "aftercareLabel": "تعليمات العناية بعد العمل للعميل",
     "aftercarePlaceholder": "مثال: حافظ على جفاف المنطقة لمدة 24 ساعة، ثم امسحها بقطعة قماش مبللة.",
     "aftercareHint": "اختياري. يرى العميل هذا بعد اكتمال العمل.",
-    "aftercareTitle": "العناية اللاحقة"
+    "aftercareTitle": "العناية اللاحقة",
+    "privateNotesTitle": "ملاحظاتك الخاصة",
+    "privateNotesOnlyYou": "أنت وحدك من يمكنه رؤية هذه الملاحظات.",
+    "privateNotesEdit": "عدل الملاحظات"
   },
   "myJobs": {
     "cancelUndoNote": "سيكون لديك 5 ثوانٍ للتراجع بعد التأكيد.",
@@ -7299,7 +7340,8 @@
     "compareJobs": "الأعمال المنجزة",
     "comparePrice": "سعر البداية",
     "compareServices": "الخدمات",
-    "compareAvailable": "متاح اليوم"
+    "compareAvailable": "متاح اليوم",
+    "compareLimit": "قارن ما يصل إلى 3 مساعدين"
   },
   "jobsDir": {
     "metaTitle": "تصفح الوظائف المفتوحة",
@@ -16898,7 +16940,10 @@
   ,
     "bookForLabel": "الحجز لـ",
     "bookForMyself": "نفسي",
-    "templatePrefillNotice": "الحجز من القالب الخاص بك: {{serviceName}}. اختر وقتًا أدناه."
+    "templatePrefillNotice": "الحجز من القالب الخاص بك: {{serviceName}}. اختر وقتًا أدناه.",
+    "addToCalendar": "أضف إلى التقويم (.ics)",
+    "calendarExport": "التقويم",
+    "downloadIcal": "تنزيل .ics"
   },
   "household": {
     "title": "الأسرة",
@@ -17311,7 +17356,9 @@
       "omittedItem": "غير متاح: {{name}}",
       "useInstead": "استخدم هذا بدلًا منه",
       "noSubstitutes": "لم يتم العثور على بديل لهذا العنصر.",
-      "previewFailed": "تعذّر تحميل المعاينة."
+      "previewFailed": "تعذّر تحميل المعاينة.",
+      "matchedHint": "{{count}} طقم يطابق فئة هذه المهمة ({{category}}). يظهر أولا.",
+      "matchedBadge": "يطابق هذه المهمة"
     },
     "paidLink": "(رابط مدفوع)",
     "affiliateDisclosure": "قد تحصل OxSteed على عمولة إذا اشتريت عبر هذا الرابط، دون أي تكلفة إضافية عليك."
@@ -19253,7 +19300,21 @@
       "subtitle": "تتبّع تقدمك نحو كل هدف.",
       "empty": "ليس لديك أهداف بعد.",
       "completed": "مكتمل",
-      "progress": "{{current}} من {{target}}"
+      "progress": "{{current}} من {{target}}",
+      "createGoal": "هدف جديد",
+      "editGoal": "عدل الهدف",
+      "titleLabel": "العنوان",
+      "typeLabel": "النوع",
+      "targetLabel": "الهدف",
+      "currentLabel": "الحالي",
+      "dueLabel": "تاريخ الاستحقاق",
+      "goalTitlePlaceholder": "مثال: الادخار لسخان مياه جديد",
+      "goalTypeFinancial": "مالي",
+      "goalTypeTask": "مهمة",
+      "goalTypeCareer": "مهني",
+      "titleRequired": "أضف عنوانا للهدف.",
+      "goalSaveFailed": "تعذر حفظ الهدف. حاول مرة أخرى.",
+      "confirmDelete": "تأكيد الحذف"
     },
     "homeTasks": {
       "title": "مهام المنزل",
