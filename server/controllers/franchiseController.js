@@ -6004,11 +6004,17 @@ async function findTicketByIdOrNumber(client, ticketParam, columns) {
 // location, when given, must belong to the territory. The link is
 // recorded in the territory activity log, so the exception has a
 // provenance trail (610).
-async function linkTerritoryTicket(client, applicationId, ticketId, locationId, actorId, { ownerOnly }) {
-  const ticket = await findTicketByIdOrNumber(client, ticketId, 'id, ticket_number, user_id');
-  if (!ticket || (ownerOnly && String(ticket.user_id) !== String(actorId))) {
+// G12-B3 (D-647): the operator links by territory linkage, not filer
+// identity — a ticket filed by a member, a ticket already linked here, or
+// a ticket the operator ties to one of their locations. A stranger's
+// ticket with no tie to the territory still 404s. HQ (asAdmin) keeps the
+// old no-gate behaviour: HQ can link any ticket.
+async function linkTerritoryTicket(client, applicationId, ticketId, locationId, actorId, { asAdmin = false } = {}) {
+  const ticket = await findTicketByIdOrNumber(client, ticketId, 'id, ticket_number, user_id, franchise_application_id');
+  if (!ticket) {
     return { error: { status: 404, body: { error: 'Support ticket not found.', code: 'ticket_not_found' } } };
   }
+  let locationOk = false;
   if (locationId) {
     const locationResult = await client.query(
       `SELECT id FROM franchise_locations WHERE id = $1 AND application_id = $2`,
@@ -6016,6 +6022,19 @@ async function linkTerritoryTicket(client, applicationId, ticketId, locationId, 
     );
     if (!locationResult.rows.length) {
       return { error: { status: 404, body: { error: 'Location not found in this territory.', code: 'location_not_found' } } };
+    }
+    locationOk = true;
+  }
+  if (!asAdmin) {
+    const linkedHere = String(ticket.franchise_application_id) === String(applicationId);
+    const filerIsMember = await isTerritoryMember(client, applicationId, ticket.user_id);
+    // The applicant of record filed about their own application; they are
+    // associated even though isTerritoryMember does not list them.
+    const { rows: [appRow] } = await client.query(
+      'SELECT applicant_user_id FROM franchise_applications WHERE id = $1', [applicationId]);
+    const filerIsApplicant = appRow && String(appRow.applicant_user_id) === String(ticket.user_id);
+    if (!linkedHere && !filerIsMember && !filerIsApplicant && !locationOk) {
+      return { error: { status: 404, body: { error: 'Support ticket not found.', code: 'ticket_not_found' } } };
     }
   }
   const { rows } = await client.query(
@@ -6056,7 +6075,7 @@ async function linkTicketToTerritory(req, res) {
           code: 'franchise_operator_only',
         });
       }
-      const linked = await linkTerritoryTicket(client, id, ticketId, locationId, req.user?.id, { ownerOnly: true });
+      const linked = await linkTerritoryTicket(client, id, ticketId, locationId, req.user?.id);
       if (linked.error) {
         await client.query('ROLLBACK');
         return res.status(linked.error.status).json(linked.error.body);
@@ -6094,7 +6113,7 @@ async function linkTicketToTerritoryAsAdmin(req, res) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Franchise application not found.' });
       }
-      const linked = await linkTerritoryTicket(client, id, ticketId, locationId, req.user?.id, { ownerOnly: false });
+      const linked = await linkTerritoryTicket(client, id, ticketId, locationId, req.user?.id, { asAdmin: true });
       if (linked.error) {
         await client.query('ROLLBACK');
         return res.status(linked.error.status).json(linked.error.body);
@@ -6116,12 +6135,14 @@ async function linkTicketToTerritoryAsAdmin(req, res) {
 
 // 628 (D-327): detach a ticket from a territory — the exception leaves
 // the summary, the ticket itself is untouched.
-async function unlinkTerritoryTicket(client, applicationId, ticketId, actorId, { ownerOnly }) {
+// G12-B3 (D-647): unlinking needs territory linkage (the ticket is
+// linked here), not filer identity — the operator can detach a
+// member-filed ticket they can see.
+async function unlinkTerritoryTicket(client, applicationId, ticketId, actorId) {
   const ticket = await findTicketByIdOrNumber(
     client, ticketId, 'id, ticket_number, user_id, franchise_application_id');
   if (!ticket
-    || String(ticket.franchise_application_id) !== String(applicationId)
-    || (ownerOnly && String(ticket.user_id) !== String(actorId))) {
+    || String(ticket.franchise_application_id) !== String(applicationId)) {
     return { error: { status: 404, body: { error: 'Support ticket not found.', code: 'ticket_not_found' } } };
   }
   const { rows } = await client.query(
@@ -6158,7 +6179,7 @@ async function unlinkTicketFromTerritory(req, res) {
           code: 'franchise_operator_only',
         });
       }
-      const unlinked = await unlinkTerritoryTicket(client, id, ticketId, req.user?.id, { ownerOnly: true });
+      const unlinked = await unlinkTerritoryTicket(client, id, ticketId, req.user?.id);
       if (unlinked.error) {
         await client.query('ROLLBACK');
         return res.status(unlinked.error.status).json(unlinked.error.body);
@@ -6192,7 +6213,7 @@ async function unlinkTicketFromTerritoryAsAdmin(req, res) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Franchise application not found.' });
       }
-      const unlinked = await unlinkTerritoryTicket(client, id, ticketId, req.user?.id, { ownerOnly: false });
+      const unlinked = await unlinkTerritoryTicket(client, id, ticketId, req.user?.id);
       if (unlinked.error) {
         await client.query('ROLLBACK');
         return res.status(unlinked.error.status).json(unlinked.error.body);
@@ -6243,10 +6264,13 @@ async function fetchEscalations(applicationId) {
   }));
 }
 
-async function escalateTerritoryTicket(client, applicationId, ticketId, actorId, reason, { ownerOnly, isAdmin }) {
+// G12-B3 (D-647): escalating needs territory linkage (the ticket is
+// linked here), not filer identity — the operator can escalate a
+// member-filed ticket visible in their own queue.
+async function escalateTerritoryTicket(client, applicationId, ticketId, actorId, reason, { isAdmin }) {
   const ticket = await findTicketByIdOrNumber(
     client, ticketId, 'id, ticket_number, user_id, status, priority, franchise_application_id');
-  if (!ticket || (ownerOnly && String(ticket.user_id) !== String(actorId))) {
+  if (!ticket) {
     return { error: { status: 404, body: { error: 'Support ticket not found.', code: 'ticket_not_found' } } };
   }
   if (String(ticket.franchise_application_id) !== String(applicationId)) {
@@ -6341,7 +6365,7 @@ async function escalateTicketToTerritory(req, res, { asAdmin = false } = {}) {
         }
       }
       const escalated = await escalateTerritoryTicket(client, id, ticketId, req.user?.id, reason,
-        { ownerOnly: !asAdmin, isAdmin: asAdmin });
+        { isAdmin: asAdmin });
       if (escalated.error) {
         await client.query('ROLLBACK');
         return res.status(escalated.error.status).json(escalated.error.body);

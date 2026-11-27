@@ -273,7 +273,9 @@ describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
         .set('x-test-user', operator.id)
         .send({ reason: 'Not mine' })
         .expect(404)
-        .then((res) => expect(res.body.code).toBe('ticket_not_found'));
+        // G12-B3 (D-647): the ticket is unlinked, so the linkage check
+        // refuses it — not the old filer check.
+        .then((res) => expect(res.body.code).toBe('exception_not_found'));
     });
 
     test('a stranger gets 404, a non-operator applicant 403, HQ escalates any linked ticket and reads the queue', async () => {
@@ -324,6 +326,42 @@ describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
         .get(`/api/franchise/applications/${applicationId}/escalations`)
         .set('x-test-user', operator.id)
         .expect(403);
+    });
+
+    test('the operator escalates and unlinks a member-filed linked ticket (G12-B3)', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      // Opening-team member (the addMember helper lives in the 632
+      // describe; the steps are inlined here so this 631 test stands alone).
+      const member = await addUser();
+      await db.query(
+        `INSERT INTO helper_profiles (user_id, service_city, service_state, avg_rating, total_reviews, is_available_now)
+         VALUES ($1, 'Austin', 'TX', 4.9, 1, TRUE)
+         ON CONFLICT (user_id) DO NOTHING`,
+        [member.id],
+      );
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/opening-team`)
+        .set('x-test-user', operator.id)
+        .send({ helper_user_id: member.id, role: 'member' })
+        .expect(201);
+      // The audit's failing scenario: a member files "Fridge down" and
+      // the operator could only watch until HQ linked it — then could
+      // not escalate it either (404 ticket_not_found).
+      const ticket = await addTicket(member, { applicationId, subject: 'Fridge down' });
+
+      const escalated = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${ticket.ticket_number}/escalate`)
+        .set('x-test-user', operator.id)
+        .send({ reason: 'Fridge down for two days, stock spoiling' })
+        .expect(201);
+      expect(escalated.body.escalation.ticket_id).toBe(ticket.id);
+
+      const unlinked = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${ticket.id}/unlink`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(unlinked.body.exception_summary.total).toBe(0);
     });
   });
 

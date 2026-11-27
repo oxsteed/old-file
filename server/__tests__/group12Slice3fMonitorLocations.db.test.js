@@ -285,6 +285,38 @@ describeDb('Group 12 Slice 3f: Monitor locations (626-630)', () => {
       expect(summary.body.total).toBe(0);
     });
 
+    test('the operator links an applicant-filed ticket and a stranger ticket tied to a location (G12-B3)', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const stranger = await addUser();
+      const applicationId = await makeApplication(applicant, operator);
+      const locationId = await locationIdFor(operator, applicationId);
+      const applicantTicket = await addTicket(applicant, { category: 'technical' });
+      const strangerTicket = await addTicket(stranger, { category: 'technical' });
+
+      // The applicant filed about their own application: associated filer.
+      const linkedApplicant = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${applicantTicket.ticket_number}/link`)
+        .set('x-test-user', operator.id)
+        .send({})
+        .expect(200);
+      expect(linkedApplicant.body.ticket.ticket_number).toBe(applicantTicket.ticket_number);
+
+      // A stranger ticket the operator ties to one of their locations.
+      const linkedStranger = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${strangerTicket.ticket_number}/link`)
+        .set('x-test-user', operator.id)
+        .send({ location_id: locationId })
+        .expect(200);
+      expect(linkedStranger.body.ticket.ticket_number).toBe(strangerTicket.ticket_number);
+
+      const summary = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/exceptions`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(summary.body.total).toBe(2);
+    });
+
     test('unlinking drops the exception and leaves the ticket itself untouched', async () => {
       const operator = await addUser();
       const applicationId = await makeApplication(operator);
