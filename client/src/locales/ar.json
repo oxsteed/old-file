@@ -2509,7 +2509,12 @@
     "mainNavigation": "تنقل المصادقة",
     "credit": "OxSteed Credit",
     "partner": "برنامج الشركاء",
-    "learning": "التعلم المهني"
+    "learning": "التعلم المهني",
+    "sectionMoney": "المال",
+    "sectionOrdersWork": "الطلبات والعمل",
+    "sectionBusiness": "الأعمال",
+    "sectionLearnEarn": "تعلّم واكسب",
+    "sectionAccount": "الحساب"
   ,
     "household": "الأسرة"
   },

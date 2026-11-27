@@ -37,6 +37,7 @@ export function navbarNavigation(user, { dashboardPath = '/dashboard', workspace
   // (projection.invest.investEnabled). They are additive: customer links
   // are never removed, and no role or mode is read here.
   for (const item of investNavLinks(projection)) {
+    if (!item.section) item.section = 'money';
     if (![...primary, ...account].some((x) => x.id === item.id || x.to === item.to)) account.push(item);
   }
   // Wave 4, item 61 (F17): /household was reachable only from the saved
@@ -44,6 +45,7 @@ export function navbarNavigation(user, { dashboardPath = '/dashboard', workspace
   // the support entry, which stays the final account action.
   if (user && ![...primary, ...account].some((x) => x.id === 'household' || x.to === '/household')) {
     const item = link('household', '/household', 'nav.household');
+    item.section = 'account';
     const supportIndex = account.findIndex((x) => x.id === 'support');
     if (supportIndex >= 0) account.splice(supportIndex, 0, item);
     else account.push(item);

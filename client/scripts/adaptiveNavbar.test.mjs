@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PERSONA_NAVIGATION_CATALOG, deriveAdaptiveNavigation, primaryRouteForFamily, familyForMode } from '../src/utils/personaNavigation.js';
+import { readFile } from 'node:fs/promises';
+import { PERSONA_NAVIGATION_CATALOG, deriveAdaptiveNavigation, groupAccountItems, primaryRouteForFamily, familyForMode } from '../src/utils/personaNavigation.js';
 
 const projection = (personal = ['customer'], organizations = [], extra = {}) => ({
   flags: { accessProjection: true },
@@ -205,4 +206,43 @@ test('projection loading or failure surfaces a retrying notice instead of silent
   assert.equal(ready.projectionNotice, null);
   const signedOut = deriveAdaptiveNavigation({ flags: {}, access: null, status: 'unauthenticated' });
   assert.equal(signedOut.projectionNotice, null);
+});
+
+test('account menu groups into labeled sections with owned businesses under Business', async () => {
+  const organizations = [{ type: 'business', id: 42, name: 'Restaurant business' }];
+  const nav = deriveAdaptiveNavigation(projection(
+    ['customer', 'helper.offer_services', 'business.own', 'restaurant.own', 'investor.reporting'],
+    organizations,
+    { investorAudience: { audienceKey: 'entity', datasets: ['overview'] } },
+  ));
+  // Mirror the Navbar: applications live in their own disclosure, not here.
+  const accountItems = nav.account.filter((item) => item.id !== 'applications');
+  const groups = groupAccountItems(accountItems);
+  assert.deepEqual(groups.map((group) => group.id), ['lead', 'money', 'ordersWork', 'business', 'learn', 'account']);
+  assert.deepEqual(groups[0].items.map((item) => item.id), ['dashboard']);
+  const byId = (id) => groups.find((group) => group.id === id).items.map((item) => item.id);
+  assert.ok(byId('money').includes('credit'));
+  assert.ok(byId('money').includes('wallet'));
+  assert.ok(byId('money').includes('statements'));
+  assert.ok(byId('money').includes('investments'));
+  assert.ok(byId('ordersWork').includes('foodOrders'));
+  assert.ok(byId('ordersWork').includes('browseJobs'));
+  assert.ok(byId('ordersWork').includes('myWork'));
+  // The owned business stays in the menu, grouped under Business with the hub.
+  assert.ok(byId('business').includes('workspace'));
+  assert.ok(byId('business').includes('workspace-42'));
+  assert.ok(byId('business').includes('persona-restaurant-workspace'));
+  assert.ok(byId('learn').includes('partner'));
+  assert.ok(byId('learn').includes('learning'));
+  assert.deepEqual(byId('account'), ['settings', 'help']);
+  // Every section label key exists in all five real locales.
+  for (const group of groups) {
+    if (!group.labelKey) continue;
+    const key = group.labelKey.replace(/^nav\./, '');
+    for (const language of ['en', 'es', 'fr', 'ht', 'ar']) {
+      const legacy = JSON.parse(await readFile(new URL(`../src/locales/${language}.json`, import.meta.url)));
+      assert.equal(typeof legacy.nav[key], 'string', `${language}: nav.${key}`);
+      assert.ok(legacy.nav[key].trim(), `${language}: nav.${key} is empty`);
+    }
+  }
 });

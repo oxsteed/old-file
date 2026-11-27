@@ -2495,7 +2495,7 @@
     "closeMenu": "Fèmen meni",
     "openMenu": "Louvri meni",
     "qrGenerator": "Jeneratè QR",
-    "wallet": "bous",
+    "wallet": "Bous",
     "calendar": "Kalandriye",
     "resources": "Resous",
     "businessLaunchStatus": "Lansman Biznis Mwen",
@@ -2509,7 +2509,12 @@
     "mainNavigation": "Navigasyon otantifikasyon",
     "credit": "OxSteed Credit",
     "partner": "Pwogram patnè",
-    "learning": "Aprantisaj travay"
+    "learning": "Aprantisaj travay",
+    "sectionMoney": "Lajan",
+    "sectionOrdersWork": "Kòmand ak travay",
+    "sectionBusiness": "Biznis",
+    "sectionLearnEarn": "Aprann epi genyen",
+    "sectionAccount": "Kont"
   ,
     "household": "Kay"
   },
