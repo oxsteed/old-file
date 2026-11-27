@@ -2,10 +2,13 @@
 
 // Group 1 checkpoint 1 (N11): the fund endpoint honors an idempotency key.
 //
-// POST /api/planned-needs/:id/fund only increments reserved_amount; it
-// moves no money. Before this checkpoint it took no idempotency key and the
+// Before this checkpoint the endpoint took no idempotency key and the
 // client had no in-flight guard, so a double-click (or a retried request
-// after a lost response) double-incremented reserved_amount.
+// after a lost response) double-incremented reserved_amount. Since G1-B1
+// the fund also places a real Credit hold (an oxsteed_credit_reservations
+// row plus a reserved_cents bump), so the fixture users below are seeded
+// with a funded wallet and the replay tests pin the hold count as well as
+// the increment.
 //
 // Runs against a dedicated fresh database (credit_statement_test_g1ckpt1)
 // so checkpoint fixtures never pollute the shared credit_statement_test DB.
@@ -86,6 +89,40 @@ describeDb('Group 1 checkpoint 1: planned-needs fund idempotency (N11)', () => {
     return need.id;
   }
 
+  async function seedCredit(user, balanceCents = 100000) {
+    // G1-B1: funding a goal now places a real Credit hold, so fixture users
+    // need a funded wallet or every fund call refuses with 409
+    // credit_insufficient_funds. $1,000 covers every amount below.
+    // Migration 491 forbids INSERTing a non-empty ledger, so the synthetic
+    // balance uses the established session_replication_role precedent
+    // (creditSafeguardingAmlKyc.db.test.js).
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SET LOCAL session_replication_role = replica');
+      await client.query(
+        `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, currency_code, balance_cents, reserved_cents, status)
+         VALUES ('customer_wallet', $1, 'USD', $2, 0, 'active')`,
+        [user.id, balanceCents],
+      );
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async function holdCount(needId) {
+    const { rows: [row] } = await db.query(
+      `SELECT COUNT(*)::int AS n FROM oxsteed_credit_reservations
+        WHERE reference_type = 'planned_need_fund' AND reference_id LIKE $1 AND status = 'active'`,
+      [`planned-need-fund:${needId}:%`],
+    );
+    return row.n;
+  }
+
   async function reservedAmount(needId) {
     const { rows: [row] } = await db.query(
       'SELECT reserved_amount FROM planned_needs WHERE id = $1',
@@ -105,6 +142,7 @@ describeDb('Group 1 checkpoint 1: planned-needs fund idempotency (N11)', () => {
 
   test('a replayed key increments only once and returns the original result', async () => {
     const user = await addUser();
+    await seedCredit(user);
     const needId = await makeNeed(user);
     const key = randomUUID();
 
@@ -114,10 +152,13 @@ describeDb('Group 1 checkpoint 1: planned-needs fund idempotency (N11)', () => {
     const replay = await fund(needId, user, { amount: 25, key }).expect(200);
     expect(replay.body).toEqual(first.body);
     expect(await reservedAmount(needId)).toBe(25);
+    // G1-B1: the replay placed no second hold.
+    expect(await holdCount(needId)).toBe(1);
   });
 
   test('the same key with a different amount is a 422 and changes nothing', async () => {
     const user = await addUser();
+    await seedCredit(user);
     const needId = await makeNeed(user);
     const key = randomUUID();
 
@@ -125,15 +166,18 @@ describeDb('Group 1 checkpoint 1: planned-needs fund idempotency (N11)', () => {
     const mismatch = await fund(needId, user, { amount: 40, key }).expect(422);
     expect(mismatch.body.code).toBe('idempotency_key_reused');
     expect(await reservedAmount(needId)).toBe(25);
+    expect(await holdCount(needId)).toBe(1);
   });
 
   test('a different key increments again (dedupe scope is per need + key)', async () => {
     const user = await addUser();
+    await seedCredit(user);
     const needId = await makeNeed(user);
 
     await fund(needId, user, { amount: 25, key: randomUUID() }).expect(200);
     await fund(needId, user, { amount: 25, key: randomUUID() }).expect(200);
     expect(await reservedAmount(needId)).toBe(50);
+    expect(await holdCount(needId)).toBe(2);
   });
 
   test('a non-UUID key is a 400 and changes nothing', async () => {
@@ -143,14 +187,17 @@ describeDb('Group 1 checkpoint 1: planned-needs fund idempotency (N11)', () => {
     const bad = await fund(needId, user, { amount: 25, key: 'not-a-uuid' }).expect(400);
     expect(bad.body.code).toBe('validation_failed');
     expect(await reservedAmount(needId)).toBe(0);
+    expect(await holdCount(needId)).toBe(0);
   });
 
   test('an unkeyed request still funds (key is optional, as in openDispute)', async () => {
     const user = await addUser();
+    await seedCredit(user);
     const needId = await makeNeed(user);
 
     const res = await fund(needId, user, { amount: 10 }).expect(200);
     expect(Number(res.body.reserved_amount)).toBe(10);
     expect(await reservedAmount(needId)).toBe(10);
+    expect(await holdCount(needId)).toBe(1);
   });
 });

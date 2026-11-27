@@ -1259,6 +1259,19 @@ exports.assignHelper = async (req, res, next) => {
         );
       }
 
+      // G1-B1 (D-719): the job's own payment/collateral hold supersedes the
+      // planned-need hold, so release the need's holds here, inside the hire
+      // transaction, whatever the payment method (a Stripe-paid hire also
+      // spends the earmark). A release failure rolls the hire back: the
+      // customer must never end up double-held for one job. No-op when no
+      // need published this job.
+      const { releasePlannedNeedCreditHoldsForJob } = require('../services/plannedNeedCreditHoldService');
+      await releasePlannedNeedCreditHoldsForJob(client, {
+        jobId: bid.job_id,
+        reason: 'job_accepted',
+        actorUserId: req.user.id,
+      });
+
       const { rows: finalJobRows } = await client.query('SELECT * FROM jobs WHERE id = $1', [jobResult.rows[0].id]);
       const { emitDomainEvent, jobEventProps } = require('../growth/emit');
       await emitDomainEvent(client, 'job.assigned', jobEventProps(finalJobRows[0] || jobResult.rows[0]), { userId: req.user.id, req });

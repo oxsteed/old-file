@@ -6,6 +6,7 @@ const { withTransaction } = require('../utils/transaction');
 const { emitDomainEvent } = require('../growth/emit');
 const { getClientRequestId } = require('../utils/idempotency');
 const { fingerprintFor, lookupIdempotency, storeIdempotency } = require('../utils/idempotencyStore');
+const { placePlannedNeedCreditHold } = require('../services/plannedNeedCreditHoldService');
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -353,26 +354,39 @@ exports.cancelPlannedNeed = async (req, res, next) => {
     const userId = req.user.id;
     const { id } = req.params;
 
-    const { rows: existing } = await db.query(
-      'SELECT * FROM planned_needs WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
-    if (!existing.length) throw new AppError('Planned need not found.', 404, 'not_found');
-    if (existing[0].status === 'cancelled') {
-      throw new AppError('Already cancelled.', 400, 'invalid_state');
-    }
-    if (existing[0].status === 'completed') {
-      throw new AppError('Cannot cancel a completed need.', 400, 'invalid_state');
-    }
+    // G1-B1 (D-719): cancelling a need releases its Credit holds in the same
+    // transaction as the status change, so a cancelled need can never keep
+    // money held. A release failure rolls the cancel back (fail closed).
+    const { releasePlannedNeedCreditHolds } = require('../services/plannedNeedCreditHoldService');
+    const cancelled = await withTransaction(db, async (client) => {
+      const { rows: existing } = await client.query(
+        'SELECT * FROM planned_needs WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [id, userId]
+      );
+      if (!existing.length) throw new AppError('Planned need not found.', 404, 'not_found');
+      if (existing[0].status === 'cancelled') {
+        throw new AppError('Already cancelled.', 400, 'invalid_state');
+      }
+      if (existing[0].status === 'completed') {
+        throw new AppError('Cannot cancel a completed need.', 400, 'invalid_state');
+      }
 
-    const { rows } = await db.query(`
-      UPDATE planned_needs
-      SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
-      WHERE id = $1 AND user_id = $2
-      RETURNING *
-    `, [id, userId]);
+      const { rows } = await client.query(`
+        UPDATE planned_needs
+        SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
+        WHERE id = $1 AND user_id = $2
+        RETURNING *
+      `, [id, userId]);
 
-    res.json(rows[0]);
+      await releasePlannedNeedCreditHolds(client, {
+        needId: id,
+        reason: 'need_cancelled',
+        actorUserId: userId,
+      });
+      return rows[0];
+    }, 'cancel_planned_need');
+
+    res.json(cancelled);
   } catch (err) {
     if (err instanceof AppError) return next(err);
     logger.error('cancelPlannedNeed error', { needId: req.params?.id, userId: req.user?.id, error: err.message });
@@ -918,7 +932,7 @@ exports.addToFund = async (req, res, next) => {
     await client.query('BEGIN');
 
     const { rows: existing } = await client.query(`
-      SELECT id, status
+      SELECT id, status, estimated_cost, reserved_amount
       FROM planned_needs
       WHERE id = $1 AND user_id = $2
       FOR UPDATE
@@ -945,6 +959,42 @@ exports.addToFund = async (req, res, next) => {
         await client.query('COMMIT');
         return res.status(prior.status).json(prior.body);
       }
+    }
+
+    // G1-B1 (D-718): funding a goal places a real Credit hold, not just the
+    // reserved_amount increment. The hold runs inside this same transaction
+    // and before the increment, so any hold failure rolls the whole fund
+    // back: insufficient balance, a frozen rail, an unsupported currency,
+    // or any service error refuses with a clear error and never silently
+    // falls back to a reservation. The hold amount is the capped increment
+    // the reservation below actually records, so the two can never diverge.
+    // A need already funded to its estimate records no further hold (the
+    // existing 200 no-op). A sub-cent fund rounds to zero holdable cents
+    // and is refused rather than recording money no hold can represent.
+    const estimatedCost = Number(existing[0].estimated_cost) || 0;
+    const alreadyReserved = Number(existing[0].reserved_amount) || 0;
+    const holdableIncrement = estimatedCost > 0
+      ? Math.min(estimatedCost - alreadyReserved, parsedAmount)
+      : parsedAmount;
+    if (holdableIncrement > 0) {
+      const amountCents = Math.round(holdableIncrement * 100);
+      if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+        throw new AppError('Amount is below the smallest holdable unit.', 400, 'validation_failed', {
+          amount: 'Amount is below the smallest holdable unit.',
+        });
+      }
+      const { rows: ownerRows } = await client.query(
+        'SELECT preferred_currency FROM users WHERE id = $1',
+        [userId]
+      );
+      await placePlannedNeedCreditHold(client, {
+        needId: id,
+        customerId: userId,
+        amountCents,
+        currencyCode: ownerRows[0]?.preferred_currency || 'USD',
+        idempotencyKey: clientRequestId ? `planned-need-hold:${id}:${clientRequestId}` : null,
+        actorUserId: userId,
+      });
     }
 
     const { rows } = await client.query(`
