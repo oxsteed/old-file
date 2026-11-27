@@ -41088,7 +41088,17 @@
     "escalationMarkInReview": "Marcar en revisión",
     "escalationSelectPrompt": "Seleccione una escalación para leer el hilo.",
     "escalationLoadFailedTitle": "No se pudieron cargar las escalaciones",
-    "escalationLoadFailedMessage": "No se pudo cargar la escalación."
+    "escalationLoadFailedMessage": "No se pudo cargar la escalación.",
+    "safetyDocsTitle": "Documentos de seguridad",
+    "safetyDocsSubtitle": "Documentos subidos por el propietario para un anuncio. Los inquilinos los ven en el anuncio público.",
+    "safetyDocsButton": "Documentos de seguridad ({{count}})",
+    "safetyDocsSelectPrompt": "Selecciona un anuncio para ver sus documentos de seguridad.",
+    "safetyDocsEmpty": "No hay documentos de seguridad para este anuncio.",
+    "safetyDocsLoadFailedTitle": "No se pudieron cargar los documentos de seguridad",
+    "safetyDocsLoadFailedMessage": "No se pudo cargar los documentos de seguridad.",
+    "safetyDocsOpen": "Abrir",
+    "safetyDocsTypePdf": "PDF",
+    "safetyDocsTypeImage": "Imagen"
   },
   "adminLogin": {
     "tooManyAttempts": "Demasiados intentos fallidos. Inténtelo de nuevo en {{mins}} minuto(s).",

@@ -41088,7 +41088,17 @@
     "escalationMarkInReview": "Marquer en cours d’examen",
     "escalationSelectPrompt": "Sélectionnez une escalade pour lire le fil.",
     "escalationLoadFailedTitle": "Échec du chargement des escalades",
-    "escalationLoadFailedMessage": "Impossible de charger l’escalade."
+    "escalationLoadFailedMessage": "Impossible de charger l’escalade.",
+    "safetyDocsTitle": "Documents de sécurité",
+    "safetyDocsSubtitle": "Documents téléversés par le propriétaire pour une annonce. Les locataires les voient sur l'annonce publique.",
+    "safetyDocsButton": "Documents de sécurité ({{count}})",
+    "safetyDocsSelectPrompt": "Sélectionnez une annonce pour voir ses documents de sécurité.",
+    "safetyDocsEmpty": "Aucun document de sécurité pour cette annonce.",
+    "safetyDocsLoadFailedTitle": "Échec du chargement des documents de sécurité",
+    "safetyDocsLoadFailedMessage": "Impossible de charger les documents de sécurité.",
+    "safetyDocsOpen": "Ouvrir",
+    "safetyDocsTypePdf": "PDF",
+    "safetyDocsTypeImage": "Image"
   },
   "adminLogin": {
     "tooManyAttempts": "Trop de tentatives échouées. Réessayez dans {{mins}} minute(s).",

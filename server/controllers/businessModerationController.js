@@ -181,6 +181,7 @@ exports.listToolRentals = async (req, res) => {
     const { rows } = await db.query(`
       SELECT tr.id, tr.name, tr.category, tr.is_available, tr.moderation_hold, tr.daily_rate,
              tr.location_city, tr.location_state, tr.condition, tr.created_at,
+             (SELECT COUNT(*) FROM tool_rental_safety_documents d WHERE d.tool_id = tr.id) AS safety_documents_count,
              u.id AS owner_id,
              u.first_name || ' ' || u.last_name AS owner_name,
              u.email AS owner_email

@@ -85,6 +85,11 @@ jest.mock('../utils/invoiceEmail', () => ({
 // pointed at the g11g database.
 const reviewService = require('../services/access/reviewService');
 
+// G11-B5 (D-618): the count test calls listToolRentals directly (the admin
+// router is not mounted in this file); the controller reads the same g11g
+// pool because DATABASE_URL was already pointed at it above.
+const businessModerationController = require('../controllers/businessModerationController');
+
 const describeDb = dbUrl ? describe : describe.skip;
 
 describeDb('G11 findings batch: payment, delete guard, identity, notifications', () => {
@@ -1027,6 +1032,64 @@ describeDb('G11 findings batch: payment, delete guard, identity, notifications',
       const res2 = await request(app).get(`/api/tool-rentals/public/${tool2.id}`);
       expect(res2.status).toBe(200);
       expect(res2.body.tool.overdue_unreturned).toBe(false);
+    });
+  });
+
+  describe('G11-B5: admin safety-document view (D-616..D-618)', () => {
+    async function insertSafetyDoc(toolId, ownerId, title = 'Manufacturer safety manual') {
+      const { rows } = await db.query(
+        `INSERT INTO tool_rental_safety_documents (tool_id, owner_id, title, file_url, mime_type)
+         VALUES ($1, $2, $3, 'https://example.invalid/manual.pdf', 'application/pdf') RETURNING *`,
+        [toolId, ownerId, title],
+      );
+      return rows[0];
+    }
+
+    async function listToolsAsAdmin(search) {
+      let payload;
+      const res = { json: (body) => { payload = body; }, status: () => res };
+      await businessModerationController.listToolRentals({ query: { search } }, res);
+      return payload;
+    }
+
+    test('listToolRentals carries safety_documents_count per listing', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const withDocs = await insertTool(owner, { name: 'B5 drill with manual' });
+      const withoutDocs = await insertTool(owner, { name: 'B5 drill without manual' });
+      await insertSafetyDoc(withDocs.id, owner);
+      await insertSafetyDoc(withDocs.id, owner, 'Blade guard guide');
+      const withPayload = await listToolsAsAdmin('B5 drill with manual');
+      expect(withPayload.tools).toHaveLength(1);
+      expect(Number(withPayload.tools[0].safety_documents_count)).toBe(2);
+      const withoutPayload = await listToolsAsAdmin('B5 drill without manual');
+      expect(withoutPayload.tools).toHaveLength(1);
+      expect(Number(withoutPayload.tools[0].safety_documents_count)).toBe(0);
+    });
+
+    test('a non-admin gets 403 on the admin safety-docs endpoint', async () => {
+      const owner = await addUser();
+      const stranger = await addUser();
+      const tool = await insertTool(owner, { name: 'B5 forbidden drill' });
+      await insertSafetyDoc(tool.id, owner);
+      const res = await request(app)
+        .get(`/api/tool-rentals/admin/tool-rentals/${tool.id}/safety-documents`)
+        .set('x-test-user', stranger);
+      expect(res.status).toBe(403);
+    });
+
+    test('a super_admin lists the tool safety documents with the tool name', async () => {
+      const owner = await addUser();
+      const admin = await addUser('super_admin');
+      const tool = await insertTool(owner, { name: 'B5 admin manual drill' });
+      await insertSafetyDoc(tool.id, owner, 'Manufacturer safety manual');
+      const res = await request(app)
+        .get(`/api/tool-rentals/admin/tool-rentals/${tool.id}/safety-documents`)
+        .set('x-test-user', admin);
+      expect(res.status).toBe(200);
+      expect(res.body.documents).toHaveLength(1);
+      expect(res.body.documents[0].title).toBe('Manufacturer safety manual');
+      expect(res.body.documents[0].tool_name).toBe('B5 admin manual drill');
     });
   });
 });

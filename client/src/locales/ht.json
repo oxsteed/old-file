@@ -41088,7 +41088,17 @@
     "escalationMarkInReview": "Make nan revizyon",
     "escalationSelectPrompt": "Chwazi yon eskalasyon pou li fil la.",
     "escalationLoadFailedTitle": "Pa t kapab chaje eskalasyon yo",
-    "escalationLoadFailedMessage": "Pa t kapab chaje eskalasyon an."
+    "escalationLoadFailedMessage": "Pa t kapab chaje eskalasyon an.",
+    "safetyDocsTitle": "Dokiman sekirite",
+    "safetyDocsSubtitle": "Dokiman pwopriyetè a te telechaje pou yon anons. Lokatè yo wè yo sou anons piblik la.",
+    "safetyDocsButton": "Dokiman sekirite ({{count}})",
+    "safetyDocsSelectPrompt": "Chwazi yon anons pou wè dokiman sekirite li yo.",
+    "safetyDocsEmpty": "Pa gen dokiman sekirite pou anons sa a.",
+    "safetyDocsLoadFailedTitle": "Chajman dokiman sekirite yo echwe",
+    "safetyDocsLoadFailedMessage": "Pa t kapab chaje dokiman sekirite yo.",
+    "safetyDocsOpen": "Louvri",
+    "safetyDocsTypePdf": "PDF",
+    "safetyDocsTypeImage": "Imaj"
   },
   "adminLogin": {
     "tooManyAttempts": "Twòp tantativ ki echwe. Eseye ankò nan {{mins}} minit.",

@@ -41202,7 +41202,17 @@
     "escalationMarkInReview": "وضع علامة «قيد المراجعة»",
     "escalationSelectPrompt": "اختر تصعيدًا لقراءة المحادثة.",
     "escalationLoadFailedTitle": "تعذّر تحميل التصعيدات",
-    "escalationLoadFailedMessage": "تعذّر تحميل التصعيد."
+    "escalationLoadFailedMessage": "تعذّر تحميل التصعيد.",
+    "safetyDocsTitle": "مستندات السلامة",
+    "safetyDocsSubtitle": "مستندات رفعها المالك لإعلان ما. يراها المستأجرون في الإعلان العام.",
+    "safetyDocsButton": "مستندات السلامة ({{count}})",
+    "safetyDocsSelectPrompt": "اختر إعلانًا لعرض مستندات السلامة الخاصة به.",
+    "safetyDocsEmpty": "لا توجد مستندات سلامة لهذا الإعلان.",
+    "safetyDocsLoadFailedTitle": "تعذّر تحميل مستندات السلامة",
+    "safetyDocsLoadFailedMessage": "تعذّر تحميل مستندات السلامة.",
+    "safetyDocsOpen": "فتح",
+    "safetyDocsTypePdf": "PDF",
+    "safetyDocsTypeImage": "صورة"
   },
   "adminLogin": {
     "tooManyAttempts": "محاولات فاشلة كثيرة جدًا. حاول مجددًا بعد {{mins}} دقيقة.",

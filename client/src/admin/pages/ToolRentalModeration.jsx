@@ -103,6 +103,15 @@ export default function ToolRentalModeration() {
   const [escReply, setEscReply] = useState('');
   const [escBusy, setEscBusy] = useState(false);
 
+  // ─── Checkpoint 6 (B5, D-617/D-618): admin safety-doc view ─────────────
+  // Read-only: the admin safety-docs endpoint has no delete; deletion stays
+  // the owner's action. The row button shows the per-listing count from
+  // listToolRentals so the admin sees which listings carry documents.
+  const [selectedSafetyTool, setSelectedSafetyTool] = useState(null);
+  const [safetyDocs, setSafetyDocs] = useState([]);
+  const [safetyDocsLoading, setSafetyDocsLoading] = useState(false);
+  const [safetyDocsError, setSafetyDocsError] = useState(null);
+
   const { data: escData, loading: escLoading, error: escError, reload: reloadEscalations } = useAbortableFetch(async (signal) => {
     const params = {};
     if (escFilter) params.status = escFilter;
@@ -153,6 +162,31 @@ export default function ToolRentalModeration() {
     } finally {
       setEscBusy(false);
     }
+  };
+
+  const loadSafetyDocs = async (tool) => {
+    setSelectedSafetyTool(tool);
+    setSafetyDocsLoading(true);
+    setSafetyDocsError(null);
+    try {
+      const { data: res } = await adminApi.get(`/tool-rentals/admin/tool-rentals/${tool.id}/safety-documents`);
+      setSafetyDocs(res.documents || []);
+    } catch (err) {
+      setSafetyDocsError(err);
+      setSafetyDocs([]);
+    } finally {
+      setSafetyDocsLoading(false);
+    }
+  };
+
+  // The table rows shadow `t` with the tool row, so the button label goes
+  // through this helper, which closes over the translation function.
+  const safetyDocsButtonLabel = (count) => t('adminToolRentalModeration.safetyDocsButton', { count });
+
+  const safetyDocTypeLabel = (mimeType) => {
+    if (mimeType === 'application/pdf') return t('adminToolRentalModeration.safetyDocsTypePdf');
+    if (typeof mimeType === 'string' && mimeType.startsWith('image/')) return t('adminToolRentalModeration.safetyDocsTypeImage');
+    return mimeType || '';
   };
 
   const ESC_FILTERS = [
@@ -322,19 +356,27 @@ export default function ToolRentalModeration() {
                     {t.created_at ? new Date(t.created_at).toLocaleDateString() : '-'}
                   </td>
                   <td className={col}>
-                    <button
-                      onClick={() => setToggling(t)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                        t.is_available
-                          ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
-                          : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
-                      }`}
-                    >
-                      {t.is_available
-                        ? <><ToggleLeft size={13} /> Hide</>
-                        : <><ToggleRight size={13} /> Show</>
-                      }
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => loadSafetyDocs(t)}
+                        className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+                      >
+                        {safetyDocsButtonLabel(Number(t.safety_documents_count || 0))}
+                      </button>
+                      <button
+                        onClick={() => setToggling(t)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                          t.is_available
+                            ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
+                            : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
+                        }`}
+                      >
+                        {t.is_available
+                          ? <><ToggleLeft size={13} /> Hide</>
+                          : <><ToggleRight size={13} /> Show</>
+                        }
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -476,6 +518,57 @@ export default function ToolRentalModeration() {
                 </>
               )}
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Checkpoint 6 (B5, D-617): admin safety-doc view, read-only */}
+      <div className="mt-10">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+          {t('adminToolRentalModeration.safetyDocsTitle')}
+        </h2>
+        <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+          {t('adminToolRentalModeration.safetyDocsSubtitle')}
+        </p>
+
+        {!selectedSafetyTool ? (
+          <p className="text-gray-600 dark:text-gray-400 text-sm py-6 text-center">{t('adminToolRentalModeration.safetyDocsSelectPrompt')}</p>
+        ) : safetyDocsLoading ? (
+          <p className="text-gray-600 dark:text-gray-400 text-sm py-6 text-center">{t('common.loading')}</p>
+        ) : safetyDocsError ? (
+          <AdminErrorState
+            title={t('adminToolRentalModeration.safetyDocsLoadFailedTitle')}
+            message={safetyDocsError?.response?.data?.error || t('adminToolRentalModeration.safetyDocsLoadFailedMessage')}
+            onRetry={() => loadSafetyDocs(selectedSafetyTool)}
+          />
+        ) : safetyDocs.length === 0 ? (
+          <p className="text-gray-600 dark:text-gray-400 text-sm py-6 text-center">{t('adminToolRentalModeration.safetyDocsEmpty')}</p>
+        ) : (
+          <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl overflow-hidden">
+            <p className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-300 dark:border-gray-700 truncate">
+              {selectedSafetyTool.name}
+            </p>
+            {safetyDocs.map(doc => (
+              <div key={doc.id} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-300 dark:border-gray-700 last:border-b-0">
+                <div className="min-w-0">
+                  <p className="text-gray-900 dark:text-white text-sm font-medium truncate">{doc.title}</p>
+                  <p className="text-gray-500 text-xs mt-0.5">
+                    {safetyDocTypeLabel(doc.mime_type)}
+                    {doc.created_at ? ` · ${new Date(doc.created_at).toLocaleDateString()}` : ''}
+                  </p>
+                </div>
+                {doc.file_url && (
+                  <a
+                    href={doc.file_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+                  >
+                    {t('adminToolRentalModeration.safetyDocsOpen')}
+                  </a>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>

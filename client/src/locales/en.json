@@ -41088,7 +41088,17 @@
     "escalationMarkInReview": "Mark in review",
     "escalationSelectPrompt": "Select an escalation to read the thread.",
     "escalationLoadFailedTitle": "Failed to load escalations",
-    "escalationLoadFailedMessage": "Could not load the escalation."
+    "escalationLoadFailedMessage": "Could not load the escalation.",
+    "safetyDocsTitle": "Safety documents",
+    "safetyDocsSubtitle": "Documents the owner uploaded for a listing. Renters see these on the public listing.",
+    "safetyDocsButton": "Safety docs ({{count}})",
+    "safetyDocsSelectPrompt": "Select a listing to view its safety documents.",
+    "safetyDocsEmpty": "No safety documents for this listing.",
+    "safetyDocsLoadFailedTitle": "Failed to load safety documents",
+    "safetyDocsLoadFailedMessage": "Could not load the safety documents.",
+    "safetyDocsOpen": "Open",
+    "safetyDocsTypePdf": "PDF",
+    "safetyDocsTypeImage": "Image"
   },
   "adminLogin": {
     "tooManyAttempts": "Too many failed attempts. Try again in {{mins}} minute(s).",
