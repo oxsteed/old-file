@@ -878,6 +878,25 @@ const T = {
       ar: 'انتهت مهلة الرد على طلب عرض السعر الخاص بك دون تلقي عرض سعر بعد.',
     },
   },
+  // Group 1, item 28 (G1-B3): the owner of a personal-care need is
+  // reminded once, the day before the need activates, that it posts for
+  // helpers tomorrow. The body interpolates the need title via params.
+  planned_need_reminder: {
+    title: {
+      en: 'Personal care reminder',
+      fr: 'Rappel de soin personnel',
+      es: 'Recordatorio de cuidado personal',
+      ht: 'Rapèl swen pèsonèl',
+      ar: 'تذكير بالعناية الشخصية',
+    },
+    body: {
+      en: 'Your personal care need {title} is coming up tomorrow and will be posted for helpers then. Review or cancel it now if your plans changed.',
+      fr: 'Votre besoin de soin personnel {title} arrive demain et sera publié pour les prestataires. Vérifiez-le ou annulez-le maintenant si vos plans ont changé.',
+      es: 'Tu necesidad de cuidado personal {title} es mañana y se publicará para los ayudantes. Revísala o cancélala ahora si tus planes cambiaron.',
+      ht: 'Bezwen swen pèsonèl ou {title} ap vini demen epi li pral pibliye pou asistan yo. Verifye li oswa anile li kounye a si plan ou yo chanje.',
+      ar: 'إن حاجة العناية الشخصية الخاصة بك {title} ستحين غداً وستُنشر للمساعدين حينها. راجعها أو ألغِها الآن إذا تغيرت خططك.',
+    },
+  },
   // Group 4 Slice C (166-170): counterparty notices for the helper-quote
   // negotiation flow. Bodies stay generic (no names or amounts); the
   // job and quote ride in data with an action_url to the job page.

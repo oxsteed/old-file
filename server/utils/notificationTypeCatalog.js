@@ -422,6 +422,9 @@ const NOTIFICATION_TYPES = [
   { type: 'business_invite_expired', group: 'account' },
   { type: 'credential_removed', group: 'account' },
   { type: 'planned_need_expired', group: 'account' },
+  // G1-B3 (D-689): the customer is reminded once, the day before a
+  // personal-care need activates, that it posts for helpers tomorrow.
+  { type: 'planned_need_reminder', group: 'account' },
   { type: 'planned_need_request', group: 'account' },
   { type: 'preferred_helper_accepted', group: 'account' },
   { type: 'preferred_helper_declined', group: 'account' },
