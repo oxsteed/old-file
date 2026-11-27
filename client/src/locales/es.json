@@ -4737,6 +4737,7 @@
       "goalChanged": "Objetivo actualizado",
       "goalNeedsApplication": "Ese objetivo requiere una solicitud primero. Abriendo Solicitudes.",
       "goalChangeFailed": "No se pudo cambiar tu objetivo. Inténtalo de nuevo.",
+      "apply": "Solicitar",
       "otherRolesHint": "Los roles de equipo, personal y socios se otorgan, no se eligen:",
       "options": {
         "customer": "Buscar ayuda",

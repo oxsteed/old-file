@@ -4737,6 +4737,7 @@
       "goalChanged": "Goal updated",
       "goalNeedsApplication": "That goal needs an application first. Opening Applications.",
       "goalChangeFailed": "Could not change your goal. Try again.",
+      "apply": "Apply",
       "otherRolesHint": "Team, staff, and partner roles are granted, not picked:",
       "options": {
         "customer": "Find help",

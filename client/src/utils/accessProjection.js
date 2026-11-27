@@ -16,7 +16,7 @@ export const MODE_CAPABILITY = Object.freeze({
   logistics: ['logistics.ship'],
 });
 
-const STAFF_ROLES = new Set(['admin', 'super_admin', 'employee', 'support_agent']);
+export const STAFF_ROLES = new Set(['admin', 'super_admin', 'employee', 'support_agent']);
 
 export function projectionActive(projection) {
   return !!(projection && projection.flags && projection.flags.accessProjection && projection.access);

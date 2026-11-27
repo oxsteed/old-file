@@ -4737,6 +4737,7 @@
       "goalChanged": "Objectif mis à jour",
       "goalNeedsApplication": "Cet objectif nécessite d’abord une demande. Ouverture des demandes.",
       "goalChangeFailed": "Impossible de changer votre objectif. Réessayez.",
+      "apply": "Demander",
       "otherRolesHint": "Les rôles d’équipe, de personnel et de partenaire sont accordés, pas choisis :",
       "options": {
         "customer": "Trouver de l’aide",

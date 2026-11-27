@@ -27,11 +27,22 @@ test('mode switcher keys and constants are deleted', async () => {
   }
 });
 
-test('settings account no longer offers self-selected mode switching', async () => {
+test('settings account only switches to modes it already holds; unheld modes route to Applications', async () => {
   const code = await source('pages/SettingsPage.jsx');
   assert.doesNotMatch(code, /handleSwitchMode/);
   assert.doesNotMatch(code, /LAUNCH_SELF_SELECTABLE_MODES/);
-  assert.doesNotMatch(code, /switchRole/);
+  // D-712: the old blanket ban on switchRole in SettingsPage is replaced by
+  // the held-modes invariant. The card filters its buttons through the
+  // access projection, and only held modes reach changeIntent/switchRole.
+  assert.match(code, /const intentHeld = \(mode\) =>/);
+  assert.match(code, /modeBackedByAccess\(mode, projection\.access\)/);
+  assert.match(code, /heldIntentOptions = INTENT_OPTIONS\.filter/);
+  assert.match(code, /applyIntentOptions = INTENT_OPTIONS\.filter/);
+  assert.match(code, /const openApplications = \(\) => navigate\('\/settings\/applications'\)/);
+  // The unheld-mode buttons navigate to Applications and never switch.
+  const applyBlock = code.slice(code.indexOf('applyIntentOptions.map'));
+  assert.doesNotMatch(applyBlock.slice(0, 600), /changeIntent/);
+  assert.doesNotMatch(applyBlock.slice(0, 600), /switchRole/);
   assert.match(code, /progressiveAccess\.heldTitle/);
   assert.match(code, /to="\/settings\/applications"/);
 });
