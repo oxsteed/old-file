@@ -287,6 +287,60 @@ describeDb('Group 12 Slice 3d: Guide teams (616-620)', () => {
       expect(invite.status).toBe('invited');
     });
 
+    // G12-A1 (D-640): the invite is delivered. This suite mocks the
+    // notification service at the boundary, so the assertion is on the
+    // send call itself; the real send path is proven by the
+    // franchise_territory_invitation test in notificationsPrefsToggles.
+    test('inviting an existing account holder sends the notice with the accept link; a non-account email sends nothing', async () => {
+      const { sendNotification } = require('../services/notificationService');
+      const operator = await addUser();
+      const invitee = await addUser();
+      const applicationId = await makeApplication(operator);
+      sendNotification.mockClear();
+
+      const { token } = await inviteAsOperator(operator, applicationId, invitee.email);
+      expect(sendNotification).toHaveBeenCalledTimes(1);
+      const call = sendNotification.mock.calls[0][0];
+      expect(call).toMatchObject({
+        userId: invitee.id,
+        type: 'franchise_territory_invitation',
+        action_url: `/franchise/invitations/${token}`,
+      });
+      expect(call.idempotencyKey).toMatch(/^franchise-territory-invite:/);
+      expect(call.data.params.inviterName).toBeTruthy();
+
+      sendNotification.mockClear();
+      await inviteAsOperator(operator, applicationId, 'nobody-here@example.invalid');
+      expect(sendNotification).not.toHaveBeenCalled();
+    });
+
+    test('the accept page loads the invite by token; unknown and malformed tokens 404', async () => {
+      const operator = await addUser();
+      const invitee = await addUser();
+      const applicationId = await makeApplication(operator);
+      const { token } = await inviteAsOperator(operator, applicationId, invitee.email);
+
+      const loaded = await request(app)
+        .get(`/api/franchise/invitations/${token}`)
+        .expect(200);
+      expect(loaded.body.invitation.email).toBe(invitee.email);
+      expect(loaded.body.invitation.role).toBe('member');
+      expect(loaded.body.invitation.status).toBe('invited');
+      expect(loaded.body.invitation.invite_token).toBeUndefined();
+      expect(loaded.body.territory.desired_city).toBe('Austin');
+      expect(loaded.body.territory.desired_country).toBe('US');
+      expect(loaded.body.inviter.first_name).toBe('Franchise');
+
+      await request(app)
+        .get(`/api/franchise/invitations/${'a'.repeat(48)}`)
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('territory_invite_not_found'));
+      await request(app)
+        .get('/api/franchise/invitations/not-a-token')
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('territory_invite_not_found'));
+    });
+
     test('operator cancels an outstanding invite; cancelling again is a 409', async () => {
       const operator = await addUser();
       const applicationId = await makeApplication(operator);

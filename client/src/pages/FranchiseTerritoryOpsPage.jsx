@@ -650,6 +650,7 @@ export default function FranchiseTerritoryOpsPage() {
     try {
       const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/invitations`, body);
       setBoundaryDetail(res.data);
+      return { token: res.data.new_invite_token, email: body.email };
     } catch (err) {
       setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
       throw err;

@@ -1013,6 +1013,24 @@ const T = {
       ar: 'تم تحديث «{standardTitle}» إلى الإصدار {version}. يُرجى مراجعته وتأكيده.',
     },
   },
+  // G12-A1 (D-640): a territory invitation — the invitee answers on the
+  // accept page the notice links to.
+  franchise_territory_invitation: {
+    title: {
+      en: 'Territory invitation',
+      fr: 'Invitation au territoire',
+      es: 'Invitación al territorio',
+      ht: 'Envitasyon teritwa',
+      ar: 'دعوة إلى الإقليم',
+    },
+    body: {
+      en: '{inviterName} invited you to join a franchise territory. Review the invitation to accept or decline.',
+      fr: '{inviterName} vous a invité à rejoindre un territoire de franchise. Examinez l’invitation pour accepter ou refuser.',
+      es: '{inviterName} te invitó a unirte a un territorio de franquicia. Revisa la invitación para aceptar o rechazar.',
+      ht: '{inviterName} envite ou pou ou rantre nan yon teritwa franchiz. Gade envitasyon an pou aksepte oswa refize li.',
+      ar: 'دعاك {inviterName} للانضمام إلى إقليم امتياز. راجع الدعوة للقبول أو الرفض.',
+    },
+  },
   // G-6/G-7: book-for-another invite, site-contact status link, and the
   // booker's notice that the recipient responded.
   booking_recipient_invite: {
@@ -1936,6 +1954,13 @@ const EMAIL_TEMPLATES = {
       es: 'Ver reserva',
       ht: 'Gade rezervasyon an',
       ar: 'عرض الحجز',
+    },
+    franchise_territory_invitation: {
+      en: 'Review Invitation',
+      fr: 'Voir l’invitation',
+      es: 'Revisar invitación',
+      ht: 'Gade envitasyon an',
+      ar: 'مراجعة الدعوة',
     },
     booking_site_contact_link: {
       en: 'View Booking Status',

@@ -62,6 +62,7 @@ const {
   cancelTerritoryInvitation,
   cancelTerritoryInvitationAsAdmin,
   respondToTerritoryInvitation,
+  getTerritoryInvitationByToken,
   assignLocationManagerAsAdmin,
   removeLocationManagerAsAdmin,
   assignTraining,
@@ -227,6 +228,9 @@ router.post('/my-applications/:id/locations/:locationId/confirm-opening', authen
 router.post('/my-applications/:id/invitations', authenticate, requireFranchiseEnabled, createTerritoryInvitation);
 router.post('/my-applications/:id/invitations/:inviteId/cancel', authenticate, requireFranchiseEnabled, cancelTerritoryInvitation);
 router.post('/invitations/:token/respond', authenticate, requireFranchiseEnabled, respondToTerritoryInvitation);
+// G12-A1 (D-640): the accept page loads the invite by token — public,
+// token-gated, the same pattern as the booking status page.
+router.get('/invitations/:token', getTerritoryInvitationByToken);
 // Group 12 Slice 3d (618): territory-scoped training distribution —
 // the operator assigns, completes (assignee or operator), and removes.
 router.post('/my-applications/:id/training', authenticate, requireFranchiseEnabled, assignTraining);

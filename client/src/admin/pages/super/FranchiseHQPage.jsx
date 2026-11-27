@@ -1132,6 +1132,7 @@ export default function FranchiseHQPage() {
       const res = await axios.post(`/franchise/applications/${selectedApplication.id}/invitations`, body);
       setSelectedBundle(res.data);
       toast.success(t('adminFranchiseTerritoryInviteSent'));
+      return { token: res.data.new_invite_token, email: body.email };
     } catch (err) {
       toast.error(err?.response?.data?.error || t('adminFranchiseTerritoryInviteFailed'));
       throw err;

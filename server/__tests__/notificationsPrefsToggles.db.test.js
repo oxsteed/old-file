@@ -348,6 +348,28 @@ ddescribe('Track C preference toggles (DB)', () => {
       );
     });
 
+    // G12-A1 (D-640): the new territory-invitation type resolves through
+    // the real send path to a stored row with a non-empty localized title.
+    test('franchise_territory_invitation sends through the real path with a resolved title', async () => {
+      const user = await makeUser();
+      const result = await sendNotification({
+        userId: user.id,
+        type: 'franchise_territory_invitation',
+        data: { params: { inviterName: 'Fran Chise' }, application_id: '00000000-0000-0000-0000-000000000000' },
+        action_url: '/franchise/invitations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        idempotencyKey: `g12a1-real-send-${user.id}`,
+      });
+      expect(result.success).toBe(true);
+      const { rows: [note] } = await pool.query(
+        `SELECT title, body, action_url FROM notifications WHERE user_id = $1 AND type = 'franchise_territory_invitation'`,
+        [user.id],
+      );
+      expect(note).toBeDefined();
+      expect(note.title).toBe('Territory invitation');
+      expect(note.body).toContain('Fran Chise');
+      expect(note.action_url).toBe('/franchise/invitations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+    });
+
     test('catalog stays in sync with the live sendNotification call sites (N3)', async () => {
       // N3: the catalog is a static snapshot that drifted from the call
       // sites (the batch's own new types had no toggle, and neither did

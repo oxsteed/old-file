@@ -34,6 +34,9 @@ const NOTIFICATION_TYPES = [
   { type: 'bid_deadline_reminder', group: 'work' },
   // Group 12 Slice 3e (625): franchise standard version change reminder.
   { type: 'franchise_standard_updated', group: 'work' },
+  // G12-A1 (D-640): territory invitation — the invitee answers on the
+  // accept page the notice links to.
+  { type: 'franchise_territory_invitation', group: 'work' },
   { type: 'bid_received', group: 'work' },
   { type: 'bid_reconfirmed', group: 'work' },
   // Group 4 Slice C (166-170): counterparty notices for the helper-quote

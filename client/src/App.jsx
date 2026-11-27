@@ -44,6 +44,7 @@ const BusinessLaunchStatusPage = lazyWithRetry(() => import('./pages/BusinessLau
 const FranchiseIntakePage = lazyWithRetry(() => import('./pages/FranchiseIntakePage'));
 const FranchiseApplicantDashboard = lazyWithRetry(() => import('./pages/FranchiseApplicantDashboard'));
 const FranchiseTerritoryOpsPage = lazyWithRetry(() => import('./pages/FranchiseTerritoryOpsPage'));
+const FranchiseTerritoryInvitationPage = lazyWithRetry(() => import('./pages/FranchiseTerritoryInvitationPage'));
 const SmartDashboard = lazyWithRetry(routeLoaders.dashboard, { name: 'dashboard' });
 const HelperDashboard = lazyWithRetry(() => import('./pages/HelperDashboard'));
 const ClientManagementPage = lazyWithRetry(routeLoaders.clientManagement, { name: 'clientManagement' });
@@ -629,6 +630,7 @@ export default function App() {
                     <Route path="/franchise/apply"         element={<Guarded><FranchiseIntakePage /></Guarded>} />
                     <Route path="/franchise/status"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><FranchiseApplicantDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/franchise/territory"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><FranchiseTerritoryOpsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/franchise/invitations/:token" element={<Guarded><RouteErrorBoundary><FranchiseTerritoryInvitationPage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
                     <Route path="/businesses/public/:businessId" element={<Guarded><BusinessProfilePage /></Guarded>} />
                     <Route path="/b/:businessId"        element={<Guarded><BusinessProfilePage /></Guarded>} />

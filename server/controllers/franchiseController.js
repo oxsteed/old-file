@@ -9,6 +9,9 @@ const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/stora
 // Group 12 Slice 3e (625, D-326): policy change reminders — sent when a
 // standard's version is published and on HQ's manual remind.
 const { sendFranchiseStandardReminders } = require('../jobs/franchiseStandardReminders');
+// G12-A1 (D-640): territory invitation delivery — in-app + email through
+// the shared notification path for invitees who already have an account.
+const { sendNotification } = require('../services/notificationService');
 
 const APPLICATION_STATUSES = new Set([
   'inquiry',
@@ -4848,6 +4851,50 @@ async function createTerritoryInvitationCore(client, { applicationId, email, rol
   return { invitation: rows[0], token };
 }
 
+// G12-A1 (D-640): deliver a territory invite through the shared
+// notification path (in-app + email per the invitee's prefs) when the
+// invited email belongs to an account. Best-effort by design: the invite
+// already exists by the time this runs, so a failed notice is warned,
+// never thrown — the operator/HQ can still share the accept link from
+// the invite list. An invited email with no account gets no notice:
+// there is nobody to notify, and the inviter shares the link instead,
+// the same rule G-6/G-7 uses for named-only booking recipients.
+async function deliverTerritoryInvitation({ applicationId, inviteId, email, role, token, invitedBy }) {
+  try {
+    const { rows: [invitee] } = await db.query(
+      'SELECT id FROM users WHERE lower(email) = lower($1) AND deleted_at IS NULL',
+      [email]
+    );
+    if (!invitee) return { delivered: false, reason: 'no_account' };
+    const { rows: [inviter] } = await db.query(
+      'SELECT first_name, last_name, email FROM users WHERE id = $1',
+      [invitedBy]
+    );
+    const inviterName = [inviter?.first_name, inviter?.last_name].filter(Boolean).join(' ')
+      || inviter?.email || 'OxSteed';
+    const result = await sendNotification({
+      userId: invitee.id,
+      type: 'franchise_territory_invitation',
+      data: {
+        params: { inviterName },
+        application_id: applicationId,
+        invite_id: inviteId,
+        role,
+      },
+      action_url: `/franchise/invitations/${token}`,
+      idempotencyKey: `franchise-territory-invite:${inviteId}`,
+    });
+    if (!result?.success) {
+      logger.warn('Territory invitation notice not delivered', { inviteId, reason: result?.reason || 'unknown' });
+      return { delivered: false, reason: result?.reason || 'unknown' };
+    }
+    return { delivered: true };
+  } catch (err) {
+    logger.warn('Territory invitation delivery failed', { inviteId, error: err.message });
+    return { delivered: false, reason: 'error' };
+  }
+}
+
 async function createTerritoryInvitation(req, res) {
   const { id } = req.params;
   const email = asTrimmed(req.body?.email);
@@ -4883,6 +4930,10 @@ async function createTerritoryInvitation(req, res) {
       }
       await client.query('COMMIT');
       const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
+      await deliverTerritoryInvitation({
+        applicationId: id, inviteId: result.invitation.id, email, role,
+        token: result.token, invitedBy: req.user?.id || null,
+      });
       return res.status(201).json({ ...detail, new_invite_token: result.token });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -4924,6 +4975,10 @@ async function createTerritoryInvitationAsAdmin(req, res) {
       }
       await client.query('COMMIT');
       const bundle = await fetchFranchiseApplicationBundle(id);
+      await deliverTerritoryInvitation({
+        applicationId: id, inviteId: result.invitation.id, email, role,
+        token: result.token, invitedBy: req.user?.id || null,
+      });
       return res.status(201).json({ ...bundle, new_invite_token: result.token });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -5028,6 +5083,55 @@ async function cancelTerritoryInvitationAsAdmin(req, res) {
   } catch (err) {
     logger.error('Error cancelling franchise territory invitation as admin', { id, inviteId, err: err.message });
     return res.status(500).json({ error: 'Failed to cancel territory invite.' });
+  }
+}
+
+// G12-A1 (D-640): the accept page loads the invite by its token, the
+// same token-gated public pattern as the booking status page. The token
+// is the credential; the invited-email match is still enforced at
+// respond time, so a forwarded link shows the invite but cannot be
+// answered by the wrong account. Unknown or malformed tokens answer 404
+// exactly like expired ones, so they leak nothing. The row is returned
+// as stored: an invite past its expiry still reads `invited` here, and
+// the respond endpoint is the authority that flips it to `expired`.
+async function getTerritoryInvitationByToken(req, res) {
+  const token = String(req.params.token || '');
+  if (!/^[0-9a-f]{48}$/.test(token)) {
+    return res.status(404).json({ error: 'Territory invitation not found.', code: 'territory_invite_not_found' });
+  }
+  try {
+    const { rows } = await db.query(
+      `SELECT i.id, i.application_id, i.email, i.role, i.status, i.expires_at,
+              i.responded_at, i.created_at,
+              fa.desired_brand_name, fa.desired_city, fa.desired_region,
+              fa.desired_country, fa.status AS application_status,
+              u.first_name AS inviter_first_name, u.last_name AS inviter_last_name
+         FROM franchise_territory_invitations i
+         JOIN franchise_applications fa ON fa.id = i.application_id
+         LEFT JOIN users u ON u.id = i.invited_by
+        WHERE i.invite_token = $1`,
+      [token]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Territory invitation not found.', code: 'territory_invite_not_found' });
+    }
+    const row = rows[0];
+    return res.json({
+      invitation: {
+        id: row.id, application_id: row.application_id, email: row.email, role: row.role,
+        status: row.status, expires_at: row.expires_at, responded_at: row.responded_at,
+        created_at: row.created_at,
+      },
+      territory: {
+        desired_brand_name: row.desired_brand_name, desired_city: row.desired_city,
+        desired_region: row.desired_region, desired_country: row.desired_country,
+        status: row.application_status,
+      },
+      inviter: { first_name: row.inviter_first_name, last_name: row.inviter_last_name },
+    });
+  } catch (err) {
+    logger.error('Error loading territory invitation by token', { err: err.message });
+    return res.status(500).json({ error: 'Failed to load territory invitation.' });
   }
 }
 
@@ -12136,6 +12240,7 @@ module.exports = {
   cancelTerritoryInvitation,
   cancelTerritoryInvitationAsAdmin,
   respondToTerritoryInvitation,
+  getTerritoryInvitationByToken,
   assignLocationManagerAsAdmin,
   removeLocationManagerAsAdmin,
   assignTraining,

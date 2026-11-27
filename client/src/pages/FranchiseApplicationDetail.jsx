@@ -321,6 +321,7 @@ export default function FranchiseApplicationDetail({ applicationId }) {
     try {
       const response = await api.post(`/franchise/my-applications/${applicationId}/invitations`, body);
       setDetail(response.data);
+      return { token: response.data.new_invite_token, email: body.email };
     } catch (err) {
       setError(err?.response?.data?.error || copy('territoryInvitesFailed'));
       throw err;
