@@ -65,4 +65,16 @@ exports.disputeNotifications = {
     title: t('A rental escalation was resolved', 'Se resolvió una escalación de alquiler', 'Une escalade de location a été résolue', 'Yo rezoud yon eskalasyon lokasyon', 'تم حل تصعيد إيجار'),
     body: t('An admin closed a support escalation on a tool rental. Open the booking to accept the resolution or dispute it.', 'Un administrador cerró una escalación de soporte sobre un alquiler de herramientas. Abre la reserva para aceptar la resolución o disputarla.', 'Un administrateur a clôturé une escalade d’assistance sur une location d’outil. Ouvrez la réservation pour accepter la résolution ou la contester.', 'Yon admin fèmen yon eskalasyon sipò sou yon lokasyon zouti. Louvri rezervasyon an pou aksepte rezolisyon an oswa konteste l.', 'أغلق أحد المسؤولين تصعيد دعم بشأن إيجار أداة. افتح الحجز لقبول الحل أو الاعتراض عليه.'),
   },
+  // G11-B13 (D-620): a party accepts or disputes an admin-closed
+  // escalation. Two types so the bell never mislabels a dispute as an
+  // acceptance; the disputed notice goes to the counterparty and the
+  // moderation admins, because the thread is open again.
+  tool_rental_escalation_acknowledged: {
+    title: t('A rental escalation resolution was accepted', 'Se aceptó la resolución de una escalación de alquiler', 'La résolution d’une escalade de location a été acceptée', 'Yo aksepte rezolisyon yon eskalasyon lokasyon', 'تم قبول تسوية تصعيد إيجار'),
+    body: t('A party on a tool rental accepted the resolution on a support escalation. Open the booking to review it.', 'Una parte de un alquiler de herramientas aceptó la resolución de una escalación de soporte. Abre la reserva para revisarla.', 'Une partie à une location d’outil a accepté la résolution d’une escalade d’assistance. Ouvrez la réservation pour la vérifier.', 'Yon pati nan yon lokasyon zouti aksepte rezolisyon yon eskalasyon sipò. Louvri rezervasyon an pou revize li.', 'قبل أحد طرفي إيجار أداة تسوية تصعيد دعم. افتح الحجز لمراجعتها.'),
+  },
+  tool_rental_escalation_disputed: {
+    title: t('A rental escalation resolution was disputed', 'Se disputó la resolución de una escalación de alquiler', 'La résolution d’une escalade de location a été contestée', 'Yo konteste rezolisyon yon eskalasyon lokasyon', 'تم الاعتراض على تسوية تصعيد إيجار'),
+    body: t('A party on a tool rental disputed the resolution on a support escalation. The thread is open again for admin review.', 'Una parte de un alquiler de herramientas disputó la resolución de una escalación de soporte. El hilo está abierto de nuevo para revisión del administrador.', 'Une partie à une location d’outil a contesté la résolution d’une escalade d’assistance. Le fil est de nouveau ouvert pour examen par l’administrateur.', 'Yon pati nan yon lokasyon zouti konteste rezolisyon yon eskalasyon sipò. Fil la louvri ankò pou admin revize li.', 'اعترض أحد طرفي إيجار أداة على تسوية تصعيد دعم. المحادثة مفتوحة مجددًا لمراجعة المسؤول.'),
+  },
 };

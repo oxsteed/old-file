@@ -345,6 +345,10 @@ const NOTIFICATION_TYPES = [
   // Wave 3 (589, D-572/D-569): rental escalation opened/resolved.
   { type: 'tool_rental_escalation_opened', group: 'support' },
   { type: 'tool_rental_escalation_resolved', group: 'support' },
+  // G11-B13 (D-620): a party accepts or disputes an admin-closed
+  // escalation; a dispute also tells the moderation admins.
+  { type: 'tool_rental_escalation_acknowledged', group: 'support' },
+  { type: 'tool_rental_escalation_disputed', group: 'support' },
   // G11-A1/A3 (D-603): payment proof recorded, payment confirmed.
   { type: 'tool_rental_payment_proof_submitted', group: 'support' },
   { type: 'tool_rental_payment_confirmed', group: 'support' },

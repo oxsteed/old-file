@@ -550,6 +550,11 @@ exports.sendNotification = async ({
       // learns about the thread without reopening the app.
       'tool_rental_escalation_opened',
       'tool_rental_escalation_resolved',
+      // G11-B13 (D-620): the ack/dispute notices email like the
+      // open/resolve ones, so an offline counterparty or admin learns
+      // about the response without reopening the app.
+      'tool_rental_escalation_acknowledged',
+      'tool_rental_escalation_disputed',
       // Batch H (322, 330): the occupant's repair-status notice and the
       // missed-maintenance SLA-breach alert email like the support alerts.
       'property_request_status',

@@ -612,6 +612,115 @@ describeDb('Group 11 Slice 2e: Disputes + Maintain + Review (586, 587, 589, 590,
       expect(reResolved.body.escalation.acknowledged_by).toBeNull();
     });
 
+    // G11-B13 (D-619/D-620): the ack/dispute action was already built in
+    // Wave 3; what B13 adds is the notice. Accept tells the counterparty
+    // only; a dispute tells the counterparty and the moderation admins
+    // (the thread is open again); the actor is never told about their
+    // own action, matching the escalation-open convention.
+    test('B13: party ack notifies the counterparty; a dispute also tells the moderation admins', async () => {
+      const { owner, renter, booking } = await paidPair();
+      const admin = await addUser('super_admin');
+      const { sendNotification } = require('../services/notificationService');
+      // First escalation: the renter accepts the admin resolution, so
+      // only the owner (the counterparty) is told.
+      const opened = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/escalations`)
+        .set('x-test-user', renter)
+        .send({ category: 'deposit', message: 'The deposit was never returned.' })
+        .expect(201);
+      const escalationId = opened.body.escalation.id;
+      await request(app)
+        .post(`/api/tool-rentals/admin/escalations/${escalationId}/status`)
+        .set('x-test-user', admin)
+        .send({ status: 'resolved' })
+        .expect(200);
+      jest.clearAllMocks();
+      await request(app)
+        .post(`/api/tool-rentals/escalations/${escalationId}/acknowledge`)
+        .set('x-test-user', renter)
+        .send({ decision: 'acknowledged' })
+        .expect(200);
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'tool_rental_escalation_acknowledged',
+        userId: owner,
+      }));
+      expect(sendNotification).not.toHaveBeenCalledWith(expect.objectContaining({
+        type: 'tool_rental_escalation_acknowledged',
+        userId: renter,
+      }));
+      expect(sendNotification).toHaveBeenCalledTimes(1);
+      // Second escalation: the owner accepts, so the renter is told —
+      // either party can be the one to acknowledge.
+      const second = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/escalations`)
+        .set('x-test-user', renter)
+        .send({ category: 'condition', message: 'The tool came back damaged.' })
+        .expect(201);
+      const secondId = second.body.escalation.id;
+      await request(app)
+        .post(`/api/tool-rentals/admin/escalations/${secondId}/status`)
+        .set('x-test-user', admin)
+        .send({ status: 'resolved' })
+        .expect(200);
+      jest.clearAllMocks();
+      await request(app)
+        .post(`/api/tool-rentals/escalations/${secondId}/acknowledge`)
+        .set('x-test-user', owner)
+        .send({ decision: 'acknowledged' })
+        .expect(200);
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'tool_rental_escalation_acknowledged',
+        userId: renter,
+      }));
+      expect(sendNotification).not.toHaveBeenCalledWith(expect.objectContaining({
+        type: 'tool_rental_escalation_acknowledged',
+        userId: owner,
+      }));
+      expect(sendNotification).toHaveBeenCalledTimes(1);
+      // Third escalation: the renter disputes, so the owner and the
+      // moderation admins are told and the thread reopens.
+      const third = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/escalations`)
+        .set('x-test-user', owner)
+        .send({ category: 'other', message: 'The renter left the site a mess.' })
+        .expect(201);
+      const thirdId = third.body.escalation.id;
+      await request(app)
+        .post(`/api/tool-rentals/admin/escalations/${thirdId}/status`)
+        .set('x-test-user', admin)
+        .send({ status: 'resolved' })
+        .expect(200);
+      jest.clearAllMocks();
+      const disputed = await request(app)
+        .post(`/api/tool-rentals/escalations/${thirdId}/acknowledge`)
+        .set('x-test-user', renter)
+        .send({ decision: 'disputed' })
+        .expect(200);
+      expect(disputed.body.escalation.status).toBe('open');
+      expect(disputed.body.escalation.ack_status).toBe('disputed');
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'tool_rental_escalation_disputed',
+        userId: owner,
+      }));
+      const adminCalls = sendNotification.mock.calls.filter(
+        ([call]) => call.type === 'tool_rental_escalation_disputed' && call.action_url === '/admin/tool-rentals',
+      );
+      expect(adminCalls.length).toBeGreaterThan(0);
+      expect(adminCalls.length).toBeLessThanOrEqual(25);
+      expect(sendNotification).toHaveBeenCalledTimes(adminCalls.length + 1);
+      expect(sendNotification).not.toHaveBeenCalledWith(expect.objectContaining({
+        type: 'tool_rental_escalation_disputed',
+        userId: renter,
+      }));
+      // Both new types resolve to a real template in every locale the
+      // panel and the email path can send (en + ar spot-checked).
+      const { tNotif } = require('../utils/i18n');
+      for (const type of ['tool_rental_escalation_acknowledged', 'tool_rental_escalation_disputed']) {
+        expect(tNotif(type, 'en').title).toBeTruthy();
+        expect(tNotif(type, 'ar').title).toBeTruthy();
+      }
+    });
+
     test('acknowledge guards: open thread, bad decision, stranger', async () => {
       const { owner, renter, booking } = await paidPair();
       const admin = await addUser('super_admin');
