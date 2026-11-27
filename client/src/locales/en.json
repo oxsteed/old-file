@@ -14654,6 +14654,7 @@
     "noResultsHint": "Try a shorter word, check spelling, or widen your area from the home search.",
     "distanceAway": "{{miles}} mi away",
     "relatedHelpers": "Helpers you may also want",
+    "pagesActions": "Pages & actions",
     "typeHelper": "Helper",
     "typeJob": "Job",
     "typeBusiness": "Business",
@@ -43107,6 +43108,7 @@
   "commandPalette": {
     "title": "Command palette",
     "placeholder": "Type a command or search...",
+    "search": "Search",
     "noResults": "No results found",
     "loading": "Loading...",
     "footer": "Up and Down to navigate, Enter to open, Esc to close",
@@ -43115,6 +43117,9 @@
       "pages": "Pages",
       "actions": "Actions",
       "bookings": "Recent bookings",
+      "orders": "Open orders",
+      "deliveries": "Deliveries in transit",
+      "discover": "Discover results",
       "conversations": "Recent conversations",
       "admin": "Admin"
     },
@@ -43144,6 +43149,25 @@
       "orderFood": "Order food",
       "openWallet": "Open wallet",
       "getSupport": "Get support"
+    },
+    "keywords": {
+      "bookings": "appointments reservations schedule",
+      "browseJobs": "find work gigs hiring",
+      "calendar": "schedule appointments availability",
+      "food": "order delivery eat restaurants",
+      "toolRentals": "rent tools equipment borrow",
+      "direct": "services catalog quote request",
+      "discover": "explore search browse",
+      "invoices": "bills receipts payments",
+      "disputes": "arbitration claims resolution",
+      "logistics": "shipping freight supply",
+      "activity": "feed notifications updates",
+      "newBooking": "book hire helper appointment schedule",
+      "newJob": "post create gig hire request",
+      "newQuote": "request quote estimate price",
+      "orderFood": "delivery restaurant eat meal",
+      "openWallet": "money balance credit funds",
+      "getSupport": "help contact ticket assistance"
     }
   },
   "priceGuide": {

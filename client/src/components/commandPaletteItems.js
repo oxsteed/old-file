@@ -5,144 +5,24 @@
  */
 import api from '../api/axios';
 import { REGULAR_NAV, SUPER_NAV } from '../admin/layouts/AdminLayout';
-import { getLaunchRedirect } from '../utils/launchScope';
-import { paletteAllowedDestinations, isPalettePageVisible } from '../utils/paletteVisibility';
+import { buildPaletteIndex } from '../utils/paletteIndex';
 
-export const RECENT_STORAGE_KEY = 'oxsteed:cmdk:recent';
-const MAX_RECENT = 8;
+// Search, scoring, and recents live in the pure module so they are
+// unit-testable with plain node --test; re-exported here so the lazy
+// palette module keeps one API.
+export { RECENT_STORAGE_KEY, fuzzyScore, searchItems, readRecentIds, pushRecentId, orderForEmptyQuery, mergeDiscoverResults } from '../utils/paletteSearch';
+
 const MAX_DYNAMIC = 5;
+const MAX_LIVE = 5;
 
 /**
- * Subsequence fuzzy score. Higher is better; -1 means no match. Word starts
- * and consecutive runs score more so "msg" ranks "Messages" above "Images".
+ * The client palette index. The assembly lives in the pure
+ * `paletteIndex.js` so the Discover page builds the same index without
+ * pulling in the admin layout; this is a thin wrapper for the lazy
+ * palette module.
  */
-export function fuzzyScore(query, text) {
-  const q = String(query || '').toLowerCase();
-  const t = String(text || '').toLowerCase();
-  if (!q) return 0;
-  let qi = 0;
-  let score = 0;
-  let lastIndex = -1;
-  let run = 0;
-  for (let i = 0; i < t.length && qi < q.length; i += 1) {
-    if (t[i] === q[qi]) {
-      const wordStart = i === 0 || /[\s\-_/.:]/.test(t[i - 1]);
-      score += wordStart ? 4 : 1;
-      if (lastIndex === i - 1) {
-        run += 1;
-        score += run;
-      } else {
-        run = 0;
-      }
-      lastIndex = i;
-      qi += 1;
-    }
-  }
-  return qi === q.length ? score : -1;
-}
-
-/** Rank items against a query across label, keywords, and path. */
-export function searchItems(items, query) {
-  const q = String(query || '').trim();
-  if (!q) return items;
-  const scored = [];
-  for (const item of items) {
-    const haystack = `${item.label} ${item.keywords || ''} ${item.path || ''}`;
-    const score = fuzzyScore(q, haystack);
-    if (score >= 0) scored.push({ item, score: score + (item.recentPick ? 60 : 0) });
-  }
-  scored.sort((a, b) => b.score - a.score);
-  return scored.map(({ item }) => item);
-}
-
-export function readRecentIds() {
-  try {
-    const raw = localStorage.getItem(RECENT_STORAGE_KEY);
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((id) => typeof id === 'string').slice(0, MAX_RECENT);
-  } catch {
-    return [];
-  }
-}
-
-export function pushRecentId(id) {
-  try {
-    const ids = [id, ...readRecentIds().filter((existing) => existing !== id)].slice(0, MAX_RECENT);
-    localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(ids));
-  } catch {
-    // Private mode or unavailable storage: recents are a nicety, not a must.
-  }
-}
-
-// Curated client pages. labelKey reuses existing `nav.*` keys where they
-// exist; the rest live under `commandPalette.pages.*` in every locale.
-const CLIENT_PAGES = [
-  { id: 'page:dashboard', path: '/dashboard', labelKey: 'nav.dashboard', keywords: 'home overview' },
-  { id: 'page:messages', path: '/messages', labelKey: 'nav.messages', keywords: 'chat inbox conversations' },
-  { id: 'page:bookings', path: '/my-bookings', labelKey: 'commandPalette.pages.bookings', keywords: 'appointments reservations schedule' },
-  { id: 'page:jobs', path: '/my-jobs', labelKey: 'commandPalette.pages.jobs', keywords: 'my gigs work posted' },
-  { id: 'page:browse-jobs', path: '/jobs', labelKey: 'nav.browseJobs', keywords: 'find work gigs hiring' },
-  { id: 'page:helpers', path: '/helpers', labelKey: 'commandPalette.pages.helpers', keywords: 'hire pros services professionals' },
-  { id: 'page:calendar', path: '/calendar', labelKey: 'nav.calendar', keywords: 'schedule appointments availability' },
-  { id: 'page:food', path: '/food', labelKey: 'commandPalette.pages.food', keywords: 'order delivery eat restaurants' },
-  { id: 'page:restaurants', path: '/restaurants', labelKey: 'commandPalette.pages.restaurants', keywords: 'directory dine food places' },
-  { id: 'page:tool-rentals', path: '/tool-rentals', labelKey: 'commandPalette.pages.toolRentals', keywords: 'rent tools equipment borrow' },
-  { id: 'page:direct', path: '/direct', labelKey: 'commandPalette.pages.direct', keywords: 'services catalog quote request' },
-  { id: 'page:learn', path: '/learn', labelKey: 'nav.learnToDiy', keywords: 'guides diy tutorials videos how to' },
-  // Universal finder step 1: the Discover entry points at the live /discover
-  // route (the homepage submit has since PR #815). While discoverEverything
-  // is off, the launch-redirect filter below hides it and /jobs stays
-  // reachable through the browse-jobs entry.
-  { id: 'page:discover', path: '/discover', labelKey: 'commandPalette.pages.discover', keywords: 'explore search browse' },
-  { id: 'page:wallet', path: '/wallet', labelKey: 'nav.wallet', keywords: 'money balance funds' },
-  { id: 'page:credit', path: '/oxsteed-credit', labelKey: 'commandPalette.pages.credit', keywords: 'oxsteed credit balance wallet' },
-  { id: 'page:orders', path: '/orders', labelKey: 'commandPalette.pages.orders', keywords: 'purchases history food' },
-  { id: 'page:invoices', path: '/invoices', labelKey: 'commandPalette.pages.invoices', keywords: 'bills receipts payments' },
-  { id: 'page:disputes', path: '/disputes', labelKey: 'commandPalette.pages.disputes', keywords: 'arbitration claims resolution' },
-  { id: 'page:support', path: '/support', labelKey: 'commandPalette.pages.support', keywords: 'help tickets contact' },
-  // Universal finder step 1: `requires` lists projection-derived
-  // destinations; the entry shows only when the projection offers one of
-  // them. Pages without `requires` are the customer baseline and stay
-  // visible to every account.
-  { id: 'page:logistics', path: '/logistics', labelKey: 'nav.logistics', keywords: 'shipping freight supply', requires: ['/logistics/buyer', '/logistics/organizer'] },
-  { id: 'page:business-hub', path: '/business-hub', labelKey: 'commandPalette.pages.businessHub', keywords: 'merchant manage business', requires: ['/business-hub'] },
-  { id: 'page:helper-dashboard', path: '/helper-dashboard', labelKey: 'commandPalette.pages.helperDashboard', keywords: 'pro helper work earnings', requires: ['/helper-dashboard'] },
-  { id: 'page:activity', path: '/activity', labelKey: 'commandPalette.pages.activity', keywords: 'feed notifications updates' },
-  { id: 'page:settings', path: '/settings', labelKey: 'nav.settings', keywords: 'preferences account profile' },
-];
-
-const CLIENT_ACTIONS = [
-  { id: 'action:new-booking', path: '/helpers', labelKey: 'commandPalette.actions.newBooking', keywords: 'book hire helper appointment schedule' },
-  { id: 'action:new-job', path: '/post-job', labelKey: 'commandPalette.actions.newJob', keywords: 'post create gig hire request' },
-  { id: 'action:new-quote', path: '/quote-request', labelKey: 'commandPalette.actions.newQuote', keywords: 'request quote estimate price' },
-  { id: 'action:order-food', path: '/food', labelKey: 'commandPalette.actions.orderFood', keywords: 'delivery restaurant eat meal' },
-  { id: 'action:open-wallet', path: '/wallet', labelKey: 'commandPalette.actions.openWallet', keywords: 'money balance credit funds' },
-  { id: 'action:get-support', path: '/support', labelKey: 'commandPalette.actions.getSupport', keywords: 'help contact ticket assistance' },
-];
-
 export function buildClientItems(t, projection) {
-  // Review P1-222: don't offer pages the launch scope redirects away
-  // (e.g. /discover while discoverEverything is off).
-  // Universal finder step 1 (D-614): pages carrying `requires` show only
-  // when the access projection offers one of those destinations; the
-  // projection is the same one the navbar renders from, and a missing or
-  // not-ready projection fails closed to the customer baseline.
-  const allowed = paletteAllowedDestinations(projection);
-  const pages = CLIENT_PAGES.filter((entry) => !getLaunchRedirect(entry.path) && isPalettePageVisible(entry, allowed)).map((entry) => ({
-    ...entry,
-    label: t(entry.labelKey),
-    group: 'pages',
-  }));
-  // D-612: actions are application entries (post a job, order food, get
-  // support). They stay visible to every account, un-gated, so a user can
-  // always find the way in to something they cannot do yet.
-  const actions = CLIENT_ACTIONS.map((entry) => ({
-    ...entry,
-    label: t(entry.labelKey),
-    group: 'actions',
-  }));
-  return { pages, actions };
+  return buildPaletteIndex(t, projection);
 }
 
 /**
@@ -184,46 +64,144 @@ function conversationLabel(conversation, t) {
   return `${t('nav.messages')}: ${name}`;
 }
 
+function orderLabel(order, t) {
+  return `${t('commandPalette.pages.orders')}: #${order.id}`;
+}
+
+function deliveryLabel(order, t) {
+  const name = order.restaurant_name || `#${order.id}`;
+  return `${name} · #${order.id}`;
+}
+
+// Every live endpoint below is caller-scoped server-side (customer_id or
+// the caller's own rows) and fails closed to [] on error, so the palette
+// never surfaces another user's orders, bookings, or conversations. This
+// is the fail-closed scope rule: a missing or failed scope yields
+// nothing, never everything.
+async function loadBookings() {
+  return api.get('/bookings', { params: { limit: 10 } })
+    .then(({ data }) => (Array.isArray(data?.data) ? data.data : []))
+    .catch(() => []);
+}
+
+async function loadConversations() {
+  return api.get('/messages/conversations', { params: { limit: MAX_DYNAMIC } })
+    .then(({ data }) => {
+      const payload = data?.data ?? data;
+      return Array.isArray(payload) ? payload : (payload?.conversations || []);
+    })
+    .catch(() => []);
+}
+
 /** Lazily fetch the user's most recent bookings and conversations. Never throws. */
 export async function fetchDynamicRecents(t) {
   const [bookings, conversations] = await Promise.all([
-    api.get('/bookings', { params: { limit: MAX_DYNAMIC } })
-      .then(({ data }) => {
-        const list = Array.isArray(data?.data) ? data.data : [];
-        return list.slice(0, MAX_DYNAMIC).map((booking) => ({
-          id: `booking:${booking.id}`,
-          path: '/my-bookings',
-          label: bookingLabel(booking, t),
-          keywords: 'booking appointment reservation',
-          group: 'bookings',
-        }));
-      })
-      .catch(() => []),
-    api.get('/messages/conversations', { params: { limit: MAX_DYNAMIC } })
-      .then(({ data }) => {
-        const payload = data?.data ?? data;
-        const list = Array.isArray(payload) ? payload : (payload?.conversations || []);
-        return list.slice(0, MAX_DYNAMIC).map((conversation) => ({
-          id: `conversation:${conversation.id}`,
-          path: `/messages/${conversation.id}`,
-          label: conversationLabel(conversation, t),
-          keywords: 'message chat conversation',
-          group: 'conversations',
-        }));
-      })
-      .catch(() => []),
+    loadBookings().then((list) => list.slice(0, MAX_DYNAMIC).map((booking) => ({
+      id: `booking:${booking.id}`,
+      path: '/my-bookings',
+      label: bookingLabel(booking, t),
+      keywords: 'booking appointment reservation',
+      group: 'bookings',
+    }))),
+    loadConversations().then((list) => list.slice(0, MAX_DYNAMIC).map((conversation) => ({
+      id: `conversation:${conversation.id}`,
+      path: `/messages/${conversation.id}`,
+      label: conversationLabel(conversation, t),
+      keywords: 'message chat conversation',
+      group: 'conversations',
+    }))),
   ]);
   return [...bookings, ...conversations];
 }
 
-/** Split registry items into recents-first ordering for an empty query. */
-export function orderForEmptyQuery(allItems, recentIds) {
-  const byId = new Map(allItems.map((item) => [item.id, item]));
-  const recents = [];
-  for (const id of recentIds) {
-    const item = byId.get(id);
-    if (item && !recents.includes(item)) recents.push({ ...item, recentPick: true });
-  }
-  const recentSet = new Set(recents.map((item) => item.id));
-  return [...recents, ...allItems.filter((item) => !recentSet.has(item.id))];
+// Open marketplace orders: pending, paid, processing. Completed, cancelled,
+// and refunded orders are history, not live.
+const OPEN_ORDER_STATUSES = new Set(['pending', 'paid', 'processing']);
+// Active bookings: anything not terminally closed.
+const ACTIVE_BOOKING_STATUSES = new Set(['pending', 'accepted', 'confirmed', 'in_progress']);
+
+/**
+ * Live items for the palette (palette item 3, D-723): the user's own open
+ * orders, food deliveries in transit, active bookings, and conversations.
+ * Ranked live-first by the pure ordering; never throws.
+ */
+export async function fetchLiveItems(t) {
+  const [orders, deliveries, bookings, conversations] = await Promise.all([
+    api.get('/orders', { params: { limit: 10 } })
+      .then(({ data }) => {
+        const list = Array.isArray(data?.data) ? data.data : [];
+        return list
+          .filter((order) => OPEN_ORDER_STATUSES.has(order.status))
+          .slice(0, MAX_LIVE)
+          .map((order) => ({
+            id: `order:${order.id}`,
+            path: `/marketplace/orders/${order.id}`,
+            label: orderLabel(order, t),
+            keywords: 'order purchase',
+            group: 'orders',
+            livePick: true,
+          }));
+      })
+      .catch(() => []),
+    api.get('/food/my/orders', { params: { status: 'active', limit: MAX_LIVE } })
+      .then(({ data }) => {
+        const list = Array.isArray(data?.orders) ? data.orders : [];
+        return list.slice(0, MAX_LIVE).map((order) => ({
+          id: `delivery:${order.id}`,
+          path: `/food/orders/${order.id}`,
+          label: deliveryLabel(order, t),
+          keywords: 'delivery food order tracking',
+          group: 'deliveries',
+          livePick: true,
+        }));
+      })
+      .catch(() => []),
+    loadBookings().then((list) => list
+      .filter((booking) => ACTIVE_BOOKING_STATUSES.has(booking.status))
+      .slice(0, MAX_LIVE)
+      .map((booking) => ({
+        id: `booking:${booking.id}`,
+        path: '/my-bookings',
+        label: bookingLabel(booking, t),
+        keywords: 'booking appointment reservation',
+        group: 'bookings',
+        livePick: true,
+      }))),
+    loadConversations().then((list) => list.slice(0, MAX_DYNAMIC).map((conversation) => ({
+      id: `conversation:${conversation.id}`,
+      path: `/messages/${conversation.id}`,
+      label: conversationLabel(conversation, t),
+      keywords: 'message chat conversation',
+      group: 'conversations',
+      livePick: true,
+    }))),
+  ]);
+  return [...orders, ...deliveries, ...bookings, ...conversations];
+}
+
+/**
+ * Live Discover results for the palette (palette item 4, D-724): the same
+ * `/discover` search the Discover page runs, capped at 5. Results carry
+ * their own `url`, so the palette navigates straight to the result. Only
+ * relative in-app URLs are kept; anything else is dropped. Never throws.
+ * The caller ranks these after the user's own items (mergeDiscoverResults).
+ */
+export async function fetchDiscoverItems(t, query) {
+  const q = String(query || '').trim();
+  if (!q) return [];
+  return api.get('/discover', { params: { q, limit: 5 } })
+    .then(({ data }) => {
+      const list = Array.isArray(data?.results) ? data.results : [];
+      return list
+        .filter((result) => result && typeof result.url === 'string' && result.url.startsWith('/'))
+        .slice(0, 5)
+        .map((result) => ({
+          id: `discover:${result.type}:${result.id}`,
+          path: result.url,
+          label: result.title || result.url,
+          keywords: `${result.subtitle || ''} ${result.type || ''}`,
+          group: 'discover',
+        }));
+    })
+    .catch(() => []);
 }

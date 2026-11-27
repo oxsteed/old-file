@@ -14654,6 +14654,7 @@
     "noResultsHint": "Eseye yon mo pi kout, verifye òtograf, oswa elaji zòn nan depi rechèch dakèy la.",
     "distanceAway": "{{miles}} mil",
     "relatedHelpers": "Asistan ou ka vle tou",
+    "pagesActions": "Paj ak aksyon",
     "typeHelper": "Asistan",
     "typeJob": "Travay",
     "typeBusiness": "Biznis",
@@ -43107,6 +43108,7 @@
   "commandPalette": {
     "title": "Palèt kòmand",
     "placeholder": "Ekri yon kòmand oswa chèche...",
+    "search": "Chèche",
     "noResults": "Pa gen rezilta",
     "loading": "Ap chaje...",
     "footer": "Monte Desann pou navige, Antre pou louvri, Echap pou fèmen",
@@ -43115,6 +43117,9 @@
       "pages": "Paj",
       "actions": "Aksyon",
       "bookings": "Dènye rezèvasyon",
+      "orders": "Kòmand ouvè",
+      "deliveries": "Livrezon an wout",
+      "discover": "Rezilta Discover",
       "conversations": "Dènye konvèsasyon",
       "admin": "Administrasyon"
     },
@@ -43144,6 +43149,25 @@
       "orderFood": "Kòmande manje",
       "openWallet": "Louvri bous",
       "getSupport": "Jwenn èd"
+    },
+    "keywords": {
+      "bookings": "randevou rezervasyon orè",
+      "browseJobs": "jwenn travay djòb anbochaj",
+      "calendar": "orè randevou disponiblite",
+      "food": "kòmande livrezon manje restoran",
+      "toolRentals": "lwe zouti ekipman prete",
+      "direct": "sèvis katalòg mande pri",
+      "discover": "eksplore chèche navige",
+      "invoices": "fakti resi peman",
+      "disputes": "abitraj plent rezolisyon",
+      "logistics": "anbake machandiz founiti",
+      "activity": "fil notifikasyon mizajou",
+      "newBooking": "rezève anboche asistan randevou orè",
+      "newJob": "afiche kreye djòb anboche demann",
+      "newQuote": "mande pri estimasyon pri",
+      "orderFood": "livrezon restoran manje repa",
+      "openWallet": "lajan balans kredi fon",
+      "getSupport": "èd kontak tikè asistans"
     }
   },
   "priceGuide": {

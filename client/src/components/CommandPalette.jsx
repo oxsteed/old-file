@@ -59,12 +59,13 @@ function usePaletteHotkey(onToggle) {
   }, [onToggle]);
 }
 
-function PaletteDialog({ open, onClose, items, loading, itemsApi }) {
+function PaletteDialog({ open, onClose, items, loading, itemsApi, fetchDiscover }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [recentIds, setRecentIds] = useState([]);
+  const [discoverItems, setDiscoverItems] = useState([]);
   const inputRef = useRef(null);
   const listRef = useRef(null);
   const activeRef = useRef(null);
@@ -84,11 +85,35 @@ function PaletteDialog({ open, onClose, items, loading, itemsApi }) {
     return undefined;
   }, [open, itemsApi ]);
 
+  // Palette item 4 (D-724): live Discover results, debounced 300ms, only
+  // while the palette is open and the query is non-empty. A stale response
+  // for an older query is discarded by the cleanup flag. D-728: the empty
+  // branch keeps the previous array when it is already empty, so the
+  // setter never re-renders on its own (same guard class as the live
+  // fetch below: a fresh [] every run would loop if a dep ever churned).
+  useEffect(() => {
+    if (!open || !fetchDiscover) { setDiscoverItems((prev) => (prev.length === 0 ? prev : [])); return undefined; }
+    const q = query.trim();
+    if (!q) { setDiscoverItems((prev) => (prev.length === 0 ? prev : [])); return undefined; }
+    let active = true;
+    const timer = setTimeout(() => {
+      fetchDiscover(q)
+        .then((found) => { if (active) setDiscoverItems(found); })
+        .catch(() => { if (active) setDiscoverItems([]); });
+    }, 300);
+    return () => { active = false; clearTimeout(timer); };
+  }, [open, query, fetchDiscover]);
+
   const visibleItems = useMemo(() => {
     if (!itemsApi) return [];
-    if (!query.trim()) return itemsApi.orderForEmptyQuery(items, recentIds).slice(0, MAX_VISIBLE);
-    return itemsApi.searchItems(items, query).slice(0, MAX_VISIBLE);
-  }, [items, query, recentIds, itemsApi]);
+    const own = !query.trim()
+      ? itemsApi.orderForEmptyQuery(items, recentIds).slice(0, MAX_VISIBLE)
+      : itemsApi.searchItems(items, query).slice(0, MAX_VISIBLE);
+    if (!query.trim() || !discoverItems.length) return own;
+    // Palette item 4 (D-724): Discover results rank after the user's own
+    // stuff, capped at 5, never duplicating an own destination.
+    return itemsApi.mergeDiscoverResults(own, itemsApi.searchItems(discoverItems, query));
+  }, [items, discoverItems, query, recentIds, itemsApi]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -215,7 +240,6 @@ function ClientCommandPalette({initialOpen = false}) {
   const [open, setOpen] = useState(initialOpen);
   const [dynamicItems, setDynamicItems] = useState([]);
   const [dynamicLoading, setDynamicLoading] = useState(false);
-  const fetchedRef = useRef(false);
   const itemsModule = usePaletteItemsModule();
 
   const toggle = useCallback(() => setOpen((value) => !value), []);
@@ -230,19 +254,51 @@ function ClientCommandPalette({initialOpen = false}) {
     return [...pages, ...actions];
   }, [itemsModule, t, projection]);
 
+  // Palette item 3 (D-723): live items are fetched fresh on every open,
+  // not once per mount, so an order placed or a booking accepted since
+  // the last open shows up. Recents ride along; live wins on id clashes.
+  // D-728: the fetch is guarded to once per open session. The effect's
+  // deps include `user` by object identity, and a caller may hand back a
+  // fresh user object on every render (the first-click fixture's useAuth
+  // mock does exactly that). Without the guard, each fetch's setState
+  // re-renders, the user identity changes, and the effect re-runs forever,
+  // starving the main thread so the palette never opens. The guard resets
+  // on close, so every open still gets fresh data, and a late module load
+  // still fetches because the guard is only set once a fetch starts.
+  const fetchedForOpenRef = useRef(false);
   useEffect(() => {
-    if (open && user && itemsModule && !fetchedRef.current) {
-      fetchedRef.current = true;
-      setDynamicLoading(true);
-      itemsModule.fetchDynamicRecents(t)
-        .then((items) => setDynamicItems(items))
-        .finally(() => setDynamicLoading(false));
-    }
+    if (!open) { fetchedForOpenRef.current = false; return undefined; }
+    if (!user || !itemsModule) return undefined;
+    if (fetchedForOpenRef.current) return undefined;
+    fetchedForOpenRef.current = true;
+    setDynamicLoading(true);
+    Promise.all([
+      itemsModule.fetchLiveItems(t),
+      itemsModule.fetchDynamicRecents(t),
+    ])
+      .then(([live, recents]) => {
+        if (!fetchedForOpenRef.current) return;
+        const seen = new Set();
+        setDynamicItems([...live, ...recents].filter((item) => {
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        }));
+      })
+      .finally(() => { if (fetchedForOpenRef.current) setDynamicLoading(false); });
+    return undefined;
   }, [open, user, t, itemsModule]);
 
   const items = useMemo(() => [...dynamicItems, ...staticItems], [dynamicItems, staticItems]);
 
-  return <PaletteDialog open={open} onClose={close} items={items} loading={dynamicLoading || !itemsModule} itemsApi={itemsModule} />;
+  // Palette item 4 (D-724): the client palette also searches Discover live.
+  // The admin palette passes no fetcher and stays tabs-only.
+  const fetchDiscover = useCallback(
+    (q) => (itemsModule ? itemsModule.fetchDiscoverItems(t, q) : Promise.resolve([])),
+    [itemsModule, t],
+  );
+
+  return <PaletteDialog open={open} onClose={close} items={items} loading={dynamicLoading || !itemsModule} itemsApi={itemsModule} fetchDiscover={fetchDiscover} />;
 }
 
 function AdminCommandPalette({initialOpen = false}) {
