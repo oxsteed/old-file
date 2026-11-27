@@ -22203,7 +22203,7 @@
         "statusPaid": "Paid",
         "statusVoided": "Voided",
         "paymentReferenceLabel": "Payment reference",
-        "paymentReferencePlaceholder": "Bank transfer or payment reference",
+        "paymentReferencePlaceholder": "Stripe transfer ID (tr_...)",
         "noteLabel": "Note (optional)",
         "notePlaceholder": "Note for this action",
         "approve": "Approve",

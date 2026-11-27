@@ -22050,7 +22050,7 @@
         "statusPaid": "Pagado",
         "statusVoided": "Anulado",
         "paymentReferenceLabel": "Referencia de pago",
-        "paymentReferencePlaceholder": "Transferencia bancaria o referencia de pago",
+        "paymentReferencePlaceholder": "ID de transferencia de Stripe (tr_...)",
         "noteLabel": "Nota (opcional)",
         "notePlaceholder": "Nota para esta acción",
         "approve": "Aprobar",

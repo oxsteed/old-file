@@ -57,16 +57,21 @@ describeDb('Sunday integrity against the full production migration history', () 
   });
   test('concurrent paid transitions cannot overwrite the winning reference', async () => {
     const a = await pool.connect(), b = await pool.connect();
+    // G9-B8 (D-745): the references must be Stripe transfer ids verified
+    // against Stripe, so the test injects a mock client returning a
+    // transfer matching the fixture payout (50 USD cents). The rail gate
+    // reads the real flag row in this database.
+    const stripe = { transfers: { retrieve: async () => ({ id: 'tr_first000000000000000001', amount: 50, currency: 'usd', reversed: false }) } };
     try {
       await a.query('BEGIN'); await b.query('BEGIN');
-      await markPayoutPaid(a,payoutId,owner,'first-provider-reference');
+      await markPayoutPaid(a,payoutId,owner,'tr_first000000000000000001', undefined, { stripe });
       // b waits for a's row lock, then observes its committed paid state.
-      const pending = markPayoutPaid(b,payoutId,owner,'second-provider-reference');
+      const pending = markPayoutPaid(b,payoutId,owner,'tr_second00000000000000002', undefined, { stripe });
       const rejection = expect(pending).rejects.toMatchObject({ statusCode: 409 });
       await a.query('COMMIT');
       await rejection;
       await b.query('ROLLBACK');
-      expect((await client.query('SELECT payment_reference FROM delivery_driver_payouts WHERE id=$1',[payoutId])).rows[0].payment_reference).toBe('first-provider-reference');
+      expect((await client.query('SELECT payment_reference FROM delivery_driver_payouts WHERE id=$1',[payoutId])).rows[0].payment_reference).toBe('tr_first000000000000000001');
     } finally { await a.query('ROLLBACK'); await b.query('ROLLBACK'); a.release(); b.release(); }
   });
 });

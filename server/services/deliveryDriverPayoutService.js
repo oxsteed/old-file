@@ -4,11 +4,62 @@
 // paid deliveries with no payout lifecycle at all. Payouts accrue from the
 // job's quoted driver_payout_cents (never request input) when a job reaches
 // 'delivered'. Money never moves automatically: accrued -> approved ->
-// paid requires explicit ops actions, and 'paid' requires a recorded payment
-// reference (enforced both here and by the DB constraint).
+// paid requires explicit ops actions, and 'paid' requires a Stripe transfer
+// id verified against Stripe (G9-B8, D-745) — enforced here, by the rail
+// gate, and by the DB constraint on a non-empty reference.
 
 const pool = require('../db');
 const AppError = require('../utils/appError');
+const { assertCreditRailEnabled } = require('./oxsteedCreditService');
+
+// G9-B8 (D-745): a Stripe transfer id is the only reference that counts
+// as proof a driver was paid. The transfer is retrieved from Stripe and
+// matched (amount, currency, not reversed) before the row flips to paid.
+// A bank/Venmo confirmation number or any other free text is attestation,
+// not verification, and is refused. Limit, stated plainly: no driver
+// payout destination is recorded anywhere, so the transfer's destination
+// cannot be matched — amount + currency + not-reversed is the binding
+// check, and a same-amount transfer to the wrong account would pass it.
+// Recording the driver's Stripe destination at onboarding would close
+// that hole; it is a sibling gap, not built here.
+const TRANSFER_ID_RE = /^tr_[A-Za-z0-9]+$/;
+
+function defaultStripeClient() {
+  if (!process.env.STRIPE_SECRET_KEY) return null;
+  return require('stripe')(process.env.STRIPE_SECRET_KEY);
+}
+
+async function verifyDriverPayoutTransfer({ stripeClient, reference, payout }) {
+  if (!TRANSFER_ID_RE.test(reference)) {
+    fail('Payment reference must be the Stripe transfer id (tr_...) that paid this driver', 'driver_payout_reference_invalid', 400);
+  }
+  // An explicitly passed null client means "no Stripe" (the unconfigured
+  // case, hermetic in tests); an absent client falls back to the env key.
+  const stripe = stripeClient === undefined ? defaultStripeClient() : stripeClient;
+  if (!stripe) {
+    fail('Stripe is not configured, so the payment reference cannot be verified', 'driver_payout_rail_unavailable', 503);
+  }
+  let transfer;
+  try {
+    transfer = await stripe.transfers.retrieve(reference);
+  } catch (error) {
+    if (error && (error.statusCode === 404 || error.code === 'resource_missing')) {
+      fail('No Stripe transfer matches this payment reference', 'driver_payout_reference_not_found', 409);
+    }
+    throw new AppError('The payment reference could not be verified against Stripe', 503, 'driver_payout_reference_unverifiable');
+  }
+  if (transfer.reversed === true) {
+    fail('The Stripe transfer for this payment reference was reversed', 'driver_payout_reference_reversed', 409);
+  }
+  if (Number(transfer.amount) !== Number(payout.payout_cents)) {
+    fail('The Stripe transfer amount does not match this payout', 'driver_payout_reference_amount_mismatch', 409);
+  }
+  // Payout rows carry no currency column; delivery pricing is USD.
+  if (String(transfer.currency || '').toUpperCase() !== 'USD') {
+    fail('The Stripe transfer currency does not match this payout', 'driver_payout_reference_currency_mismatch', 409);
+  }
+  return transfer;
+}
 
 const PAYOUT_STATUSES = new Set(['accrued', 'approved', 'paid', 'voided']);
 const PAYOUT_TRANSITIONS = {
@@ -98,8 +149,12 @@ async function approvePayout(client, payoutId, approverUserId, note) {
 }
 
 // Fails closed: marking paid requires a payment reference that proves the
-// money actually moved through the provider rail. No reference, no payout.
-async function markPayoutPaid(client, payoutId, payerUserId, paymentReference, note) {
+// money actually moved through the provider rail — a Stripe transfer id
+// retrieved from Stripe and matched to this payout (amount, currency, not
+// reversed). A free-text reference proves nothing and is refused. The
+// credit rail gate runs first (same as the restaurant payout path): no
+// mark-paid while the rail is off or frozen. No reference, no payout.
+async function markPayoutPaid(client, payoutId, payerUserId, paymentReference, note, deps = {}) {
   const payout = await getPayout(client, payoutId, { lock: true });
   assertTransition(payout, 'paid');
   const reference = String(paymentReference || '').trim().slice(0, 200);
@@ -120,6 +175,12 @@ async function markPayoutPaid(client, payoutId, payerUserId, paymentReference, n
   if (String(payout.approved_by_user_id) === String(payerUserId)) {
     fail('The approving operator cannot also mark this payout paid', 'driver_payout_self_mark_paid', 403);
   }
+  // G9-B8 (D-745): rail verification, not attestation. The gate and the
+  // transfer check run after the separation checks (so those keep their
+  // existing codes) and before the UPDATE, inside the same transaction
+  // that holds the payout row lock — verify-then-flip is atomic.
+  await assertCreditRailEnabled(client);
+  await verifyDriverPayoutTransfer({ stripeClient: deps.stripe, reference, payout });
   const { rows: [updated] } = await client.query(
     `UPDATE delivery_driver_payouts
         SET status = 'paid',

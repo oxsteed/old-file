@@ -22061,7 +22061,7 @@
         "statusPaid": "مدفوعة",
         "statusVoided": "ملغاة",
         "paymentReferenceLabel": "مرجع الدفع",
-        "paymentReferencePlaceholder": "تحويل بنكي أو مرجع دفع",
+        "paymentReferencePlaceholder": "معرّف تحويل Stripe (tr_...)",
         "noteLabel": "ملاحظة (اختياري)",
         "notePlaceholder": "ملاحظة لهذا الإجراء",
         "approve": "اعتماد",

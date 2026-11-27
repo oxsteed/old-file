@@ -22050,7 +22050,7 @@
         "statusPaid": "Peye",
         "statusVoided": "Anile",
         "paymentReferenceLabel": "Referans peman",
-        "paymentReferencePlaceholder": "Transfè labank oswa referans peman",
+        "paymentReferencePlaceholder": "ID transfè Stripe (tr_...)",
         "noteLabel": "Nòt (si ou vle)",
         "notePlaceholder": "Nòt pou aksyon sa a",
         "approve": "Apwouve",

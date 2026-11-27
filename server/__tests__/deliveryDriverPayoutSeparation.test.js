@@ -17,12 +17,17 @@ const {
   markPayoutPaid,
 } = require('../services/deliveryDriverPayoutService');
 
-function makeClient(initialRow) {
+function makeClient(initialRow, { railEnabled = true } = {}) {
   let row = { ...initialRow };
   return {
     getRow: () => row,
     query: async (sql, params) => {
-      if (sql.includes('SELECT * FROM delivery_driver_payouts')) {
+      // G9-B8 (D-745): the rail gate reads the credit flag and the freeze
+      // table; the fake answers both (flag on by default, never frozen).
+      if (sql.includes('FROM feature_flags')) {
+        return { rows: [{ is_enabled: railEnabled }] };
+      }
+      if (sql.includes('FROM delivery_driver_payouts')) {
         return { rows: [row] };
       }
       if (sql.includes('UPDATE delivery_driver_payouts')) {
@@ -80,6 +85,19 @@ const baseRow = {
   note: null,
 };
 
+// G9-B8 (D-745): a mock Stripe client whose retrieve returns a transfer
+// matching the base row (5000 USD cents, not reversed) unless overridden.
+function mockStripe(overrides = {}) {
+  const transfer = {
+    id: 'tr_1a2b3c4d5e6f7g8h9i0j',
+    amount: 5000,
+    currency: 'usd',
+    reversed: false,
+    ...overrides,
+  };
+  return { transfers: { retrieve: jest.fn().mockResolvedValue(transfer) } };
+}
+
 describe('driver payout separation, legacy null-approver rows', () => {
   test('mark-paid on a null-approver row fails closed instead of allowing through', async () => {
     const client = makeClient(baseRow);
@@ -99,7 +117,7 @@ describe('driver payout separation, legacy null-approver rows', () => {
       markPayoutPaid(client, 'payout-1', 'operator-a', 'ref-1', null)
     ).rejects.toMatchObject({ code: 'driver_payout_self_mark_paid', statusCode: 403 });
 
-    const paid = await markPayoutPaid(client, 'payout-1', 'operator-b', 'ref-1', null);
+    const paid = await markPayoutPaid(client, 'payout-1', 'operator-b', 'tr_1a2b3c4d5e6f7g8h9i0j', null, { stripe: mockStripe() });
     expect(paid.status).toBe('paid');
     expect(paid.paid_by_user_id).toBe('operator-b');
   });
@@ -118,7 +136,81 @@ describe('driver payout separation, legacy null-approver rows', () => {
     await expect(
       markPayoutPaid(client, 'payout-1', 'operator-a', 'ref-1', null)
     ).rejects.toMatchObject({ code: 'driver_payout_self_mark_paid' });
-    const paid = await markPayoutPaid(client, 'payout-1', 'operator-b', 'ref-1', null);
+    const paid = await markPayoutPaid(client, 'payout-1', 'operator-b', 'tr_1a2b3c4d5e6f7g8h9i0j', null, { stripe: mockStripe() });
     expect(paid.status).toBe('paid');
+  });
+});
+
+describe('driver payout mark-paid rail verification (G9-B8)', () => {
+  const approvedRow = { ...baseRow, approved_by_user_id: 'operator-a' };
+
+  test('a free-text reference is refused: only a Stripe transfer id counts as proof', async () => {
+    const client = makeClient(approvedRow);
+    const stripe = mockStripe();
+    await expect(
+      markPayoutPaid(client, 'payout-1', 'operator-b', 'venmo-12345', null, { stripe })
+    ).rejects.toMatchObject({ code: 'driver_payout_reference_invalid', statusCode: 400 });
+    expect(client.getRow().status).toBe('approved');
+    expect(stripe.transfers.retrieve).not.toHaveBeenCalled();
+  });
+
+  test('an unknown transfer id is refused', async () => {
+    const client = makeClient(approvedRow);
+    const stripe = { transfers: { retrieve: jest.fn().mockRejectedValue(Object.assign(new Error('No such transfer'), { statusCode: 404, code: 'resource_missing' })) } };
+    await expect(
+      markPayoutPaid(client, 'payout-1', 'operator-b', 'tr_doesnotexist000000000', null, { stripe })
+    ).rejects.toMatchObject({ code: 'driver_payout_reference_not_found', statusCode: 409 });
+    expect(client.getRow().status).toBe('approved');
+  });
+
+  test('a transfer for a different amount is refused', async () => {
+    const client = makeClient(approvedRow);
+    await expect(
+      markPayoutPaid(client, 'payout-1', 'operator-b', 'tr_1a2b3c4d5e6f7g8h9i0j', null, { stripe: mockStripe({ amount: 4000 }) })
+    ).rejects.toMatchObject({ code: 'driver_payout_reference_amount_mismatch', statusCode: 409 });
+    expect(client.getRow().status).toBe('approved');
+  });
+
+  test('a reversed transfer is refused', async () => {
+    const client = makeClient(approvedRow);
+    await expect(
+      markPayoutPaid(client, 'payout-1', 'operator-b', 'tr_1a2b3c4d5e6f7g8h9i0j', null, { stripe: mockStripe({ reversed: true }) })
+    ).rejects.toMatchObject({ code: 'driver_payout_reference_reversed', statusCode: 409 });
+    expect(client.getRow().status).toBe('approved');
+  });
+
+  test('a transfer in another currency is refused', async () => {
+    const client = makeClient(approvedRow);
+    await expect(
+      markPayoutPaid(client, 'payout-1', 'operator-b', 'tr_1a2b3c4d5e6f7g8h9i0j', null, { stripe: mockStripe({ currency: 'eur' }) })
+    ).rejects.toMatchObject({ code: 'driver_payout_reference_currency_mismatch', statusCode: 409 });
+    expect(client.getRow().status).toBe('approved');
+  });
+
+  test('a Stripe error that is not a 404 fails closed without flipping', async () => {
+    const client = makeClient(approvedRow);
+    const stripe = { transfers: { retrieve: jest.fn().mockRejectedValue(new Error('stripe down')) } };
+    await expect(
+      markPayoutPaid(client, 'payout-1', 'operator-b', 'tr_1a2b3c4d5e6f7g8h9i0j', null, { stripe })
+    ).rejects.toMatchObject({ code: 'driver_payout_reference_unverifiable', statusCode: 503 });
+    expect(client.getRow().status).toBe('approved');
+  });
+
+  test('an unconfigured Stripe fails closed without flipping', async () => {
+    const client = makeClient(approvedRow);
+    await expect(
+      markPayoutPaid(client, 'payout-1', 'operator-b', 'tr_1a2b3c4d5e6f7g8h9i0j', null, { stripe: null })
+    ).rejects.toMatchObject({ code: 'driver_payout_rail_unavailable', statusCode: 503 });
+    expect(client.getRow().status).toBe('approved');
+  });
+
+  test('a disabled rail fails closed before Stripe is ever consulted', async () => {
+    const client = makeClient(approvedRow, { railEnabled: false });
+    const stripe = mockStripe();
+    await expect(
+      markPayoutPaid(client, 'payout-1', 'operator-b', 'tr_1a2b3c4d5e6f7g8h9i0j', null, { stripe })
+    ).rejects.toMatchObject({ code: 'credit_rail_suspended', statusCode: 503 });
+    expect(client.getRow().status).toBe('approved');
+    expect(stripe.transfers.retrieve).not.toHaveBeenCalled();
   });
 });
