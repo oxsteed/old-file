@@ -30,3 +30,25 @@ export function isPalettePageVisible(entry, allowedDestinations) {
   if (!entry || !Array.isArray(entry.requires) || entry.requires.length === 0) return true;
   return entry.requires.some((to) => allowedDestinations.has(to));
 }
+
+/**
+ * Palette page entries derived from the projection navigation (palette
+ * item 1, D-721). Every destination the navbar renders for this
+ * projection becomes a palette page, so a page the user can see is always
+ * findable. Returns the raw nav entries ({id, to, labelKey}); the
+ * registry maps them to labeled items. Deduplicated by destination; a
+ * nonhuman or not-ready projection yields the customer baseline the nav
+ * itself renders (fail closed per D-614).
+ */
+export function derivePalettePages(projection) {
+  const nav = deriveAdaptiveNavigation(projection);
+  const seen = new Set();
+  const pages = [];
+  for (const item of [...nav.primary, ...nav.account]) {
+    if (!item || typeof item.to !== 'string' || !item.to.startsWith('/')) continue;
+    if (seen.has(item.to)) continue;
+    seen.add(item.to);
+    pages.push({ id: `page:${item.id}`, to: item.to, labelKey: item.labelKey });
+  }
+  return pages;
+}

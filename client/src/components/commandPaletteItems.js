@@ -6,7 +6,7 @@
 import api from '../api/axios';
 import { REGULAR_NAV, SUPER_NAV } from '../admin/layouts/AdminLayout';
 import { getLaunchRedirect } from '../utils/launchScope';
-import { paletteAllowedDestinations, isPalettePageVisible } from '../utils/paletteVisibility';
+import { paletteAllowedDestinations, isPalettePageVisible, derivePalettePages } from '../utils/paletteVisibility';
 
 export const RECENT_STORAGE_KEY = 'oxsteed:cmdk:recent';
 const MAX_RECENT = 8;
@@ -75,41 +75,33 @@ export function pushRecentId(id) {
   }
 }
 
-// Curated client pages. labelKey reuses existing `nav.*` keys where they
-// exist; the rest live under `commandPalette.pages.*` in every locale.
-const CLIENT_PAGES = [
-  { id: 'page:dashboard', path: '/dashboard', labelKey: 'nav.dashboard', keywords: 'home overview' },
-  { id: 'page:messages', path: '/messages', labelKey: 'nav.messages', keywords: 'chat inbox conversations' },
+// Pages the app offers that the projection navigation does not render.
+// The palette index itself is derived from the navigation (palette item 1,
+// D-721): buildClientItems takes every nav destination first, then adds
+// these extras only for paths the nav does not already cover. An extra
+// with `requires` still shows only when the projection offers one of those
+// destinations. labelKey reuses existing `nav.*` keys where they exist;
+// the rest live under `commandPalette.pages.*` in every locale.
+const CLIENT_PAGE_EXTRAS = [
   { id: 'page:bookings', path: '/my-bookings', labelKey: 'commandPalette.pages.bookings', keywords: 'appointments reservations schedule' },
-  { id: 'page:jobs', path: '/my-jobs', labelKey: 'commandPalette.pages.jobs', keywords: 'my gigs work posted' },
   { id: 'page:browse-jobs', path: '/jobs', labelKey: 'nav.browseJobs', keywords: 'find work gigs hiring' },
-  { id: 'page:helpers', path: '/helpers', labelKey: 'commandPalette.pages.helpers', keywords: 'hire pros services professionals' },
   { id: 'page:calendar', path: '/calendar', labelKey: 'nav.calendar', keywords: 'schedule appointments availability' },
   { id: 'page:food', path: '/food', labelKey: 'commandPalette.pages.food', keywords: 'order delivery eat restaurants' },
-  { id: 'page:restaurants', path: '/restaurants', labelKey: 'commandPalette.pages.restaurants', keywords: 'directory dine food places' },
   { id: 'page:tool-rentals', path: '/tool-rentals', labelKey: 'commandPalette.pages.toolRentals', keywords: 'rent tools equipment borrow' },
   { id: 'page:direct', path: '/direct', labelKey: 'commandPalette.pages.direct', keywords: 'services catalog quote request' },
-  { id: 'page:learn', path: '/learn', labelKey: 'nav.learnToDiy', keywords: 'guides diy tutorials videos how to' },
   // Universal finder step 1: the Discover entry points at the live /discover
   // route (the homepage submit has since PR #815). While discoverEverything
   // is off, the launch-redirect filter below hides it and /jobs stays
   // reachable through the browse-jobs entry.
   { id: 'page:discover', path: '/discover', labelKey: 'commandPalette.pages.discover', keywords: 'explore search browse' },
-  { id: 'page:wallet', path: '/wallet', labelKey: 'nav.wallet', keywords: 'money balance funds' },
-  { id: 'page:credit', path: '/oxsteed-credit', labelKey: 'commandPalette.pages.credit', keywords: 'oxsteed credit balance wallet' },
-  { id: 'page:orders', path: '/orders', labelKey: 'commandPalette.pages.orders', keywords: 'purchases history food' },
   { id: 'page:invoices', path: '/invoices', labelKey: 'commandPalette.pages.invoices', keywords: 'bills receipts payments' },
   { id: 'page:disputes', path: '/disputes', labelKey: 'commandPalette.pages.disputes', keywords: 'arbitration claims resolution' },
-  { id: 'page:support', path: '/support', labelKey: 'commandPalette.pages.support', keywords: 'help tickets contact' },
   // Universal finder step 1: `requires` lists projection-derived
   // destinations; the entry shows only when the projection offers one of
-  // them. Pages without `requires` are the customer baseline and stay
-  // visible to every account.
+  // them. /logistics itself is not a nav destination (only its buyer and
+  // organizer pages are), so it stays a gated extra.
   { id: 'page:logistics', path: '/logistics', labelKey: 'nav.logistics', keywords: 'shipping freight supply', requires: ['/logistics/buyer', '/logistics/organizer'] },
-  { id: 'page:business-hub', path: '/business-hub', labelKey: 'commandPalette.pages.businessHub', keywords: 'merchant manage business', requires: ['/business-hub'] },
-  { id: 'page:helper-dashboard', path: '/helper-dashboard', labelKey: 'commandPalette.pages.helperDashboard', keywords: 'pro helper work earnings', requires: ['/helper-dashboard'] },
   { id: 'page:activity', path: '/activity', labelKey: 'commandPalette.pages.activity', keywords: 'feed notifications updates' },
-  { id: 'page:settings', path: '/settings', labelKey: 'nav.settings', keywords: 'preferences account profile' },
 ];
 
 const CLIENT_ACTIONS = [
@@ -124,16 +116,39 @@ const CLIENT_ACTIONS = [
 export function buildClientItems(t, projection) {
   // Review P1-222: don't offer pages the launch scope redirects away
   // (e.g. /discover while discoverEverything is off).
-  // Universal finder step 1 (D-614): pages carrying `requires` show only
-  // when the access projection offers one of those destinations; the
-  // projection is the same one the navbar renders from, and a missing or
-  // not-ready projection fails closed to the customer baseline.
+  // Palette item 1 (D-721): the page index is derived from the projection
+  // navigation, the same navigation the navbar renders. Every nav
+  // destination becomes a palette page with the nav's own label, so a page
+  // the user can see is always findable. A missing or not-ready projection
+  // fails closed to the customer baseline (D-614). Curated extras below
+  // fill only the paths the nav does not render; an extra carrying
+  // `requires` still shows only when the projection offers one of those
+  // destinations.
   const allowed = paletteAllowedDestinations(projection);
-  const pages = CLIENT_PAGES.filter((entry) => !getLaunchRedirect(entry.path) && isPalettePageVisible(entry, allowed)).map((entry) => ({
-    ...entry,
-    label: t(entry.labelKey),
-    group: 'pages',
-  }));
+  const pages = [];
+  const seen = new Set();
+  for (const entry of derivePalettePages(projection)) {
+    if (getLaunchRedirect(entry.to)) continue;
+    const label = t(entry.labelKey);
+    seen.add(entry.to);
+    pages.push({
+      id: entry.id,
+      path: entry.to,
+      label,
+      keywords: `${label} ${entry.to}`,
+      group: 'pages',
+    });
+  }
+  for (const entry of CLIENT_PAGE_EXTRAS) {
+    if (seen.has(entry.path) || getLaunchRedirect(entry.path)) continue;
+    if (!isPalettePageVisible(entry, allowed)) continue;
+    seen.add(entry.path);
+    pages.push({
+      ...entry,
+      label: t(entry.labelKey),
+      group: 'pages',
+    });
+  }
   // D-612: actions are application entries (post a job, order food, get
   // support). They stay visible to every account, un-gated, so a user can
   // always find the way in to something they cannot do yet.
