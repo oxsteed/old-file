@@ -95,6 +95,18 @@ export default function ToolOwnerMaintainPanel({ tools = [] }) {
     }
   };
 
+  // G11-B15 (D-634): toggling the cleaning checkbox re-fetches the
+  // checklist with that value. loadTool always fetches with
+  // cleaning_confirmed=false, so the cleaning row showed "—" until the
+  // flip was attempted; now the row reflects the checkbox live.
+  const handleCleaningToggle = async (checked) => {
+    setCleaningConfirmed(checked);
+    try {
+      const c = await toolRentalsApi.getAvailabilityChecklist(selected, checked).catch(() => null);
+      if (c) setChecklist(c);
+    } catch { /* keep the previous checklist */ }
+  };
+
   const handleUploadDoc = async () => {
     if (!docFile || !docTitle.trim()) {
       toast.error(t('toolRentals.safetyDocInvalid') || 'Choose a PDF or image file and give it a title.');
@@ -108,6 +120,18 @@ export default function ToolOwnerMaintainPanel({ tools = [] }) {
       loadTool(selected);
     } catch (err) {
       toast.error(err?.response?.data?.error || t('toolRentals.safetyDocFailed') || 'Could not upload the safety document');
+    }
+  };
+
+  // G11-B15 (D-634): a failed safety-doc delete used to swallow the
+  // error and reload anyway, so the doc looked deleted until the next
+  // refresh. Surface the failure and reload only on success.
+  const handleDeleteDoc = async (docId) => {
+    try {
+      await toolRentalsApi.deleteSafetyDocument(selected, docId);
+      loadTool(selected);
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('toolRentals.safetyDocDeleteFailed') || 'Could not delete the safety document');
     }
   };
 
@@ -216,7 +240,7 @@ export default function ToolOwnerMaintainPanel({ tools = [] }) {
                   {docs.map((doc) => (
                     <li key={doc.id} className="py-1 flex items-center justify-between gap-3">
                       <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-sm text-orange-400 hover:text-orange-300" data-track="ui.e3cded4fbe.5">{doc.title}</a>
-                      <button type="button" onClick={async () => { await toolRentalsApi.deleteSafetyDocument(selected, doc.id).catch(() => {}); loadTool(selected); }} className="text-xs px-2 py-1 rounded-md border" data-track="ui.e3cded4fbe.6">
+                      <button type="button" onClick={() => handleDeleteDoc(doc.id)} className="text-xs px-2 py-1 rounded-md border" data-track="ui.e3cded4fbe.6">
                         {t('common.delete') || 'Delete'}
                       </button>
                     </li>
@@ -244,7 +268,7 @@ export default function ToolOwnerMaintainPanel({ tools = [] }) {
                   ))}
                 </ul>
                 <label className="flex items-center gap-2 mt-2 text-sm">
-                  <input type="checkbox" checked={cleaningConfirmed} onChange={(e) => setCleaningConfirmed(e.target.checked)} data-track="ui.e3cded4fbe.8" />
+                  <input type="checkbox" checked={cleaningConfirmed} onChange={(e) => handleCleaningToggle(e.target.checked)} data-track="ui.e3cded4fbe.8" />
                   {t('toolRentals.checklistCleaningConfirm') || 'I confirm the tool is cleaned and ready.'}
                 </label>
                 <button

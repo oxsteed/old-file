@@ -27,6 +27,7 @@ function buildApp(userId) {
   });
   app.post('/api/work-agreements', wa.createAgreement);
   app.get('/api/work-agreements', wa.listAgreements);
+  app.get('/api/work-agreements/by-job/:jobId', wa.getByJob);
   app.get('/api/work-agreements/:id', wa.getAgreement);
   app.post('/api/work-agreements/:id/versions', wa.createVersion);
   app.post('/api/work-agreements/:id/complete', wa.completeAgreement);
@@ -100,6 +101,44 @@ describe('work agreement creation', () => {
     mockQuery.mockResolvedValueOnce({ rows: [agreementRow()] });
     const res = await request(buildApp(STRANGER_ID)).get(`/api/work-agreements/${AGREEMENT_ID}`);
     expect(res.status).toBe(403);
+  });
+});
+
+describe('by-job warranty lookup (G1-A3)', () => {
+  const warrantyRow = agreementRow({
+    status: 'active',
+    warranty_months: 12,
+    warranty_terms: 'Covers parts and labour.',
+    reimbursement_terms: 'Water damage reimbursed.',
+  });
+
+  test('no agreement for the job reports hasAgreement false', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    const res = await request(buildApp(CUSTOMER_ID)).get(`/api/work-agreements/by-job/${JOB_ID}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ hasAgreement: false });
+  });
+
+  test('a stranger gets hasAgreement false and the agreement is never loaded', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [warrantyRow] });
+    const res = await request(buildApp(STRANGER_ID)).get(`/api/work-agreements/by-job/${JOB_ID}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ hasAgreement: false });
+    expect(mockQuery.mock.calls).toHaveLength(1);
+  });
+
+  test('a party gets the agreement detail with its warranty fields', async () => {
+    routeQueries(mockQuery, [
+      [/FROM work_agreements WHERE job_id/, { rows: [warrantyRow] }],
+      [/SELECT \* FROM work_agreements WHERE id/, { rows: [warrantyRow] }],
+      [/FROM jobs j WHERE j\.id/, { rows: [{ job_status: 'completed', payment_status: null, dispute_open: false }] }],
+    ]);
+    const res = await request(buildApp(CUSTOMER_ID)).get(`/api/work-agreements/by-job/${JOB_ID}`);
+    expect(res.status).toBe(200);
+    expect(res.body.agreement.id).toBe(AGREEMENT_ID);
+    expect(res.body.agreement.warranty_months).toBe(12);
+    expect(res.body.agreement.warranty_terms).toBe('Covers parts and labour.');
+    expect(res.body.agreement.reimbursement_terms).toBe('Water damage reimbursed.');
   });
 });
 

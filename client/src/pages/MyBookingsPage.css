@@ -538,6 +538,20 @@
   border-radius: 4px;
 }
 
+.hb-refund-status {
+  font-size: 12px;
+  color: var(--muted-text);
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  background: var(--card-bg);
+  border-left: 3px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.hb-refund-status a {
+  text-decoration: underline;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .my-bookings-container {

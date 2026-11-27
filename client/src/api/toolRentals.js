@@ -40,9 +40,10 @@ export const toolRentalsApi = {
     return response.data.tools || [];
   },
 
-  // Get user's own tools (authenticated)
-  getMyTools: async () => {
-    const response = await api.get('/tool-rentals/me');
+  // Get user's own tools (authenticated). G11-A12 (D-624): paged
+  // server-side (30/page); pass limit/offset for the next page.
+  getMyTools: async ({ limit, offset } = {}) => {
+    const response = await api.get('/tool-rentals/me', { params: { limit, offset } });
     return response.data.tools || [];
   },
 
@@ -124,14 +125,30 @@ export const toolRentalsApi = {
     return response.data;
   },
 
-  getMyBookings: async () => {
-    const response = await api.get('/tool-rentals/bookings/my');
+  // G11-A12 (D-624): booking lists are paged server-side (30/page);
+  // pass limit/offset for the next page. The response stays an array.
+  getMyBookings: async ({ limit, offset } = {}) => {
+    const response = await api.get('/tool-rentals/bookings/my', { params: { limit, offset } });
     return response.data || [];
   },
 
-  getBookingsByOwner: async () => {
-    const response = await api.get('/tool-rentals/bookings/owner');
+  getBookingsByOwner: async ({ limit, offset } = {}) => {
+    const response = await api.get('/tool-rentals/bookings/owner', { params: { limit, offset } });
     return response.data || [];
+  },
+
+  // G11-A13 (D-625): the caller's own rental identity status, so the
+  // BookingModal can warn an unverified renter before booking.
+  getMyRentalIdentity: async () => {
+    const response = await api.get('/tool-rentals/identity/mine');
+    return response.data;
+  },
+
+  // G11-B10 (D-630): the operations view of a booking, whose reports
+  // feed the damage-claim form's condition-report picker.
+  getEquipmentBooking: async (bookingId) => {
+    const response = await api.get(`/tool-rentals/operations/bookings/${bookingId}`);
+    return response.data;
   },
 
   // Review P3-1068: owner returns or withholds a held deposit.

@@ -83,6 +83,9 @@ jest.mock('../utils/email', () => ({
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue({ success: true }),
 }));
+
+// The mocked send path: B5 assertions read its calls, never the inbox.
+const { sendNotification } = require('../services/notificationService');
 jest.mock('../growth/emit', () => ({
   emitDomainEvent: jest.fn().mockResolvedValue(undefined),
   commerceEventProps: (value) => value,
@@ -94,6 +97,8 @@ const describeDb = dbUrl ? describe : describe.skip;
 describeDb('Group 12 Slice 3i: Transition (641-645)', () => {
   let db;
   let app;
+
+  beforeEach(() => { sendNotification.mockClear(); });
 
   beforeAll(async () => {
     process.env.ACCESS_REQUESTS_ENABLED = 'true';
@@ -411,6 +416,16 @@ describeDb('Group 12 Slice 3i: Transition (641-645)', () => {
         .then((res) => expect(res.body.code).toBe('handoff_decision_reason_required'));
       const rejected = await reviewAs(admin, applicationId, handoffId, { decision: 'reject', reason: 'Incoming operator is not vetted yet.' }).expect(200);
       expect(rejected.body.handoffs.handoffs[0].status).toBe('rejected');
+      // G12-B5 (D-645): the outgoing operator learns the handoff was rejected; the incoming is not told.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: operator.id,
+        type: 'franchise_handoff_decided',
+        data: expect.objectContaining({ params: expect.objectContaining({ decision: 'rejected' }) }),
+      }));
+      expect(sendNotification).not.toHaveBeenCalledWith(expect.objectContaining({
+        userId: incoming.id,
+        type: 'franchise_handoff_decided',
+      }));
       const detail = await applicantDetail(operator, applicationId).expect(200);
       expect(detail.body.application.owner_user_id).toBe(operator.id);
       // A decided handoff cannot be decided again.
@@ -451,6 +466,17 @@ describeDb('Group 12 Slice 3i: Transition (641-645)', () => {
 
       const approved = await reviewAs(admin, applicationId, handoffId, { decision: 'approve' }).expect(200);
       expect(approved.body.handoff.status).toBe('approved');
+      // G12-B5 (D-645): both operators learn the handoff was approved.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: incoming.id,
+        type: 'franchise_handoff_decided',
+        data: expect.objectContaining({ params: expect.objectContaining({ decision: 'approved' }) }),
+      }));
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: operator.id,
+        type: 'franchise_handoff_decided',
+        data: expect.objectContaining({ params: expect.objectContaining({ decision: 'approved' }) }),
+      }));
       expect(approved.body.handoff.checklist_snapshot.items).toHaveLength(5);
       const after = await db.query(
         'SELECT owner_user_id, due_date FROM franchise_remediations WHERE id = $1', [remediation.id],
@@ -485,6 +511,71 @@ describeDb('Group 12 Slice 3i: Transition (641-645)', () => {
         .set('x-test-user', incoming.id)
         .expect(200);
       expect(incomingLog.body.total).toBe(3);
+    });
+
+    test('approval moves live ops bookings and a transferred remediation-less action shows in the incoming mine list (G12-B7)', async () => {
+      const operator = await addUser();
+      const incoming = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApprovedApplication(operator);
+      // A remediation-less action on a bare ticket: it has no remediation
+      // owner, so only the transfer row can put it in the incoming list.
+      const bareTicket = await addTicket(operator, { applicationId, subject: 'Loose shelf' });
+      const bareAction = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${bareTicket.ticket_number}/corrective-actions`)
+        .set('x-test-user', operator.id)
+        .send({ title: 'Tighten the shelf brackets' })
+        .expect(201);
+      const bareActionId = bareAction.body.action.id;
+      expect(bareAction.body.action.remediation_owner_id).toBeNull();
+      // A live ops booking by the outgoing operator, and a proposed slot
+      // with no booker.
+      const future = (hours) => new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+      const bookedSlot = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/ops-appointments`)
+        .set('x-test-user', admin.id)
+        .send({ title: 'Walkthrough', starts_at: future(48), ends_at: future(49) })
+        .expect(201);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/ops-appointments/${bookedSlot.body.slot.id}/book`)
+        .set('x-test-user', operator.id)
+        .expect(201);
+      const proposedSlot = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/ops-appointments`)
+        .set('x-test-user', admin.id)
+        .send({ title: 'Second walkthrough', starts_at: future(72), ends_at: future(73) })
+        .expect(201);
+
+      const created = await initiateAs(operator, applicationId, { incoming_operator_id: incoming.id }).expect(201);
+      const approved = await reviewAs(admin, applicationId, created.body.handoff.id, { decision: 'approve' }).expect(200);
+      expect(approved.body.handoff.status).toBe('approved');
+
+      // The booked slot now belongs to the incoming operator; the
+      // proposed slot still has no booker.
+      const { rows: [moved] } = await db.query(
+        'SELECT booked_by FROM franchise_ops_appointment_slots WHERE id = $1', [bookedSlot.body.slot.id],
+      );
+      expect(moved.booked_by).toBe(incoming.id);
+      const { rows: [proposed] } = await db.query(
+        'SELECT booked_by FROM franchise_ops_appointment_slots WHERE id = $1', [proposedSlot.body.slot.id],
+      );
+      expect(proposed.booked_by).toBeNull();
+      // The approval log names the moved booking count.
+      const { rows: [log] } = await db.query(
+        `SELECT event_summary, metadata FROM franchise_activity_log
+          WHERE application_id = $1 AND event_type = 'handoff_approved'`,
+        [applicationId],
+      );
+      expect(log.metadata.ops_bookings_transferred).toBe(1);
+      expect(log.event_summary).toContain('1 live ops booking(s) moved');
+      // The transferred remediation-less action is in the incoming
+      // operator's mine list (before the fix it vanished: no remediation
+      // owner and no transfer match).
+      const mine = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/corrective-actions?mine=true`)
+        .set('x-test-user', incoming.id)
+        .expect(200);
+      expect(mine.body.corrective_actions.map((row) => row.id)).toContain(bareActionId);
     });
   });
 
@@ -604,6 +695,39 @@ describeDb('Group 12 Slice 3i: Transition (641-645)', () => {
         .expect(200);
       expect(outgoingMine.body.total).toBe(1);
       expect(outgoingMine.body.handoffs[0].status).toBe('approved');
+      // G12-B1 (D-638): the territory-stats rollup and helper roster are
+      // owner-only too. The capability gate is set to off so the request
+      // reaches the controller (in enforce mode the revoked grant already
+      // 403s the outgoing operator before the SQL filter is reached).
+      const prevMode = process.env.ACCESS_FRANCHISE_ENFORCEMENT;
+      process.env.ACCESS_FRANCHISE_ENFORCEMENT = 'off';
+      try {
+        const outgoingStats = await request(app)
+          .get('/api/franchise/territory-stats')
+          .set('x-test-user', operator.id)
+          .expect(200);
+        expect(outgoingStats.body.has_territory).toBe(false);
+        // The incoming operator accepts the outstanding offer first: the
+        // stats endpoint stays locked while acceptance is 'offered' (D-307).
+        await request(app)
+          .post(`/api/franchise/my-applications/${applicationId}/acceptance`)
+          .set('x-test-user', incoming.id)
+          .send({ decision: 'accepted' })
+          .expect(200);
+        const incomingStats = await request(app)
+          .get('/api/franchise/territory-stats')
+          .set('x-test-user', incoming.id)
+          .expect(200);
+        expect(incomingStats.body.has_territory).toBe(true);
+        const outgoingHelpers = await request(app)
+          .get('/api/franchise/territory-helpers')
+          .set('x-test-user', operator.id)
+          .expect(200);
+        expect(outgoingHelpers.body.helpers).toEqual([]);
+      } finally {
+        if (prevMode === undefined) delete process.env.ACCESS_FRANCHISE_ENFORCEMENT;
+        else process.env.ACCESS_FRANCHISE_ENFORCEMENT = prevMode;
+      }
     });
   });
 
@@ -634,6 +758,12 @@ describeDb('Group 12 Slice 3i: Transition (641-645)', () => {
         .send({ user_id: helper.id, reason: 'Left the opening team' })
         .expect(201);
       expect(removed.body.access_removal.membership_kind).toBe('helper');
+      // G12-B5 (D-645): the removed member is told, with HQ's reason.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: helper.id,
+        type: 'franchise_territory_access_removed',
+        data: expect.objectContaining({ params: expect.objectContaining({ reason: 'Left the opening team' }) }),
+      }));
       const { rows: teamRows } = await db.query(
         'SELECT id FROM franchise_opening_team_members WHERE application_id = $1 AND helper_user_id = $2',
         [applicationId, helper.id],
@@ -650,6 +780,114 @@ describeDb('Group 12 Slice 3i: Transition (641-645)', () => {
         .get(`/api/franchise/my-applications/${applicationId}/contact-directory`)
         .set('x-test-user', helper.id)
         .expect(404);
+    });
+
+    test('HQ removes a member with live residue: manager cleared, open remediation reassigned to the operator, open training cancelled, roster directory entry removed, my-remediations empty', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApprovedApplication(operator);
+      const helper = await addOpeningTeamMember(operator, applicationId);
+      const locationId = await locationIdFor(operator, applicationId);
+
+      // (a) The helper is the location's manager of record (HQ-assigned).
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/locations/${locationId}/manager`)
+        .set('x-test-user', admin.id)
+        .send({ manager_user_id: helper.id })
+        .expect(201);
+      // (b) The helper owns an open remediation.
+      const ticket = await addTicket(operator, { applicationId, priority: 'high', subject: 'Fridge down' });
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${ticket.ticket_number}/remediation`)
+        .set('x-test-user', operator.id)
+        .send({ owner_user_id: helper.id, due_date: '2026-12-01' })
+        .expect(201);
+      // (c) The helper has one open and one completed training assignment.
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training`)
+        .set('x-test-user', operator.id)
+        .send({ assignee_user_id: helper.id, module_title: 'Food safety basics', due_date: '2026-12-15' })
+        .expect(201);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training`)
+        .set('x-test-user', operator.id)
+        .send({ assignee_user_id: helper.id, module_title: 'Knife skills', due_date: '2026-12-15' })
+        .expect(201);
+      const { rows: [doneRow] } = await db.query(
+        `SELECT id FROM franchise_training_assignments WHERE application_id = $1 AND assignee_user_id = $2 AND module_title = 'Knife skills'`,
+        [applicationId, helper.id],
+      );
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training/${doneRow.id}/complete`)
+        .set('x-test-user', helper.id)
+        .expect(200);
+      // (d) The helper is listed in the contact directory (roster), plus a
+      // manual entry that must survive the removal.
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/contact-directory`)
+        .set('x-test-user', operator.id)
+        .send({ contact_user_id: helper.id, role: 'Opening lead' })
+        .expect(201);
+      const manual = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/contact-directory`)
+        .set('x-test-user', operator.id)
+        .send({ name: 'City permits desk', email: 'permits@example.invalid', role: 'Permits' })
+        .expect(201);
+
+      // The helper sees their remediation before removal.
+      const before = await request(app)
+        .get('/api/franchise/my-remediations')
+        .set('x-test-user', helper.id)
+        .expect(200);
+      expect(before.body.total).toBe(1);
+
+      const removed = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/access-removals`)
+        .set('x-test-user', admin.id)
+        .send({ user_id: helper.id, reason: 'Left the opening team' })
+        .expect(201);
+      expect(removed.body.residue.managers_cleared).toHaveLength(1);
+      expect(removed.body.residue.remediations_reassigned_to_operator).toHaveLength(1);
+      expect(removed.body.residue.remediations_reassigned_to_operator[0].ticket_id).toBe(ticket.id);
+      expect(removed.body.residue.training_assignments_cancelled).toHaveLength(1);
+      expect(removed.body.residue.directory_entries_removed).toHaveLength(1);
+
+      const { rows: managerRows } = await db.query(
+        'SELECT id FROM franchise_location_managers WHERE application_id = $1 AND manager_user_id = $2',
+        [applicationId, helper.id],
+      );
+      expect(managerRows).toHaveLength(0);
+      const { rows: [remediation] } = await db.query(
+        'SELECT owner_user_id FROM franchise_remediations WHERE application_id = $1 AND ticket_id = $2',
+        [applicationId, ticket.id],
+      );
+      expect(remediation.owner_user_id).toBe(operator.id);
+      const { rows: openTrainingRows } = await db.query(
+        `SELECT id FROM franchise_training_assignments WHERE application_id = $1 AND assignee_user_id = $2 AND status IN ('assigned', 'in_progress')`,
+        [applicationId, helper.id],
+      );
+      expect(openTrainingRows).toHaveLength(0);
+      const { rows: doneTrainingRows } = await db.query(
+        `SELECT id FROM franchise_training_assignments WHERE application_id = $1 AND assignee_user_id = $2 AND status = 'completed'`,
+        [applicationId, helper.id],
+      );
+      expect(doneTrainingRows).toHaveLength(1);
+      const { rows: directoryRows } = await db.query(
+        'SELECT id FROM franchise_contact_directory WHERE application_id = $1 AND contact_user_id = $2',
+        [applicationId, helper.id],
+      );
+      expect(directoryRows).toHaveLength(0);
+      const { rows: manualRows } = await db.query(
+        'SELECT id FROM franchise_contact_directory WHERE application_id = $1 AND id = $2',
+        [applicationId, manual.body.contact.id],
+      );
+      expect(manualRows).toHaveLength(1);
+      // The removed member's own remediation list is now empty.
+      const after = await request(app)
+        .get('/api/franchise/my-remediations')
+        .set('x-test-user', helper.id)
+        .expect(200);
+      expect(after.body.total).toBe(0);
     });
 
     test('HQ cannot remove the operator through the removal endpoint: 409, use a handoff', async () => {

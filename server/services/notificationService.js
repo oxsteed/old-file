@@ -545,11 +545,20 @@ exports.sendNotification = async ({
       // agents only learn about these by email.
       'support_follow_up_due',
       'support_sla_breach',
+      // G1-B6 (D-673): the return-request notice emails like the
+      // support alerts, so an offline helper or admin learns about the
+      // request without reopening the app.
+      'marketplace_return_requested',
       // Wave 3 (589, D-572/D-569): rental escalation open/resolve notices
       // email like the support alerts, so an offline counterparty or admin
       // learns about the thread without reopening the app.
       'tool_rental_escalation_opened',
       'tool_rental_escalation_resolved',
+      // G11-B13 (D-620): the ack/dispute notices email like the
+      // open/resolve ones, so an offline counterparty or admin learns
+      // about the response without reopening the app.
+      'tool_rental_escalation_acknowledged',
+      'tool_rental_escalation_disputed',
       // Batch H (322, 330): the occupant's repair-status notice and the
       // missed-maintenance SLA-breach alert email like the support alerts.
       'property_request_status',

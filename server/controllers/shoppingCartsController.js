@@ -501,6 +501,90 @@ const createFromTemplate = async (req, res, next) => {
   }
 };
 
+/**
+ * List return requests on orders checked out from the caller's own carts.
+ * GET /api/carts/returns?status=&skip=&limit=
+ *
+ * G1-B6 (D-675): the merchant queue. The scope is the cart helper in
+ * SQL (shopping_carts.helper_id = caller), so a helper sees returns on
+ * their own carts' orders only and never another merchant's. Orders
+ * with no cart have no merchant and never appear here; they are admin
+ * only. Read-only: deciding a return is the admin queue's job.
+ */
+const listCartReturnRequests = async (req, res, next) => {
+  try {
+    const helperId = req.user.id;
+    if (!helperId) {
+      throw new AppError('Authentication required', 401, 'no_auth');
+    }
+
+    const { status } = req.query;
+    const parsedLimit = Number.parseInt(String(req.query.limit ?? 20), 10);
+    const parsedSkip = Number.parseInt(String(req.query.skip ?? 0), 10);
+    const limitN = Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 100) : 20;
+    const skipN = Number.isSafeInteger(parsedSkip) && parsedSkip >= 0 ? Math.min(parsedSkip, 1_000_000) : 0;
+    const statusFilter = ['requested', 'approved', 'declined', 'refunded', 'cancelled'].includes(status)
+      ? status
+      : null;
+
+    const where = ['sc.helper_id = $1'];
+    const params = [helperId];
+    if (statusFilter) {
+      where.push(`r.status = $${params.length + 1}`);
+      params.push(statusFilter);
+    }
+
+    const { rows } = await pool.query(
+      `SELECT r.*, mo.status AS order_status, mo.total_cents AS order_total_cents,
+              mo.cart_id AS cart_id,
+              u.email AS customer_email, u.first_name AS customer_first_name,
+              u.last_name AS customer_last_name
+         FROM order_return_requests r
+         JOIN marketplace_orders mo ON mo.id = r.order_id
+         JOIN shopping_carts sc ON sc.id = mo.cart_id
+         JOIN users u ON u.id = r.user_id
+        WHERE ${where.join(' AND ')}
+        ORDER BY r.created_at DESC
+        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limitN, skipN]
+    );
+
+    const { rows: [countRow] } = await pool.query(
+      `SELECT COUNT(*) AS total
+         FROM order_return_requests r
+         JOIN marketplace_orders mo ON mo.id = r.order_id
+         JOIN shopping_carts sc ON sc.id = mo.cart_id
+        WHERE ${where.join(' AND ')}`,
+      params
+    );
+    const total = parseInt(countRow.total, 10);
+
+    res.json({
+      success: true,
+      data: rows.map((r) => ({
+        id: r.id,
+        orderId: r.order_id,
+        cartId: r.cart_id,
+        customerId: r.user_id,
+        customerName: `${r.customer_first_name || ''} ${r.customer_last_name || ''}`.trim(),
+        customerEmail: r.customer_email,
+        reason: r.reason,
+        status: r.status,
+        adminNote: r.admin_note,
+        decidedBy: r.decided_by,
+        decidedAt: r.decided_at,
+        orderStatus: r.order_status,
+        orderTotalCents: r.order_total_cents,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+      })),
+      pagination: { total, skip: skipN, limit: limitN, hasMore: skipN + limitN < total },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   createCart,
   getCarts,
@@ -512,4 +596,5 @@ module.exports = {
   removeItem,
   saveAsTemplate,
   createFromTemplate,
+  listCartReturnRequests,
 };

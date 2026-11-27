@@ -44,6 +44,7 @@ const BusinessLaunchStatusPage = lazyWithRetry(() => import('./pages/BusinessLau
 const FranchiseIntakePage = lazyWithRetry(() => import('./pages/FranchiseIntakePage'));
 const FranchiseApplicantDashboard = lazyWithRetry(() => import('./pages/FranchiseApplicantDashboard'));
 const FranchiseTerritoryOpsPage = lazyWithRetry(() => import('./pages/FranchiseTerritoryOpsPage'));
+const FranchiseTerritoryInvitationPage = lazyWithRetry(() => import('./pages/FranchiseTerritoryInvitationPage'));
 const SmartDashboard = lazyWithRetry(routeLoaders.dashboard, { name: 'dashboard' });
 const HelperDashboard = lazyWithRetry(() => import('./pages/HelperDashboard'));
 const ClientManagementPage = lazyWithRetry(routeLoaders.clientManagement, { name: 'clientManagement' });
@@ -199,6 +200,7 @@ const PublicBookingStatusPage = lazyWithRetry(() => import('./pages/PublicBookin
 const ToolRentalsBrowse = lazyWithRetry(() => import('./pages/ToolRentalsBrowse'));
 const DiscoverPage = lazyWithRetry(() => import('./pages/DiscoverPage'));
 const MyBookingsPage = lazyWithRetry(() => import('./pages/MyBookingsPage'));
+const ReceiptsPage = lazyWithRetry(() => import('./pages/ReceiptsPage'));
 const MyQuotesPage = lazyWithRetry(() => import('./pages/MyQuotesPage'));
 const ToolRentalsAnalytics = lazyWithRetry(() => import('./pages/ToolRentalsAnalytics'));
 const QRCodeGeneratorPage = lazyWithRetry(routeLoaders.qrGenerator, { name: 'qrGenerator' });
@@ -223,6 +225,7 @@ const ShoppingCartPage = lazyWithRetry(() => import('./pages/ShoppingCartPage'))
 const SharedCartPage = lazyWithRetry(() => import('./pages/SharedCartPage'));
 const CheckoutPage = lazyWithRetry(() => import('./pages/CheckoutPage'));
 const MarketplaceOrderPage = lazyWithRetry(() => import('./pages/MarketplaceOrderPage'));
+const MarketplaceReturnsPage = lazyWithRetry(() => import('./pages/MarketplaceReturnsPage'));
 const LifeExpensesPage = lazyWithRetry(() => import('./pages/LifeExpensesPage'));
 const LifeGoalsPage = lazyWithRetry(() => import('./pages/LifeGoalsPage'));
 const LifeHomeTasksPage = lazyWithRetry(() => import('./pages/LifeHomeTasksPage'));
@@ -629,6 +632,7 @@ export default function App() {
                     <Route path="/franchise/apply"         element={<Guarded><FranchiseIntakePage /></Guarded>} />
                     <Route path="/franchise/status"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><FranchiseApplicantDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/franchise/territory"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><FranchiseTerritoryOpsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/franchise/invitations/:token" element={<Guarded><RouteErrorBoundary><FranchiseTerritoryInvitationPage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
                     <Route path="/businesses/public/:businessId" element={<Guarded><BusinessProfilePage /></Guarded>} />
                     <Route path="/b/:businessId"        element={<Guarded><BusinessProfilePage /></Guarded>} />
@@ -650,6 +654,7 @@ export default function App() {
                     <Route path="/tool-rentals"            element={<Guarded><ToolRentalsBrowse /></Guarded>} />
                     <Route path="/tool-rentals/:toolId"    element={<Guarded><ToolRentalsBrowse /></Guarded>} />
                     <Route path="/my-bookings"             element={<Guarded><ProtectedRoute><MyBookingsPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/receipts"                element={<Guarded><ProtectedRoute><ReceiptsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/my-quotes"               element={<Guarded><ProtectedRoute><MyQuotesPage /></ProtectedRoute></Guarded>} />
                     <Route path="/tool-rentals/analytics"  element={<Guarded><ProtectedRoute><ToolRentalsAnalytics /></ProtectedRoute></Guarded>} />
                     <Route path="/invoice/p/:token"        element={<Guarded><PublicInvoiceView /></Guarded>} />
@@ -667,6 +672,9 @@ export default function App() {
                         marketplace flip, renders /checkout when
                         productMarketplace is on). */}
                     <Route path="/marketplace/orders/:orderId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><MarketplaceOrderPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* G1-B6: the merchant return queue: returns on orders
+                        checked out from the helper's own carts. */}
+                    <Route path="/marketplace/returns" element={<Guarded><ProtectedRoute><RouteErrorBoundary><MarketplaceReturnsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Life detail pages: private, reached from the Life dashboard
                         only. Deliberately not in the sitemap and noindex in seoMeta. */}
                     <Route path="/life-dashboard/expenses"   element={<Guarded><ProtectedRoute><RouteErrorBoundary><LifeExpensesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

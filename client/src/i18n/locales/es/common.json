@@ -2513,6 +2513,21 @@
     "previousImage": "Imagen anterior",
     "nextImage": "Imagen siguiente",
     "bidPrice": "Tu precio",
+    "timelineHeading": "Cronología del trabajo",
+    "timelinePosted": "Publicado",
+    "timelineBidsReceived": "Oferta recibida",
+    "timelineAccepted": "Oferta aceptada",
+    "timelineStarted": "Trabajo iniciado",
+    "timelineCompleted": "Completado",
+    "timelineCancelled": "Cancelado",
+    "warrantyTitle": "Garantía",
+    "warrantyMonths": "Garantía (meses)",
+    "warrantyTerms": "Términos de la garantía",
+    "warrantyReimbursement": "Términos de reembolso",
+    "warrantyNoTerms": "No se agregaron términos escritos de garantía.",
+    "warrantyPlatformDefault": "No se firmó un acuerdo de trabajo para este trabajo, por lo que se aplica la garantía de la plataforma OxSteed.",
+    "warrantyPlatformNote": "OxSteed registra la reclamación. Las partes la resuelven entre ellas.",
+    "warrantyFileClaim": "Presentar una reclamación de garantía",
     "imagePosition": "Imagen {{current}} de {{total}}"
   },
   "jobEdit": {
@@ -2524,7 +2539,7 @@
     "materialPreview": "Estos cambios pedirán a cada ofertante actual que reconfirme.",
     "reloadLatest": "Cargar la versión más reciente",
     "fixErrors": "Corrige los campos marcados ({{count}}).",
-    "privateNotesHelp": "Las notas privadas solo las ves tú y el ayudante que contrates.",
+    "privateNotesHelp": "Las notas privadas solo las ves tú.",
     "cancel": "Cancelar",
     "save": "Guardar cambios",
     "saving": "Guardando…",
@@ -6894,7 +6909,10 @@
       "review_complete": "Revisión completa.",
       "territory_assigned": "Territorio asignado.",
       "territory_assignment_ended": "Asignación de territorio finalizada."
-    }
+    },
+    "accessHistoryTitle": "Historial de acceso",
+    "accessHistoryEmpty": "Aún no hay cambios de acceso.",
+    "historyGranted": "Concedido"
   },
   "businessLaunchAttachments": {
     "download": "Descargar",

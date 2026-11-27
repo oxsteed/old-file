@@ -23,10 +23,25 @@ function formatDate(value) {
 // location or territory-wide, track completion per person. The module
 // catalogue is the existing restaurant training modules; the assignment
 // state lives on the territory, not on a restaurant.
+// G12-A5 (D-649): the assign form picks a catalogue module (title and
+// category resolve from it) or falls back to free text with an explicit
+// category, so UI-created assignments finally carry module_id/category
+// and the training planner's Learn-program linking by category fires.
+const TRAINING_CATEGORIES = [
+  'general',
+  'kitchen',
+  'front_of_house',
+  'cleaning',
+  'food_safety',
+  'customer_service',
+  'safety',
+];
+
 export default function FranchiseTrainingTasks({
   assignments = [],
   members = [],
   locations = [],
+  modules = [],
   canAssign = false,
   canComplete = false,
   onAssign = null,
@@ -37,12 +52,30 @@ export default function FranchiseTrainingTasks({
   const { t } = useTranslation();
   const copy = (key, options) => t(`dashboards.franchise.${key}`, options);
   const [assigneeId, setAssigneeId] = useState('');
+  const [moduleId, setModuleId] = useState('');
   const [moduleTitle, setModuleTitle] = useState('');
+  const [category, setCategory] = useState('general');
   const [locationId, setLocationId] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [formError, setFormError] = useState('');
 
   const locationNameById = new Map((locations || []).map((location) => [location.id, location.name]));
+  const moduleById = new Map((modules || []).map((module) => [String(module.id), module]));
+
+  function pickModule(value) {
+    setModuleId(value);
+    if (!value) {
+      // Custom training: free-text title, category stays as chosen.
+      setModuleTitle('');
+      return;
+    }
+    const picked = moduleById.get(String(value));
+    if (picked) {
+      // Catalogue module: the title and category come from the module.
+      setModuleTitle(picked.title || '');
+      setCategory(picked.category || 'general');
+    }
+  }
 
   async function submit(event) {
     event.preventDefault();
@@ -51,12 +84,16 @@ export default function FranchiseTrainingTasks({
     try {
       await onAssign({
         assignee_user_id: assigneeId,
+        module_id: moduleId ? Number(moduleId) : undefined,
         module_title: moduleTitle.trim(),
+        category: category || undefined,
         location_id: locationId || undefined,
         due_date: dueDate || undefined,
       });
       setAssigneeId('');
+      setModuleId('');
       setModuleTitle('');
+      setCategory('general');
       setLocationId('');
       setDueDate('');
     } catch (err) {
@@ -95,16 +132,50 @@ export default function FranchiseTrainingTasks({
           </div>
           <div>
             <label className="fr-detail-list-label" htmlFor="fr-training-module">{copy('trainingTasksModuleLabel')}</label>
-            <input
+            <select
               id="fr-training-module"
+              className="fr-followup-input"
+              value={moduleId}
+              disabled={disabled}
+              onChange={(event) => pickModule(event.target.value)}
+            >
+              <option value="">{copy('trainingTasksModuleCustom')}</option>
+              {modules.map((module) => (
+                <option key={module.id} value={module.id}>
+                  {module.title}{module.category ? ` — ${copy(`trainingTasksCategory_${module.category}`)}` : ''}{module.restaurant_name ? ` (${module.restaurant_name})` : ''}
+                </option>
+              ))}
+            </select>
+            {modules.length === 0 && (
+              <p className="fr-detail-empty">{copy('trainingTasksNoModules')}</p>
+            )}
+          </div>
+          <div>
+            <label className="fr-detail-list-label" htmlFor="fr-training-title">{copy('trainingTasksTitleLabel')}</label>
+            <input
+              id="fr-training-title"
               type="text"
               required
               className="fr-followup-input"
               value={moduleTitle}
-              disabled={disabled}
+              disabled={disabled || Boolean(moduleId)}
               onChange={(event) => setModuleTitle(event.target.value)}
               placeholder={copy('trainingTasksModulePlaceholder')}
             />
+          </div>
+          <div>
+            <label className="fr-detail-list-label" htmlFor="fr-training-category">{copy('trainingTasksCategoryLabel')}</label>
+            <select
+              id="fr-training-category"
+              className="fr-followup-input"
+              value={category}
+              disabled={disabled}
+              onChange={(event) => setCategory(event.target.value)}
+            >
+              {TRAINING_CATEGORIES.map((value) => (
+                <option key={value} value={value}>{copy(`trainingTasksCategory_${value}`)}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="fr-detail-list-label" htmlFor="fr-training-location">{copy('trainingTasksLocationLabel')}</label>
@@ -156,6 +227,20 @@ export default function FranchiseTrainingTasks({
                     {assigneeName}
                     {' · '}
                     {assignment.location_id ? (locationNameById.get(assignment.location_id) || '') : copy('trainingTasksTerritoryWide')}
+                    {assignment.category && (
+                      <>
+                        {' · '}
+                        {TRAINING_CATEGORIES.includes(assignment.category)
+                          ? copy(`trainingTasksCategory_${assignment.category}`)
+                          : assignment.category}
+                      </>
+                    )}
+                    {assignment.module_id && (
+                      <>
+                        {' · '}
+                        {copy('trainingTasksModuleCatalogue')}
+                      </>
+                    )}
                     {assignment.due_date && (
                       <>
                         {' · '}

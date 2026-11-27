@@ -9,6 +9,9 @@ const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/stora
 // Group 12 Slice 3e (625, D-326): policy change reminders — sent when a
 // standard's version is published and on HQ's manual remind.
 const { sendFranchiseStandardReminders } = require('../jobs/franchiseStandardReminders');
+// G12-A1 (D-640): territory invitation delivery — in-app + email through
+// the shared notification path for invitees who already have an account.
+const { sendNotification } = require('../services/notificationService');
 
 const APPLICATION_STATUSES = new Set([
   'inquiry',
@@ -973,6 +976,99 @@ async function presentFranchiseBrandAsset(asset) {
   }
 }
 
+/**
+ * GET /api/franchise/my-applications/:id/documents/:docId/download-url
+ * G12-A11 (D-656): the download URL is minted on click, not at page
+ * load. The signed URL lives 600s, so a link minted when the page
+ * loaded had expired by the time the operator clicked it after working
+ * a while. The client fetches a fresh URL and opens it immediately.
+ */
+async function getDocumentDownloadUrl(req, res, { asAdmin = false } = {}) {
+  const { id, docId } = req.params;
+  if (!UUID_RE.test(docId)) {
+    return res.status(404).json({ error: 'Document not found.', code: 'document_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      if (!asAdmin) {
+        if (!req.user?.id) return res.status(401).json({ error: 'Authentication required.' });
+        const owned = await loadOwnedApplication(client, id, req.user.id);
+        if (!owned) return res.status(404).json({ error: 'Franchise application not found.' });
+      } else {
+        const { rows } = await client.query(
+          'SELECT id FROM franchise_applications WHERE id = $1', [id]
+        );
+        if (!rows.length) return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows } = await client.query(
+        `SELECT * FROM franchise_application_documents
+          WHERE id = $1 AND application_id = $2`,
+        [docId, id]
+      );
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Document not found.', code: 'document_not_found' });
+      }
+      const presented = await presentFranchiseDocument(rows[0]);
+      if (!presented.download_url) {
+        return res.status(503).json({ error: 'Download is unavailable right now.', code: 'download_unavailable' });
+      }
+      return res.json({ download_url: presented.download_url });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error minting franchise document download URL', { id, docId, err: err.message });
+    return res.status(500).json({ error: 'Failed to prepare the download.' });
+  }
+}
+
+/**
+ * GET /api/franchise/my-applications/:id/brand-assets/:assetId/download-url
+ * G12-A11 (D-656): same on-click minting for brand assets. The asset
+ * must belong to this territory or be franchise-wide (application_id
+ * NULL), mirroring fetchBrandAssets.
+ */
+async function getBrandAssetDownloadUrl(req, res, { asAdmin = false } = {}) {
+  const { id, assetId } = req.params;
+  if (!UUID_RE.test(assetId)) {
+    return res.status(404).json({ error: 'Brand asset not found.', code: 'brand_asset_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      if (!asAdmin) {
+        if (!req.user?.id) return res.status(401).json({ error: 'Authentication required.' });
+        const owned = await loadOwnedApplication(client, id, req.user.id);
+        if (!owned) return res.status(404).json({ error: 'Franchise application not found.' });
+      } else {
+        const { rows } = await client.query(
+          'SELECT id FROM franchise_applications WHERE id = $1', [id]
+        );
+        if (!rows.length) return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows } = await client.query(
+        `SELECT * FROM franchise_brand_assets
+          WHERE id = $1 AND (application_id IS NULL OR application_id = $2)`,
+        [assetId, id]
+      );
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Brand asset not found.', code: 'brand_asset_not_found' });
+      }
+      const presented = await presentFranchiseBrandAsset(rows[0]);
+      if (!presented.download_url) {
+        return res.status(503).json({ error: 'Download is unavailable right now.', code: 'download_unavailable' });
+      }
+      return res.json({ download_url: presented.download_url });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error minting franchise brand asset download URL', { id, assetId, err: err.message });
+    return res.status(500).json({ error: 'Failed to prepare the download.' });
+  }
+}
+
 // Group 12 Slice 3e (623, D-324): the brand assets visible to a
 // territory — the franchise-wide assets plus its own. Passing a null
 // application id returns the franchise-wide assets only (same
@@ -1041,13 +1137,18 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
          FROM franchise_application_checklist_items
          GROUP BY application_id
        ) progress ON progress.application_id = fa.id
-      WHERE fa.id = $1 AND (fa.applicant_user_id = $2 OR fa.owner_user_id = $2)`,
+      -- G12-B1 (D-638): the applicant leg is admitted only while the
+      -- application is pre-approval. Once approved/launched, only the
+      -- owner reads the bundle, so an approved handoff revokes the
+      -- outgoing operator's read (the applicant leg used to serve the
+      -- whole bundle, including HQ-only risk notes, indefinitely).
+      WHERE fa.id = $1 AND (fa.owner_user_id = $2 OR (fa.applicant_user_id = $2 AND fa.status NOT IN ('approved', 'launched')))`,
     [applicationId, userId]
   );
 
   if (!applicationResult.rows.length) return null;
 
-  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult, launchPlanResult, activityResult, locations, businessServices, readinessReviews, openingTeam, territoryInvitations, trainingAssignments, announcements] = await Promise.all([
+  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult, launchPlanResult, activityResult, activityCountResult, locations, businessServices, readinessReviews, openingTeam, territoryInvitations, trainingAssignments, announcements] = await Promise.all([
     db.query(
       `SELECT *
          FROM franchise_interview_slots
@@ -1122,6 +1223,15 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
           AND NOT (event_type = 'note_added' AND metadata ->> 'visibility' = 'internal')
         ORDER BY created_at DESC, id DESC
         LIMIT 50`,
+      [applicationId]
+    ),
+    // G12-A10 (D-655): the history total, so the detail page knows
+    // whether older events exist to page to. Same filter as the page.
+    db.query(
+      `SELECT COUNT(*)::int AS total
+         FROM franchise_activity_log
+        WHERE application_id = $1
+          AND NOT (event_type = 'note_added' AND metadata ->> 'visibility' = 'internal')`,
       [applicationId]
     ),
     // Group 12 Slice 3c (611/612/614/615): the open locations with their
@@ -1236,7 +1346,83 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     }),
     readiness_reviews: readinessReviews,
     activity: activityResult.rows,
+    activity_total: activityCountResult.rows[0]?.total ?? activityResult.rows.length,
   };
+}
+
+/**
+ * GET /api/franchise/my-applications/:id/activity
+ * G12-A10 (D-655): older assignment-history pages. The detail bundle
+ * caps the history at the latest 50; this endpoint pages further back
+ * with a keyset cursor (the last shown event's id), same filter and
+ * shape as the bundle page, plus the true total so the client knows
+ * when the history is exhausted.
+ */
+async function listApplicationActivity(req, res) {
+  const { id } = req.params;
+  if (!req.user?.id) return res.status(401).json({ error: 'Authentication required.' });
+  const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 50, 1), 100);
+  const beforeRaw = typeof req.query?.before === 'string' && req.query.before ? req.query.before : null;
+  const before = beforeRaw ? Number.parseInt(beforeRaw, 10) : null;
+  if (beforeRaw && (!Number.isInteger(before) || before <= 0)) {
+    return res.status(400).json({ error: 'before must be an activity event id.', code: 'invalid_activity_cursor' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      const owned = await loadOwnedApplication(client, id, req.user.id);
+      if (!owned) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      let cursorCreatedAt = null;
+      if (before) {
+        const { rows: cursorRows } = await client.query(
+          `SELECT created_at FROM franchise_activity_log
+            WHERE id = $1 AND application_id = $2`,
+          [before, id]
+        );
+        if (!cursorRows.length) {
+          return res.status(404).json({ error: 'Activity event not found.', code: 'activity_cursor_not_found' });
+        }
+        cursorCreatedAt = cursorRows[0].created_at;
+      }
+      const params = [id];
+      let cursorClause = '';
+      if (before) {
+        params.push(cursorCreatedAt, before);
+        cursorClause = `AND (created_at < $${params.length - 1} OR (created_at = $${params.length - 1} AND id < $${params.length}))`;
+      }
+      params.push(limit);
+      const { rows } = await client.query(
+        `SELECT id, event_type, event_summary, created_at
+           FROM franchise_activity_log
+          WHERE application_id = $1
+            AND NOT (event_type = 'note_added' AND metadata ->> 'visibility' = 'internal')
+            ${cursorClause}
+          ORDER BY created_at DESC, id DESC
+          LIMIT $${params.length}`,
+        params
+      );
+      const { rows: [countRow] } = await client.query(
+        `SELECT COUNT(*)::int AS total
+           FROM franchise_activity_log
+          WHERE application_id = $1
+            AND NOT (event_type = 'note_added' AND metadata ->> 'visibility' = 'internal')`,
+        [id]
+      );
+      const total = countRow?.total ?? rows.length;
+      return res.json({
+        activity: rows,
+        total,
+        next_before: rows.length === limit ? String(rows[rows.length - 1].id) : null,
+      });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error listing franchise application activity', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to list application activity.' });
+  }
 }
 
 // Ownership check shared by the applicant-scoped mutation endpoints. A
@@ -1285,6 +1471,15 @@ function parseInterviewDate(value) {
 }
 
 async function createFranchiseApplication(req, res) {
+  // Group 12 Slice A (G12-A2 / S-E4, D-643): franchise intake is
+  // authenticated-only. A guest row was ownerless (applicant_user_id and
+  // owner_user_id NULL), so it matched no user in listMyFranchiseApplications
+  // and the applicant could never track it; the route's `authenticate`
+  // middleware is the first line of defence and this guard is the second.
+  if (!req.user?.id) {
+    return res.status(401).json({ error: 'Authentication required to file a franchise application.' });
+  }
+
   const firstName = asTrimmed(req.body.first_name);
   const lastName = asTrimmed(req.body.last_name);
   const email = asTrimmed(req.body.email);
@@ -1351,10 +1546,11 @@ async function createFranchiseApplication(req, res) {
          RETURNING id`,
         [
           program.id,
-          req.user?.id || null,
           // owner_user_id is always the authenticated applicant; the client
-          // must not supply it (lead form is public, so null for guests).
-          req.user?.id || null,
+          // must not supply it (intake is authenticated-only since D-643,
+          // so a guest row can no longer be created ownerless).
+          req.user.id,
+          req.user.id,
           linkedConsultingRequestId,
           firstName,
           lastName,
@@ -1421,7 +1617,7 @@ async function createFranchiseApplication(req, res) {
       await logActivity(
         client,
         applicationId,
-        req.user?.id || null,
+        req.user.id,
         'application_created',
         `Franchise application created for ${firstName} ${lastName}.`,
         { desired_country: desiredCountry, desired_region: desiredRegion, desired_city: desiredCity }
@@ -1484,10 +1680,12 @@ async function listMyFranchiseApplications(req, res) {
           fa.submitted_at,
           fa.updated_at,
           b.business_name AS linked_business_name,
+          fagr.currency AS currency,
           COALESCE(progress.completed_count, 0)::int AS checklist_completed,
           COALESCE(progress.total_count, 0)::int AS checklist_total
         FROM franchise_applications fa
         LEFT JOIN businesses b ON b.id = fa.linked_business_id
+        LEFT JOIN franchise_agreements fagr ON fagr.application_id = fa.id
         LEFT JOIN (
           SELECT
             application_id,
@@ -1751,6 +1949,15 @@ async function updateFranchiseApplication(req, res) {
 
   values.push(applicationId);
 
+  // G12-A3 (D-644): the notice values are captured inside the transaction
+  // and sent after commit, so the notice block below (outside the inner
+  // try) can read them.
+  let statusBefore;
+  let statusAfter;
+  let ownerAfter;
+  let updatedAtAfter;
+  let offeredAfter = false;
+
   try {
     const client = await db.connect();
     try {
@@ -1807,7 +2014,7 @@ async function updateFranchiseApplication(req, res) {
             SET ${updates.join(', ')}, updated_at = NOW()
           WHERE id = $${idx}
           RETURNING id, status, owner_user_id, linked_business_id,
-                    agreement_status, training_status, launch_readiness_status`,
+                    agreement_status, training_status, launch_readiness_status, updated_at`,
         values
       );
 
@@ -1816,11 +2023,11 @@ async function updateFranchiseApplication(req, res) {
       // (or approving with an owner when no offer exists yet) offers the
       // territory to the new operator; the previous decision is cleared.
       // Linking the applicant's own account is identity linking, not an
-      // assignment, so it never offers: the public lead form creates the
-      // row ownerless (applicant_user_id NULL too), and HQ links the
-      // applicant — identified by applicant_user_id when set, else by the
-      // application email matching the new owner's email. Rejected/archived
-      // applications are never offered.
+      // assignment, so it never offers: rows filed before authenticated-only
+      // intake (D-643) can be ownerless (applicant_user_id NULL too), and HQ
+      // links the applicant — identified by applicant_user_id when set, else
+      // by the application email matching the new owner's email. Rejected/
+      // archived applications are never offered.
       const nextStatus = updateResult.rows[0].status;
       const nextOwnerId = updateResult.rows[0].owner_user_id;
       const isApplicantLink = ownerUserId !== undefined && (
@@ -1833,7 +2040,13 @@ async function updateFranchiseApplication(req, res) {
         && !isApplicantLink;
       const newlyApproved = body.status === 'approved'
         && before.rows[0].acceptance_status === 'not_offered';
+      // G12-A3 (D-644): whether the offer below fired, for the notice.
+      statusBefore = before.rows[0].status;
+      statusAfter = updateResult.rows[0].status;
+      ownerAfter = nextOwnerId;
+      updatedAtAfter = updateResult.rows[0].updated_at;
       if (nextOwnerId && !['rejected', 'archived'].includes(nextStatus) && (ownerChanged || newlyApproved)) {
+        offeredAfter = true;
         await client.query(
           `UPDATE franchise_applications
               SET acceptance_status = 'offered', acceptance_reason = NULL,
@@ -1881,6 +2094,30 @@ async function updateFranchiseApplication(req, res) {
     }
 
     const bundle = await fetchFranchiseApplicationBundle(applicationId);
+    // G12-A3 (D-644): the applicant learns of a status change, and the new
+    // operator learns of a territory offer, instead of finding out only by
+    // opening the status page. Best-effort; a failed notice never fails
+    // the update. The row's updated_at stamps the notice key, so a repeat
+    // transition (A to B, back to A, to B again) is a new event.
+    if (body.status !== undefined && body.status !== statusBefore) {
+      await notifyFranchiseApplicant({
+        applicationId,
+        type: 'franchise_application_status_changed',
+        params: { status: statusAfter },
+        actionUrl: '/franchise/status',
+        idempotencyKey: `franchise-application-status:${applicationId}:${updatedAtAfter.toISOString()}`,
+      });
+    }
+    if (offeredAfter) {
+      await deliverFranchiseNotice({
+        applicationId,
+        userId: ownerAfter,
+        type: 'franchise_territory_offered',
+        params: {},
+        actionUrl: '/franchise/status',
+        idempotencyKey: `franchise-territory-offered:${applicationId}:${updatedAtAfter.toISOString()}`,
+      });
+    }
     return res.json(bundle);
   } catch (err) {
     logger.error('Error updating franchise application', { id: applicationId, err: err.message });
@@ -2184,6 +2421,7 @@ async function signFranchiseAgreement(req, res) {
       await client.query('BEGIN');
       const { rows: appRows } = await client.query(
         `SELECT fa.id, fa.applicant_user_id, fa.owner_user_id, fa.agreement_status,
+                fa.status,
                 u.first_name, u.last_name, u.email
            FROM franchise_applications fa
            LEFT JOIN users u ON u.id = $2
@@ -2195,6 +2433,17 @@ async function signFranchiseAgreement(req, res) {
       if (!application) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      // G12-A8 (D-653): a rejected or archived application is dead — its
+      // agreement is not a live commitment, so signing it would put a
+      // signed agreement on a record HQ already closed. Activation
+      // already refuses dead applications; signing must too.
+      if (['rejected', 'archived'].includes(application.status)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: `This application is ${application.status}, so its agreement cannot be signed.`,
+          code: 'franchise_agreement_application_closed',
+        });
       }
       // Only the applicant (or the assigned owner) may sign; admins use the
       // countersignature on the admin upsert path.
@@ -2325,6 +2574,40 @@ async function recordFranchiseFeeCollection(req, res) {
         );
         await logActivity(client, id, req.user.id, 'initial_fee_waived', `Initial fee waived: ${reason}`, { reason });
       } else {
+        // G12-A7 (D-652): a collection reference is the wire's identity.
+        // The agreement row keeps only the latest reference, so the
+        // duplicate check reads the activity log, where every collection
+        // is recorded with its reference — a reference recorded twice
+        // (even with another collection in between) is the same wire
+        // entered twice, not two wires.
+        const { rows: dupRows } = await client.query(
+          `SELECT 1 FROM franchise_activity_log
+            WHERE application_id = $1 AND event_type = 'initial_fee_collected'
+              AND metadata->>'collection_reference' = $2
+            LIMIT 1`,
+          [id, reference]
+        );
+        if (dupRows.length) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({
+            error: `Collection reference ${reference} was already recorded for this agreement.`,
+            code: 'collection_reference_duplicate',
+          });
+        }
+        // ... and a collection may not run past the fee without an
+        // explicit over-payment reason on the record. The activation
+        // check only looks at collected >= fee, so an overstatement
+        // would otherwise corrupt the record silently.
+        const feeCents = agreement.initial_fee_cents;
+        const remainingCents = feeCents == null ? null : feeCents - agreement.collected_cents;
+        if (remainingCents != null && amountCents > remainingCents && !reason) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({
+            error: `That collection exceeds the remaining fee by ${amountCents - remainingCents} cents. Supply a reason to record an over-payment.`,
+            code: 'collection_exceeds_fee',
+            remaining_cents: remainingCents,
+          });
+        }
         await client.query(
           `UPDATE franchise_agreements
               SET initial_fee_collected_cents = COALESCE(initial_fee_collected_cents, 0) + $2,
@@ -2336,6 +2619,7 @@ async function recordFranchiseFeeCollection(req, res) {
         );
         await logActivity(client, id, req.user.id, 'initial_fee_collected', `Initial fee collection recorded: ${amountCents}c (ref ${reference})`, {
           amount_cents: amountCents, collection_reference: reference,
+          ...(remainingCents != null && amountCents > remainingCents ? { overpayment_reason: reason } : {}),
         });
       }
       await client.query('COMMIT');
@@ -2630,6 +2914,16 @@ async function proposeInterviewSlot(req, res) {
       );
       await client.query('COMMIT');
       const bundle = await fetchFranchiseApplicationBundle(req.params.id);
+      // G12-A3 (D-644): the applicant learns a slot was proposed, instead
+      // of finding out only by opening the status page (a slot can lapse
+      // unbooked while they wait for a message that never comes).
+      await notifyFranchiseApplicant({
+        applicationId: req.params.id,
+        type: 'franchise_interview_proposed',
+        params: { startsAt: rows[0].starts_at.toISOString() },
+        actionUrl: '/franchise/status',
+        idempotencyKey: `franchise-interview-proposed:${rows[0].id}`,
+      });
       return res.status(201).json(bundle);
     } catch (err) {
       await client.query('ROLLBACK');
@@ -2799,6 +3093,17 @@ async function bookInterviewSlot(req, res) {
         return res.status(409).json({
           error: `Only a proposed interview can be booked (this one is ${slot.status}).`,
           code: 'interview_not_proposed',
+        });
+      }
+      // G12-A6 (D-650): a proposed slot whose start has passed is no
+      // longer bookable. proposeInterviewSlot requires a future start
+      // and rescheduling re-validates it, but nothing stopped the
+      // applicant booking a slot that lapsed while it sat proposed.
+      if (new Date(slot.starts_at).getTime() <= Date.now()) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'That interview time has already passed.',
+          code: 'interview_slot_lapsed',
         });
       }
       const { rows: bookedRows } = await client.query(
@@ -3028,6 +3333,20 @@ async function reviewApplicationDocument(req, res) {
       );
       await client.query('COMMIT');
       const bundle = await fetchFranchiseApplicationBundle(req.params.id);
+      // G12-A3 (D-644): the applicant learns their document was accepted
+      // or rejected (with HQ's reason), instead of finding out only by
+      // opening the status page.
+      await notifyFranchiseApplicant({
+        applicationId: req.params.id,
+        type: 'franchise_document_reviewed',
+        params: {
+          fileName: rows[0].file_name,
+          decision: rows[0].status,
+          reasonPart: rows[0].review_reason ? ` Reason: ${rows[0].review_reason}` : '',
+        },
+        actionUrl: '/franchise/status',
+        idempotencyKey: `franchise-document-reviewed:${rows[0].id}:${rows[0].reviewed_at.toISOString()}`,
+      });
       return res.json(bundle);
     } catch (err) {
       await client.query('ROLLBACK');
@@ -3074,10 +3393,11 @@ async function addFollowupMessageAs(req, res, authorRole) {
           return res.status(404).json({ error: 'Franchise application not found.' });
         }
       }
-      await client.query(
+      const inserted = await client.query(
         `INSERT INTO franchise_followup_messages
            (application_id, author_role, author_id, body)
-         VALUES ($1, $2, $3, $4)`,
+         VALUES ($1, $2, $3, $4)
+         RETURNING id`,
         [req.params.id, authorRole, req.user?.id || null, body]
       );
       await logActivity(
@@ -3089,6 +3409,18 @@ async function addFollowupMessageAs(req, res, authorRole) {
         { author_role: authorRole }
       );
       await client.query('COMMIT');
+      // G12-A3 (D-644): an HQ reply notifies the applicant; an applicant
+      // reply does not notify anyone (HQ already works the thread from
+      // its dashboard, and the applicant is the author).
+      if (authorRole !== 'applicant') {
+        await notifyFranchiseApplicant({
+          applicationId: req.params.id,
+          type: 'franchise_followup_replied',
+          params: {},
+          actionUrl: '/franchise/status',
+          idempotencyKey: `franchise-followup-replied:${inserted.rows[0].id}`,
+        });
+      }
       if (authorRole === 'applicant') {
         const detail = await fetchApplicantApplicationDetail(req.params.id, req.user.id);
         return res.status(201).json(detail);
@@ -3134,10 +3466,19 @@ async function acknowledgeResponsibilityItem(req, res) {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      const owned = await loadOwnedApplication(client, id, req.user.id);
-      if (!owned) {
+      // G12-A4 (D-646): responsibilities belong to the assigned operator
+      // only — the applicant record alone must not acknowledge them.
+      const { application, isOperator, isAssociated } = await loadOperatorApplication(client, id, req.user.id);
+      if (!application || !isAssociated) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can acknowledge responsibilities.',
+          code: 'franchise_operator_only',
+        });
       }
       const { rows: itemRows } = await client.query(
         `SELECT * FROM franchise_responsibility_items
@@ -3633,10 +3974,19 @@ async function updateLaunchPlanStepStatus(req, res) {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      const owned = await loadOwnedApplication(client, id, req.user.id);
-      if (!owned) {
+      // G12-A4 (D-646): launch-plan steps belong to the assigned operator
+      // only — the applicant record alone must not move them.
+      const { application, isOperator, isAssociated } = await loadOperatorApplication(client, id, req.user.id);
+      if (!application || !isAssociated) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can update launch plan steps.',
+          code: 'franchise_operator_only',
+        });
       }
       const { rows } = await client.query(
         `UPDATE franchise_launch_plan_steps
@@ -4016,10 +4366,19 @@ async function updateLocationMilestoneStatus(req, res) {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      const owned = await loadOwnedApplication(client, id, req.user.id);
-      if (!owned) {
+      // G12-A4 (D-646): location milestones belong to the assigned
+      // operator only — the applicant record alone must not move them.
+      const { application, isOperator, isAssociated } = await loadOperatorApplication(client, id, req.user.id);
+      if (!application || !isAssociated) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can update location milestones.',
+          code: 'franchise_operator_only',
+        });
       }
       const completing = nextStatus === 'completed';
       const { rows } = await client.query(
@@ -4843,6 +5202,100 @@ async function createTerritoryInvitationCore(client, { applicationId, email, rol
   return { invitation: rows[0], token };
 }
 
+// G12-A1 (D-640): deliver a territory invite through the shared
+// notification path (in-app + email per the invitee's prefs) when the
+// invited email belongs to an account. Best-effort by design: the invite
+// already exists by the time this runs, so a failed notice is warned,
+// never thrown — the operator/HQ can still share the accept link from
+// the invite list. An invited email with no account gets no notice:
+// there is nobody to notify, and the inviter shares the link instead,
+// the same rule G-6/G-7 uses for named-only booking recipients.
+async function deliverTerritoryInvitation({ applicationId, inviteId, email, role, token, invitedBy }) {
+  try {
+    const { rows: [invitee] } = await db.query(
+      'SELECT id FROM users WHERE lower(email) = lower($1) AND deleted_at IS NULL',
+      [email]
+    );
+    if (!invitee) return { delivered: false, reason: 'no_account' };
+    const { rows: [inviter] } = await db.query(
+      'SELECT first_name, last_name, email FROM users WHERE id = $1',
+      [invitedBy]
+    );
+    const inviterName = [inviter?.first_name, inviter?.last_name].filter(Boolean).join(' ')
+      || inviter?.email || 'OxSteed';
+    const result = await sendNotification({
+      userId: invitee.id,
+      type: 'franchise_territory_invitation',
+      data: {
+        params: { inviterName },
+        application_id: applicationId,
+        invite_id: inviteId,
+        role,
+      },
+      action_url: `/franchise/invitations/${token}`,
+      idempotencyKey: `franchise-territory-invite:${inviteId}`,
+    });
+    if (!result?.success) {
+      logger.warn('Territory invitation notice not delivered', { inviteId, reason: result?.reason || 'unknown' });
+      return { delivered: false, reason: result?.reason || 'unknown' };
+    }
+    return { delivered: true };
+  } catch (err) {
+    logger.warn('Territory invitation delivery failed', { inviteId, error: err.message });
+    return { delivered: false, reason: 'error' };
+  }
+}
+
+// G12-A3 (D-644): applicant notices for the five events the applicant was
+// never told about (status change, territory offer, interview proposed,
+// document reviewed, HQ follow-up reply). Best-effort like the invitation
+// delivery: the underlying change already committed, so a failed notice is
+// warned, never thrown — the applicant can still see the change on
+// /franchise/status. A legacy ownerless row has no applicant account to
+// notify, so the applicant notice is skipped for it. The `type` is a
+// parameter, so the N3 catalog-sync test lists this site in
+// VARIABLE_SITES with its five expansions.
+async function deliverFranchiseNotice({ applicationId, userId, type, params, actionUrl, idempotencyKey }) {
+  if (!userId) return { delivered: false, reason: 'no_recipient' };
+  try {
+    const result = await sendNotification({
+      userId,
+      type,
+      data: { params, application_id: applicationId },
+      action_url: actionUrl,
+      idempotencyKey,
+    });
+    if (!result?.success) {
+      logger.warn('Franchise applicant notice not delivered', { applicationId, type, reason: result?.reason || 'unknown' });
+      return { delivered: false, reason: result?.reason || 'unknown' };
+    }
+    return { delivered: true };
+  } catch (err) {
+    logger.warn('Franchise applicant notice delivery failed', { applicationId, type, error: err.message });
+    return { delivered: false, reason: 'error' };
+  }
+}
+
+async function notifyFranchiseApplicant({ applicationId, type, params, actionUrl, idempotencyKey }) {
+  try {
+    const { rows: [row] } = await db.query(
+      'SELECT applicant_user_id FROM franchise_applications WHERE id = $1',
+      [applicationId]
+    );
+    return deliverFranchiseNotice({
+      applicationId,
+      userId: row?.applicant_user_id || null,
+      type,
+      params,
+      actionUrl,
+      idempotencyKey,
+    });
+  } catch (err) {
+    logger.warn('Franchise applicant lookup failed', { applicationId, type, error: err.message });
+    return { delivered: false, reason: 'error' };
+  }
+}
+
 async function createTerritoryInvitation(req, res) {
   const { id } = req.params;
   const email = asTrimmed(req.body?.email);
@@ -4878,6 +5331,10 @@ async function createTerritoryInvitation(req, res) {
       }
       await client.query('COMMIT');
       const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
+      await deliverTerritoryInvitation({
+        applicationId: id, inviteId: result.invitation.id, email, role,
+        token: result.token, invitedBy: req.user?.id || null,
+      });
       return res.status(201).json({ ...detail, new_invite_token: result.token });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -4919,6 +5376,10 @@ async function createTerritoryInvitationAsAdmin(req, res) {
       }
       await client.query('COMMIT');
       const bundle = await fetchFranchiseApplicationBundle(id);
+      await deliverTerritoryInvitation({
+        applicationId: id, inviteId: result.invitation.id, email, role,
+        token: result.token, invitedBy: req.user?.id || null,
+      });
       return res.status(201).json({ ...bundle, new_invite_token: result.token });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -5023,6 +5484,55 @@ async function cancelTerritoryInvitationAsAdmin(req, res) {
   } catch (err) {
     logger.error('Error cancelling franchise territory invitation as admin', { id, inviteId, err: err.message });
     return res.status(500).json({ error: 'Failed to cancel territory invite.' });
+  }
+}
+
+// G12-A1 (D-640): the accept page loads the invite by its token, the
+// same token-gated public pattern as the booking status page. The token
+// is the credential; the invited-email match is still enforced at
+// respond time, so a forwarded link shows the invite but cannot be
+// answered by the wrong account. Unknown or malformed tokens answer 404
+// exactly like expired ones, so they leak nothing. The row is returned
+// as stored: an invite past its expiry still reads `invited` here, and
+// the respond endpoint is the authority that flips it to `expired`.
+async function getTerritoryInvitationByToken(req, res) {
+  const token = String(req.params.token || '');
+  if (!/^[0-9a-f]{48}$/.test(token)) {
+    return res.status(404).json({ error: 'Territory invitation not found.', code: 'territory_invite_not_found' });
+  }
+  try {
+    const { rows } = await db.query(
+      `SELECT i.id, i.application_id, i.email, i.role, i.status, i.expires_at,
+              i.responded_at, i.created_at,
+              fa.desired_brand_name, fa.desired_city, fa.desired_region,
+              fa.desired_country, fa.status AS application_status,
+              u.first_name AS inviter_first_name, u.last_name AS inviter_last_name
+         FROM franchise_territory_invitations i
+         JOIN franchise_applications fa ON fa.id = i.application_id
+         LEFT JOIN users u ON u.id = i.invited_by
+        WHERE i.invite_token = $1`,
+      [token]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Territory invitation not found.', code: 'territory_invite_not_found' });
+    }
+    const row = rows[0];
+    return res.json({
+      invitation: {
+        id: row.id, application_id: row.application_id, email: row.email, role: row.role,
+        status: row.status, expires_at: row.expires_at, responded_at: row.responded_at,
+        created_at: row.created_at,
+      },
+      territory: {
+        desired_brand_name: row.desired_brand_name, desired_city: row.desired_city,
+        desired_region: row.desired_region, desired_country: row.desired_country,
+        status: row.application_status,
+      },
+      inviter: { first_name: row.inviter_first_name, last_name: row.inviter_last_name },
+    });
+  } catch (err) {
+    logger.error('Error loading territory invitation by token', { err: err.message });
+    return res.status(500).json({ error: 'Failed to load territory invitation.' });
   }
 }
 
@@ -5204,6 +5714,74 @@ async function removeLocationManagerAsAdmin(req, res) {
 // resolved from the module when one is picked); assignment and
 // completion state live in franchise_training_assignments, not in the
 // restaurant-scoped table. The assignee must be a territory member.
+
+/**
+ * GET /api/franchise/my-applications/:id/training-modules
+ * G12-A5 (D-649): the catalogue behind the training assign form — the
+ * active modules of the territory's linked business's restaurants.
+ * No linked business means no catalogue, and the form still offers
+ * free-text training. Operator-only; the admin twin serves HQ.
+ */
+async function listTrainingModules(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      let linkedBusinessId = null;
+      if (asAdmin) {
+        const { rows } = await client.query(
+          'SELECT linked_business_id FROM franchise_applications WHERE id = $1',
+          [id]
+        );
+        if (!rows.length) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        linkedBusinessId = rows[0].linked_business_id;
+      } else {
+        if (!req.user?.id) return res.status(401).json({ error: 'Authentication required.' });
+        const owned = await loadOperatorApplication(client, id, req.user.id);
+        if (!owned.application || !owned.isAssociated) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          return res.status(403).json({
+            error: 'Only the assigned operator can distribute training in the territory.',
+            code: 'franchise_operator_only',
+          });
+        }
+        const { rows } = await client.query(
+          'SELECT linked_business_id FROM franchise_applications WHERE id = $1',
+          [id]
+        );
+        linkedBusinessId = rows[0]?.linked_business_id || null;
+      }
+      if (!linkedBusinessId) {
+        return res.json({ training_modules: [] });
+      }
+      const { rows } = await client.query(
+        `SELECT m.id, m.title, m.category, m.restaurant_id,
+                r.display_name AS restaurant_name
+           FROM restaurant_training_modules m
+           JOIN food_restaurants r ON r.id = m.restaurant_id
+           JOIN businesses b ON b.id = r.business_id AND b.deleted_at IS NULL
+          WHERE r.business_id = $1 AND m.is_active = TRUE
+          ORDER BY m.sort_order ASC, m.title ASC`,
+        [linkedBusinessId]
+      );
+      return res.json({ training_modules: rows });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error listing franchise training modules', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to list training modules.' });
+  }
+}
+
+async function listTrainingModulesAsAdmin(req, res) {
+  return listTrainingModules(req, res, { asAdmin: true });
+}
+
 async function assignTrainingCore(client, { applicationId, locationId, assigneeUserId, moduleId, moduleTitle, category, dueDate, actorId }) {
   if (locationId) {
     const location = await loadLocation(client, applicationId, locationId);
@@ -5557,7 +6135,9 @@ const UUID_RE = /^[0-9a-f-]{36}$/i;
 // 'unassigned' for territory-wide tickets, or null for every location.
 // `limit` caps the rows (the summary takes 5). Callers validate the
 // filters — this helper trusts them.
-async function fetchTerritoryTickets(applicationId, { status = 'all', locationId = null, limit = 100, category = null } = {}) {
+// G12-B6 (D-660): the ticket-queue filter builder, shared by the page
+// and the true-total count so the two can never drift apart.
+function buildTicketConditions(applicationId, { status = 'all', locationId = null, category = null } = {}) {
   const conditions = ['t.franchise_application_id = $1'];
   const params = [applicationId];
   if (status === 'open') {
@@ -5576,6 +6156,28 @@ async function fetchTerritoryTickets(applicationId, { status = 'all', locationId
     params.push(locationId);
     conditions.push(`t.franchise_location_id = $${params.length}`);
   }
+  return { conditions, params };
+}
+
+async function fetchTerritoryTickets(applicationId, { status = 'all', locationId = null, limit = 100, category = null, before = null } = {}) {
+  const { conditions, params } = buildTicketConditions(applicationId, { status, locationId, category });
+  // G12-B6 (D-660): keyset cursor — the last shown ticket's id. The
+  // cursor row's created_at anchors the page; an unknown cursor id is
+  // a 404, not an empty page.
+  if (before) {
+    const { rows: cursorRows } = await db.query(
+      `SELECT created_at FROM support_tickets
+        WHERE id = $1 AND franchise_application_id = $2`,
+      [before, applicationId]
+    );
+    if (!cursorRows.length) {
+      const err = new Error('Ticket cursor not found');
+      err.code = 'ticket_cursor_not_found';
+      throw err;
+    }
+    params.push(cursorRows[0].created_at, before);
+    conditions.push(`(t.created_at < $${params.length - 1} OR (t.created_at = $${params.length - 1} AND t.id < $${params.length}))`);
+  }
   params.push(limit);
   const { rows } = await db.query(
     `SELECT t.id, t.ticket_number, t.subject, t.category, t.priority, t.status,
@@ -5592,6 +6194,19 @@ async function fetchTerritoryTickets(applicationId, { status = 'all', locationId
     params
   );
   return rows;
+}
+
+// G12-B6 (D-660): the true queue total under the same filters — the
+// list endpoint used to report total as the page length, so a queue
+// over 100 silently looked complete.
+async function countTerritoryTickets(applicationId, { status = 'all', locationId = null, category = null } = {}) {
+  const { conditions, params } = buildTicketConditions(applicationId, { status, locationId, category });
+  const { rows } = await db.query(
+    `SELECT COUNT(*)::int AS total FROM support_tickets t
+      WHERE ${conditions.join(' AND ')}`,
+    params
+  );
+  return rows[0]?.total ?? 0;
 }
 
 // 628 (D-327): the exception summary — totals, open/urgent counts, the
@@ -5732,11 +6347,17 @@ async function findTicketByIdOrNumber(client, ticketParam, columns) {
 // location, when given, must belong to the territory. The link is
 // recorded in the territory activity log, so the exception has a
 // provenance trail (610).
-async function linkTerritoryTicket(client, applicationId, ticketId, locationId, actorId, { ownerOnly }) {
-  const ticket = await findTicketByIdOrNumber(client, ticketId, 'id, ticket_number, user_id');
-  if (!ticket || (ownerOnly && String(ticket.user_id) !== String(actorId))) {
+// G12-B3 (D-647): the operator links by territory linkage, not filer
+// identity — a ticket filed by a member, a ticket already linked here, or
+// a ticket the operator ties to one of their locations. A stranger's
+// ticket with no tie to the territory still 404s. HQ (asAdmin) keeps the
+// old no-gate behaviour: HQ can link any ticket.
+async function linkTerritoryTicket(client, applicationId, ticketId, locationId, actorId, { asAdmin = false } = {}) {
+  const ticket = await findTicketByIdOrNumber(client, ticketId, 'id, ticket_number, user_id, franchise_application_id');
+  if (!ticket) {
     return { error: { status: 404, body: { error: 'Support ticket not found.', code: 'ticket_not_found' } } };
   }
+  let locationOk = false;
   if (locationId) {
     const locationResult = await client.query(
       `SELECT id FROM franchise_locations WHERE id = $1 AND application_id = $2`,
@@ -5744,6 +6365,19 @@ async function linkTerritoryTicket(client, applicationId, ticketId, locationId, 
     );
     if (!locationResult.rows.length) {
       return { error: { status: 404, body: { error: 'Location not found in this territory.', code: 'location_not_found' } } };
+    }
+    locationOk = true;
+  }
+  if (!asAdmin) {
+    const linkedHere = String(ticket.franchise_application_id) === String(applicationId);
+    const filerIsMember = await isTerritoryMember(client, applicationId, ticket.user_id);
+    // The applicant of record filed about their own application; they are
+    // associated even though isTerritoryMember does not list them.
+    const { rows: [appRow] } = await client.query(
+      'SELECT applicant_user_id FROM franchise_applications WHERE id = $1', [applicationId]);
+    const filerIsApplicant = appRow && String(appRow.applicant_user_id) === String(ticket.user_id);
+    if (!linkedHere && !filerIsMember && !filerIsApplicant && !locationOk) {
+      return { error: { status: 404, body: { error: 'Support ticket not found.', code: 'ticket_not_found' } } };
     }
   }
   const { rows } = await client.query(
@@ -5784,7 +6418,7 @@ async function linkTicketToTerritory(req, res) {
           code: 'franchise_operator_only',
         });
       }
-      const linked = await linkTerritoryTicket(client, id, ticketId, locationId, req.user?.id, { ownerOnly: true });
+      const linked = await linkTerritoryTicket(client, id, ticketId, locationId, req.user?.id);
       if (linked.error) {
         await client.query('ROLLBACK');
         return res.status(linked.error.status).json(linked.error.body);
@@ -5822,7 +6456,7 @@ async function linkTicketToTerritoryAsAdmin(req, res) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Franchise application not found.' });
       }
-      const linked = await linkTerritoryTicket(client, id, ticketId, locationId, req.user?.id, { ownerOnly: false });
+      const linked = await linkTerritoryTicket(client, id, ticketId, locationId, req.user?.id, { asAdmin: true });
       if (linked.error) {
         await client.query('ROLLBACK');
         return res.status(linked.error.status).json(linked.error.body);
@@ -5844,12 +6478,14 @@ async function linkTicketToTerritoryAsAdmin(req, res) {
 
 // 628 (D-327): detach a ticket from a territory — the exception leaves
 // the summary, the ticket itself is untouched.
-async function unlinkTerritoryTicket(client, applicationId, ticketId, actorId, { ownerOnly }) {
+// G12-B3 (D-647): unlinking needs territory linkage (the ticket is
+// linked here), not filer identity — the operator can detach a
+// member-filed ticket they can see.
+async function unlinkTerritoryTicket(client, applicationId, ticketId, actorId) {
   const ticket = await findTicketByIdOrNumber(
     client, ticketId, 'id, ticket_number, user_id, franchise_application_id');
   if (!ticket
-    || String(ticket.franchise_application_id) !== String(applicationId)
-    || (ownerOnly && String(ticket.user_id) !== String(actorId))) {
+    || String(ticket.franchise_application_id) !== String(applicationId)) {
     return { error: { status: 404, body: { error: 'Support ticket not found.', code: 'ticket_not_found' } } };
   }
   const { rows } = await client.query(
@@ -5886,7 +6522,7 @@ async function unlinkTicketFromTerritory(req, res) {
           code: 'franchise_operator_only',
         });
       }
-      const unlinked = await unlinkTerritoryTicket(client, id, ticketId, req.user?.id, { ownerOnly: true });
+      const unlinked = await unlinkTerritoryTicket(client, id, ticketId, req.user?.id);
       if (unlinked.error) {
         await client.query('ROLLBACK');
         return res.status(unlinked.error.status).json(unlinked.error.body);
@@ -5920,7 +6556,7 @@ async function unlinkTicketFromTerritoryAsAdmin(req, res) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Franchise application not found.' });
       }
-      const unlinked = await unlinkTerritoryTicket(client, id, ticketId, req.user?.id, { ownerOnly: false });
+      const unlinked = await unlinkTerritoryTicket(client, id, ticketId, req.user?.id);
       if (unlinked.error) {
         await client.query('ROLLBACK');
         return res.status(unlinked.error.status).json(unlinked.error.body);
@@ -5971,10 +6607,13 @@ async function fetchEscalations(applicationId) {
   }));
 }
 
-async function escalateTerritoryTicket(client, applicationId, ticketId, actorId, reason, { ownerOnly, isAdmin }) {
+// G12-B3 (D-647): escalating needs territory linkage (the ticket is
+// linked here), not filer identity — the operator can escalate a
+// member-filed ticket visible in their own queue.
+async function escalateTerritoryTicket(client, applicationId, ticketId, actorId, reason, { isAdmin }) {
   const ticket = await findTicketByIdOrNumber(
     client, ticketId, 'id, ticket_number, user_id, status, priority, franchise_application_id');
-  if (!ticket || (ownerOnly && String(ticket.user_id) !== String(actorId))) {
+  if (!ticket) {
     return { error: { status: 404, body: { error: 'Support ticket not found.', code: 'ticket_not_found' } } };
   }
   if (String(ticket.franchise_application_id) !== String(applicationId)) {
@@ -6027,7 +6666,9 @@ async function escalateTerritoryTicket(client, applicationId, ticketId, actorId,
   await logActivity(client, applicationId, actorId, 'ticket_escalated',
     `Ticket #${ticket.ticket_number} escalated to headquarters (priority ${priorityBefore} → urgent).`,
     { ticket_id: ticket.id, escalation_id: rows[0].id });
-  return { escalation: rows[0], ticket: { id: ticket.id, ticket_number: ticket.ticket_number, priority: priorityAfter, status: ticket.status } };
+  // G12-B5 (D-645): the filer is returned so the route handler can notify
+  // them after commit (unless they escalated it themselves).
+  return { escalation: rows[0], ticket: { id: ticket.id, ticket_number: ticket.ticket_number, priority: priorityAfter, status: ticket.status }, filerUserId: ticket.user_id };
 }
 
 async function escalateTicketToTerritory(req, res, { asAdmin = false } = {}) {
@@ -6067,12 +6708,24 @@ async function escalateTicketToTerritory(req, res, { asAdmin = false } = {}) {
         }
       }
       const escalated = await escalateTerritoryTicket(client, id, ticketId, req.user?.id, reason,
-        { ownerOnly: !asAdmin, isAdmin: asAdmin });
+        { isAdmin: asAdmin });
       if (escalated.error) {
         await client.query('ROLLBACK');
         return res.status(escalated.error.status).json(escalated.error.body);
       }
       await client.query('COMMIT');
+      // G12-B5 (D-645): the ticket filer learns their exception was
+      // escalated to HQ — unless they escalated it themselves.
+      if (escalated.filerUserId && String(escalated.filerUserId) !== String(req.user?.id)) {
+        await deliverFranchiseNotice({
+          applicationId: id,
+          userId: escalated.filerUserId,
+          type: 'franchise_exception_escalated',
+          params: { ticketNumber: escalated.ticket.ticket_number },
+          actionUrl: '/franchise/status',
+          idempotencyKey: `franchise-exception-escalated:${escalated.escalation.id}:${escalated.filerUserId}`,
+        });
+      }
       const summary = await buildExceptionSummary(id);
       return res.status(201).json({ escalation: escalated.escalation, ticket: escalated.ticket, exception_summary: summary });
     } catch (err) {
@@ -6252,7 +6905,7 @@ async function setRemediationCore(client, { applicationId, ticketId, ownerUserId
     return { error: { status: 400, body: { error: 'due_date must be a valid YYYY-MM-DD date.', code: 'invalid_remediation_due_date' } } };
   }
   const { rows: existing } = await client.query(
-    'SELECT id FROM franchise_remediations WHERE application_id = $1 AND ticket_id = $2',
+    'SELECT id, owner_user_id, due_date FROM franchise_remediations WHERE application_id = $1 AND ticket_id = $2',
     [applicationId, ticket.id]
   );
   const { rows } = await client.query(
@@ -6270,7 +6923,10 @@ async function setRemediationCore(client, { applicationId, ticketId, ownerUserId
   await logActivity(client, applicationId, actorId, 'remediation_assigned',
     `Remediation for ticket #${ticket.ticket_number} assigned to a territory member, due ${dueDate}.`,
     { ticket_id: ticket.id, remediation_id: rows[0].id, owner_user_id: ownerUserId, due_date: dueDate });
-  return { remediation: rows[0], created: !existing.length, ticket };
+  // G12-B5 (D-645): the previous assignment, so the route handler notifies
+  // only on a real change (new, different owner, or different due date) —
+  // a no-change re-submit is not a new event.
+  return { remediation: rows[0], created: !existing.length, previous: existing[0] || null, ticket };
 }
 
 async function setRemediation(req, res, { asAdmin = false } = {}) {
@@ -6318,6 +6974,26 @@ async function setRemediation(req, res, { asAdmin = false } = {}) {
         return res.status(result.error.status).json(result.error.body);
       }
       await client.query('COMMIT');
+      // G12-B5 (D-645): the remediation owner learns they own the fix —
+      // only on a real change, and never a notice to the assigner about
+      // their own assignment.
+      const previousDue = result.previous?.due_date
+        ? new Date(result.previous.due_date).toISOString().slice(0, 10)
+        : null;
+      const changed = result.created
+        || !result.previous
+        || String(result.previous.owner_user_id) !== String(ownerUserId)
+        || previousDue !== dueDate;
+      if (changed && String(ownerUserId) !== String(req.user?.id)) {
+        await deliverFranchiseNotice({
+          applicationId: id,
+          userId: ownerUserId,
+          type: 'franchise_remediation_assigned',
+          params: { ticketNumber: result.ticket.ticket_number, dueDate },
+          actionUrl: '/franchise/status',
+          idempotencyKey: `franchise-remediation-assigned:${result.remediation.id}:${result.remediation.updated_at.toISOString()}:${ownerUserId}`,
+        });
+      }
       const remediations = await fetchRemediations(id);
       const remediation = remediations.find((row) => row.id === result.remediation.id) || result.remediation;
       return res.status(result.created ? 201 : 200).json({ remediation });
@@ -6370,6 +7046,11 @@ async function listRemediationsAsAdmin(req, res) {
 
 // 632 (D-332): the remediations assigned to the viewer, across all
 // territories — the assigned owner's own list, no application scoping.
+// G12-B2 (D-639): a remediation is visible only while the viewer is still
+// a live member of that remediation's territory (owner, accepted invitee,
+// or opening-team member). Without the check, a removed member kept
+// reading their assigned tickets' subjects, categories, priorities,
+// statuses, and location names after removal.
 async function listMyRemediations(req, res) {
   try {
     const { rows } = await db.query(
@@ -6382,6 +7063,18 @@ async function listMyRemediations(req, res) {
          LEFT JOIN franchise_locations l ON l.id = t.franchise_location_id
          LEFT JOIN users u ON u.id = r.owner_user_id
         WHERE r.owner_user_id = $1
+          AND EXISTS (
+            SELECT 1 FROM franchise_applications fa
+             WHERE fa.id = t.franchise_application_id AND fa.owner_user_id = $1
+            UNION
+            SELECT 1 FROM franchise_territory_invitations i
+             WHERE i.application_id = t.franchise_application_id
+               AND lower(i.email) = lower((SELECT email FROM users WHERE id = $1))
+               AND i.status = 'accepted'
+            UNION
+            SELECT 1 FROM franchise_opening_team_members m
+             WHERE m.application_id = t.franchise_application_id AND m.helper_user_id = $1
+          )
         ORDER BY r.due_date ASC, r.created_at DESC, r.id DESC`,
       [req.user?.id]
     );
@@ -6423,8 +7116,24 @@ async function fetchCorrectiveActions(applicationId, { ticketId = null, status =
     conditions.push(`a.status = $${params.length}`);
   }
   if (ownerId) {
+    // G12-B7 (D-661): a remediation-less action has no remediation
+    // owner, so the plain join never matches it. Its ownership after a
+    // handoff lives in the transfer log: the latest transfer row for
+    // the action names the current owner. (Two transfers of one action
+    // in the same instant cannot happen through the handoff flow — one
+    // approval transaction per handoff, days apart — so the
+    // latest-by-created_at row is unambiguous.)
     params.push(ownerId);
-    conditions.push(`r.owner_user_id = $${params.length}`);
+    conditions.push(`(r.owner_user_id = $${params.length} OR EXISTS (
+      SELECT 1 FROM franchise_handoff_transfers ht
+       WHERE ht.action_id = a.id AND ht.kind = 'corrective_action'
+         AND ht.to_user_id = $${params.length}
+         AND NOT EXISTS (
+           SELECT 1 FROM franchise_handoff_transfers ht2
+            WHERE ht2.action_id = ht.action_id AND ht2.kind = 'corrective_action'
+              AND ht2.created_at > ht.created_at
+         )
+    ))`);
   }
   const { rows } = await db.query(
     `SELECT a.*, t.ticket_number, t.subject AS ticket_subject,
@@ -6645,7 +7354,13 @@ async function updateCorrectiveActionStatusCore(client, { applicationId, actionI
     && String(action.remediation_owner_id) !== String(actorId)) {
     return { error: { status: 403, body: { error: 'Only the assigned remediation owner can update this corrective action.', code: 'corrective_action_not_assignee' } } };
   }
-  if (!asAdmin && !isOperator && !action.remediation_owner_id) {
+  // G12-B8 (D-662): a remediation-less action has no owner — its
+  // creator advances it (open → in_progress → resolved). Anyone else
+  // still gets the 403. Verified and resolved→in_progress stays
+  // HQ-only via the guard above, so the creator cannot verify their
+  // own work or send back a resolved action.
+  if (!asAdmin && !isOperator && !action.remediation_owner_id
+    && String(action.created_by) !== String(actorId)) {
     return { error: { status: 403, body: { error: 'Only the assigned operator can update this corrective action.', code: 'corrective_action_not_assignee' } } };
   }
   const { rows: updated } = await client.query(
@@ -7160,7 +7875,16 @@ function parseTicketListQuery(req) {
   if (locationId && locationId !== 'unassigned' && !UUID_RE.test(locationId)) {
     return { error: { status: 400, body: { error: 'location_id must be a location id or unassigned.', code: 'invalid_location_id' } } };
   }
-  return { status, locationId };
+  // G12-B6 (D-660): cursor pagination — limit 1..100 (default 100, the
+  // old silent cap) and before, the last shown ticket's id.
+  const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 100, 1), 100);
+  const before = typeof req.query?.before === 'string' && req.query.before
+    ? req.query.before
+    : null;
+  if (before && !UUID_RE.test(before)) {
+    return { error: { status: 400, body: { error: 'before must be a ticket id.', code: 'invalid_ticket_cursor' } } };
+  }
+  return { status, locationId, limit, before };
 }
 
 async function listTerritoryTickets(req, res) {
@@ -7192,9 +7916,20 @@ async function listTerritoryTickets(req, res) {
     } finally {
       client.release();
     }
-    const tickets = await fetchTerritoryTickets(id, { status: parsed.status, locationId: parsed.locationId });
-    return res.json({ application_id: id, tickets, total: tickets.length });
+    const [tickets, total] = await Promise.all([
+      fetchTerritoryTickets(id, { status: parsed.status, locationId: parsed.locationId, limit: parsed.limit, before: parsed.before }),
+      countTerritoryTickets(id, { status: parsed.status, locationId: parsed.locationId }),
+    ]);
+    return res.json({
+      application_id: id,
+      tickets,
+      total,
+      next_before: tickets.length === parsed.limit ? String(tickets[tickets.length - 1].id) : null,
+    });
   } catch (err) {
+    if (err.code === 'ticket_cursor_not_found') {
+      return res.status(404).json({ error: 'Ticket not found.', code: 'ticket_cursor_not_found' });
+    }
     logger.error('Error loading franchise territory tickets', { id, err: err.message });
     return res.status(500).json({ error: 'Failed to load territory support requests.' });
   }
@@ -7218,9 +7953,20 @@ async function listTerritoryTicketsAsAdmin(req, res) {
         return res.status(404).json({ error: 'Location not found in this territory.', code: 'location_not_found' });
       }
     }
-    const tickets = await fetchTerritoryTickets(id, { status: parsed.status, locationId: parsed.locationId });
-    return res.json({ application_id: id, tickets, total: tickets.length });
+    const [tickets, total] = await Promise.all([
+      fetchTerritoryTickets(id, { status: parsed.status, locationId: parsed.locationId, limit: parsed.limit, before: parsed.before }),
+      countTerritoryTickets(id, { status: parsed.status, locationId: parsed.locationId }),
+    ]);
+    return res.json({
+      application_id: id,
+      tickets,
+      total,
+      next_before: tickets.length === parsed.limit ? String(tickets[tickets.length - 1].id) : null,
+    });
   } catch (err) {
+    if (err.code === 'ticket_cursor_not_found') {
+      return res.status(404).json({ error: 'Ticket not found.', code: 'ticket_cursor_not_found' });
+    }
     logger.error('Error loading franchise territory tickets as admin', { id, err: err.message });
     return res.status(500).json({ error: 'Failed to load territory support requests.' });
   }
@@ -7572,6 +8318,15 @@ async function bookOpsSlot(req, res) {
         `Operations appointment booked for ${slot.starts_at.toISOString().slice(0, 10)}.`,
         { slot_id: slotId });
       await client.query('COMMIT');
+      // G12-B5 (D-645): booking confirmation receipt with the date.
+      await deliverFranchiseNotice({
+        applicationId: id,
+        userId: req.user?.id,
+        type: 'franchise_ops_appointment_updated',
+        params: { transition: 'booked', startsAt: rows[0].starts_at.toISOString() },
+        actionUrl: '/franchise/territory',
+        idempotencyKey: `franchise-ops-appointment:${slotId}:booked:${req.user?.id}`,
+      });
       const opsAppointments = await fetchOpsAppointments(id);
       return res.status(201).json({ slot: rows[0], ops_appointments: opsAppointments, total: opsAppointments.length });
     } catch (err) {
@@ -7712,6 +8467,18 @@ async function updateOpsSlotAsAdmin(req, res, transition) {
       );
       await logActivity(client, id, req.user?.id, eventType, eventSummary, { slot_id: slotId });
       await client.query('COMMIT');
+      // G12-B5 (D-645): HQ's confirm/complete/cancel reaches the operator
+      // who booked the appointment.
+      if (rows[0].booked_by) {
+        await deliverFranchiseNotice({
+          applicationId: id,
+          userId: rows[0].booked_by,
+          type: 'franchise_ops_appointment_updated',
+          params: { transition: rows[0].status, startsAt: rows[0].starts_at.toISOString() },
+          actionUrl: '/franchise/territory',
+          idempotencyKey: `franchise-ops-appointment:${slotId}:${rows[0].status}:${rows[0].booked_by}`,
+        });
+      }
       const opsAppointments = await fetchOpsAppointments(id);
       return res.json({ slot: rows[0], ops_appointments: opsAppointments, total: opsAppointments.length });
     } catch (err) {
@@ -8069,6 +8836,23 @@ async function resolveTrainingEscalationAsAdmin(req, res) {
           : 'Training escalation moved to in progress by headquarters.',
         { escalation_id: escalationId });
       await client.query('COMMIT');
+      // G12-B5 (D-645): on resolution, the affected member and the filer
+      // learn the outcome with HQ's resolution note. An in-progress move
+      // sends nothing — the work is still open, not decided.
+      if (status === 'resolved') {
+        const recipients = [escalation.member_user_id, escalation.escalated_by]
+          .filter((value, index, list) => value && list.indexOf(value) === index);
+        for (const userId of recipients) {
+          await deliverFranchiseNotice({
+            applicationId: id,
+            userId,
+            type: 'franchise_training_escalation_resolved',
+            params: { resolution },
+            actionUrl: '/franchise/territory',
+            idempotencyKey: `franchise-training-escalation-resolved:${escalationId}:${userId}`,
+          });
+        }
+      }
       const trainingEscalations = await fetchTrainingEscalations(id);
       return res.json({
         training_escalation: rows[0],
@@ -8121,34 +8905,24 @@ function parseCaseListQuery(req) {
   if (locationId && locationId !== 'unassigned' && !UUID_RE.test(locationId)) {
     return { error: { status: 400, body: { error: 'location_id must be a location id or unassigned.', code: 'invalid_location_id' } } };
   }
-  return { status, type, locationId };
+  // G12-B6 (D-660): cursor pagination — limit 1..100 (default 100, the
+  // old silent cap) and before, the last shown case's id.
+  const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 100, 1), 100);
+  const before = typeof req.query?.before === 'string' && req.query.before
+    ? req.query.before
+    : null;
+  if (before && !UUID_RE.test(before)) {
+    return { error: { status: 400, body: { error: 'before must be a case id.', code: 'invalid_case_cursor' } } };
+  }
+  return { status, type, locationId, limit, before };
 }
 
-async function buildTerritoryCases(applicationId, { status = 'all', type = 'all', locationId = null, limit = 100 } = {}) {
-  const conditions = [];
-  const params = [applicationId];
-  if (type !== 'all') {
-    params.push(type);
-    conditions.push(`kind = $${params.length}`);
-  }
-  if (status === 'open') {
-    conditions.push(`((kind IN ('ticket', 'policy_question') AND status IN ${EXCEPTION_OPEN_SQL})
-      OR (kind = 'training_escalation' AND status IN ('open', 'in_progress'))
-      OR (kind = 'handoff' AND status = 'pending'))`);
-  } else if (status !== 'all') {
-    params.push(status);
-    conditions.push(`status = $${params.length}`);
-  }
-  if (locationId === 'unassigned') {
-    conditions.push('location_id IS NULL');
-  } else if (locationId) {
-    params.push(locationId);
-    conditions.push(`location_id = $${params.length}`);
-  }
-  params.push(limit);
-  const { rows } = await db.query(
-    `SELECT * FROM (
-       SELECT
+// G12-B6 (D-660): the case UNION, shared by the page and the
+// true-total count so the two can never drift apart. $1 is the
+// application id; the outer aliases (kind, status, location_id) are
+// what the filter conditions reference.
+function territoryCasesUnionSql() {
+  return `SELECT
          CASE WHEN t.category = 'policy_question' THEN 'policy_question' ELSE 'ticket' END AS kind,
          t.id AS id,
          t.subject AS title,
@@ -8195,7 +8969,61 @@ async function buildTerritoryCases(applicationId, { status = 'all', type = 'all'
          FROM franchise_handoffs h
          LEFT JOIN users inc ON inc.id = h.incoming_operator_id
          LEFT JOIN users out ON out.id = h.outgoing_operator_id
-        WHERE h.application_id = $1
+        WHERE h.application_id = $1`;
+}
+
+// G12-B6 (D-660): the case filter builder, shared by the page and
+// the true-total count so the two can never drift apart.
+function buildCaseConditions(applicationId, { status = 'all', type = 'all', locationId = null } = {}) {
+  const conditions = [];
+  const params = [applicationId];
+  if (type !== 'all') {
+    params.push(type);
+    conditions.push(`kind = $${params.length}`);
+  }
+  if (status === 'open') {
+    conditions.push(`((kind IN ('ticket', 'policy_question') AND status IN ${EXCEPTION_OPEN_SQL})
+      OR (kind = 'training_escalation' AND status IN ('open', 'in_progress'))
+      OR (kind = 'handoff' AND status = 'pending'))`);
+  } else if (status !== 'all') {
+    params.push(status);
+    conditions.push(`status = $${params.length}`);
+  }
+  if (locationId === 'unassigned') {
+    conditions.push('location_id IS NULL');
+  } else if (locationId) {
+    params.push(locationId);
+    conditions.push(`location_id = $${params.length}`);
+  }
+  return { conditions, params };
+}
+
+async function buildTerritoryCases(applicationId, { status = 'all', type = 'all', locationId = null, limit = 100, before = null } = {}) {
+  const { conditions, params } = buildCaseConditions(applicationId, { status, type, locationId });
+  // G12-B6 (D-660): keyset cursor — the last shown case's id. The id
+  // is unique across the three source tables, so one lookup resolves
+  // its created_at; an unknown cursor id is a 404, not an empty page.
+  if (before) {
+    const { rows: cursorRows } = await db.query(
+      `SELECT created_at FROM (
+         SELECT id, created_at FROM support_tickets WHERE franchise_application_id = $1
+         UNION ALL SELECT id, created_at FROM franchise_training_escalations WHERE application_id = $1
+         UNION ALL SELECT id, created_at FROM franchise_handoffs WHERE application_id = $1
+       ) c WHERE id = $2`,
+      [applicationId, before]
+    );
+    if (!cursorRows.length) {
+      const err = new Error('Case cursor not found');
+      err.code = 'case_cursor_not_found';
+      throw err;
+    }
+    params.push(cursorRows[0].created_at, before);
+    conditions.push(`(created_at < $${params.length - 1} OR (created_at = $${params.length - 1} AND id < $${params.length}))`);
+  }
+  params.push(limit);
+  const { rows } = await db.query(
+    `SELECT * FROM (
+       ${territoryCasesUnionSql()}
      ) cases
      ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
      ORDER BY created_at DESC, id DESC
@@ -8203,6 +9031,20 @@ async function buildTerritoryCases(applicationId, { status = 'all', type = 'all'
     params
   );
   return rows;
+}
+
+// G12-B6 (D-660): the true case total under the same filters — the
+// list endpoint used to report total as the page length.
+async function countTerritoryCases(applicationId, { status = 'all', type = 'all', locationId = null } = {}) {
+  const { conditions, params } = buildCaseConditions(applicationId, { status, type, locationId });
+  const { rows } = await db.query(
+    `SELECT COUNT(*)::int AS total FROM (
+       ${territoryCasesUnionSql()}
+     ) cases
+     ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}`,
+    params
+  );
+  return rows[0]?.total ?? 0;
 }
 
 async function listTerritoryCases(req, res, { asAdmin = false } = {}) {
@@ -8241,16 +9083,26 @@ async function listTerritoryCases(req, res, { asAdmin = false } = {}) {
     } finally {
       client.release();
     }
-    const cases = await buildTerritoryCases(id, {
-      status: parsed.status, type: parsed.type, locationId: parsed.locationId,
-    });
+    const [cases, total] = await Promise.all([
+      buildTerritoryCases(id, {
+        status: parsed.status, type: parsed.type, locationId: parsed.locationId,
+        limit: parsed.limit, before: parsed.before,
+      }),
+      countTerritoryCases(id, {
+        status: parsed.status, type: parsed.type, locationId: parsed.locationId,
+      }),
+    ]);
     return res.json({
       application_id: id,
       cases,
-      total: cases.length,
+      total,
+      next_before: cases.length === parsed.limit ? String(cases[cases.length - 1].id) : null,
       filters: { status: parsed.status, type: parsed.type, location_id: parsed.locationId },
     });
   } catch (err) {
+    if (err.code === 'case_cursor_not_found') {
+      return res.status(404).json({ error: 'Case not found.', code: 'case_cursor_not_found' });
+    }
     logger.error('Error listing franchise territory cases', { id, err: err.message });
     return res.status(500).json({ error: 'Failed to load territory cases.' });
   }
@@ -8271,10 +9123,13 @@ async function listTerritoryCasesAsAdmin(req, res) {
 // escalations and their resolutions (648), and verified corrective
 // actions (635). One derived read, newest first, with an outcome
 // rollup (open vs resolved cases, counts by kind).
-async function buildSupportHistory(applicationId, { limit = 100 } = {}) {
-  const { rows } = await db.query(
-    `SELECT * FROM (
-       SELECT
+// G12-B6 (D-660): the support-history UNION, shared by the page and
+// the true-total count so the two can never drift apart. $1 is the
+// application id. A history row is identified by (at, ref_id, kind):
+// the same ticket produces several events (created, resolved, closed,
+// reply), so ref_id alone is not unique.
+function supportHistoryUnionSql() {
+  return `SELECT
          CASE WHEN t.category = 'policy_question' THEN 'policy_question_asked' ELSE 'ticket_created' END AS kind,
          t.created_at AS at,
          ('#' || t.ticket_number || ' — ' || t.subject) AS title,
@@ -8410,12 +9265,69 @@ async function buildSupportHistory(applicationId, { limit = 100 } = {}) {
          FROM franchise_corrective_actions a
          JOIN support_tickets t ON t.id = a.ticket_id
          LEFT JOIN users u ON u.id = a.reviewed_by
-        WHERE a.application_id = $1 AND a.status = 'verified' AND a.reviewed_at IS NOT NULL
+        WHERE a.application_id = $1 AND a.status = 'verified' AND a.reviewed_at IS NOT NULL`;
+}
+
+const SUPPORT_HISTORY_KINDS = new Set([
+  'ticket_created', 'ticket_resolved', 'ticket_closed', 'ticket_reply',
+  'escalation', 'policy_question_asked', 'training_escalation',
+  'training_escalation_resolved', 'appointment_booked',
+  'appointment_confirmed', 'appointment_cancelled', 'appointment_completed',
+  'corrective_action_verified',
+]);
+
+// G12-B6 (D-660): parse the opaque history cursor —
+// "<at ISO>|<ref_id>|<kind>" — back into its sort key. Returns null
+// for no cursor, or { error } for a malformed one.
+function parseSupportHistoryCursor(before) {
+  if (!before) return { cursor: null };
+  const parts = String(before).split('|');
+  if (parts.length !== 3) {
+    return { error: { status: 400, body: { error: 'before must be a history cursor.', code: 'invalid_history_cursor' } } };
+  }
+  const [atRaw, refId, kind] = parts;
+  const at = new Date(atRaw);
+  if (Number.isNaN(at.getTime()) || !UUID_RE.test(refId) || !SUPPORT_HISTORY_KINDS.has(kind)) {
+    return { error: { status: 400, body: { error: 'before must be a history cursor.', code: 'invalid_history_cursor' } } };
+  }
+  return { cursor: { at: at.toISOString(), refId, kind } };
+}
+
+function supportHistoryCursorFor(row) {
+  return `${new Date(row.at).toISOString()}|${row.ref_id}|${row.kind}`;
+}
+
+async function buildSupportHistory(applicationId, { limit = 100, before = null } = {}) {
+  const parsed = parseSupportHistoryCursor(before);
+  if (parsed.error) {
+    const err = new Error('Invalid history cursor');
+    err.code = 'invalid_history_cursor';
+    throw err;
+  }
+  const cursor = parsed.cursor;
+  const params = [applicationId];
+  let cursorClause = '';
+  if (cursor) {
+    params.push(cursor.at, cursor.refId, cursor.kind);
+    cursorClause = `WHERE (at < $${params.length - 2} OR (at = $${params.length - 2} AND ref_id < $${params.length - 1}) OR (at = $${params.length - 2} AND ref_id = $${params.length - 1} AND kind < $${params.length}))`;
+  }
+  params.push(limit);
+  const { rows } = await db.query(
+    `SELECT * FROM (
+       ${supportHistoryUnionSql()}
      ) history
-     ORDER BY at DESC, ref_id DESC
-     LIMIT $2`,
-    [applicationId, limit]
+     ${cursorClause}
+     ORDER BY at DESC, ref_id DESC, kind DESC
+     LIMIT $${params.length}`,
+    params
   );
+  const { rows: [countRow] } = await db.query(
+    `SELECT COUNT(*)::int AS total FROM (
+       ${supportHistoryUnionSql()}
+     ) history`,
+    [applicationId]
+  );
+  const total = countRow?.total ?? rows.length;
   const byKind = await db.query(
     `SELECT kind, COUNT(*)::int AS count FROM (
        SELECT 'ticket' AS kind FROM support_tickets WHERE franchise_application_id = $1
@@ -8441,9 +9353,10 @@ async function buildSupportHistory(applicationId, { limit = 100 } = {}) {
   return {
     application_id: applicationId,
     history: rows,
-    total: rows.length,
+    total,
+    next_before: rows.length === limit ? supportHistoryCursorFor(rows[rows.length - 1]) : null,
     summary: {
-      total_events: rows.length,
+      total_events: total,
       open_cases: openCases.rows[0]?.open_count || 0,
       resolved_cases: openCases.rows[0]?.resolved_count || 0,
       by_kind: byKind.rows,
@@ -8453,6 +9366,15 @@ async function buildSupportHistory(applicationId, { limit = 100 } = {}) {
 
 async function getSupportHistory(req, res, { asAdmin = false } = {}) {
   const { id } = req.params;
+  // G12-B6 (D-660): cursor pagination — limit 1..100 (default 100, the
+  // old silent cap) and before, the opaque "<at>|<ref_id>|<kind>"
+  // cursor of the last shown event.
+  const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 100, 1), 100);
+  const before = typeof req.query?.before === 'string' && req.query.before
+    ? req.query.before
+    : null;
+  const parsed = parseSupportHistoryCursor(before);
+  if (parsed.error) return res.status(parsed.error.status).json(parsed.error.body);
   try {
     if (!asAdmin) {
       const client = await db.connect();
@@ -8476,8 +9398,11 @@ async function getSupportHistory(req, res, { asAdmin = false } = {}) {
         return res.status(404).json({ error: 'Franchise application not found.' });
       }
     }
-    return res.json(await buildSupportHistory(id));
+    return res.json(await buildSupportHistory(id, { limit, before }));
   } catch (err) {
+    if (err.code === 'invalid_history_cursor') {
+      return res.status(400).json({ error: 'before must be a history cursor.', code: 'invalid_history_cursor' });
+    }
     logger.error('Error loading franchise support history', { id, err: err.message });
     return res.status(500).json({ error: 'Failed to load support history.' });
   }
@@ -9038,20 +9963,6 @@ async function acknowledgeFranchiseStandard(req, res) {
   }
   let signatureKey = null;
   try {
-    signatureKey = await uploadFile(
-      req.file.buffer,
-      `franchise-standards/signatures/${req.user.id}`,
-      `signature-standard${standardId}-v${version}.png`,
-      'image/png',
-    );
-    if (!signatureKey) {
-      return res.status(502).json({ error: 'Signature upload failed.', code: 'upload_failed' });
-    }
-  } catch (err) {
-    logger.error('Error uploading franchise standard signature', { id, standardId, err: err.message });
-    return res.status(502).json({ error: 'Signature upload failed.', code: 'upload_failed' });
-  }
-  try {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
@@ -9105,21 +10016,41 @@ async function acknowledgeFranchiseStandard(req, res) {
           WHERE standard_id = $1 AND user_id = $2 AND version = $3`,
         [standardId, req.user.id, version]
       );
-      let isNew = false;
-      if (!existingRows.length) {
-        await client.query(
-          `INSERT INTO franchise_standard_acknowledgments
-             (standard_id, user_id, version, signature_storage_key)
-           VALUES ($1, $2, $3, $4)`,
-          [standardId, req.user.id, version, signatureKey]
-        );
-        await logActivity(client, id, req.user?.id || null, 'standard_acknowledged',
-          `Acknowledged franchise standard version ${version}.`, { standard_id: standardId, version });
-        isNew = true;
+      if (existingRows.length) {
+        // Already acknowledged: nothing to store, and no new signature
+        // to upload — the old code uploaded one and then dropped it.
+        await client.query('COMMIT');
+        const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
+        return res.status(200).json(detail);
       }
+      // G12-A12 (D-657): the signature uploads only after the
+      // membership and version checks pass. Uploading first left the
+      // PNG in storage with no row whenever the request was then
+      // rejected (403/404/409) or the version was already acknowledged.
+      try {
+        signatureKey = await uploadFile(
+          req.file.buffer,
+          `franchise-standards/signatures/${req.user.id}`,
+          `signature-standard${standardId}-v${version}.png`,
+          'image/png',
+        );
+        if (!signatureKey) throw new Error('empty signature key');
+      } catch (uploadErr) {
+        await client.query('ROLLBACK');
+        logger.error('Error uploading franchise standard signature', { id, standardId, err: uploadErr.message });
+        return res.status(502).json({ error: 'Signature upload failed.', code: 'upload_failed' });
+      }
+      await client.query(
+        `INSERT INTO franchise_standard_acknowledgments
+           (standard_id, user_id, version, signature_storage_key)
+         VALUES ($1, $2, $3, $4)`,
+        [standardId, req.user.id, version, signatureKey]
+      );
+      await logActivity(client, id, req.user?.id || null, 'standard_acknowledged',
+        `Acknowledged franchise standard version ${version}.`, { standard_id: standardId, version });
       await client.query('COMMIT');
       const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
-      return res.status(isNew ? 201 : 200).json(detail);
+      return res.status(201).json(detail);
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -11304,7 +12235,24 @@ async function executeHandoffTransfer(client, { handoffId, applicationId, outgoi
       to_user_id: incomingId,
     });
   }
-  return transfers;
+
+  // G12-B7 (D-661): the outgoing operator's live ops bookings are
+  // territory appointments, not personal ones — the booker moves to the
+  // incoming operator so the appointment survives the handoff and the
+  // incoming operator (now the booker) can cancel it. Before this,
+  // neither operator could cancel it: the outgoing operator was no
+  // longer the owner and the incoming operator was not the booker, so
+  // only HQ could. Proposed slots have no booker; completed and
+  // cancelled slots are terminal.
+  const { rows: movedBookings } = await client.query(
+    `UPDATE franchise_ops_appointment_slots
+        SET booked_by = $2, updated_at = NOW()
+      WHERE application_id = $1 AND booked_by = $3
+        AND status IN ('booked', 'confirmed')
+      RETURNING id`,
+    [applicationId, incomingId, outgoingId]
+  );
+  return { transfers, opsBookingsTransferred: movedBookings.length };
 }
 
 async function fetchHandoffTransfers(applicationId, handoffId) {
@@ -11397,6 +12345,15 @@ async function reviewHandoffAsAdmin(req, res) {
           'HQ rejected a handoff; the territory stays with its operator.',
           { handoff_id: handoffId, decision_reason: reason });
         await client.query('COMMIT');
+        // G12-B5 (D-645): the outgoing operator learns the handoff was rejected.
+        await deliverFranchiseNotice({
+          applicationId: id,
+          userId: handoff.outgoing_operator_id,
+          type: 'franchise_handoff_decided',
+          params: { decision: 'rejected' },
+          actionUrl: '/franchise/status',
+          idempotencyKey: `franchise-handoff-decided:${handoffId}:rejected:${handoff.outgoing_operator_id}`,
+        });
         return res.json({ handoffs: await buildHandoffs(id) });
       }
 
@@ -11423,7 +12380,7 @@ async function reviewHandoffAsAdmin(req, res) {
 
       const checklistSnapshot = await buildHandoffChecklist(id);
       const recordsSnapshot = await buildRecordsManifest(client, id);
-      const transfers = await executeHandoffTransfer(client, {
+      const { transfers, opsBookingsTransferred } = await executeHandoffTransfer(client, {
         handoffId,
         applicationId: id,
         outgoingId: handoff.outgoing_operator_id,
@@ -11454,14 +12411,26 @@ async function reviewHandoffAsAdmin(req, res) {
           JSON.stringify(checklistSnapshot), JSON.stringify(recordsSnapshot)]
       );
       await logActivity(client, id, req.user?.id || null, 'handoff_approved',
-        `HQ approved the handoff; the territory moves to the incoming operator with ${transfers.length} open issue(s) transferred.`,
+        `HQ approved the handoff; the territory moves to the incoming operator with ${transfers.length} open issue(s) transferred${opsBookingsTransferred ? ` and ${opsBookingsTransferred} live ops booking(s) moved to the incoming operator` : ''}.`,
         { handoff_id: handoffId, incoming_operator_id: handoff.incoming_operator_id,
-          transfers: transfers.length });
+          transfers: transfers.length, ops_bookings_transferred: opsBookingsTransferred });
       await logActivity(client, id, req.user?.id || null, 'handoff_records_transferred',
         'Territory records (documents, acknowledgments, training, exceptions, notes) now visible to the incoming operator; no files were moved.',
         { handoff_id: handoffId, records: recordsSnapshot });
       await client.query('COMMIT');
       const handoffs = await buildHandoffs(id);
+      // G12-B5 (D-645): both operators learn the handoff was approved — the
+      // incoming operator now owns the territory, the outgoing loses it.
+      for (const userId of [handoff.incoming_operator_id, handoff.outgoing_operator_id]) {
+        await deliverFranchiseNotice({
+          applicationId: id,
+          userId,
+          type: 'franchise_handoff_decided',
+          params: { decision: 'approved' },
+          actionUrl: '/franchise/status',
+          idempotencyKey: `franchise-handoff-decided:${handoffId}:approved:${userId}`,
+        });
+      }
       return res.json({
         handoff: handoffs.handoffs.find((row) => row.id === handoffId),
         handoffs,
@@ -11956,6 +12925,59 @@ async function removeTerritoryAccessAsAdmin(req, res) {
         [userId, req.user?.id || null, String(id)]
       );
       if (revoked.length) await access.bumpProjection(client, userId);
+      // G12-B2 (D-639): a removal must leave no live residue behind. All
+      // four cleanups run in the same transaction as the membership
+      // removal, so a failure anywhere rolls the removal back with them.
+      // (a) The member stops being any location's manager of record, so
+      // the location honestly reports no manager until HQ assigns one.
+      const { rows: managersCleared } = await client.query(
+        `DELETE FROM franchise_location_managers
+          WHERE application_id = $1 AND manager_user_id = $2
+          RETURNING id, location_id`,
+        [id, userId]
+      );
+      // (b) Open remediations (ticket not resolved/closed) move to the
+      // territory operator, who is accountable for them until HQ
+      // reassigns; the ids ride in the response so HQ sees what moved.
+      // Remediations on resolved/closed tickets keep their owner as
+      // history. owner_user_id is NOT NULL, so there is no "unassigned"
+      // state to clear to — deletion would silently drop the fix.
+      const operatorId = appRows[0].owner_user_id;
+      const { rows: remediationsReassigned } = await client.query(
+        `UPDATE franchise_remediations r
+            SET owner_user_id = $3, updated_at = NOW()
+           FROM support_tickets t
+          WHERE r.ticket_id = t.id
+            AND r.application_id = $1 AND r.owner_user_id = $2
+            AND t.status NOT IN ('resolved', 'closed')
+          RETURNING r.id, r.ticket_id`,
+        [id, userId, operatorId]
+      );
+      // (c) Open training assignments are cancelled (deleted): the member
+      // is gone, so their pending training is moot. Completed
+      // assignments stay as history.
+      const { rows: trainingCancelled } = await client.query(
+        `DELETE FROM franchise_training_assignments
+          WHERE application_id = $1 AND assignee_user_id = $2
+            AND status IN ('assigned', 'in_progress')
+          RETURNING id`,
+        [id, userId]
+      );
+      // (d) Roster-linked directory entries (the member's own listing)
+      // are removed. Manual entries stay: they belong to the territory,
+      // not to the removed member, even when the member created them.
+      const { rows: directoryRemoved } = await client.query(
+        `DELETE FROM franchise_contact_directory
+          WHERE application_id = $1 AND contact_user_id = $2
+          RETURNING id`,
+        [id, userId]
+      );
+      const residue = {
+        managers_cleared: managersCleared.map((row) => row.id),
+        remediations_reassigned_to_operator: remediationsReassigned.map((row) => ({ id: row.id, ticket_id: row.ticket_id })),
+        training_assignments_cancelled: trainingCancelled.map((row) => row.id),
+        directory_entries_removed: directoryRemoved.map((row) => row.id),
+      };
       const { rows } = await client.query(
         `INSERT INTO franchise_access_removals
            (application_id, user_id, membership_kind, reason, removed_by)
@@ -11965,9 +12987,18 @@ async function removeTerritoryAccessAsAdmin(req, res) {
       );
       await logActivity(client, id, req.user?.id || null, 'territory_access_removed',
         `HQ removed a territory member's access (${membershipKind}).`,
-        { access_removal_id: rows[0].id, user_id: userId, membership_kind: membershipKind, reason });
+        { access_removal_id: rows[0].id, user_id: userId, membership_kind: membershipKind, reason, residue });
       await client.query('COMMIT');
-      return res.status(201).json({ access_removal: rows[0] });
+      // G12-B5 (D-645): the removed member is told, with HQ's reason.
+      await deliverFranchiseNotice({
+        applicationId: id,
+        userId,
+        type: 'franchise_territory_access_removed',
+        params: { reason },
+        actionUrl: '/franchise/status',
+        idempotencyKey: `franchise-territory-access-removed:${rows[0].id}:${userId}`,
+      });
+      return res.status(201).json({ access_removal: rows[0], residue });
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -12025,6 +13056,9 @@ module.exports = {
   recordFranchiseFeeCollection,
   activateFranchiseStore,
   getMyFranchiseApplication,
+  listApplicationActivity,
+  getDocumentDownloadUrl,
+  getBrandAssetDownloadUrl,
   proposeInterviewSlot,
   updateInterviewSlot,
   bookInterviewSlot,
@@ -12061,10 +13095,13 @@ module.exports = {
   cancelTerritoryInvitation,
   cancelTerritoryInvitationAsAdmin,
   respondToTerritoryInvitation,
+  getTerritoryInvitationByToken,
   assignLocationManagerAsAdmin,
   removeLocationManagerAsAdmin,
   assignTraining,
   assignTrainingAsAdmin,
+  listTrainingModules,
+  listTrainingModulesAsAdmin,
   completeTrainingAssignment,
   completeTrainingAssignmentAsAdmin,
   removeTrainingAssignment,

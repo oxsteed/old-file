@@ -26,6 +26,9 @@ const {
   recordFranchiseFeeCollection,
   activateFranchiseStore,
   getMyFranchiseApplication,
+  listApplicationActivity,
+  getDocumentDownloadUrl,
+  getBrandAssetDownloadUrl,
   proposeInterviewSlot,
   updateInterviewSlot,
   bookInterviewSlot,
@@ -62,10 +65,13 @@ const {
   cancelTerritoryInvitation,
   cancelTerritoryInvitationAsAdmin,
   respondToTerritoryInvitation,
+  getTerritoryInvitationByToken,
   assignLocationManagerAsAdmin,
   removeLocationManagerAsAdmin,
   assignTraining,
   assignTrainingAsAdmin,
+  listTrainingModules,
+  listTrainingModulesAsAdmin,
   completeTrainingAssignment,
   completeTrainingAssignmentAsAdmin,
   removeTrainingAssignment,
@@ -189,11 +195,14 @@ const {
   getTerritoryHelpers,
 } = require('../controllers/franchiseTerritoryController');
 
-router.post('/applications', generalLimiter, requireFranchiseEnabled, createFranchiseApplication);
+router.post('/applications', authenticate, generalLimiter, requireFranchiseEnabled, createFranchiseApplication);
 router.get('/my-applications',     authenticate, requireFranchiseEnabled, listMyFranchiseApplications);
 // Group 12 Slice 3a: applicant detail + interview booking + document
 // upload + follow-up replies, all scoped to the applicant's own application.
 router.get('/my-applications/:id', authenticate, requireFranchiseEnabled, getMyFranchiseApplication);
+router.get('/my-applications/:id/activity', authenticate, requireFranchiseEnabled, listApplicationActivity);
+router.get('/my-applications/:id/documents/:docId/download-url', authenticate, requireFranchiseEnabled, (req, res) => getDocumentDownloadUrl(req, res));
+router.get('/my-applications/:id/brand-assets/:assetId/download-url', authenticate, requireFranchiseEnabled, (req, res) => getBrandAssetDownloadUrl(req, res));
 router.post('/my-applications/:id/interviews/:slotId/book', authenticate, requireFranchiseEnabled, bookInterviewSlot);
 router.post('/my-applications/:id/interviews/:slotId/cancel', authenticate, requireFranchiseEnabled, cancelInterviewBooking);
 router.post('/my-applications/:id/documents', authenticate, requireFranchiseEnabled, upload.single('file'), validateFileUpload, uploadApplicationDocument);
@@ -227,11 +236,17 @@ router.post('/my-applications/:id/locations/:locationId/confirm-opening', authen
 router.post('/my-applications/:id/invitations', authenticate, requireFranchiseEnabled, createTerritoryInvitation);
 router.post('/my-applications/:id/invitations/:inviteId/cancel', authenticate, requireFranchiseEnabled, cancelTerritoryInvitation);
 router.post('/invitations/:token/respond', authenticate, requireFranchiseEnabled, respondToTerritoryInvitation);
+// G12-A1 (D-640): the accept page loads the invite by token — public,
+// token-gated, the same pattern as the booking status page.
+router.get('/invitations/:token', getTerritoryInvitationByToken);
 // Group 12 Slice 3d (618): territory-scoped training distribution —
 // the operator assigns, completes (assignee or operator), and removes.
 router.post('/my-applications/:id/training', authenticate, requireFranchiseEnabled, assignTraining);
 router.post('/my-applications/:id/training/:assignmentId/complete', authenticate, requireFranchiseEnabled, completeTrainingAssignment);
 router.delete('/my-applications/:id/training/:assignmentId', authenticate, requireFranchiseEnabled, removeTrainingAssignment);
+// G12-A5 (D-649): the catalogue behind the assign form — active
+// modules of the linked business's restaurants.
+router.get('/my-applications/:id/training-modules', authenticate, requireFranchiseEnabled, listTrainingModules);
 // Group 12 Slice 3d (619): territory coverage planning — read-only
 // rollup over the linked business's staff shifts.
 router.get('/my-applications/:id/coverage', authenticate, requireFranchiseEnabled, getTerritoryCoverage);
@@ -349,6 +364,10 @@ router.post('/applications/:id/notes', authenticate, requireAdmin, requirePermis
 router.patch('/applications/:id/checklist/:itemId', authenticate, requireAdmin, requirePermission('manage_operations'), updateChecklistItem);
 // Group 12 Slice 3a: HQ interview slots, document review, follow-up replies.
 router.post('/applications/:id/interviews', authenticate, requireAdmin, requirePermission('manage_operations'), proposeInterviewSlot);
+// G12-A11 (D-656): HQ's on-click document download mint, matching the
+// operator endpoint — the bundle's read-time URL is 600s and stale.
+router.get('/applications/:id/documents/:docId/download-url', authenticate, requireAdmin, requirePermission('manage_operations'), (req, res) => getDocumentDownloadUrl(req, res, { asAdmin: true }));
+router.get('/applications/:id/brand-assets/:assetId/download-url', authenticate, requireAdmin, requirePermission('manage_operations'), (req, res) => getBrandAssetDownloadUrl(req, res, { asAdmin: true }));
 router.patch('/applications/:id/interviews/:slotId', authenticate, requireAdmin, requirePermission('manage_operations'), updateInterviewSlot);
 router.patch('/applications/:id/documents/:docId', authenticate, requireAdmin, requirePermission('manage_operations'), reviewApplicationDocument);
 router.post('/applications/:id/followup', authenticate, requireAdmin, requirePermission('manage_operations'), addAdminFollowupMessage);
@@ -386,6 +405,7 @@ router.delete('/applications/:id/locations/:locationId/manager', authenticate, r
 router.post('/applications/:id/training', authenticate, requireAdmin, requirePermission('manage_operations'), assignTrainingAsAdmin);
 router.post('/applications/:id/training/:assignmentId/complete', authenticate, requireAdmin, requirePermission('manage_operations'), completeTrainingAssignmentAsAdmin);
 router.delete('/applications/:id/training/:assignmentId', authenticate, requireAdmin, requirePermission('manage_operations'), removeTrainingAssignmentAsAdmin);
+router.get('/applications/:id/training-modules', authenticate, requireAdmin, requirePermission('manage_operations'), listTrainingModulesAsAdmin);
 // Group 12 Slice 3d (619): HQ reads the territory coverage rollup.
 router.get('/applications/:id/coverage', authenticate, requireAdmin, requirePermission('manage_operations'), getTerritoryCoverageAsAdmin);
 // Group 12 Slice 3f (628): HQ reads the exception summary and links or

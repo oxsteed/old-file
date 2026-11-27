@@ -223,6 +223,22 @@ export default function FranchiseTerritoryOpsPage() {
     return () => { cancelled = true; };
   }, [resolvedApplicationId, territoryBlocked]);
 
+  // G12-A5 (D-649): the training catalogue for the assign form — the
+  // active modules of the linked business's restaurants. An empty list
+  // leaves the form on free-text training.
+  const [trainingModules, setTrainingModules] = useState([]);
+  useEffect(() => {
+    if (!resolvedApplicationId || territoryBlocked) {
+      setTrainingModules([]);
+      return undefined;
+    }
+    let cancelled = false;
+    api.get(`/franchise/my-applications/${resolvedApplicationId}/training-modules`)
+      .then((res) => { if (!cancelled) setTrainingModules(res.data?.training_modules ?? []); })
+      .catch(() => { if (!cancelled) setTrainingModules([]); });
+    return () => { cancelled = true; };
+  }, [resolvedApplicationId, territoryBlocked]);
+
   // Group 12 Slice 3j (649): the territory case tracker — the
   // territory's cases in one view, filterable by status, type, and
   // location. Derived from the existing records, never a new store.
@@ -230,39 +246,113 @@ export default function FranchiseTerritoryOpsPage() {
   const [caseType, setCaseType] = useState('all');
   const [caseLocationId, setCaseLocationId] = useState('');
   const [territoryCases, setTerritoryCases] = useState([]);
+  const [caseTotal, setCaseTotal] = useState(null);
+  const [caseLoadingMore, setCaseLoadingMore] = useState(false);
   useEffect(() => {
     if (!resolvedApplicationId || territoryBlocked) {
       setTerritoryCases([]);
+      setCaseTotal(null);
       return undefined;
     }
     let cancelled = false;
     const params = new URLSearchParams({ status: caseStatus, type: caseType });
     if (caseLocationId) params.set('location_id', caseLocationId);
     api.get(`/franchise/my-applications/${resolvedApplicationId}/cases?${params.toString()}`)
-      .then((res) => { if (!cancelled) setTerritoryCases(res.data?.cases ?? []); })
-      .catch(() => { if (!cancelled) setTerritoryCases([]); });
+      .then((res) => {
+        if (cancelled) return;
+        setTerritoryCases(res.data?.cases ?? []);
+        setCaseTotal(typeof res.data?.total === 'number' ? res.data.total : null);
+      })
+      .catch(() => { if (!cancelled) { setTerritoryCases([]); setCaseTotal(null); } });
     return () => { cancelled = true; };
   }, [resolvedApplicationId, territoryBlocked, caseStatus, caseType, caseLocationId]);
+
+  // G12-B6 (D-660): append the next case page, cursoring from the last
+  // shown case's id.
+  async function loadMoreCases() {
+    const last = territoryCases[territoryCases.length - 1];
+    if (!last || !resolvedApplicationId || caseLoadingMore) return;
+    setCaseLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ status: caseStatus, type: caseType, before: last.id });
+      if (caseLocationId) params.set('location_id', caseLocationId);
+      const res = await api.get(`/franchise/my-applications/${resolvedApplicationId}/cases?${params.toString()}`);
+      setTerritoryCases((prev) => [...prev, ...(res.data?.cases ?? [])]);
+      if (typeof res.data?.total === 'number') setCaseTotal(res.data.total);
+    } catch {
+      setError(t('dashboards.franchise.casesLoadFailed'));
+    } finally {
+      setCaseLoadingMore(false);
+    }
+  }
 
   // Group 12 Slice 3f (629): the territory ticket queue — the
   // territory's open support requests, filterable by status and location.
   const [ticketStatus, setTicketStatus] = useState('open');
   const [ticketLocationId, setTicketLocationId] = useState('');
   const [territoryTickets, setTerritoryTickets] = useState([]);
+  const [ticketTotal, setTicketTotal] = useState(null);
+  const [ticketLoadingMore, setTicketLoadingMore] = useState(false);
   const [ticketRefresh, setTicketRefresh] = useState(0);
   useEffect(() => {
     if (!resolvedApplicationId || territoryBlocked) {
       setTerritoryTickets([]);
+      setTicketTotal(null);
       return undefined;
     }
     let cancelled = false;
     const params = new URLSearchParams({ status: ticketStatus });
     if (ticketLocationId) params.set('location_id', ticketLocationId);
     api.get(`/franchise/my-applications/${resolvedApplicationId}/support-tickets?${params.toString()}`)
-      .then((res) => { if (!cancelled) setTerritoryTickets(res.data?.tickets ?? []); })
-      .catch(() => { if (!cancelled) setTerritoryTickets([]); });
+      .then((res) => {
+        if (cancelled) return;
+        setTerritoryTickets(res.data?.tickets ?? []);
+        setTicketTotal(typeof res.data?.total === 'number' ? res.data.total : null);
+      })
+      .catch(() => { if (!cancelled) { setTerritoryTickets([]); setTicketTotal(null); } });
     return () => { cancelled = true; };
   }, [resolvedApplicationId, territoryBlocked, ticketStatus, ticketLocationId, ticketRefresh]);
+
+  // G12-B6 (D-660): append the next ticket page, cursoring from the
+  // last shown ticket's id.
+  async function loadMoreTickets() {
+    const last = territoryTickets[territoryTickets.length - 1];
+    if (!last || !resolvedApplicationId || ticketLoadingMore) return;
+    setTicketLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ status: ticketStatus, before: last.id });
+      if (ticketLocationId) params.set('location_id', ticketLocationId);
+      const res = await api.get(`/franchise/my-applications/${resolvedApplicationId}/support-tickets?${params.toString()}`);
+      setTerritoryTickets((prev) => [...prev, ...(res.data?.tickets ?? [])]);
+      if (typeof res.data?.total === 'number') setTicketTotal(res.data.total);
+    } catch {
+      setError(t('dashboards.franchise.ticketsLoadFailed'));
+    } finally {
+      setTicketLoadingMore(false);
+    }
+  }
+
+  // G12-B6 (D-660): older support-history pages, appended below the
+  // boundary detail's first 50 events. The cursor is the last shown
+  // event's sort key, "<at>|<ref_id>|<kind>".
+  const [extraHistory, setExtraHistory] = useState([]);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
+  useEffect(() => { setExtraHistory([]); }, [resolvedApplicationId]);
+  async function loadMoreHistory() {
+    const shown = [...(boundaryDetail?.support_history?.history || []), ...extraHistory];
+    const last = shown[shown.length - 1];
+    if (!last || !resolvedApplicationId || historyLoadingMore) return;
+    setHistoryLoadingMore(true);
+    try {
+      const before = `${new Date(last.at).toISOString()}|${last.ref_id}|${last.kind}`;
+      const res = await api.get(`/franchise/my-applications/${resolvedApplicationId}/support-history?before=${encodeURIComponent(before)}`);
+      setExtraHistory((prev) => [...prev, ...(res.data?.history ?? [])]);
+    } catch {
+      setError(t('dashboards.franchise.supportHistoryLoadFailed'));
+    } finally {
+      setHistoryLoadingMore(false);
+    }
+  }
 
   // Group 12 Slice 3f (630): the territory coverage trend for the
   // resolved territory — coverage % by day and by week over time.
@@ -650,6 +740,7 @@ export default function FranchiseTerritoryOpsPage() {
     try {
       const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/invitations`, body);
       setBoundaryDetail(res.data);
+      return { token: res.data.new_invite_token, email: body.email };
     } catch (err) {
       setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
       throw err;
@@ -812,6 +903,19 @@ export default function FranchiseTerritoryOpsPage() {
 
   const app      = stats?.application ?? {};
   const kpis     = stats?.territory_kpis ?? {};
+  // G12-B4 (D-648): this territory's royalty accruals, per-location job
+  // rows, and the sources the server could not read. A source in
+  // data_unavailable means its numbers are unknown, not zero, so the
+  // tiles show an "unavailable" state instead of a 0.
+  const royalties = stats?.royalties ?? null;
+  const locations = stats?.locations ?? [];
+  const unavailableSources = new Set(stats?.data_unavailable ?? []);
+  const isUnavailable = (source) => unavailableSources.has(source);
+  const royaltyCurrencyCode = royalties?.currency_code || 'USD';
+  const royaltyRate = royalties?.royalty_bps == null
+    ? '—' : (royalties.royalty_bps / 100).toFixed(1);
+  const marketingFeeRate = royalties?.marketing_fee_bps == null
+    ? '—' : (royalties.marketing_fee_bps / 100).toFixed(1);
   // The currency the server actually scoped the revenue to; falls back to
   // the selected currency while loading or if an older response omits it.
   const revenueCurrencyCode = kpis.revenue_currency_code || currency;
@@ -849,6 +953,11 @@ export default function FranchiseTerritoryOpsPage() {
 
   // ── Not launched yet ─────────────────────────────────────────
   if (!loading && stats && !stats.has_territory) {
+    // G12-A13 (D-658): when an offer is outstanding, the blocker is
+    // the unanswered assignment, not approval or activation — the
+    // application is already approved. Say so, and send the operator
+    // to the offer instead of the generic apply flow.
+    const offerPending = stats.acceptance_status === 'offered';
     return (
       <PageShell>
         <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center px-4">
@@ -859,15 +968,21 @@ export default function FranchiseTerritoryOpsPage() {
             </div>
             <h1 className="text-2xl font-bold">{t('franchiseTerritoryPage.noTerritory.title')}</h1>
             <p className="text-gray-400 text-sm leading-relaxed">
-              {t('franchiseTerritoryPage.noTerritory.description')}
+              {offerPending
+                ? t('franchiseTerritoryPage.noTerritory.offeredDescription')
+                : t('franchiseTerritoryPage.noTerritory.description')}
             </p>
             <div className="flex gap-3 justify-center flex-wrap">
               <Link to="/franchise/status" className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition">
-                {t('franchiseTerritoryPage.noTerritory.viewApplication')} <ArrowRight size={14} />
+                {offerPending
+                  ? t('franchiseTerritoryPage.noTerritory.reviewOffer')
+                  : t('franchiseTerritoryPage.noTerritory.viewApplication')} <ArrowRight size={14} />
               </Link>
-              <Link to="/franchise/apply" className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-gray-700 text-sm font-semibold hover:bg-gray-800 transition">
-                {t('franchiseTerritoryPage.noTerritory.applyNow')}
-              </Link>
+              {!offerPending && (
+                <Link to="/franchise/apply" className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-gray-700 text-sm font-semibold hover:bg-gray-800 transition">
+                  {t('franchiseTerritoryPage.noTerritory.applyNow')}
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -964,20 +1079,94 @@ export default function FranchiseTerritoryOpsPage() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
             <KpiTile icon={Users}      label={t('franchiseTerritoryPage.kpis.helpers')} loading={loading}
-              value={fmt(kpis.helpers_total)}   sub={t('franchiseTerritoryPage.kpis.helpersVerified', { count: fmt(kpis.helpers_verified) })} accent="blue" />
+              value={isUnavailable('helpers') ? '—' : fmt(kpis.helpers_total)}   sub={isUnavailable('helpers') ? t('franchiseTerritoryPage.kpis.dataUnavailable') : t('franchiseTerritoryPage.kpis.helpersVerified', { count: fmt(kpis.helpers_verified) })} accent="blue" />
             <KpiTile icon={Star}       label={t('franchiseTerritoryPage.kpis.avgRating')}    loading={loading}
-              value={kpis.avg_rating ? kpis.avg_rating.toFixed(2) : '—'} accent="orange" />
+              value={isUnavailable('helpers') ? '—' : (kpis.avg_rating ? kpis.avg_rating.toFixed(2) : '—')} sub={isUnavailable('helpers') ? t('franchiseTerritoryPage.kpis.dataUnavailable') : undefined} accent="orange" />
             <KpiTile icon={Hammer}     label={t('franchiseTerritoryPage.kpis.jobsPosted')}    loading={loading}
-              value={fmt(kpis.jobs_posted_30d)} sub={t('franchiseTerritoryPage.kpis.jobsActive', { count: fmt(kpis.jobs_active) })} accent="emerald" />
+              value={isUnavailable('jobs') ? '—' : fmt(kpis.jobs_posted_30d)} sub={isUnavailable('jobs') ? t('franchiseTerritoryPage.kpis.dataUnavailable') : t('franchiseTerritoryPage.kpis.jobsActive', { count: fmt(kpis.jobs_active) })} accent="emerald" />
             <KpiTile icon={CheckCircle2} label={t('franchiseTerritoryPage.kpis.completionRate')}    loading={loading}
-              value={pct(kpis.completion_rate)} sub={t('franchiseTerritoryPage.kpis.completedJobs', { count: fmt(kpis.jobs_completed) })} accent="emerald" />
+              value={isUnavailable('jobs') ? '—' : pct(kpis.completion_rate)} sub={isUnavailable('jobs') ? t('franchiseTerritoryPage.kpis.dataUnavailable') : t('franchiseTerritoryPage.kpis.completedJobs30d', { count: fmt(kpis.jobs_completed) })} accent="emerald" />
             <KpiTile icon={DollarSign} label={t('franchiseTerritoryPage.kpis.revenue')}        loading={loading}
-              value={fmtCents(kpis.revenue_30d_cents, revenueCurrencyCode)} sub={`${t('franchiseTerritoryPage.kpis.revenueTotal', { amount: fmtCents(kpis.revenue_total_cents, revenueCurrencyCode) })} (${revenueCurrencyCode})`} accent="purple" />
+              value={isUnavailable('revenue') ? '—' : fmtCents(kpis.revenue_30d_cents, revenueCurrencyCode)} sub={isUnavailable('revenue') ? t('franchiseTerritoryPage.kpis.dataUnavailable') : `${t('franchiseTerritoryPage.kpis.revenueTotal', { amount: fmtCents(kpis.revenue_total_cents, revenueCurrencyCode) })} (${revenueCurrencyCode})`} accent="purple" />
             <KpiTile icon={ShieldCheck} label={t('franchiseTerritoryPage.kpis.compliance')}          loading={loading}
               value={pct(app.compliance_pct)} sub={t('franchiseTerritoryPage.compliance.stepsComplete', {
                 done: app.checklist_done ?? 0,
                 total: app.checklist_all ?? 0,
               })} accent="emerald" />
+          </div>
+
+          {/* G12-B4 (D-648): royalty accruals and per-location performance.
+              The KPIs above are now this territory's own numbers; these
+              cards show what the territory owes and has accrued, and
+              which location earned what. */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
+              <h2 className="text-sm font-semibold text-gray-200 mb-4 flex items-center gap-2">
+                <DollarSign size={14} className="text-purple-400" /> {t('franchiseTerritoryPage.royalties.title')}
+              </h2>
+              {loading
+                ? <Skeleton className="h-3 w-full" />
+                : !royalties
+                  ? <p className="text-xs text-gray-400">{isUnavailable('royalties')
+                      ? t('franchiseTerritoryPage.royalties.unavailable')
+                      : t('franchiseTerritoryPage.royalties.noTerms')}</p>
+                  : (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-gray-500">{t('franchiseTerritoryPage.royalties.royalty30d')}</p>
+                          <p className="text-xl font-bold text-white mt-1">{isUnavailable('royalties') ? '—' : fmtCents(royalties.royalty_30d_cents, royaltyCurrencyCode)}</p>
+                          <p className="text-xs text-gray-500 mt-1">{isUnavailable('royalties') ? t('franchiseTerritoryPage.kpis.dataUnavailable') : t('franchiseTerritoryPage.royalties.royaltyTotal', { amount: fmtCents(royalties.royalty_total_cents, royaltyCurrencyCode) })}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-gray-500">{t('franchiseTerritoryPage.royalties.marketingFee30d')}</p>
+                          <p className="text-xl font-bold text-white mt-1">{isUnavailable('royalties') ? '—' : fmtCents(royalties.marketing_fee_30d_cents, royaltyCurrencyCode)}</p>
+                          <p className="text-xs text-gray-500 mt-1">{isUnavailable('royalties') ? t('franchiseTerritoryPage.kpis.dataUnavailable') : t('franchiseTerritoryPage.royalties.marketingFeeTotal', { amount: fmtCents(royalties.marketing_fee_total_cents, royaltyCurrencyCode) })}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-4">{t('franchiseTerritoryPage.royalties.terms', { royaltyRate, marketingRate: marketingFeeRate, currency: royaltyCurrencyCode })}</p>
+                    </>
+                  )}
+            </div>
+
+            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
+              <h2 className="text-sm font-semibold text-gray-200 mb-4 flex items-center gap-2">
+                <MapPin size={14} className="text-emerald-400" /> {t('franchiseTerritoryPage.locations.title')}
+              </h2>
+              {loading
+                ? <Skeleton className="h-3 w-full" />
+                : isUnavailable('locations')
+                  ? <p className="text-xs text-gray-400">{t('franchiseTerritoryPage.locations.unavailable')}</p>
+                  : locations.length === 0
+                    ? <p className="text-xs text-gray-400">{t('franchiseTerritoryPage.locations.noLocations')}</p>
+                    : (
+                      <>
+                        {isUnavailable('jobs') && <p className="text-xs text-amber-400 mb-3">{t('franchiseTerritoryPage.locations.jobsUnavailable')}</p>}
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-left text-gray-500 border-b border-gray-800">
+                              <th className="py-1.5 pr-2 font-medium">{t('franchiseTerritoryPage.locations.location')}</th>
+                              <th className="py-1.5 pr-2 font-medium text-right">{t('franchiseTerritoryPage.locations.jobsPosted')}</th>
+                              <th className="py-1.5 pr-2 font-medium text-right">{t('franchiseTerritoryPage.locations.completed')}</th>
+                              <th className="py-1.5 pr-2 font-medium text-right">{t('franchiseTerritoryPage.locations.active')}</th>
+                              <th className="py-1.5 font-medium text-right">{t('franchiseTerritoryPage.locations.completion')}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {locations.map((loc) => (
+                              <tr key={loc.location_id} className="border-b border-gray-800/60 last:border-0 text-gray-300">
+                                <td className="py-2 pr-2 font-medium text-white">{loc.location_name}{loc.city ? ` · ${loc.city}` : ''}</td>
+                                <td className="py-2 pr-2 text-right">{isUnavailable('jobs') ? '—' : fmt(loc.jobs_posted_30d)}</td>
+                                <td className="py-2 pr-2 text-right">{isUnavailable('jobs') ? '—' : fmt(loc.jobs_completed_30d)}</td>
+                                <td className="py-2 pr-2 text-right">{isUnavailable('jobs') ? '—' : fmt(loc.jobs_active)}</td>
+                                <td className="py-2 text-right">{isUnavailable('jobs') ? '—' : pct(loc.completion_rate)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </>
+                    )}
+            </div>
           </div>
 
           {/* ── Compliance + quick actions ──────────────────────────── */}
@@ -1102,6 +1291,7 @@ export default function FranchiseTerritoryOpsPage() {
               assignments={boundaryDetail.training_assignments || []}
               members={territoryMembers()}
               locations={boundaryDetail.locations || []}
+              modules={trainingModules}
               canAssign
               canComplete
               onAssign={assignTraining}
@@ -1141,7 +1331,13 @@ export default function FranchiseTerritoryOpsPage() {
           {/* Group 12 Slice 3e (623): the brand asset store — HQ uploads,
               operators browse and download from the territory ops page. */}
           {boundaryDetail && (
-            <FranchiseBrandAssets assets={boundaryDetail.brand_assets || []} />
+            <FranchiseBrandAssets
+              assets={boundaryDetail.brand_assets || []}
+              onDownload={async (asset) => {
+                const response = await api.get(`/franchise/my-applications/${resolvedApplicationId}/brand-assets/${asset.id}/download-url`);
+                return response.data?.download_url;
+              }}
+            />
           )}
 
           {/* Group 12 Slice 3e (624): the operator compliance checklist —
@@ -1183,6 +1379,9 @@ export default function FranchiseTerritoryOpsPage() {
               onLocationChange={setTicketLocationId}
               canUnlink
               onUnlink={unlinkTicket}
+              total={ticketTotal}
+              onLoadMore={loadMoreTickets}
+              loadingMore={ticketLoadingMore}
             />
           )}
 
@@ -1290,7 +1489,11 @@ export default function FranchiseTerritoryOpsPage() {
               history — the territory's support interactions in
               chronological order, derived from the records. */}
           {boundaryDetail && (
-            <FranchiseSupportHistory history={boundaryDetail.support_history || null} />
+            <FranchiseSupportHistory
+              history={boundaryDetail.support_history ? { ...boundaryDetail.support_history, history: [...(boundaryDetail.support_history.history || []), ...extraHistory] } : null}
+              onLoadMore={loadMoreHistory}
+              loadingMore={historyLoadingMore}
+            />
           )}
 
           {/* Group 12 Slice 3j (649, D-350): the territory case tracker
@@ -1306,6 +1509,9 @@ export default function FranchiseTerritoryOpsPage() {
               onStatusChange={setCaseStatus}
               onTypeChange={setCaseType}
               onLocationChange={setCaseLocationId}
+              total={caseTotal}
+              onLoadMore={loadMoreCases}
+              loadingMore={caseLoadingMore}
             />
           )}
 

@@ -22,6 +22,17 @@ const fail=(code,status=409)=>{throw new AppError(code,status,code);};
 const hash=value=>crypto.createHash('sha256').update(value).digest('hex');
 // D-429: export files expire EXPORT_TTL_DAYS after the job completes.
 const EXPORT_TTL_DAYS=30;
+// S-F1 (D-636): retention for expired exports. The D-429 expiry is a read
+// gate only; without a purge path the objects sit in private storage
+// forever. purgeExpired deletes the rendered objects of complete jobs whose
+// files expired more than PURGE_GRACE_DAYS ago and stamps objects_purged_at.
+// The evidence ROWS are never deleted: migration 693's triggers make the
+// jobs, files, and frozen source rows undeletable by design ("retained
+// pending policy"), so the stamp — not a row delete — is what makes the
+// purge idempotent and keeps an hourly run from re-processing purged jobs.
+const PURGE_GRACE_DAYS=7;
+const PURGE_BATCH_LIMIT=100;
+const PURGE_INTERVAL_MS=60*60*1000;
 // An expired job is a completed job whose file TTL has passed. The database
 // keeps state 'complete'; every read path reports 'expired' instead, so no
 // worker or sweeper has to flip the row for the expiry to take effect.
@@ -86,14 +97,15 @@ function parseRequest(input,userId) {
 // Explicit dependencies make isolated tests and the parent's genuinely private
 // storage adapter usable without consulting uploads credentials or production.
 // storage: { assertPrivate(), uploadFile({filePath,objectKey,contentType,
-// byteLength,checksum,signal}), getObjectStream(objectKey) }. No public fallback.
+// byteLength,checksum,signal}), getObjectStream(objectKey),
+// deleteFile(objectKey) }. No public fallback.
 function createService({db=require('../db'),storage=require('../utils/statementStorage'),materialize,
   renderPdf=exportsRenderer.renderStatementPdfInWorker,notify=args=>require('./notificationService').sendNotification(args),
   tempRoot=os.tmpdir(),diskCheck=async directory=>{
     const stats=await fs.promises.statfs(directory);
     return Number(stats.bavail)*Number(stats.bsize);
   }}={}) {
-  let timer=null,running=null,stopping=false;
+  let timer=null,running=null,stopping=false,purgeTimer=null;
   const controllers=new Set();
   async function requireJob(id,userId) {
     if (!UUID.test(String(id))) missing();
@@ -415,6 +427,31 @@ function createService({db=require('../db'),storage=require('../utils/statementS
       if (delivered?.success) await db.query(`UPDATE statement_export_jobs SET notification_state='sent' WHERE id=$1 AND state='complete' AND (expires_at IS NULL OR expires_at>now())`,[job.id]);
     }
   }
+  async function purgeExpired({graceDays=PURGE_GRACE_DAYS,limit=PURGE_BATCH_LIMIT}={}) {
+    const grace=Number(graceDays),batch=Number(limit);
+    if (!Number.isSafeInteger(grace)||grace<0||!Number.isSafeInteger(batch)||batch<1) fail('statement_export_purge_invalid',400);
+    // Fail closed: if the storage adapter cannot delete objects, delete
+    // nothing. Stamping rows while the objects survive would hide the leak
+    // the purge exists to close.
+    if (!storage||typeof storage.deleteFile!=='function') fail('statement_storage_unconfigured',503);
+    const {rows:candidates}=await db.query(
+      `SELECT id FROM statement_export_jobs WHERE state='complete' AND expires_at IS NOT NULL
+       AND expires_at<=now()-($1::int*interval '1 day') AND objects_purged_at IS NULL
+       ORDER BY expires_at LIMIT $2`,[grace,batch]);
+    let purged=0,filesDeleted=0;
+    for (const {id} of candidates) {
+      const {rows:files}=await db.query('SELECT object_key FROM statement_export_files WHERE job_id=$1',[id]);
+      // S3 delete is idempotent, so a crash after this loop and before the
+      // stamp re-runs cleanly; the stamp's IS NULL guard lets concurrent
+      // runs count each job once.
+      for (const file of files) await storage.deleteFile(file.object_key);
+      const {rowCount}=await db.query(
+        `UPDATE statement_export_jobs SET objects_purged_at=now(),updated_at=now()
+         WHERE id=$1 AND objects_purged_at IS NULL`,[id]);
+      if (rowCount===1) {purged+=1;filesDeleted+=files.length;}
+    }
+    return {purged,filesDeleted};
+  }
   async function runOnce() {
     const job=await claim();
     if (job) await processExportJob(job);
@@ -427,17 +464,24 @@ function createService({db=require('../db'),storage=require('../utils/statementS
       require('../utils/logger').warn('statement_export_worker_failed',{code:/^statement_[a-z_]+$/.test(error.code||'')?error.code:'statement_export_failed'});
     }).finally(()=>{running=null;});};
     timer=setInterval(tick,1000);timer.unref?.();tick();
+    // S-F1 (D-636): purge expired exports hourly, once shortly after start
+    // so a deploy does not wait an hour for the first pass. Purge failures
+    // are logged, never fatal to the worker.
+    const purgeTick=()=>{purgeExpired().then(result=>{
+      if (result.purged) require('../utils/logger').info('statement_export_purge',{purged:result.purged,filesDeleted:result.filesDeleted});
+    }).catch(error=>{require('../utils/logger').warn('statement_export_purge_failed',{code:/^statement_[a-z_]+$/.test(error.code||'')?error.code:'statement_export_failed'});});};
+    purgeTimer=setInterval(purgeTick,PURGE_INTERVAL_MS);purgeTimer.unref?.();purgeTick();
   }
   async function stop() {
-    stopping=true;clearInterval(timer);timer=null;
+    stopping=true;clearInterval(timer);timer=null;clearInterval(purgeTimer);purgeTimer=null;
     controllers.forEach(controller=>controller.abort());
     if(running)await running;
   }
-  return {request,status,cancel,retry,manifest,download,claim,process:processExportJob,runOnce,start,stop,requireJob,deliverNotifications};
+  return {request,status,cancel,retry,manifest,download,claim,process:processExportJob,runOnce,start,stop,requireJob,deliverNotifications,purgeExpired};
 }
 
 let defaultService;
 function configure(options) {if(defaultService)throw new Error('Statement export service already configured');defaultService=createService(options);return defaultService;}
 function service() {return defaultService||(defaultService=createService());}
-module.exports={createService,configure,BUDGET,EXPORT_TTL_DAYS,effectiveState,parseRequest,authorizeScope,shapeJob,
-  ...Object.fromEntries(['request','status','cancel','retry','manifest','download','claim','process','runOnce','start','stop'].map(name=>[name,(...args)=>service()[name](...args)]))};
+module.exports={createService,configure,BUDGET,EXPORT_TTL_DAYS,PURGE_GRACE_DAYS,effectiveState,parseRequest,authorizeScope,shapeJob,
+  ...Object.fromEntries(['request','status','cancel','retry','manifest','download','claim','process','runOnce','start','stop','purgeExpired'].map(name=>[name,(...args)=>service()[name](...args)]))};

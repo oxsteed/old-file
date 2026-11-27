@@ -290,6 +290,11 @@
   color: #93c5fd;
   text-decoration: none;
   white-space: nowrap;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
 }
 
 .fr-followup-block {

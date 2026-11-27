@@ -82,6 +82,14 @@ const listMyGrants = wrap('me.grants.list', async (req, res) => {
   return res.json({ grants: await access.listOwnGrants(req.user.id) });
 });
 
+// G1-B11: one chronological history merging request decisions and grant
+// changes, so the applicant sees what happened to their access and when
+// without opening each request.
+const listAccessHistory = wrap('me.access.history', async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  return res.json(await access.listAccessHistory(req.user.id));
+});
+
 const create = wrap('me.requests.create', async (req, res) => {
   const b = req.body || {};
   return send(res, await access.createRequest(req.user.id, {
@@ -130,6 +138,6 @@ const userGrants = wrap('admin.access.userGrants', async (req, res) => {
 module.exports = {
   requireRequestsFlag, requireProjectionFlag,
   getAccess, getPolicy, listPolicies, listMine, getMine, create, transition,
-  listMyGrants,
+  listMyGrants, listAccessHistory,
   reviewList, reviewGet, reviewDecide, grantChange, userGrants,
 };

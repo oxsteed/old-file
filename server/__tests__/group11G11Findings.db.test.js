@@ -85,6 +85,11 @@ jest.mock('../utils/invoiceEmail', () => ({
 // pointed at the g11g database.
 const reviewService = require('../services/access/reviewService');
 
+// G11-B5 (D-618): the count test calls listToolRentals directly (the admin
+// router is not mounted in this file); the controller reads the same g11g
+// pool because DATABASE_URL was already pointed at it above.
+const businessModerationController = require('../controllers/businessModerationController');
+
 const describeDb = dbUrl ? describe : describe.skip;
 
 describeDb('G11 findings batch: payment, delete guard, identity, notifications', () => {
@@ -1027,6 +1032,295 @@ describeDb('G11 findings batch: payment, delete guard, identity, notifications',
       const res2 = await request(app).get(`/api/tool-rentals/public/${tool2.id}`);
       expect(res2.status).toBe(200);
       expect(res2.body.tool.overdue_unreturned).toBe(false);
+    });
+  });
+
+  describe('G11-B5: admin safety-document view (D-616..D-618)', () => {
+    async function insertSafetyDoc(toolId, ownerId, title = 'Manufacturer safety manual') {
+      const { rows } = await db.query(
+        `INSERT INTO tool_rental_safety_documents (tool_id, owner_id, title, file_url, mime_type)
+         VALUES ($1, $2, $3, 'https://example.invalid/manual.pdf', 'application/pdf') RETURNING *`,
+        [toolId, ownerId, title],
+      );
+      return rows[0];
+    }
+
+    async function listToolsAsAdmin(search) {
+      let payload;
+      const res = { json: (body) => { payload = body; }, status: () => res };
+      await businessModerationController.listToolRentals({ query: { search } }, res);
+      return payload;
+    }
+
+    test('listToolRentals carries safety_documents_count per listing', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const withDocs = await insertTool(owner, { name: 'B5 drill with manual' });
+      const withoutDocs = await insertTool(owner, { name: 'B5 drill without manual' });
+      await insertSafetyDoc(withDocs.id, owner);
+      await insertSafetyDoc(withDocs.id, owner, 'Blade guard guide');
+      const withPayload = await listToolsAsAdmin('B5 drill with manual');
+      expect(withPayload.tools).toHaveLength(1);
+      expect(Number(withPayload.tools[0].safety_documents_count)).toBe(2);
+      const withoutPayload = await listToolsAsAdmin('B5 drill without manual');
+      expect(withoutPayload.tools).toHaveLength(1);
+      expect(Number(withoutPayload.tools[0].safety_documents_count)).toBe(0);
+    });
+
+    test('a non-admin gets 403 on the admin safety-docs endpoint', async () => {
+      const owner = await addUser();
+      const stranger = await addUser();
+      const tool = await insertTool(owner, { name: 'B5 forbidden drill' });
+      await insertSafetyDoc(tool.id, owner);
+      const res = await request(app)
+        .get(`/api/tool-rentals/admin/tool-rentals/${tool.id}/safety-documents`)
+        .set('x-test-user', stranger);
+      expect(res.status).toBe(403);
+    });
+
+    test('a super_admin lists the tool safety documents with the tool name', async () => {
+      const owner = await addUser();
+      const admin = await addUser('super_admin');
+      const tool = await insertTool(owner, { name: 'B5 admin manual drill' });
+      await insertSafetyDoc(tool.id, owner, 'Manufacturer safety manual');
+      const res = await request(app)
+        .get(`/api/tool-rentals/admin/tool-rentals/${tool.id}/safety-documents`)
+        .set('x-test-user', admin);
+      expect(res.status).toBe(200);
+      expect(res.body.documents).toHaveLength(1);
+      expect(res.body.documents[0].title).toBe('Manufacturer safety manual');
+      expect(res.body.documents[0].tool_name).toBe('B5 admin manual drill');
+    });
+  });
+
+  // G11 LOW batch (checkpoint 8, D-621..D-634).
+  describe('G11 LOW batch: clearable fields, pagination, identity, email gate, invoice retry, damage reconciliation, atomic status (D-621..D-634)', () => {
+    async function insertReport(bookingId, actorId, phase = 'pickup') {
+      const { rows } = await db.query(
+        `INSERT INTO equipment_reports (booking_id, actor_id, phase, version, counts, checklist, notes)
+         VALUES ($1, $2, $3, 1, '[]'::jsonb, '[]'::jsonb, 'Pickup check') RETURNING *`,
+        [bookingId, actorId, phase],
+      );
+      return rows[0];
+    }
+
+    test('G11-A9 (D-621): an explicitly cleared description becomes NULL and other fields are kept', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Clear drill' });
+      const res = await request(app)
+        .put(`/api/tool-rentals/${tool.id}`)
+        .set('x-test-user', owner)
+        .send({ description: '' });
+      expect(res.status).toBe(200);
+      expect(res.body.tool.description).toBeNull();
+      expect(res.body.tool.brand).toBe('DeWalt');
+      const { rows } = await db.query('SELECT description, brand FROM tool_rentals WHERE id = $1', [tool.id]);
+      expect(rows[0].description).toBeNull();
+      expect(rows[0].brand).toBe('DeWalt');
+    });
+
+    test('G11-A9 (D-621): clearing one half of the capacity pair is refused, clearing both together works', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Capacity drill' });
+      const set = await request(app)
+        .put(`/api/tool-rentals/${tool.id}`)
+        .set('x-test-user', owner)
+        .send({ capacity_value: 5, capacity_unit: 'kg' });
+      expect(set.status).toBe(200);
+      expect(Number(set.body.tool.capacity_value)).toBe(5);
+      const half = await request(app)
+        .put(`/api/tool-rentals/${tool.id}`)
+        .set('x-test-user', owner)
+        .send({ capacity_value: '' });
+      expect(half.status).toBe(400);
+      const both = await request(app)
+        .put(`/api/tool-rentals/${tool.id}`)
+        .set('x-test-user', owner)
+        .send({ capacity_value: '', capacity_unit: '' });
+      expect(both.status).toBe(200);
+      expect(both.body.tool.capacity_value).toBeNull();
+      expect(both.body.tool.capacity_unit).toBeNull();
+    });
+
+    test('G11-A9 (D-621): the deposit gate runs on the merged row', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Deposit drill', requires_deposit: false, deposit_amount: 40 });
+      // Enabling requires_deposit without re-sending the stored amount
+      // no longer 400s (the merged row still has the deposit).
+      const flip = await request(app)
+        .put(`/api/tool-rentals/${tool.id}`)
+        .set('x-test-user', owner)
+        .send({ requires_deposit: true });
+      expect(flip.status).toBe(200);
+      // Clearing the amount while a deposit is required still 400s.
+      const clear = await request(app)
+        .put(`/api/tool-rentals/${tool.id}`)
+        .set('x-test-user', owner)
+        .send({ deposit_amount: '' });
+      expect(clear.status).toBe(400);
+    });
+
+    test('G11-A12 (D-624): booking lists page at 30 with limit/offset', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Paged drill' });
+      for (const [start, end] of [['2026-12-10', '2026-12-11'], ['2026-12-13', '2026-12-14'], ['2026-12-16', '2026-12-17']]) {
+        await insertBooking(tool.id, renter, owner, start, end);
+      }
+      const page1 = await request(app).get('/api/tool-rentals/bookings/my?limit=2').set('x-test-user', renter).expect(200);
+      expect(page1.body).toHaveLength(2);
+      const page2 = await request(app).get('/api/tool-rentals/bookings/my?limit=2&offset=2').set('x-test-user', renter).expect(200);
+      expect(page2.body).toHaveLength(1);
+      expect(page2.body[0].id).not.toBe(page1.body[0].id);
+      const ownerPage = await request(app).get('/api/tool-rentals/bookings/owner?limit=2').set('x-test-user', owner).expect(200);
+      expect(ownerPage.body).toHaveLength(2);
+    });
+
+    test('G11-A12 (D-624): GET /me pages and reports hasMore', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      await insertTool(owner, { name: 'Paged tool one' });
+      await insertTool(owner, { name: 'Paged tool two' });
+      const page1 = await request(app).get('/api/tool-rentals/me?limit=1').set('x-test-user', owner).expect(200);
+      expect(page1.body.tools).toHaveLength(1);
+      expect(page1.body.hasMore).toBe(true);
+      const page2 = await request(app).get('/api/tool-rentals/me?limit=1&offset=1').set('x-test-user', owner).expect(200);
+      expect(page2.body.tools).toHaveLength(1);
+      expect(page2.body.hasMore).toBe(false);
+    });
+
+    test('G11-A13 (D-625): identity/mine reports the caller’s own rental identity status', async () => {
+      const pending = await addUser();
+      const freshAt = new Date(Date.now() - 60 * 1000).toISOString();
+      const verified = await addUser('customer', { diditStatus: 'verified', diditVerifiedAt: freshAt });
+      const pendingRes = await request(app).get('/api/tool-rentals/identity/mine').set('x-test-user', pending).expect(200);
+      expect(pendingRes.body.verified).toBe(false);
+      const verifiedRes = await request(app).get('/api/tool-rentals/identity/mine').set('x-test-user', verified).expect(200);
+      expect(verifiedRes.body.verified).toBe(true);
+      expect(verifiedRes.body.status).toBe('verified');
+      const anon = await request(app).get('/api/tool-rentals/identity/mine').expect(401);
+      expect(anon.status).toBe(401);
+    });
+
+    test('G11-A14 (D-626): a renter with an unverified email cannot book', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Email gate drill' });
+      await db.query('UPDATE users SET email_verified = FALSE WHERE id = $1', [renter]);
+      const res = await request(app)
+        .post('/api/tool-rentals/bookings')
+        .set('x-test-user', renter)
+        .send({ toolId: tool.id, startDate: '2026-12-10', endDate: '2026-12-12', renterAgreementAccepted: true });
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('renter_email_not_verified');
+    });
+
+    test('G11-A14 (D-626): an unverified owner cannot be booked', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Owner gate drill' });
+      await db.query('UPDATE users SET email_verified = FALSE WHERE id = $1', [owner]);
+      const res = await request(app)
+        .post('/api/tool-rentals/bookings')
+        .set('x-test-user', renter)
+        .send({ toolId: tool.id, startDate: '2026-12-10', endDate: '2026-12-12', renterAgreementAccepted: true });
+      // The first-read join already excludes an unverified owner, so
+      // the listing is not found at all (pre-existing gate, unchanged).
+      expect(res.status).toBe(404);
+    });
+
+    test('G11-A15 (D-627): invoice numbers carry a six-digit random part', async () => {
+      const { invoice } = await invoiceSentBooking();
+      expect(invoice.invoice_number).toMatch(/^INV-\d{8}-\d{6}$/);
+    });
+
+    test('G11-B8 (D-628): the booking lists carry the latest agreed damage amount', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Agreed drill' });
+      const booking = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12', 'payment_confirmed');
+      const filed = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/damage-claims`)
+        .set('x-test-user', renter)
+        .send({ amount: 40, description: 'Cracked housing' });
+      expect(filed.status).toBe(201);
+      const resolved = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/damage-claims/${filed.body.claim.id}/resolve`)
+        .set('x-test-user', owner)
+        .send({ decision: 'agreed', agreed_amount: 25, reason: 'Agreed on 25' });
+      expect(resolved.status).toBe(200);
+      const mine = await request(app).get('/api/tool-rentals/bookings/my').set('x-test-user', renter).expect(200);
+      const row = mine.body.find((b) => b.id === booking.id);
+      expect(Number(row.agreed_damage_amount)).toBe(25);
+      const theirs = await request(app).get('/api/tool-rentals/bookings/owner').set('x-test-user', owner).expect(200);
+      expect(Number(theirs.body.find((b) => b.id === booking.id).agreed_damage_amount)).toBe(25);
+    });
+
+    test('G11-B10 (D-630): a damage claim can link its condition report; a foreign report is refused', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Report drill' });
+      const booking = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12', 'payment_confirmed');
+      const otherBooking = await insertBooking(tool.id, renter, owner, '2026-12-13', '2026-12-14', 'payment_confirmed');
+      const report = await insertReport(booking.id, owner);
+      const otherReport = await insertReport(otherBooking.id, owner);
+      const linked = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/damage-claims`)
+        .set('x-test-user', renter)
+        .send({ amount: 30, description: 'Scratched chuck', evidence_report_id: report.id });
+      expect(linked.status).toBe(201);
+      expect(linked.body.claim.evidence_report_id).toBe(report.id);
+      const foreign = await request(app)
+        .post(`/api/tool-rentals/bookings/${otherBooking.id}/damage-claims`)
+        .set('x-test-user', renter)
+        .send({ amount: 30, description: 'Scratched chuck', evidence_report_id: report.id });
+      expect(foreign.status).toBe(400);
+      void otherReport;
+    });
+
+    test('G11-B11 (D-631): the operations view names the evidence uploader', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Evidence drill' });
+      const booking = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12', 'payment_confirmed');
+      const report = await insertReport(booking.id, renter);
+      await db.query(
+        `INSERT INTO tool_rental_report_evidence (report_id, booking_id, uploaded_by, image_url)
+         VALUES ($1, $2, $3, 'https://example.invalid/evidence.jpg')`,
+        [report.id, booking.id, renter],
+      );
+      const res = await request(app)
+        .get(`/api/tool-rentals/operations/bookings/${booking.id}`)
+        .set('x-test-user', owner)
+        .expect(200);
+      expect(res.body.evidence).toHaveLength(1);
+      expect(res.body.evidence[0].uploader_first_name).toBe('Equipment');
+      expect(res.body.evidence[0].uploader_last_name).toBe('Fixture');
+    });
+
+    test('G11-B12 (D-632): two concurrent returns apply once; the loser gets 409', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Atomic drill' });
+      const booking = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12', 'payment_confirmed');
+      const [first, second] = await Promise.all([
+        request(app).put(`/api/tool-rentals/bookings/${booking.id}`).set('x-test-user', renter).send({ status: 'returned' }),
+        request(app).put(`/api/tool-rentals/bookings/${booking.id}`).set('x-test-user', renter).send({ status: 'returned' }),
+      ]);
+      const statuses = [first.status, second.status].sort();
+      expect(statuses).toEqual([200, 409]);
+      const { rows } = await db.query('SELECT status FROM tool_rentals_bookings WHERE id = $1', [booking.id]);
+      expect(rows[0].status).toBe('returned');
     });
   });
 });

@@ -22,13 +22,17 @@ function formatDate(value) {
 // Group 12 Slice 3e (623, D-324): the brand asset store — HQ uploads
 // brand assets (logos, templates, guidelines) for a territory or
 // franchise-wide; operators browse and download them from the territory
-// ops page. Downloads go through the signed URL minted at read time.
+// ops page. Downloads go through a signed URL minted on click
+// (G12-A11, D-656): the read-time URL is 600s and stale by the time
+// the operator clicks, so the caller supplies onDownload, which mints
+// a fresh URL for the asset.
 export default function FranchiseBrandAssets({
   assets = [],
   canUpload = false,
   canDelete = false,
   onUpload = null,
   onDelete = null,
+  onDownload = null,
   disabled = false,
 }) {
   const { t } = useTranslation();
@@ -39,6 +43,24 @@ export default function FranchiseBrandAssets({
   const [scope, setScope] = useState('territory');
   const [formKey, setFormKey] = useState(0);
   const [formError, setFormError] = useState('');
+  const [downloadError, setDownloadError] = useState('');
+
+  async function downloadAsset(asset) {
+    if (!onDownload) return;
+    // The blank window opens in the click handler so the popup blocker
+    // does not swallow the navigation after the mint fetch.
+    const win = window.open('', '_blank', 'noopener');
+    setDownloadError('');
+    try {
+      const url = await onDownload(asset);
+      if (!url) throw new Error('no download url');
+      if (win) win.location.href = url;
+      else window.location.href = url;
+    } catch {
+      if (win) win.close();
+      setDownloadError(copy('brandAssetsDownloadFailed'));
+    }
+  }
 
   async function submit(event) {
     event.preventDefault();
@@ -120,6 +142,7 @@ export default function FranchiseBrandAssets({
             </select>
           </div>
           {formError && <p className="fr-detail-empty">{formError}</p>}
+          {downloadError && <p className="fr-detail-empty">{downloadError}</p>}
           <div>
             <button type="submit" className="fr-btn-primary" disabled={disabled || !file} data-track="ui.5947482b51.2">
               {copy('brandAssetsUpload')}
@@ -148,15 +171,15 @@ export default function FranchiseBrandAssets({
               <span className="fr-status-badge fr-status-pending">
                 {asset.scope === 'franchise' ? copy('standardsScopeFranchise') : copy('standardsScopeTerritory')}
               </span>
-              {asset.download_url && !asset.download_unavailable ? (
-                <a
+              {onDownload && !asset.download_unavailable ? (
+                <button
+                  type="button"
                   className="fr-btn-primary"
-                  href={asset.download_url}
-                  target="_blank"
-                  rel="noreferrer" data-track="ui.5947482b51.3"
+                  onClick={() => downloadAsset(asset)}
+                  data-track="ui.5947482b51.3"
                 >
                   {copy('brandAssetsDownload')}
-                </a>
+                </button>
               ) : (
                 <span className="fr-detail-empty">{copy('brandAssetsDownloadUnavailable')}</span>
               )}

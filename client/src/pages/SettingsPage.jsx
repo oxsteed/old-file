@@ -23,10 +23,25 @@ import {
   LAUNCH_SETTINGS_TABS,
   LAUNCH_VISIBILITY,
 } from '../utils/launchScope';
+import { modeBackedByAccess, STAFF_ROLES } from '../utils/accessProjection';
 import useAccessProjection from '../hooks/useAccessProjection';
 import '../styles/SettingsPage.css';
 
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
+
+// Group 1, item 48: post-signup intent correction. These are the modes
+// with a public signup persona; team, staff, and domain intents are not
+// modes, so they route to Applications instead of a switch attempt.
+const INTENT_OPTIONS = [
+  { mode: 'customer', key: 'customer' },
+  { mode: 'helper', key: 'helper' },
+  { mode: 'business_owner', key: 'businessOwner' },
+  { mode: 'restaurant_owner', key: 'restaurantOwner' },
+  { mode: 'logistics', key: 'logistics' },
+  { mode: 'consultant', key: 'consultant' },
+  { mode: 'tool_owner', key: 'toolOwner' },
+  { mode: 'franchise_applicant', key: 'franchiseApplicant' },
+];
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 const IconUser = () => (
@@ -97,7 +112,7 @@ const IconBox = () => (
 
 export default function SettingsPage() {
   const { t } = useTranslation();
-  const { user, logout, refreshUser, setUser, hasHelperAccess } = useAuth();
+  const { user, logout, refreshUser, setUser, hasHelperAccess, switchRole } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -106,7 +121,8 @@ export default function SettingsPage() {
 
   // Progressive access: the Applications entry appears only when the server
   // enables applications for this account (flag or pilot allowlist).
-  const accessRequestsOn = Boolean(useAccessProjection(user)?.flags?.accessRequests);
+  const projection = useAccessProjection(user);
+  const accessRequestsOn = Boolean(projection?.flags?.accessRequests);
 
   const TABS = useMemo(() => [
     { key: 'profile',       label: t('settings.tabProfile'),       icon: <IconUser /> },
@@ -141,6 +157,7 @@ export default function SettingsPage() {
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [intentBusy, setIntentBusy] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [allowGuestContact, setAllowGuestContact] = useState(true);
   const [allowBooking, setAllowBooking] = useState(true);
@@ -560,7 +577,90 @@ export default function SettingsPage() {
 
   // ── Tab panels ──────────────────────────────────────────────────────────────
 
+  // Group 1, item 48: post-signup intent correction. "Change goal" used
+  // to exist only on the unsubmitted signup form; after signup the intent
+  // is corrected here.
+  //
+  // D-712: only modes the account already holds are offered as switches.
+  // Held means the access projection backs the mode (modeBackedByAccess),
+  // the same mirror home routing uses (resolveHomeMode); staff roles
+  // bypass the projection the same way. While the projection is loading
+  // or failed, only the current mode counts as held (fail closed, D-614),
+  // so no switch is offered until the server snapshot says what the
+  // account holds. Unheld modes never call switchRole: they route to
+  // Applications, where the mode is applied for. The server still refuses
+  // an unheld switch with access_required (changeIntent below), so the
+  // filter is UX, not the authority.
+  const currentMode = user?.default_mode || 'customer';
+  const currentModeKey = (INTENT_OPTIONS.find((o) => o.mode === currentMode) || INTENT_OPTIONS[0]).key;
+
+  const projectionReady = projection?.status === 'ready' && Boolean(projection?.access);
+  const intentHeld = (mode) => mode === currentMode
+    || STAFF_ROLES.has(user?.role)
+    || (projectionReady && modeBackedByAccess(mode, projection.access));
+  const heldIntentOptions = INTENT_OPTIONS.filter((opt) => intentHeld(opt.mode));
+  const applyIntentOptions = INTENT_OPTIONS.filter((opt) => !intentHeld(opt.mode));
+  const openApplications = () => navigate('/settings/applications');
+
+  const changeIntent = async (mode) => {
+    if (intentBusy || mode === currentMode) return;
+    setIntentBusy(true);
+    try {
+      await switchRole(mode);
+      toast.success(t('settings.intent.goalChanged'));
+    } catch (err) {
+      const code = err?.response?.data?.code || err?.response?.data?.error;
+      if (code === 'access_required') {
+        toast(t('settings.intent.goalNeedsApplication'));
+        navigate('/settings/applications');
+      } else {
+        toast.error(t('settings.intent.goalChangeFailed'));
+      }
+    } finally {
+      setIntentBusy(false);
+    }
+  };
+
+  const intentCard = (
+    <div className="sp-card">
+      <h2 className="sp-card-title">{t('settings.intent.title')}</h2>
+      <p className="sp-card-subtitle">{t('settings.intent.subtitle')}</p>
+      <p className="text-sm mb-3 sp-muted-text">
+        {t('settings.intent.currentGoal', { goal: t(`settings.intent.options.${currentModeKey}`) })}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {heldIntentOptions.map((opt) => (
+          <button
+            key={opt.mode}
+            type="button"
+            disabled={intentBusy || opt.mode === currentMode}
+            onClick={() => changeIntent(opt.mode)}
+            className={`sp-btn ${opt.mode === currentMode ? 'sp-btn-primary' : 'sp-btn-ghost'}`} data-track="ui.9d994c4cb4.34"
+          >
+            {t(`settings.intent.options.${opt.key}`)}
+          </button>
+        ))}
+        {applyIntentOptions.map((opt) => (
+          <button
+            key={opt.mode}
+            type="button"
+            disabled={intentBusy}
+            onClick={openApplications}
+            className="sp-btn sp-btn-ghost" data-track="ui.9d994c4cb4.34"
+          >
+            {t(`settings.intent.options.${opt.key}`)} ({t('settings.intent.apply')})
+          </button>
+        ))}
+      </div>
+      <p className="text-xs mt-3 sp-muted-text">
+        {t('settings.intent.otherRolesHint')}{' '}
+        <Link to="/settings/applications" className="underline">{t('progressiveAccess.openApplications', { ns: 'common' })}</Link>
+      </p>
+    </div>
+  );
+
   const tabProfile = (
+    <>
     <div className="sp-profile-grid">
       <form onSubmit={saveProfile} data-track="ui.9d994c4cb4.1">
         <div className="sp-card">
@@ -801,6 +901,8 @@ export default function SettingsPage() {
         </div>
       </aside>
     </div>
+    {intentCard}
+    </>
   );
 
   const tabSecurity = (

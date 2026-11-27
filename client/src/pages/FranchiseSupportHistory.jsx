@@ -18,11 +18,15 @@ function formatDateTime(value) {
 // (tickets, escalations, policy questions, appointments, training
 // escalations, resolutions), derived from the existing records, never
 // a duplicate history store. Readable by the operator and HQ.
-export default function FranchiseSupportHistory({ history = null }) {
+// G12-B6 (D-660): the history pages past the bundle's first 50 —
+// history.total is the true event count and onLoadMore appends the
+// next cursor page.
+export default function FranchiseSupportHistory({ history = null, onLoadMore = null, loadingMore = false }) {
   const { t } = useTranslation();
   const copy = (key, options) => t(`dashboards.franchise.${key}`, options);
   const events = history?.history || [];
   const summary = history?.summary || null;
+  const total = typeof history?.total === 'number' ? history.total : null;
 
   return (
     <section className="fr-detail-card">
@@ -45,27 +49,34 @@ export default function FranchiseSupportHistory({ history = null }) {
       {events.length === 0 ? (
         <p className="fr-detail-empty">{copy('supportHistoryEmpty')}</p>
       ) : (
-        <ul className="fr-history-list">
-          {events.map((event, index) => (
-            <li key={`${event.kind}-${event.ref_id}-${event.at}-${index}`} className="fr-history-item">
-              <div className="fr-history-when">{formatDateTime(event.at)}</div>
-              <div>
-                <div className="fr-history-summary">
-                  {copy(`supportHistoryKind_${event.kind}`)}
-                  {' — '}
-                  {event.title}
-                </div>
-                {(event.summary || event.actor_name) && (
-                  <div className="fr-doc-file-meta">
-                    {event.summary || ''}
-                    {event.summary && event.actor_name ? ' · ' : ''}
-                    {event.actor_name || ''}
+        <>
+          <ul className="fr-history-list">
+            {events.map((event, index) => (
+              <li key={`${event.kind}-${event.ref_id}-${event.at}-${index}`} className="fr-history-item">
+                <div className="fr-history-when">{formatDateTime(event.at)}</div>
+                <div>
+                  <div className="fr-history-summary">
+                    {copy(`supportHistoryKind_${event.kind}`)}
+                    {' — '}
+                    {event.title}
                   </div>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+                  {(event.summary || event.actor_name) && (
+                    <div className="fr-doc-file-meta">
+                      {event.summary || ''}
+                      {event.summary && event.actor_name ? ' · ' : ''}
+                      {event.actor_name || ''}
+                    </div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+          {total !== null && events.length < total && onLoadMore && (
+            <button type="button" className="fr-btn-ghost" disabled={loadingMore} onClick={onLoadMore} data-track-private>
+              {copy('supportHistoryShowMore', { count: total - events.length })}
+            </button>
+          )}
+        </>
       )}
     </section>
   );

@@ -79,6 +79,9 @@ jest.mock('../utils/email', () => ({
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue({ success: true }),
 }));
+
+// The mocked send path: B5 assertions read its calls, never the inbox.
+const { sendNotification } = require('../services/notificationService');
 jest.mock('../growth/emit', () => ({
   emitDomainEvent: jest.fn().mockResolvedValue(undefined),
   commerceEventProps: (value) => value,
@@ -90,6 +93,8 @@ const describeDb = dbUrl ? describe : describe.skip;
 describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
   let db;
   let app;
+
+  beforeEach(() => { sendNotification.mockClear(); });
 
   beforeAll(async () => {
     process.env.ACCESS_REQUESTS_ENABLED = 'true';
@@ -271,11 +276,11 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
     return request(app).get(`${base}${query}`).set('x-test-user', user.id);
   }
 
-  function supportHistoryAs(user, applicationId, asAdmin = false) {
+  function supportHistoryAs(user, applicationId, asAdmin = false, query = '') {
     const base = asAdmin
       ? `/api/franchise/applications/${applicationId}/support-history`
       : `/api/franchise/my-applications/${applicationId}/support-history`;
-    return request(app).get(base).set('x-test-user', user.id);
+    return request(app).get(`${base}${query}`).set('x-test-user', user.id);
   }
 
   describe('646: policy question intake', () => {
@@ -391,6 +396,12 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
         .expect(200);
       expect(completed.body.slot.status).toBe('completed');
       expect(completed.body.slot.completed_at).toBeTruthy();
+      // G12-B5 (D-645): book, confirm, and complete each notify the booker.
+      const opsNotices = sendNotification.mock.calls
+        .filter(([call]) => call.type === 'franchise_ops_appointment_updated');
+      expect(opsNotices).toHaveLength(3);
+      expect(opsNotices.map(([call]) => call.data.params.transition)).toEqual(['booked', 'confirmed', 'completed']);
+      for (const [call] of opsNotices) expect(call.userId).toBe(operator.id);
 
       const detail = await applicantDetail(operator, applicationId).expect(200);
       expect(detail.body.ops_appointments).toHaveLength(1);
@@ -605,6 +616,8 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
         .send({ status: 'in_progress' })
         .expect(200);
       expect(started.body.training_escalation.status).toBe('in_progress');
+      // G12-B5 (D-645): an in-progress move sends nothing.
+      expect(sendNotification).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'franchise_training_escalation_resolved' }));
 
       const resolved = await request(app)
         .post(`/api/franchise/applications/${applicationId}/training-escalations/${escalationId}/resolve`)
@@ -613,6 +626,14 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
         .expect(200);
       expect(resolved.body.training_escalation.status).toBe('resolved');
       expect(resolved.body.training_escalation.resolution).toContain('Re-uploaded');
+      // G12-B5 (D-645): the resolution notifies the affected member (here
+      // also the filer, so exactly one notice) with HQ's resolution note.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: operator.id,
+        type: 'franchise_training_escalation_resolved',
+        data: expect.objectContaining({ params: expect.objectContaining({ resolution: 'Re-uploaded the video; the quiz passes now.' }) }),
+      }));
+      expect(sendNotification.mock.calls.filter(([call]) => call.type === 'franchise_training_escalation_resolved')).toHaveLength(1);
       expect(resolved.body.training_escalation.resolved_at).toBeTruthy();
 
       await request(app)
@@ -739,6 +760,34 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
         .expect(403)
         .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
       await listCasesAs(stranger, applicationId).expect(404);
+    });
+
+    test('the tracker pages with a cursor and reports the true total (G12-B6)', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApprovedApplication(operator);
+      await addTicket(operator, { applicationId, subject: 'First' });
+      await addTicket(operator, { applicationId, subject: 'Second' });
+      await addTicket(operator, { applicationId, subject: 'Third' });
+
+      const first = await listCasesAs(operator, applicationId, '?status=all&limit=2').expect(200);
+      expect(first.body.cases).toHaveLength(2);
+      expect(first.body.total).toBe(3);
+      expect(first.body.next_before).toBeTruthy();
+      const lastId = first.body.cases[first.body.cases.length - 1].id;
+
+      const second = await listCasesAs(operator, applicationId, `?status=all&limit=2&before=${lastId}`).expect(200);
+      expect(second.body.cases).toHaveLength(1);
+      expect(second.body.total).toBe(3);
+      expect(second.body.next_before).toBeNull();
+      const firstIds = new Set(first.body.cases.map((c) => c.id));
+      expect(second.body.cases.every((c) => !firstIds.has(c.id))).toBe(true);
+
+      await listCasesAs(operator, applicationId, '?status=all&before=not-a-uuid')
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_case_cursor'));
+      await listCasesAs(operator, applicationId, `?status=all&before=${randomUUID()}`)
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('case_cursor_not_found'));
     });
   });
 
@@ -873,6 +922,37 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
         .expect(403)
         .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
       await supportHistoryAs(stranger, applicationId).expect(404);
+    });
+
+    test('the history pages with a cursor and reports the true total (G12-B6)', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApprovedApplication(operator);
+      const firstTicket = await addTicket(operator, { applicationId, subject: 'First' });
+      await addTicket(operator, { applicationId, subject: 'Second' });
+      // Resolving the first ticket adds a second event for it.
+      await db.query(
+        `UPDATE support_tickets SET status = 'resolved', resolved_at = NOW() WHERE id = $1`,
+        [firstTicket.id],
+      );
+
+      const first = await supportHistoryAs(operator, applicationId, false, '?limit=2').expect(200);
+      expect(first.body.history).toHaveLength(2);
+      expect(first.body.total).toBe(3);
+      expect(first.body.summary.total_events).toBe(3);
+      expect(first.body.next_before).toBeTruthy();
+
+      const second = await supportHistoryAs(
+        operator, applicationId, false, `?limit=2&before=${encodeURIComponent(first.body.next_before)}`,
+      ).expect(200);
+      expect(second.body.history).toHaveLength(1);
+      expect(second.body.total).toBe(3);
+      expect(second.body.next_before).toBeNull();
+      const firstKeys = new Set(first.body.history.map((e) => `${e.kind}|${e.ref_id}|${e.at}`));
+      expect(second.body.history.every((e) => !firstKeys.has(`${e.kind}|${e.ref_id}|${e.at}`))).toBe(true);
+
+      await supportHistoryAs(operator, applicationId, false, '?before=not-a-cursor')
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_history_cursor'));
     });
   });
 });

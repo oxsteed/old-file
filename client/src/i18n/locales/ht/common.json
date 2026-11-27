@@ -2513,6 +2513,21 @@
     "previousImage": "Imaj anvan an",
     "nextImage": "Imaj apre a",
     "bidPrice": "Pri ou",
+    "timelineHeading": "Kwoloji travay la",
+    "timelinePosted": "Pibliye",
+    "timelineBidsReceived": "Òf resevwa",
+    "timelineAccepted": "Òf aksepte",
+    "timelineStarted": "Travay la kòmanse",
+    "timelineCompleted": "Fini",
+    "timelineCancelled": "Anile",
+    "warrantyTitle": "Garanti",
+    "warrantyMonths": "Garanti (mwa)",
+    "warrantyTerms": "Tèm garanti yo",
+    "warrantyReimbursement": "Tèm ranbousman yo",
+    "warrantyNoTerms": "Pa gen tèm garanti ekri ki te ajoute.",
+    "warrantyPlatformDefault": "Pa gen akò travay ki te siyen pou travay sa a, kidonk garanti platfòm OxSteed la aplike.",
+    "warrantyPlatformNote": "OxSteed anrejistre reklamasyon an. Pati yo regle li ant yo.",
+    "warrantyFileClaim": "Depoze yon reklamasyon garanti",
     "imagePosition": "Imaj {{current}} sou {{total}}"
   },
   "jobEdit": {
@@ -2524,7 +2539,7 @@
     "materialPreview": "Chanjman sa yo ap mande chak moun ki fè òf pou yo rekonfime.",
     "reloadLatest": "Chaje dènye vèsyon an",
     "fixErrors": "Korije chan ki make yo ({{count}}).",
-    "privateNotesHelp": "Se ou menm ak moun ou anboche a sèlman ki wè nòt prive yo.",
+    "privateNotesHelp": "Se ou menm sèlman ki wè nòt prive yo.",
     "cancel": "Anile",
     "save": "Anrejistre chanjman yo",
     "saving": "N ap anrejistre…",
@@ -6894,7 +6909,10 @@
       "review_complete": "Revizyon an fini.",
       "territory_assigned": "Teritwa a asiyen.",
       "territory_assignment_ended": "Asiyasyon teritwa a fini."
-    }
+    },
+    "accessHistoryTitle": "Istorik aksè",
+    "accessHistoryEmpty": "Pa gen chanjman aksè pou kounye a.",
+    "historyGranted": "Akòde"
   },
   "businessLaunchAttachments": {
     "download": "Telechaje",

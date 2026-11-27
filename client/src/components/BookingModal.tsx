@@ -58,6 +58,17 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
   // Group 11 item 594: safety documents the owner uploaded for this
   // listing, shown to the renter before booking.
   const [safetyDocs, setSafetyDocs] = useState<Array<{ id: string; title: string; file_url: string }>>([]);
+  // G11-A13 (D-625): the renter's own identity status, so the modal can
+  // warn before booking that pickup will be blocked until verification
+  // is complete. The pickup confirm is still the enforcement point;
+  // this is the warning, not a second gate.
+  const [identity, setIdentity] = useState<{ verified?: boolean } | null>(null);
+  React.useEffect(() => {
+    if (!isOpen) return;
+    toolRentalsApi.getMyRentalIdentity()
+      .then((r) => setIdentity(r))
+      .catch(() => setIdentity(null));
+  }, [isOpen]);
   React.useEffect(() => {
     if (!isOpen || !tool?.id) return;
     toolRentalsApi.getPublicSafetyDocuments(tool.id)
@@ -221,6 +232,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
         // G11-A6 (D-610): the owner's equipment-owner grant was revoked
         // after the detail page loaded; the listing is unpublished now.
         toast.error(t('toolRentals.ownerAccessRevoked'));
+      } else if (err.response?.data?.code === 'renter_email_not_verified') {
+        // G11-A14 (D-626): the renter's email is not verified; the
+        // booking is refused, not silently created.
+        toast.error(t('toolRentals.renterEmailNotVerified'));
       } else if (err.response?.data?.code === 'conflict') {
         // 584: the dates are taken; offer replacement listings for the
         // same dates instead of leaving the renter at a dead end.
@@ -264,6 +279,23 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
               <span>{tool.daily_rate}/day</span>
             </div>
           </div>
+
+          {/* G11-A13 (D-625): warn an unverified renter before booking
+              that pickup will be blocked until identity verification
+              is complete. Warn-only: the booking still goes through;
+              the pickup confirm enforces the block. The warning sits
+              outside the form so the form's own tracking is unaffected:
+              the growth-instrumentation script treats any element whose
+              text mentions identity as private, and a data-track-private
+              on the form would cascade to its submit button and radios. */}
+          {identity && identity.verified === false && (
+            <div className="booking-identity-warning" role="note">
+              <ShieldAlert className="w-4 h-4" aria-hidden="true" />
+              <span>{t('toolRentals.identityPickupBlocked')}</span>
+              {' '}
+              <Link to="/verify-identity">{t('toolRentals.identityVerifyNow')}</Link>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="booking-form" data-track="ui.043dee9378.2">
             {/* 566: month-view availability calendar. Booked days are

@@ -10,15 +10,18 @@ import { useAuth } from '../hooks/useAuth';
 import { toolRentalsApi } from '../api/toolRentals';
 import api from '../api/axios';
 import { cancelBookingRequest, fetchBookingPrefillForJob, listMySponsorships } from '../api/bookings';
+import { listCustomerJobRefundRequests } from '../api/jobs';
+import { receiptsApi } from '../api/receipts';
 import BookingParticipantView from '../components/booking/BookingParticipantView';
 import BookingRescheduleBox from '../components/calendar/BookingRescheduleBox';
 import { prefillBookingDraft } from '../components/booking/BookingFlow';
-import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag, Clock, CheckCircle, XCircle, Briefcase, Wrench } from 'lucide-react';
+import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag, Clock, CheckCircle, XCircle, Briefcase, Wrench, Receipt } from 'lucide-react';
 import toast from 'react-hot-toast';
 import InvoiceModal from '../components/InvoiceModal';
 import TermsAcceptanceModal from '../components/TermsAcceptanceModal';
 import UserReportModal from '../components/UserReportModal';
 import './MyBookingsPage.css';
+import { buildBookingSupportHandoff } from '../components/helperProfile/chat/supportEscalationHandoff';
 // Groups 5-6 item 225: customer service-issue reports on business visits.
 import MyBusinessVisits from '../components/businessHub/g56/MyBusinessVisits';
 import MyFormerWorkplaces from '../components/businessHub/g56/MyFormerWorkplaces';
@@ -50,6 +53,9 @@ interface HelperBooking {
   declinedAt?: string | null;
   helperResponseReason?: string | null;
   createdAt: string;
+  // G1-B8: the job this booking converted into, when it converted.
+  // The card shows that job's refund status from it.
+  convertedToJobId?: number | string | null;
   pendingRescheduleProposal?: {
     id: string;
     proposedBy: string;
@@ -79,6 +85,10 @@ interface Booking {
   return_condition_note?: string | null;
   returned_at?: string | null;
   deposit_amount?: number | string;
+  // G11-B8 (D-628): the latest resolved damage claim's agreed amount
+  // (server subquery on the booking lists), or null when none resolved
+  // with an agreed amount.
+  agreed_damage_amount?: number | string | null;
   deposit_status?: 'none' | 'due' | 'held' | 'returned' | 'partially_withheld' | 'withheld';
   deposit_withheld_amount?: number | string | null;
   deposit_resolution_note?: string | null;
@@ -108,6 +118,39 @@ interface Booking {
   payment_proof_submitted_at?: string | null;
 }
 
+// G1-B8: the latest refund request on the job this booking converted
+// into, with a link to the job for the full request + status. Renders
+// nothing when the booking never converted or no request was filed.
+function HelperBookingRefundStatus({ jobId }: { jobId: number | string }) {
+  const { t } = useTranslation();
+  // Static keys only: verify-i18n cannot resolve a concatenated key, and
+  // the money-approval status domain is closed (pending/approved/
+  // rejected/executed/failed per migration 865).
+  const refundStatusLabels: Record<string, string> = {
+    pending: t('jobDetail.refundStatus.pending'),
+    approved: t('jobDetail.refundStatus.approved'),
+    rejected: t('jobDetail.refundStatus.rejected'),
+    executed: t('jobDetail.refundStatus.executed'),
+    failed: t('jobDetail.refundStatus.failed'),
+  };
+  const [latest, setLatest] = useState<any | null>(null);
+  useEffect(() => {
+    let current = true;
+    listCustomerJobRefundRequests(jobId).then((rows) => {
+      if (current && rows.length > 0) setLatest(rows[0]);
+    }).catch(() => {});
+    return () => { current = false; };
+  }, [jobId]);
+  if (!latest) return null;
+  return (
+    <p className="hb-refund-status">
+      {t('booking.refundStatus', { status: refundStatusLabels[latest.status] || latest.status })}
+      {' · '}
+      <Link to={`/jobs/${jobId}`}>{t('jobsDir.viewJob')}</Link>
+    </p>
+  );
+}
+
 const MyBookingsPageContent = () => {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || 'en';
@@ -132,6 +175,13 @@ const MyBookingsPageContent = () => {
   const [receiptOpen, setReceiptOpen] = useState<Record<number, boolean>>({});
   const [receipts, setReceipts] = useState<Record<number, any>>({});
   const [receiptLoading, setReceiptLoading] = useState<Record<number, boolean>>({});
+  // G1-A2 (item 23): helper-booking receipt, loaded lazily per booking.
+  // The receipt comes from the converted job's captured payment; a
+  // booking that never converted has no payment to render, so the toggle
+  // only appears once convertedToJobId is set.
+  const [helperReceiptOpen, setHelperReceiptOpen] = useState<Record<string, boolean>>({});
+  const [helperReceipts, setHelperReceipts] = useState<Record<string, any>>({});
+  const [helperReceiptLoading, setHelperReceiptLoading] = useState<Record<string, boolean>>({});
   // Group 11 item 576: renter return-reschedule draft per booking.
   const [rescheduleDraft, setRescheduleDraft] = useState<Record<number, { date: string; time: string }>>({});
   // G11-A1/A3 (D-603): renter payment-proof draft per booking.
@@ -144,6 +194,43 @@ const MyBookingsPageContent = () => {
   // Group 11 item 584: replacement suggestions per cancelled booking.
   const [bookingAlternatives, setBookingAlternatives] = useState<Record<number, any[]>>({});
 
+  // G11-A12 (D-624): the two rental lists are paged (30/page); the
+  // load-more buttons below fetch the next page.
+  const [myHasMore, setMyHasMore] = useState(false);
+  const [ownerHasMore, setOwnerHasMore] = useState(false);
+
+  // Group 11 items 583/584: for every cancelled rental, load the
+  // recovery record (if any) and replacement suggestions for the
+  // original dates, so the recovery panel is ready on the card.
+  const loadCancelledExtras = useCallback(async (list: Booking[]) => {
+    const cancelled = list.filter((b: Booking) => b.status === 'cancelled');
+    const seen = new Set<number>();
+    await Promise.all(cancelled.filter((b: Booking) => !seen.has(b.id) && seen.add(b.id)).map(async (b: Booking) => {
+      try {
+        const { recovery } = await toolRentalsApi.getCancellationRecovery(b.id);
+        if (recovery) setRecoveries((prev) => ({ ...prev, [b.id]: recovery }));
+      } catch { /* no recovery recorded yet */ }
+      try {
+        const alts = await toolRentalsApi.getAlternatives(b.tool_id, { startDate: b.start_date, endDate: b.end_date });
+        setBookingAlternatives((prev) => ({ ...prev, [b.id]: alts }));
+      } catch { /* alternatives unavailable */ }
+    }));
+  }, []);
+
+  const loadMoreMyBookings = useCallback(async () => {
+    const page = await toolRentalsApi.getMyBookings({ limit: 30, offset: myBookings.length }).catch(() => []);
+    setMyBookings((prev) => [...prev, ...page]);
+    setMyHasMore(page.length === 30);
+    await loadCancelledExtras(page);
+  }, [myBookings.length, loadCancelledExtras]);
+
+  const loadMoreOwnerBookings = useCallback(async () => {
+    const page = await toolRentalsApi.getBookingsByOwner({ limit: 30, offset: ownerBookings.length }).catch(() => []);
+    setOwnerBookings((prev) => [...prev, ...page]);
+    setOwnerHasMore(page.length === 30);
+    await loadCancelledExtras(page);
+  }, [ownerBookings.length, loadCancelledExtras]);
+
   useEffect(() => {
     loadBookings();
   }, []);
@@ -154,37 +241,25 @@ const MyBookingsPageContent = () => {
       setError(null);
 
       const [myRentals, toolBookings, hbResponse, sponsorships] = await Promise.all([
-        toolRentalsApi.getMyBookings().catch(() => []),
-        toolRentalsApi.getBookingsByOwner().catch(() => []),
+        toolRentalsApi.getMyBookings({ limit: 30 }).catch(() => []),
+        toolRentalsApi.getBookingsByOwner({ limit: 30 }).catch(() => []),
         api.get('/bookings').catch(() => ({ data: { data: [] } })),
         listMySponsorships().catch(() => []),
       ]);
 
       setMyBookings(myRentals);
+      setMyHasMore(myRentals.length === 30);
       setOwnerBookings(toolBookings);
+      setOwnerHasMore(toolBookings.length === 30);
       setHelperBookings(Array.isArray(hbResponse.data?.data) ? hbResponse.data.data : []);
       setMySponsorships(Array.isArray(sponsorships) ? sponsorships : []);
-      // Group 11 items 583/584: for every cancelled rental, load the
-      // recovery record (if any) and replacement suggestions for the
-      // original dates, so the recovery panel is ready on the card.
-      const cancelled = [...myRentals, ...toolBookings].filter((b: Booking) => b.status === 'cancelled');
-      const seen = new Set<number>();
-      await Promise.all(cancelled.filter((b: Booking) => !seen.has(b.id) && seen.add(b.id)).map(async (b: Booking) => {
-        try {
-          const { recovery } = await toolRentalsApi.getCancellationRecovery(b.id);
-          if (recovery) setRecoveries((prev) => ({ ...prev, [b.id]: recovery }));
-        } catch { /* no recovery recorded yet */ }
-        try {
-          const alts = await toolRentalsApi.getAlternatives(b.tool_id, { startDate: b.start_date, endDate: b.end_date });
-          setBookingAlternatives((prev) => ({ ...prev, [b.id]: alts }));
-        } catch { /* alternatives unavailable */ }
-      }));
+      await loadCancelledExtras([...myRentals, ...toolBookings]);
     } catch (err) {
       setError(t('toolRentals.loadingError') || 'Failed to load bookings');
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, loadCancelledExtras]);
 
   // P3-12-F09: the owner must accept the per-booking rental terms before
   // sending the first invoice. The acceptance is recorded server-side in
@@ -271,6 +346,19 @@ const MyBookingsPageContent = () => {
     if (action === 'withhold') {
       const amountText = window.prompt(t('toolRentals.depositWithholdAmount'), String(booking.deposit_amount ?? ''));
       if (amountText === null) return;
+      // G11-B8 (D-628): the agreed damage amount and the withhold are
+      // reconciled in the open. When the entered withhold differs from
+      // what the parties agreed, name both figures and ask before
+      // proceeding. Warn-only: money is record-only (D-257), so the
+      // server does not refuse a different withhold.
+      const agreed = booking.agreed_damage_amount != null ? Number(booking.agreed_damage_amount) : null;
+      if (agreed != null && Number(amountText) !== agreed) {
+        const ok = window.confirm(t('toolRentals.depositWithholdDiffers', {
+          agreed: agreed.toFixed(2),
+          amount: Number(amountText).toFixed(2),
+        }));
+        if (!ok) return;
+      }
       const note = window.prompt(t('toolRentals.depositWithholdReason'));
       if (note === null) return;
       body = { action, amount: Number(amountText), note };
@@ -284,6 +372,16 @@ const MyBookingsPageContent = () => {
     } catch (err: any) {
       toast.error(err?.response?.data?.error || t('toolRentals.depositResolveFailed'));
     }
+  };
+
+  // G11-A11 (D-623): a rental cancel asks first, naming the tool and
+  // its dates, like the helper-booking cancel above it. A bare button
+  // used to cancel on one tap.
+  const handleCancelRentalBooking = async (booking: Booking) => {
+    const dates = `${new Date(booking.start_date).toLocaleDateString()} - ${new Date(booking.end_date).toLocaleDateString()}`;
+    const ok = window.confirm(t('toolRentals.cancelBookingConfirm', { tool: booking.name || `#${booking.id}`, dates }));
+    if (!ok) return;
+    await handleStatusUpdate(booking.id, 'cancelled');
   };
 
   const handleCancelHelperBooking = async (bookingId: string) => {
@@ -882,6 +980,62 @@ const MyBookingsPageContent = () => {
     );
   };
 
+  // G1-A2 (item 23): helper-booking receipt panel, reusing the rental
+  // card's receipt shape (booking-receipt dl). The amount comes from the
+  // converted job's captured payment; a converted booking whose job was
+  // never paid shows the no-receipt note instead of an amount.
+  const renderHelperReceipt = (booking: HelperBooking) => {
+    const receipt = helperReceipts[booking.id];
+    if (!helperReceiptOpen[booking.id]) return null;
+    if (helperReceiptLoading[booking.id] || !receipt) {
+      return <p className="booking-card-note">{t('common.loading')}</p>;
+    }
+    if (receipt.unavailable) {
+      return <p className="booking-card-note" data-testid={`helper-receipt-${booking.id}`}>{t('receipts.noReceiptYet')}</p>;
+    }
+    const paidAt = receipt.paidAt ? new Date(receipt.paidAt).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+    return (
+      <div className="booking-receipt" data-testid={`helper-receipt-${booking.id}`}>
+        <h4>{t('receipts.title')}</h4>
+        <dl>
+          <div><dt>{t('receipts.service')}</dt><dd>{receipt.serviceName || booking.serviceName}</dd></div>
+          <div><dt>{t('receipts.date')}</dt><dd>{receipt.requestedDate ? new Date(`${receipt.requestedDate}T12:00:00`).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</dd></div>
+          {receipt.helperName && (
+            <div><dt>{t('receipts.helper')}</dt><dd>{receipt.helperName}</dd></div>
+          )}
+          <div><dt>{t('receipts.total')}</dt><dd>{new Intl.NumberFormat(locale, { style: 'currency', currency: (receipt.currency || 'usd').toUpperCase() }).format(Number(receipt.amount || 0))}</dd></div>
+          <div><dt>{t('receipts.paidOn')}</dt><dd>{paidAt}</dd></div>
+          <div><dt>{t('receipts.status')}</dt><dd>{receipt.status}</dd></div>
+        </dl>
+        {receipt.jobId && (
+          <Link to={`/jobs/${receipt.jobId}`}>{t('receipts.viewJob')}</Link>
+        )}
+      </div>
+    );
+  };
+
+  const handleToggleHelperReceipt = async (booking: HelperBooking) => {
+    const open = !helperReceiptOpen[booking.id];
+    setHelperReceiptOpen((prev) => ({ ...prev, [booking.id]: open }));
+    if (!open || helperReceipts[booking.id]) return;
+    setHelperReceiptLoading((prev) => ({ ...prev, [booking.id]: true }));
+    try {
+      const data = await receiptsApi.getHelperBookingReceipt(booking.id);
+      setHelperReceipts((prev) => ({ ...prev, [booking.id]: data }));
+    } catch (err: any) {
+      // No captured payment yet: the panel says so instead of erroring.
+      // Anything else is a load failure.
+      if (err?.response?.data?.code === 'receipt_not_available') {
+        setHelperReceipts((prev) => ({ ...prev, [booking.id]: { unavailable: true } }));
+      } else {
+        toast.error(t('receipts.receiptLoadFailed'));
+        setHelperReceiptOpen((prev) => ({ ...prev, [booking.id]: false }));
+      }
+    } finally {
+      setHelperReceiptLoading((prev) => ({ ...prev, [booking.id]: false }));
+    }
+  };
+
   // Group 11 item 571 (D-259): identity is the platform Didit state.
   // Shown to both parties; a renter who has not verified cannot
   // complete pickup (enforced server-side on the acknowledgment).
@@ -1124,6 +1278,12 @@ const MyBookingsPageContent = () => {
           {booking.deposit_withheld_amount != null && Number(booking.deposit_withheld_amount) > 0 && (
             <p>{t('toolRentals.depositWithheldDetail', { amount: Number(booking.deposit_withheld_amount).toFixed(2), reason: booking.deposit_resolution_note || '' })}</p>
           )}
+          {/* G11-B8 (D-628): the agreed damage amount sits next to the
+              deposit, so the owner sees what was agreed before choosing
+              how much to withhold. */}
+          {booking.agreed_damage_amount != null && (
+            <p>{t('toolRentals.depositAgreedAmount', { amount: Number(booking.agreed_damage_amount).toFixed(2) })}</p>
+          )}
           {isOwner && booking.deposit_status === 'held' && ['returned', 'completed', 'cancelled'].includes(booking.status) && (
             <div className="booking-card-actions">
               <button onClick={() => handleResolveDeposit(booking, 'return')} className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.3">
@@ -1146,7 +1306,7 @@ const MyBookingsPageContent = () => {
             {t('toolRentals.confirmReturnReceived') || 'Confirm return received'}
           </button>
           <button
-            onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
+            onClick={() => handleCancelRentalBooking(booking)}
             className="booking-action-btn booking-action-cancel" data-track="ui.5655b990ea.6"
           >
             {t('toolRentals.cancelBooking') || 'Cancel Booking'}
@@ -1174,7 +1334,7 @@ const MyBookingsPageContent = () => {
             {t('toolRentals.confirmReturn') || 'Confirm return'}
           </button>
           <button
-            onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
+            onClick={() => handleCancelRentalBooking(booking)}
             className="booking-action-btn booking-action-cancel" data-track="ui.5655b990ea.9"
           >
             {t('toolRentals.cancelBooking') || 'Cancel Booking'}
@@ -1185,7 +1345,7 @@ const MyBookingsPageContent = () => {
       {!isOwner && ['pending', 'invoice_sent'].includes(booking.status) && (
         <div className="booking-card-actions">
           <button
-            onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
+            onClick={() => handleCancelRentalBooking(booking)}
             className="booking-action-btn booking-action-cancel" data-track="ui.5655b990ea.10"
           >
             {t('toolRentals.cancelBooking') || 'Cancel Booking'}
@@ -1271,6 +1431,9 @@ const MyBookingsPageContent = () => {
         {b.helperResponseReason && (
           <p className="hb-reason">{b.helperResponseReason}</p>
         )}
+        {b.convertedToJobId != null && (
+          <HelperBookingRefundStatus jobId={b.convertedToJobId} />
+        )}
         {b.status === 'accepted' && (
           <BookingRescheduleBox
             bookingId={b.id}
@@ -1299,6 +1462,14 @@ const MyBookingsPageContent = () => {
               {t('booking.viewCalendar')}
             </Link>
           )}
+          {/* G1-B7: booking-linked support. The server validates the booking
+              (and the converted job, when there is one) against the caller. */}
+          <Link
+            to={buildBookingSupportHandoff({ bookingId: b.id, jobId: typeof b.convertedToJobId === 'string' ? b.convertedToJobId : null, bookingLabel: b.serviceName, returnTo: '/my-bookings' })}
+            className="booking-action-btn booking-action-invoice"
+          >
+            {t('booking.getHelp')}
+          </Link>
           {canConvert && (
             <button
               onClick={() => handleConvertHelperBookingToJob(b.id)}
@@ -1315,7 +1486,18 @@ const MyBookingsPageContent = () => {
               {t('common.cancel')}
             </button>
           )}
+          {b.convertedToJobId != null && (
+            <button
+              onClick={() => handleToggleHelperReceipt(b)}
+              className="booking-action-btn booking-action-invoice" data-track="ui.5655b990ea.32"
+            >
+              {helperReceiptOpen[b.id]
+                ? t('receipts.hideReceipt')
+                : t('receipts.viewReceipt')}
+            </button>
+          )}
         </div>
+        {b.convertedToJobId != null && renderHelperReceipt(b)}
       </div>
     );
   };
@@ -1385,6 +1567,10 @@ const MyBookingsPageContent = () => {
               <Link to="/tool-rentals" className="my-bookings-hero-btn secondary">
                 <Wrench size={17} aria-hidden="true" />
                 {t('myBookings.browseTools')}
+              </Link>
+              <Link to="/receipts" className="my-bookings-hero-btn secondary">
+                <Receipt size={17} aria-hidden="true" />
+                {t('receipts.viewReceipts')}
               </Link>
             </div>
           </div>
@@ -1494,7 +1680,15 @@ const MyBookingsPageContent = () => {
           ) : activeTab === 'my-rentals' ? (
             <div className="my-bookings-list">
               {myBookings.length > 0 ? (
-                myBookings.map((booking) => renderBookingCard(booking, false))
+                <>
+                  {myBookings.map((booking) => renderBookingCard(booking, false))}
+                  {/* G11-A12 (D-624): the list is paged (30/page). */}
+                  {myHasMore && (
+                    <button type="button" onClick={loadMoreMyBookings} className="booking-action-btn booking-action-invoice" data-track="ui.5655b990ea.29">
+                      {t('toolRentals.loadMore')}
+                    </button>
+                  )}
+                </>
               ) : (
                 renderEmptyState(
                   t('toolRentals.noBookings') || 'You have no bookings yet',
@@ -1509,7 +1703,15 @@ const MyBookingsPageContent = () => {
           ) : (
             <div className="my-bookings-list">
               {ownerBookings.length > 0 ? (
-                ownerBookings.map((booking) => renderBookingCard(booking, true))
+                <>
+                  {ownerBookings.map((booking) => renderBookingCard(booking, true))}
+                  {/* G11-A12 (D-624): the list is paged (30/page). */}
+                  {ownerHasMore && (
+                    <button type="button" onClick={loadMoreOwnerBookings} className="booking-action-btn booking-action-invoice" data-track="ui.5655b990ea.30">
+                      {t('toolRentals.loadMore')}
+                    </button>
+                  )}
+                </>
               ) : (
                 renderEmptyState(
                   t('toolRentals.noPendingBookings') || 'No one has booked your tools yet',

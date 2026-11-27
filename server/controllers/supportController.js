@@ -19,6 +19,7 @@ const { ticketEmail } = require('../utils/supportTicketEmail');
 const { scheduleSupportMessageNotifications, SUPPORT_STAFF_ALERT_LIMIT } = require('../services/supportNotificationService');
 const { MAX_IMAGE_BASE64_CHARS } = require('../constants/supportChatLimits');
 const { hasGlobalGrant } = require('../middleware/adminAuth');
+const supportEmployerService = require('../services/supportEmployerService');
 
 const HANDOFF_IMAGE_RE = /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/;
 
@@ -1456,6 +1457,14 @@ exports.setMyAvailability = async (req, res) => {
  * admin-gated (requireAdmin + manage_support in server/routes/admin.js)
  * and returns the booking, its appointment, and payment status.
  *
+ * G1-B7 / D-15: the same read is extended to the platform's own support
+ * agents (non-admin): an active support_agents row for the caller under
+ * the platform employer (supportEmployerService.findPlatformAgent).
+ * Business agents stay out — they answer their own employer's queue, not
+ * platform bookings. Admin permission grants cannot authorize a non-admin
+ * (grants are issued to regular admins only), so no grant check is part
+ * of this gate. The query and its redaction are unchanged for agents.
+ *
  * Payment internals are redacted by construction: columns are selected
  * explicitly and stripe_payment_intent_id / stripe_refund_id are never
  * selected, so they cannot leak through a shape change. Amounts and
@@ -1463,8 +1472,17 @@ exports.setMyAvailability = async (req, res) => {
  * charged?" without opening the payments ledger.
  */
 exports.getSupportBooking = async (req, res) => {
-  if (!['admin', 'super_admin'].includes(req.user.role)) {
-    return res.status(403).json({ error: 'Admin access required.' });
+  const isAdmin = ['admin', 'super_admin'].includes(req.user?.role);
+  if (!isAdmin) {
+    try {
+      const platformAgent = await supportEmployerService.findPlatformAgent(req.user?.id);
+      if (!platformAgent) {
+        return res.status(403).json({ error: 'Admin access required.' });
+      }
+    } catch (err) {
+      logger.error('getSupportBooking agent check error', { err: err.message });
+      return res.status(500).json({ error: 'Failed to load booking.' });
+    }
   }
   const bookingId = String(req.params.bookingId || '');
   if (!/^[0-9a-f-]{36}$/i.test(bookingId)) {

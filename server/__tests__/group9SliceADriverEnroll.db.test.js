@@ -624,6 +624,38 @@ ddescribe('Group 9 Slice A: driver enroll and prepare (451-455)', () => {
     expect(paidNotes[0].title).toBe('Driver payout paid');
   });
 
+  test('451f (N16 remainder, D-651): voiding a payout notifies the driver once', async () => {
+    const voiderId = await makeUser('admin');
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    const customerId = await makeUser('customer');
+    const job = await makeMarketplaceJob(customerId);
+    const { rows: [payout] } = await pool.query(
+      `INSERT INTO delivery_driver_payouts (delivery_job_id, driver_user_id, payout_cents, status)
+       VALUES ($1, $2, 700, 'accrued') RETURNING *`,
+      [job.id, driverId],
+    );
+    const voided = await call(localDelivery.voidDriverPayout, {
+      user: { id: voiderId, role: 'admin' }, params: { payoutId: String(payout.id) }, body: {},
+    });
+    expect(voided.next).not.toHaveBeenCalled();
+    expect(voided.res.payload.payout.status).toBe('voided');
+    const { rows: voidedNotes } = await pool.query(
+      `SELECT type, title FROM notifications WHERE user_id = $1 AND type = 'driver_payout_voided'`,
+      [driverId],
+    );
+    expect(voidedNotes).toHaveLength(1);
+    expect(voidedNotes[0].title).toBe('Driver payout voided');
+    // A repeat void stays silent: the same idempotency key covers it.
+    await call(localDelivery.voidDriverPayout, {
+      user: { id: voiderId, role: 'admin' }, params: { payoutId: String(payout.id) }, body: {},
+    });
+    const { rows: again } = await pool.query(
+      `SELECT id FROM notifications WHERE user_id = $1 AND type = 'driver_payout_voided'`,
+      [driverId],
+    );
+    expect(again).toHaveLength(1);
+  });
+
   test('455c (G9-A15): a failed claim carries the server reasons for the client to render', async () => {
     const driverId = await makeUser('helper', { defaultMode: 'helper' });
     await pool.query(

@@ -78,6 +78,9 @@ jest.mock('../utils/email', () => ({
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue({ success: true }),
 }));
+
+// The mocked send path: B5 assertions read its calls, never the inbox.
+const { sendNotification } = require('../services/notificationService');
 jest.mock('../growth/emit', () => ({
   emitDomainEvent: jest.fn().mockResolvedValue(undefined),
   commerceEventProps: (value) => value,
@@ -89,6 +92,8 @@ const describeDb = dbUrl ? describe : describe.skip;
 describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
   let db;
   let app;
+
+  beforeEach(() => { sendNotification.mockClear(); });
 
   beforeAll(async () => {
     process.env.ACCESS_REQUESTS_ENABLED = 'true';
@@ -268,7 +273,9 @@ describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
         .set('x-test-user', operator.id)
         .send({ reason: 'Not mine' })
         .expect(404)
-        .then((res) => expect(res.body.code).toBe('ticket_not_found'));
+        // G12-B3 (D-647): the ticket is unlinked, so the linkage check
+        // refuses it — not the old filer check.
+        .then((res) => expect(res.body.code).toBe('exception_not_found'));
     });
 
     test('a stranger gets 404, a non-operator applicant 403, HQ escalates any linked ticket and reads the queue', async () => {
@@ -302,6 +309,12 @@ describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
         .expect(201);
       expect(escalated.body.escalation.priority_before).toBe('high');
       expect(escalated.body.escalation.priority_after).toBe('urgent');
+      // G12-B5 (D-645): the ticket filer learns their exception was escalated.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: applicant.id,
+        type: 'franchise_exception_escalated',
+        data: expect.objectContaining({ params: expect.objectContaining({ ticketNumber: ticket.ticket_number }) }),
+      }));
 
       const hqQueue = await request(app)
         .get(`/api/franchise/applications/${applicationId}/escalations`)
@@ -313,6 +326,42 @@ describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
         .get(`/api/franchise/applications/${applicationId}/escalations`)
         .set('x-test-user', operator.id)
         .expect(403);
+    });
+
+    test('the operator escalates and unlinks a member-filed linked ticket (G12-B3)', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      // Opening-team member (the addMember helper lives in the 632
+      // describe; the steps are inlined here so this 631 test stands alone).
+      const member = await addUser();
+      await db.query(
+        `INSERT INTO helper_profiles (user_id, service_city, service_state, avg_rating, total_reviews, is_available_now)
+         VALUES ($1, 'Austin', 'TX', 4.9, 1, TRUE)
+         ON CONFLICT (user_id) DO NOTHING`,
+        [member.id],
+      );
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/opening-team`)
+        .set('x-test-user', operator.id)
+        .send({ helper_user_id: member.id, role: 'member' })
+        .expect(201);
+      // The audit's failing scenario: a member files "Fridge down" and
+      // the operator could only watch until HQ linked it — then could
+      // not escalate it either (404 ticket_not_found).
+      const ticket = await addTicket(member, { applicationId, subject: 'Fridge down' });
+
+      const escalated = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${ticket.ticket_number}/escalate`)
+        .set('x-test-user', operator.id)
+        .send({ reason: 'Fridge down for two days, stock spoiling' })
+        .expect(201);
+      expect(escalated.body.escalation.ticket_id).toBe(ticket.id);
+
+      const unlinked = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${ticket.id}/unlink`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(unlinked.body.exception_summary.total).toBe(0);
     });
   });
 
@@ -356,10 +405,19 @@ describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
       expect(assigned.body.remediation.ticket_id).toBe(ticket.id);
       expect(assigned.body.remediation.ticket_number).toBe(ticket.ticket_number);
 
+      // G12-B5 (D-645): the new owner learns they own the fix.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: member.id,
+        type: 'franchise_remediation_assigned',
+        data: expect.objectContaining({ params: expect.objectContaining({ ticketNumber: ticket.ticket_number, dueDate: '2026-12-01' }) }),
+      }));
+
       const reassigned = await assignFor(operator, applicationId, ticket,
         { owner_user_id: operator.id, due_date: '2026-12-15' })
         .expect(200);
       expect(reassigned.body.remediation.owner_user_id).toBe(operator.id);
+      // Reassigning to the assigner themselves sends no notice.
+      expect(sendNotification.mock.calls.filter(([call]) => call.type === 'franchise_remediation_assigned')).toHaveLength(1);
       expect(String(reassigned.body.remediation.due_date).slice(0, 10)).toBe('2026-12-15');
 
       const { rows } = await db.query(
@@ -667,6 +725,46 @@ describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
         .get(`/api/franchise/my-applications/${applicationId}/corrective-actions`)
         .set('x-test-user', (await addUser()).id)
         .expect(404);
+    });
+
+    test('a remediation-less action can be advanced by its creator, but never verified by them (G12-B8)', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      // A bare ticket carries no remediation, so the action has none either.
+      const ticket = await addTicket(operator, { applicationId });
+      const created = await createAction(operator, applicationId, ticket, { title: 'Sweep the floor' }).expect(201);
+      const actionId = created.body.action.id;
+      expect(created.body.action.remediation_owner_id).toBeNull();
+
+      // A member who is neither creator nor owner cannot move it.
+      const otherMember = await addUser();
+      await db.query(
+        `INSERT INTO helper_profiles (user_id, service_city, service_state, avg_rating, total_reviews, is_available_now)
+         VALUES ($1, 'Austin', 'TX', 4.9, 1, TRUE)`,
+        [otherMember.id],
+      );
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/opening-team`)
+        .set('x-test-user', operator.id)
+        .send({ helper_user_id: otherMember.id, role: 'member' })
+        .expect(201);
+      await moveAction(otherMember, applicationId, actionId, 'in_progress')
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('corrective_action_not_assignee'));
+
+      // The creator walks it open -> in_progress -> resolved.
+      expect((await moveAction(operator, applicationId, actionId, 'in_progress').expect(200)).body.action.status)
+        .toBe('in_progress');
+      expect((await moveAction(operator, applicationId, actionId, 'resolved').expect(200)).body.action.status)
+        .toBe('resolved');
+      // The creator still cannot verify their own work.
+      await moveAction(operator, applicationId, actionId, 'verified')
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('corrective_action_review_hq_only'));
+      // HQ verifies.
+      expect((await moveAction(admin, applicationId, actionId, 'verified', true).expect(200)).body.action.status)
+        .toBe('verified');
     });
   });
 

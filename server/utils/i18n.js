@@ -291,6 +291,23 @@ const T = {
       ar: 'تم دفع دفعة التوصيل الخاصة بك. تحقق من سجل الدفعات للاطلاع على التفاصيل.',
     },
   },
+  // N16 remainder (G12 batch, D-651): the driver hears when a payout is voided.
+  driver_payout_voided: {
+    title: {
+      en: 'Driver payout voided',
+      fr: 'Paiement chauffeur annulé',
+      es: 'Pago de conductor anulado',
+      ht: 'Peman chofè anile',
+      ar: 'تم إلغاء دفعة السائق',
+    },
+    body: {
+      en: 'Your delivery payout was voided and will not be paid. Check your payout history for the details.',
+      fr: 'Votre paiement de livraison a été annulé et ne sera pas versé. Consultez votre historique de paiements pour les détails.',
+      es: 'Tu pago de entrega fue anulado y no se pagará. Revisa tu historial de pagos para ver los detalles.',
+      ht: 'Yo anile peman livrezon ou an epi yo pap peye li. Gade istwa peman ou pou detay yo.',
+      ar: 'تم إلغاء دفعة التوصيل الخاصة بك ولن يتم دفعها. تحقق من سجل الدفعات للاطلاع على التفاصيل.',
+    },
+  },
   // Group 9 partials Wave 2 Batch M (456, G9-A9): the periodic new-offer
   // digest. The body interpolates {count} from data.params in the
   // recipient's language.
@@ -861,6 +878,46 @@ const T = {
       ar: 'انتهت مهلة الرد على طلب عرض السعر الخاص بك دون تلقي عرض سعر بعد.',
     },
   },
+  // Group 1, item 28 (G1-B3): the owner of a personal-care need is
+  // reminded once, the day before the need activates, that it posts for
+  // helpers tomorrow. The body interpolates the need title via params.
+  planned_need_reminder: {
+    title: {
+      en: 'Personal care reminder',
+      fr: 'Rappel de soin personnel',
+      es: 'Recordatorio de cuidado personal',
+      ht: 'Rapèl swen pèsonèl',
+      ar: 'تذكير بالعناية الشخصية',
+    },
+    body: {
+      en: 'Your personal care need {title} is coming up tomorrow and will be posted for helpers then. Review or cancel it now if your plans changed.',
+      fr: 'Votre besoin de soin personnel {title} arrive demain et sera publié pour les prestataires. Vérifiez-le ou annulez-le maintenant si vos plans ont changé.',
+      es: 'Tu necesidad de cuidado personal {title} es mañana y se publicará para los ayudantes. Revísala o cancélala ahora si tus planes cambiaron.',
+      ht: 'Bezwen swen pèsonèl ou {title} ap vini demen epi li pral pibliye pou asistan yo. Verifye li oswa anile li kounye a si plan ou yo chanje.',
+      ar: 'إن حاجة العناية الشخصية الخاصة بك {title} ستحين غداً وستُنشر للمساعدين حينها. راجعها أو ألغِها الآن إذا تغيرت خططك.',
+    },
+  },
+  // Group 1, item 27 (G1-B2): the vehicle owner is reminded when an
+  // oil change or service is due or due soon. The body names the
+  // vehicle via params; the kind and status ride in data, and Car Care
+  // renders the exact derivation. One type for both kinds and both
+  // statuses: the recipient action is the same (open Car Care).
+  vehicle_service_reminder: {
+    title: {
+      en: 'Vehicle service reminder',
+      fr: 'Rappel d’entretien du véhicule',
+      es: 'Recordatorio de servicio del vehículo',
+      ht: 'Rapèl antretyen machin',
+      ar: 'تذكير بصيانة المركبة',
+    },
+    body: {
+      en: 'Your {vehicle} is due for service, or coming due soon. Open Car Care to see what is due.',
+      fr: 'Votre {vehicle} doit être entretenu, ou le devra bientôt. Ouvrez Car Care pour voir ce qui est dû.',
+      es: 'Tu {vehicle} necesita servicio, o lo necesitará pronto. Abre Car Care para ver qué se debe.',
+      ht: 'Machin ou {vehicle} bezwen antretyen, oswa li prèt pou li. Louvri Car Care pou wè sa ki dwe fèt.',
+      ar: 'مركبتك {vehicle} مستحقة للصيانة أو ستستحق قريباً. افتح Car Care لمعرفة ما هو مستحق.',
+    },
+  },
   // Group 4 Slice C (166-170): counterparty notices for the helper-quote
   // negotiation flow. Bodies stay generic (no names or amounts); the
   // job and quote ride in data with an action_url to the job page.
@@ -1011,6 +1068,206 @@ const T = {
       es: '«{standardTitle}» se actualizó a la versión {version}. Revísalo y confírmalo, por favor.',
       ht: '«{standardTitle}» te mete ajou nan vèsyon {version}. Tanpri reli li epi konfime li.',
       ar: 'تم تحديث «{standardTitle}» إلى الإصدار {version}. يُرجى مراجعته وتأكيده.',
+    },
+  },
+  // G12-A1 (D-640): a territory invitation — the invitee answers on the
+  // accept page the notice links to.
+  franchise_territory_invitation: {
+    title: {
+      en: 'Territory invitation',
+      fr: 'Invitation au territoire',
+      es: 'Invitación al territorio',
+      ht: 'Envitasyon teritwa',
+      ar: 'دعوة إلى الإقليم',
+    },
+    body: {
+      en: '{inviterName} invited you to join a franchise territory. Review the invitation to accept or decline.',
+      fr: '{inviterName} vous a invité à rejoindre un territoire de franchise. Examinez l’invitation pour accepter ou refuser.',
+      es: '{inviterName} te invitó a unirte a un territorio de franquicia. Revisa la invitación para aceptar o rechazar.',
+      ht: '{inviterName} envite ou pou ou rantre nan yon teritwa franchiz. Gade envitasyon an pou aksepte oswa refize li.',
+      ar: 'دعاك {inviterName} للانضمام إلى إقليم امتياز. راجع الدعوة للقبول أو الرفض.',
+    },
+  },
+  // G12-A3 (D-644): the applicant is told about the five events they were
+  // never notified of — status change, territory offer, interview proposed,
+  // document reviewed, HQ follow-up reply.
+  franchise_application_status_changed: {
+    title: {
+      en: 'Your franchise application was updated',
+      fr: 'Votre demande de franchise a été mise à jour',
+      es: 'Tu solicitud de franquicia se actualizó',
+      ht: 'Aplikasyon frankti ou te mete ajou',
+      ar: 'تم تحديث طلب الفرع الخاص بك',
+    },
+    body: {
+      en: 'Your franchise application status changed to {status}. Open your application to see the details.',
+      fr: 'Le statut de votre demande de franchise est passé à {status}. Ouvrez votre demande pour voir les détails.',
+      es: 'El estado de tu solicitud de franquicia cambió a {status}. Abre tu solicitud para ver los detalles.',
+      ht: 'Estati aplikasyon frankti ou chanje pou {status}. Louvri aplikasyon ou pou wè detay yo.',
+      ar: 'تغيّرت حالة طلب الفرع الخاص بك إلى {status}. افتح طلبك لعرض التفاصيل.',
+    },
+  },
+  franchise_territory_offered: {
+    title: {
+      en: 'A franchise territory was offered to you',
+      fr: 'Un territoire de franchise vous a été proposé',
+      es: 'Te ofrecieron un territorio de franquicia',
+      ht: 'Yo ofri ou yon teritwa franchiz',
+      ar: 'تم عرض إقليم امتياز عليك',
+    },
+    body: {
+      en: 'A franchise territory was offered to you. Review the offer and accept or decline it from your application.',
+      fr: 'Un territoire de franchise vous a été proposé. Examinez l’offre et acceptez-la ou refusez-la depuis votre demande.',
+      es: 'Te ofrecieron un territorio de franquicia. Revisa la oferta y acéptala o recházala desde tu solicitud.',
+      ht: 'Yo ofri ou yon teritwa franchiz. Gade òf la epi aksepte li oswa refize li nan aplikasyon ou.',
+      ar: 'تم عرض إقليم امتياز عليك. راجع العرض واقبل أو ارفض من طلبك.',
+    },
+  },
+  franchise_interview_proposed: {
+    title: {
+      en: 'A franchise interview was proposed',
+      fr: 'Un entretien de franchise a été proposé',
+      es: 'Se propuso una entrevista de franquicia',
+      ht: 'Yo pwopoze yon entèvyou franchiz',
+      ar: 'تم اقتراح مقابلة امتياز',
+    },
+    body: {
+      en: 'An interview was proposed for {startsAt}. Book it from your application before the slot lapses.',
+      fr: 'Un entretien a été proposé pour le {startsAt}. Réservez-le depuis votre demande avant que le créneau n’expire.',
+      es: 'Se propuso una entrevista para el {startsAt}. Resérvala desde tu solicitud antes de que expire el horario.',
+      ht: 'Yo pwopoze yon entèvyou pou {startsAt}. Rezève li nan aplikasyon ou anvan plas la fini.',
+      ar: 'تم اقتراح مقابلة في {startsAt}. احجزها من طلبك قبل انتهاء الموعد.',
+    },
+  },
+  franchise_document_reviewed: {
+    title: {
+      en: 'A franchise document was reviewed',
+      fr: 'Un document de franchise a été examiné',
+      es: 'Se revisó un documento de franquicia',
+      ht: 'Yo revize yon dokiman franchiz',
+      ar: 'تمت مراجعة مستند امتياز',
+    },
+    body: {
+      en: 'Your document "{fileName}" was {decision}.{reasonPart}',
+      fr: 'Votre document « {fileName} » a été {decision}.{reasonPart}',
+      es: 'Tu documento «{fileName}» fue {decision}.{reasonPart}',
+      ht: 'Dokiman ou «{fileName}» te {decision}.{reasonPart}',
+      ar: 'تمت مراجعة مستندك «{fileName}» وكانت النتيجة {decision}.{reasonPart}',
+    },
+  },
+  franchise_followup_replied: {
+    title: {
+      en: 'HQ replied to your franchise application',
+      fr: 'HQ a répondu à votre demande de franchise',
+      es: 'HQ respondió a tu solicitud de franquicia',
+      ht: 'HQ reponn aplikasyon frankti ou',
+      ar: 'ردّت HQ على طلب الفرع الخاص بك',
+    },
+    body: {
+      en: 'HQ replied in the follow-up thread on your franchise application. Open it to read the reply.',
+      fr: 'HQ a répondu dans le fil de suivi de votre demande de franchise. Ouvrez-le pour lire la réponse.',
+      es: 'HQ respondió en el hilo de seguimiento de tu solicitud de franquicia. Ábrelo para leer la respuesta.',
+      ht: 'HQ reponn nan fil swivi aplikasyon frankti ou. Louvri li pou li repons lan.',
+      ar: 'ردّت HQ في سلسلة المتابعة لطلب الفرع الخاص بك. افتحها لقراءة الرد.',
+    },
+  },
+  // G12-B5 (D-645): the six 626-650 transition notices — handoff decided,
+  // access removed, exception escalated, remediation assigned, training
+  // escalation resolved, ops appointment updated.
+  franchise_handoff_decided: {
+    title: {
+      en: 'Your franchise handoff was decided',
+      fr: 'Votre transfert de franchise a été décidé',
+      es: 'Se decidió tu traspaso de franquicia',
+      ht: 'Yo deside transfè franchiz ou',
+      ar: 'تم البت في تسليم الفرع الخاص بك',
+    },
+    body: {
+      en: 'Your franchise handoff was {decision}. Open your application to see the details.',
+      fr: 'Votre transfert de franchise a été {decision}. Ouvrez votre demande pour voir les détails.',
+      es: 'Tu traspaso de franquicia fue {decision}. Abre tu solicitud para ver los detalles.',
+      ht: 'Transfè franchiz ou te {decision}. Louvri aplikasyon ou pou wè detay yo.',
+      ar: 'تم {decision} تسليم الفرع الخاص بك. افتح طلبك لعرض التفاصيل.',
+    },
+  },
+  franchise_territory_access_removed: {
+    title: {
+      en: 'Your franchise territory access was removed',
+      fr: 'Votre accès au territoire de franchise a été retiré',
+      es: 'Se retiró tu acceso al territorio de franquicia',
+      ht: 'Yo retire aksè ou nan teritwa franchiz la',
+      ar: 'تمت إزالة وصولك إلى إقليم الامتياز',
+    },
+    body: {
+      en: 'Your access to a franchise territory was removed. Reason: {reason}',
+      fr: 'Votre accès à un territoire de franchise a été retiré. Motif : {reason}',
+      es: 'Se retiró tu acceso a un territorio de franquicia. Motivo: {reason}',
+      ht: 'Yo retire aksè ou nan yon teritwa franchiz. Rezon: {reason}',
+      ar: 'تمت إزالة وصولك إلى إقليم امتياز. السبب: {reason}',
+    },
+  },
+  franchise_exception_escalated: {
+    title: {
+      en: 'A franchise exception was escalated',
+      fr: 'Une exception de franchise a été transmise',
+      es: 'Se escaló una excepción de franquicia',
+      ht: 'Yo voye yon eksepsyon franchiz bay katye jeneral',
+      ar: 'تم تصعيد استثناء امتياز',
+    },
+    body: {
+      en: 'Exception #{ticketNumber} was escalated to headquarters. Open your application to follow it.',
+      fr: 'L’exception nº {ticketNumber} a été transmise au siège. Ouvrez votre demande pour la suivre.',
+      es: 'La excepción n.º {ticketNumber} se escaló a la sede. Abre tu solicitud para seguirla.',
+      ht: 'Eksepsyon #{ticketNumber} te voye bay katye jeneral. Louvri aplikasyon ou pou swiv li.',
+      ar: 'تم تصعيد الاستثناء رقم {ticketNumber} إلى المقر الرئيسي. افتح طلبك لمتابعته.',
+    },
+  },
+  franchise_remediation_assigned: {
+    title: {
+      en: 'A franchise remediation was assigned to you',
+      fr: 'Une correction de franchise vous a été assignée',
+      es: 'Se te asignó una corrección de franquicia',
+      ht: 'Yo ba ou yon koreksyon franchiz pou ou fè',
+      ar: 'تم إسناد إجراء تصحيحي لك',
+    },
+    body: {
+      en: 'You own the fix for exception #{ticketNumber}, due {dueDate}. Open your application to see it.',
+      fr: 'La correction de l’exception nº {ticketNumber} vous appartient, pour le {dueDate}. Ouvrez votre demande pour la voir.',
+      es: 'La corrección de la excepción n.º {ticketNumber} es tuya, vence el {dueDate}. Abre tu solicitud para verla.',
+      ht: 'Koreksyon pou eksepsyon #{ticketNumber} la se pou ou, li dwe fèt anvan {dueDate}. Louvri aplikasyon ou pou wè li.',
+      ar: 'أنت مسؤول عن إصلاح الاستثناء رقم {ticketNumber}، والموعد النهائي {dueDate}. افتح طلبك لعرضه.',
+    },
+  },
+  franchise_training_escalation_resolved: {
+    title: {
+      en: 'Your franchise training escalation was resolved',
+      fr: 'Votre escalade de formation a été résolue',
+      es: 'Se resolvió tu escalada de formación',
+      ht: 'Yo rezoud eskalasyon fòmasyon ou',
+      ar: 'تم حل تصعيد التدريب الخاص بك',
+    },
+    body: {
+      en: 'Your training escalation was resolved. Resolution: {resolution}',
+      fr: 'Votre escalade de formation a été résolue. Résolution : {resolution}',
+      es: 'Se resolvió tu escalada de formación. Resolución: {resolution}',
+      ht: 'Yo rezoud eskalasyon fòmasyon ou. Rezolisyon: {resolution}',
+      ar: 'تم حل تصعيد التدريب الخاص بك. الحل: {resolution}',
+    },
+  },
+  franchise_ops_appointment_updated: {
+    title: {
+      en: 'Your operations appointment changed',
+      fr: 'Votre rendez-vous d’exploitation a changé',
+      es: 'Tu cita de operaciones cambió',
+      ht: 'Randevou operasyon ou chanje',
+      ar: 'تغيّر موعد العمليات الخاص بك',
+    },
+    body: {
+      en: 'Your operations appointment was {transition}. It is scheduled for {startsAt}.',
+      fr: 'Votre rendez-vous d’exploitation a été {transition}. Il est prévu pour le {startsAt}.',
+      es: 'Tu cita de operaciones fue {transition}. Está programada para el {startsAt}.',
+      ht: 'Randevou operasyon ou te {transition}. Li pwograme pou {startsAt}.',
+      ar: 'تم {transition} موعد العمليات الخاص بك. وهو مجدول في {startsAt}.',
     },
   },
   // G-6/G-7: book-for-another invite, site-contact status link, and the
@@ -1826,6 +2083,9 @@ const EMAIL_TEMPLATES = {
     dispute_opened_against: {
       en: 'View Dispute', fr: 'Voir le litige', es: 'Ver disputa', ht: 'Gade dosi diskisyon an', ar: 'عرض النزاع',
     },
+    marketplace_return_requested: {
+      en: 'View Return Requests', fr: 'Voir les retours', es: 'Ver devoluciones', ht: 'Gade retou yo', ar: 'عرض طلبات الإرجاع',
+    },
     dispute_under_review: {
       en: 'View Dispute', fr: 'Voir le litige', es: 'Ver disputa', ht: 'Gade dosi diskisyon an', ar: 'عرض النزاع',
     },
@@ -1888,6 +2148,13 @@ const EMAIL_TEMPLATES = {
       ht: 'Gade peman yo',
       ar: 'عرض المدفوعات',
     },
+    driver_payout_voided: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
     delivery_offer_digest: {
       en: 'View Driving',
       fr: 'Voir la conduite',
@@ -1936,6 +2203,90 @@ const EMAIL_TEMPLATES = {
       es: 'Ver reserva',
       ht: 'Gade rezervasyon an',
       ar: 'عرض الحجز',
+    },
+    franchise_territory_invitation: {
+      en: 'Review Invitation',
+      fr: 'Voir l’invitation',
+      es: 'Revisar invitación',
+      ht: 'Gade envitasyon an',
+      ar: 'مراجعة الدعوة',
+    },
+    franchise_application_status_changed: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_territory_offered: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_interview_proposed: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_document_reviewed: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_followup_replied: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_handoff_decided: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_territory_access_removed: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_exception_escalated: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_remediation_assigned: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_training_escalation_resolved: {
+      en: 'View Territory',
+      fr: 'Voir le territoire',
+      es: 'Ver territorio',
+      ht: 'Gade teritwa a',
+      ar: 'عرض الإقليم',
+    },
+    franchise_ops_appointment_updated: {
+      en: 'View Territory',
+      fr: 'Voir le territoire',
+      es: 'Ver territorio',
+      ht: 'Gade teritwa a',
+      ar: 'عرض الإقليم',
     },
     booking_site_contact_link: {
       en: 'View Booking Status',

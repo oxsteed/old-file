@@ -510,6 +510,66 @@ ddescribe('Group 9 Slice G: manage continuity (496-500)', () => {
     expect(refused.res.payload.error).toBe('tracking_job_terminal');
   });
 
+  // S-G1 (D-641): completing a return ends the live tracking session
+  // with reason 'returned', the same rule delivered/cancelled already
+  // had — the returned job is terminal, so the assignment ends revoked
+  // and ingest is refused after.
+  test('S-G1: completing a return revokes its live tracking session', async () => {
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    const customerId = await makeUser('customer');
+    const adminId = await makeUser('admin');
+    const job = await makeJob(customerId, { driverId, status: 'assigned' });
+    const { assignment } = await startLiveTracking(job, driverId);
+    expect(assignment.status).toBe('active');
+
+    const picked = await call(localDelivery.updateStatus, {
+      params: { id: String(job.id) }, user: helperUser(driverId),
+      headers: { 'idempotency-key': key('g12-sg1-pickup') },
+      body: { status: 'picked_up', pickupConfirmedPieces: 3, conditionAcknowledged: true },
+    });
+    expect(picked.next).not.toHaveBeenCalled();
+
+    const requested = await call(localDelivery.requestReturn, {
+      params: { id: String(job.id) }, user: helperUser(driverId),
+      headers: { 'idempotency-key': key('g12-sg1-return') },
+      body: { reason: 'Recipient refused the package' },
+    });
+    expect(requested.next).not.toHaveBeenCalled();
+    const returnId = requested.res.payload.returnRequest.id;
+
+    for (const decision of ['approved', 'in_transit']) {
+      const reviewed = await call(localDelivery.reviewReturn, {
+        params: { returnId: String(returnId) }, user: operatorUser(adminId),
+        headers: { 'idempotency-key': key('g12-sg1-review') },
+        body: { decision },
+      });
+      expect(reviewed.next).not.toHaveBeenCalled();
+      expect(reviewed.res.payload.returnRequest.status).toBe(decision);
+    }
+
+    const completed = await call(localDelivery.reviewReturn, {
+      params: { returnId: String(returnId) }, user: operatorUser(adminId),
+      headers: { 'idempotency-key': key('g12-sg1-review') },
+      body: { decision: 'completed', proofType: 'pin', proofValue: '123456' },
+    });
+    expect(completed.next).not.toHaveBeenCalled();
+    expect(completed.res.payload.returnRequest.status).toBe('completed');
+
+    const { rows: [returned] } = await pool.query(
+      'SELECT status FROM delivery_jobs WHERE id = $1', [job.id],
+    );
+    expect(returned.status).toBe('returned');
+    const { rows: [ended] } = await pool.query(
+      'SELECT status, ended_reason FROM delivery_tracking_assignments WHERE id = $1', [assignment.id],
+    );
+    expect(ended.status).toBe('revoked');
+    expect(ended.ended_reason).toBe('returned');
+
+    const refused = await ingest(job, driverId);
+    expect(refused.res.statusCode).toBe(409);
+    expect(refused.res.payload.error).toBe('tracking_job_terminal');
+  });
+
   test('498 (G9-B6): a driver cannot file issues or extras on a job whose access expired; inside the window and the customer can', async () => {
     const driverId = await makeUser('helper', { defaultMode: 'helper' });
     const customerId = await makeUser('customer');

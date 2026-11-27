@@ -61,6 +61,7 @@ describe('listJobKits', () => {
         estimatedTotalCents: 20774,
         currency: 'USD',
         buildable: true,
+        categories: [],
       },
     ]);
   });

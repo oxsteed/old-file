@@ -71,6 +71,9 @@ jest.mock('../utils/email', () => ({
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue({ success: true }),
 }));
+
+// The mocked send path: A3 assertions read its calls, never the inbox.
+const { sendNotification } = require('../services/notificationService');
 jest.mock('../growth/emit', () => ({
   emitDomainEvent: jest.fn().mockResolvedValue(undefined),
   commerceEventProps: (value) => value,
@@ -81,6 +84,8 @@ const describeDb = dbUrl ? describe : describe.skip;
 describeDb('Group 12 Slice 3b: Take responsibility (608, 606, 607, 609, 610)', () => {
   let db;
   let app;
+
+  beforeEach(() => { sendNotification.mockClear(); });
 
   beforeAll(async () => {
     process.env.ACCESS_REQUESTS_ENABLED = 'true';
@@ -119,16 +124,8 @@ describeDb('Group 12 Slice 3b: Take responsibility (608, 606, 607, 609, 610)', (
       })
       .expect(201);
     const applicationId = created.body.application.id;
-    // The intake is a public lead form (no `authenticate` on POST
-    // /applications), so the row is created ownerless; HQ links the
-    // applicant's account through the admin owner assignment, which is the
-    // production path that makes the application visible to the applicant.
-    const adminId = await addUser('super_admin');
-    await request(app)
-      .patch(`/api/franchise/applications/${applicationId}`)
-      .set('x-test-user', adminId)
-      .send({ owner_user_id: applicantId })
-      .expect(200);
+    // Group 12 Slice A (G12-A2 / S-E4, D-643): intake is authenticated-only,
+    // so the row is created owned by the applicant at creation.
     return applicationId;
   }
 
@@ -230,6 +227,37 @@ describeDb('Group 12 Slice 3b: Take responsibility (608, 606, 607, 609, 610)', (
       const after = await applicantDetail(applicant, applicationId).expect(200);
       expect(after.body.responsibilities.filter((entry) => entry.status === 'acknowledged')).toHaveLength(0);
     });
+
+    test('a non-operator applicant gets 403 on acknowledge; the assigned operator succeeds', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+      // HQ assigns a different operator, so the applicant of record is no
+      // longer the operator (G12-A4, D-646).
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ owner_user_id: operator })
+        .expect(200);
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      const item = detail.body.responsibilities[0];
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/responsibilities/${item.id}/acknowledge`)
+        .set('x-test-user', applicant)
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+      const stillPending = await applicantDetail(applicant, applicationId).expect(200);
+      expect(stillPending.body.responsibilities.filter((entry) => entry.status === 'acknowledged')).toHaveLength(0);
+
+      const acknowledged = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/responsibilities/${item.id}/acknowledge`)
+        .set('x-test-user', operator)
+        .expect(200);
+      expect(acknowledged.body.responsibilities.find((entry) => entry.id === item.id).status).toBe('acknowledged');
+    });
   });
   describe('606: territory acceptance', () => {
     // The territory-stats/helpers routes sit behind the franchise
@@ -262,11 +290,16 @@ describeDb('Group 12 Slice 3b: Take responsibility (608, 606, 607, 609, 610)', (
       const operator = await addUser();
       const admin = await addUser('super_admin');
       const applicationId = await makeApplication(applicant);
-      // The public lead form leaves applicant_user_id NULL; link the
-      // applicant's account so the applicant-vs-operator distinction below
-      // is the one the handler enforces (owner-only answers).
-      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant, applicationId]);
+      // Intake is authenticated-only (D-643), so the row is already owned
+      // by the applicant; the applicant-vs-operator distinction below is
+      // the one the handler enforces (owner-only answers).
       await offerToOperator(applicationId, admin, operator);
+
+      // G12-A3 (D-644): the new operator is notified of the territory offer.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: operator,
+        type: 'franchise_territory_offered',
+      }));
 
       // The applicant record alone is not the operator: only the assigned
       // operator may answer.
@@ -614,6 +647,37 @@ describeDb('Group 12 Slice 3b: Take responsibility (608, 606, 607, 609, 610)', (
         [applicationId],
       );
       expect(rows).toHaveLength(2);
+    });
+
+    test('a non-operator applicant gets 403 on step status; the assigned operator succeeds', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ owner_user_id: operator })
+        .expect(200);
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      const step = detail.body.launch_plan_steps.find((entry) => entry.code === 'secure_location');
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/launch-plan/${step.id}/status`)
+        .set('x-test-user', applicant)
+        .send({ status: 'completed' })
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+      const stillPending = await applicantDetail(applicant, applicationId).expect(200);
+      expect(stillPending.body.launch_plan_steps.find((entry) => entry.id === step.id).status).toBe('pending');
+
+      const updated = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/launch-plan/${step.id}/status`)
+        .set('x-test-user', operator)
+        .send({ status: 'completed' })
+        .expect(200);
+      expect(updated.body.launch_plan_steps.find((entry) => entry.id === step.id).status).toBe('completed');
     });
   });
 

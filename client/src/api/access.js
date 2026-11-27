@@ -30,6 +30,9 @@ export const accessAPI = {
   // G-33: the applicant's own grants, every status, with the reason a
   // grant was suspended or revoked.
   listMyGrants: () => api.get('/me/access-grants').then((r) => r.data?.grants || []),
+  // G1-B11: one chronological history merging request decisions and
+  // grant changes.
+  getAccessHistory: () => api.get('/me/access-history').then((r) => r.data?.events || []),
   createRequest: (body, key) => api.post('/me/access-requests', body, withKey(key)).then((r) => r.data),
   updateRequest: (id, { expectedVersion, answers }, key) => api
     .patch(`/me/access-requests/${encodeURIComponent(id)}`, { expectedVersion, answers }, withKey(key)).then((r) => r.data),

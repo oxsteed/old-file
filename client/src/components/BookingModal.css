@@ -341,6 +341,27 @@ fieldset.booking-form-group legend {
   color: var(--app-text-muted, #6b7280);
 }
 
+/* G11-A13 (D-625): identity warning shown before booking when the
+   renter is unverified; pickup will be blocked until verified. */
+.booking-identity-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #b45309;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.booking-identity-warning a {
+  color: #b45309;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
 /* Submit Button */
 .booking-submit-btn {
   width: 100%;

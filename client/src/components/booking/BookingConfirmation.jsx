@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { Calendar, Clock, MapPin, FileText, AlertCircle } from 'lucide-react';
+import { buildBookingIcs, downloadIcs } from '../../utils/calendarExport';
 import './BookingConfirmation.css';
 
 function formatTime(hhmm) {
@@ -146,6 +147,24 @@ export default function BookingConfirmation({
             </div>
           </div>
         </div>
+
+        {/* Group 1, item 13: calendar export at booking time. The booking
+            does not exist yet, so the .ics is built on the client from the
+            draft; request-only drafts have no concrete time and get no
+            button instead of a guessed event. */}
+        {buildBookingIcs(bookingData) && (
+          <button
+            type="button"
+            onClick={() => {
+              const ics = buildBookingIcs(bookingData);
+              if (ics) downloadIcs('oxsteed-booking.ics', ics);
+            }}
+            className="booking-btn-secondary"
+            data-track="ui.98ea5ee9e6.5"
+          >
+            {t('booking.addToCalendar')}
+          </button>
+        )}
 
         {/* Description */}
         {bookingData.description && (

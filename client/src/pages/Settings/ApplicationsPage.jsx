@@ -114,6 +114,9 @@ function AccountApplications({ accountId, epoch }) {
   // G-33: the account's own grants, every status, so a revocation is
   // explained in-app instead of silently vanishing from the held list.
   const [grants, setGrants] = useState([]);
+  // G1-B11: one chronological access history (request decisions + grant
+  // changes), loaded best-effort like grants.
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -136,7 +139,7 @@ function AccountApplications({ accountId, epoch }) {
     if (!silent) setLoading(true);
     setLoadError(false);
     try {
-      const [a, r, p, inv, prov, parts, g] = await Promise.all([
+      const [a, r, p, inv, prov, parts, g, h] = await Promise.all([
         accessAPI.getAccess(accountId),
         accessAPI.listRequests({ limit: 50 }),
         accessAPI.listPolicies(),
@@ -145,6 +148,7 @@ function AccountApplications({ accountId, epoch }) {
         api.get('/oxsteed-credit/participants/me').then((res) => res.data?.participants || []).catch(() => []),
         // Grants are best-effort here: a failure must not blank the page.
         accessAPI.listMyGrants().catch(() => []),
+        accessAPI.getAccessHistory().catch(() => []),
       ]);
       if (!isCurrentAuthEpoch(epoch)) return;
       const heldNow = a.access?.personal || [];
@@ -167,6 +171,7 @@ function AccountApplications({ accountId, epoch }) {
       setProvisioningRequests(prov || []);
       setCreditParticipants(parts || []);
       setGrants(Array.isArray(g) ? g : []);
+      setHistory(Array.isArray(h) ? h : []);
       setUnavailable(false);
       // AC-021: refresh the open request during silent reloads so a reviewer
       // change reaches the editor without remounting it (unsaved answers
@@ -640,6 +645,36 @@ function AccountApplications({ accountId, epoch }) {
                         </li>
                       ))}
                     </ul>
+                  )}
+                </section>
+
+                {/* G1-B11: one chronological access history merging the
+                    per-request decision timelines and the grant changes,
+                    so the applicant sees what happened to their access
+                    and when without opening each request. */}
+                <section aria-labelledby="access-history-title">
+                  <h2 id="access-history-title" className="mb-2 text-lg font-semibold text-content">{t('progressiveAccess.accessHistoryTitle', { ns: NS })}</h2>
+                  {history.length === 0 ? (
+                    <p className="text-sm text-muted">{t('progressiveAccess.accessHistoryEmpty', { ns: NS })}</p>
+                  ) : (
+                    <ol className="space-y-1.5">
+                      {history.map((event, index) => (
+                        <li key={`${event.kind}-${event.requestId || event.grantId}-${event.at}-${index}`} className="flex flex-wrap items-baseline gap-x-2 text-xs">
+                          <time dateTime={event.at} className="text-muted">{formatDate(event.at, language)}</time>
+                          <span className="font-medium text-content">{capabilityLabel(t, event.capability)}</span>
+                          <span className="text-muted">
+                            {event.kind === 'grant'
+                              ? (event.action === 'granted'
+                                ? t('progressiveAccess.historyGranted', { ns: NS })
+                                : t(`progressiveAccess.grantStatus.${event.action}`, { ns: NS, defaultValue: event.action }))
+                              : t(`progressiveAccess.historyAction.${event.action}`, { ns: NS, defaultValue: event.action })}
+                          </span>
+                          {event.publicReasonCode && (
+                            <span className="text-muted">{t(`progressiveAccess.reasons.${event.publicReasonCode}`, { ns: NS, defaultValue: '' })}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
                   )}
                 </section>
 

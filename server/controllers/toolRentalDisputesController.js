@@ -401,6 +401,52 @@ function serializeEscalation(row, messages) {
   return { ...row, messages: messages || [] };
 }
 
+// B13 (D-620): a party's accept/dispute of an admin-closed escalation
+// tells the counterparty, and a dispute also tells the moderation admins
+// (the thread is open again and needs a fresh admin look). The actor is
+// never notified of their own action, matching the escalation-open
+// convention. Two per-outcome types (acknowledged/disputed) so the bell
+// never mislabels a dispute as an acceptance, unlike the damage-claim
+// pattern, which sends its acknowledged type on both branches. Awaited
+// by the caller but failure-safe, same shape as notifyEscalationResolved.
+async function notifyEscalationAcknowledged({ escalation, booking, decision, actorId }) {
+  try {
+    const { sendNotification } = require('../services/notificationService');
+    const key = String(escalation.acknowledged_at || 'unacknowledged');
+    const counterpartyId = String(actorId) === String(booking.owner_id) ? booking.customer_id : booking.owner_id;
+    const sends = [];
+    if (String(counterpartyId) !== String(actorId)) {
+      sends.push({
+        userId: String(counterpartyId),
+        action_url: '/my-bookings',
+        idempotencyKey: `tool-rental-escalation-acknowledged:${escalation.id}:${key}:${decision}:${counterpartyId}`,
+      });
+    }
+    if (decision === 'disputed') {
+      for (const adminId of await resolveEscalationAdminIds()) {
+        if (adminId !== String(actorId)) {
+          sends.push({
+            userId: adminId,
+            action_url: '/admin/tool-rentals',
+            idempotencyKey: `tool-rental-escalation-acknowledged:${escalation.id}:${key}:${decision}:${adminId}`,
+          });
+        }
+      }
+    }
+    const results = await Promise.allSettled(sends.map((s) => sendNotification({
+      userId: s.userId,
+      type: decision === 'disputed' ? 'tool_rental_escalation_disputed' : 'tool_rental_escalation_acknowledged',
+      data: { escalation_id: String(escalation.id), booking_id: String(booking.id), category: escalation.category, decision },
+      action_url: s.action_url,
+      idempotencyKey: s.idempotencyKey,
+    })));
+    const failed = results.filter((r) => r.status === 'rejected' || r.value?.success === false).length;
+    if (failed) logger.warn('Rental escalation acknowledgment notification had failures', { escalationId: escalation.id, failed });
+  } catch (err) {
+    logger.warn('Rental escalation acknowledgment notification failed', { escalationId: escalation?.id, error: err.message });
+  }
+}
+
 // G11-B2 (D-609): an escalation-thread reply tells the other side.
 // Same shape as the open/resolved senders: direct sendNotification (the
 // safety thread is not silenced by the bookings toggle), per-recipient
@@ -715,6 +761,22 @@ const acknowledgeEscalation = async (req, res) => {
     );
     if (!rows.length) {
       return fail(res, 409, 'state_conflict', 'This resolution was already acknowledged');
+    }
+    // B13 (D-620): the counterparty is told the resolution was accepted
+    // or disputed; a dispute also tells the moderation admins, because
+    // the thread is open again and needs a fresh admin look. The actor
+    // is never notified of their own action.
+    const { rows: bookingRows } = await db.query(
+      'SELECT id, owner_id, customer_id FROM tool_rentals_bookings WHERE id = $1',
+      [escalation.booking_id],
+    );
+    if (bookingRows.length) {
+      await notifyEscalationAcknowledged({
+        escalation: rows[0],
+        booking: bookingRows[0],
+        decision,
+        actorId: req.user.id,
+      });
     }
     return res.json({ escalation: rows[0] });
   } catch (err) {

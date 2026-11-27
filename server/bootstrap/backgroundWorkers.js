@@ -18,6 +18,7 @@ const { pollTranslationJobs } = require('../modules/jobs/translationJobWorker');
 const { startLocalDeliveryEventWorker } = require('../services/localDeliveryEventWorker');
 const { startWeeklySummaryJob } = require('../jobs/weeklySummary');
 const { startPlannedNeedsScheduler } = require('../jobs/plannedNeedsScheduler');
+const { startVehicleServiceReminderJob } = require('../jobs/vehicleServiceReminderNotices'); // G1-B2 vehicle service reminders (weekly)
 const { startDiscoverDigestJob } = require('../jobs/discoverDigest');
 const { startConversationRetentionCleanup } = require('../jobs/conversationRetentionCleanup');
 const { startGuestChatSessionTimeoutJob } = require('../jobs/guestChatSessionTimeout');
@@ -202,6 +203,7 @@ class BackgroundWorkers {
     try {
       startWeeklySummaryJob();
       startPlannedNeedsScheduler();
+      startVehicleServiceReminderJob(); // G1-B2: Mondays 07:00 UTC, cap 500 vehicles/tick
       startDiscoverDigestJob();
       startConversationRetentionCleanup();
       startGuestChatSessionTimeoutJob();

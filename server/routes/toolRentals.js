@@ -443,6 +443,35 @@ function normalizeToolPayload(body, { partial = false, existing = null } = {}) {
   const errors = {};
   const payload = {};
 
+  // G11-A9 (D-621): on a partial update, an explicitly-sent empty string
+  // or null clears an optional field. `cleared` records those fields so
+  // the merged-pair checks below treat them as null (not as the stored
+  // value) and the UPDATE can NULL them instead of COALESCE-keeping the
+  // old value. Required fields (name, category, location_city,
+  // daily_rate, condition) are never clearable: an empty value for one
+  // of those still means "leave it alone" (or fails validation on
+  // create), never a clear.
+  const CLEARABLE_FIELDS = [
+    'description', 'brand', 'model', 'location_state',
+    'owner_rules', 'owner_custom_terms', 'cleaning_instructions',
+    'hourly_rate', 'deposit_amount', 'replacement_value',
+    'capacity_value', 'capacity_unit', 'weight_kg',
+    'size_length_cm', 'size_width_cm', 'size_height_cm',
+    'location_lat', 'location_lng',
+    'pickup_window_start', 'pickup_window_end',
+    'return_window_start', 'return_window_end',
+  ];
+  const cleared = new Set();
+  if (partial) {
+    for (const field of CLEARABLE_FIELDS) {
+      if (body[field] !== undefined && (body[field] === '' || body[field] === null)) cleared.add(field);
+    }
+  }
+  // Merged value for a pair check: a cleared field counts as null even
+  // when the stored row has a value (payload.x ?? existing would fall
+  // through null to the stored value, which would hide the clear).
+  const mergedValue = (field) => (cleared.has(field) ? null : (payload[field] ?? existing?.[field] ?? null));
+
   if (!partial || body.name !== undefined) {
     payload.name = cleanText(body.name, MAX_TOOL_NAME_LEN, 'name', errors, { required: !partial });
   }
@@ -512,9 +541,11 @@ function normalizeToolPayload(body, { partial = false, existing = null } = {}) {
   }
   // The pair is validated on the merged row: a partial update that sets a
   // value inherits the stored unit (and vice versa), so an edit that does
-  // not touch capacity can never break the pair.
-  const mergedCapacityValue = payload.capacity_value ?? existing?.capacity_value ?? null;
-  const mergedCapacityUnit = payload.capacity_unit ?? existing?.capacity_unit ?? null;
+  // not touch capacity can never break the pair. A cleared half counts as
+  // null (G11-A9): clearing only the value while the unit stays stored
+  // 400s, so the owner clears both together.
+  const mergedCapacityValue = mergedValue('capacity_value');
+  const mergedCapacityUnit = mergedValue('capacity_unit');
   if ((mergedCapacityValue != null) !== (mergedCapacityUnit != null)) {
     errors.capacity_unit = 'capacity_unit is required when a capacity is set';
   }
@@ -527,8 +558,8 @@ function normalizeToolPayload(body, { partial = false, existing = null } = {}) {
   if (!partial || body.location_lng !== undefined) {
     payload.location_lng = parseCoordinate(body.location_lng, 'location_lng', -180, 180, errors);
   }
-  const mergedLat = payload.location_lat ?? existing?.location_lat ?? null;
-  const mergedLng = payload.location_lng ?? existing?.location_lng ?? null;
+  const mergedLat = mergedValue('location_lat');
+  const mergedLng = mergedValue('location_lng');
   if ((mergedLat != null) !== (mergedLng != null)) {
     errors.location_lat = 'location_lat and location_lng must be set together';
   }
@@ -542,8 +573,8 @@ function normalizeToolPayload(body, { partial = false, existing = null } = {}) {
   if (!partial || body.pickup_window_end !== undefined) {
     payload.pickup_window_end = parseTimeOfDay(body.pickup_window_end, 'pickup_window_end', errors);
   }
-  const mergedWindowStart = payload.pickup_window_start ?? existing?.pickup_window_start ?? null;
-  const mergedWindowEnd = payload.pickup_window_end ?? existing?.pickup_window_end ?? null;
+  const mergedWindowStart = mergedValue('pickup_window_start');
+  const mergedWindowEnd = mergedValue('pickup_window_end');
   if ((mergedWindowStart != null) !== (mergedWindowEnd != null)) {
     errors.pickup_window_start = 'pickup_window_start and pickup_window_end must be set together';
   }
@@ -560,8 +591,8 @@ function normalizeToolPayload(body, { partial = false, existing = null } = {}) {
   if (!partial || body.return_window_end !== undefined) {
     payload.return_window_end = parseTimeOfDay(body.return_window_end, 'return_window_end', errors);
   }
-  const mergedReturnStart = payload.return_window_start ?? existing?.return_window_start ?? null;
-  const mergedReturnEnd = payload.return_window_end ?? existing?.return_window_end ?? null;
+  const mergedReturnStart = mergedValue('return_window_start');
+  const mergedReturnEnd = mergedValue('return_window_end');
   if ((mergedReturnStart != null) !== (mergedReturnEnd != null)) {
     errors.return_window_start = 'return_window_start and return_window_end must be set together';
   }
@@ -581,7 +612,14 @@ function normalizeToolPayload(body, { partial = false, existing = null } = {}) {
     }
   }
 
-  if (payload.requires_deposit && !(payload.deposit_amount > 0)) {
+  // G11-A9 (D-621): the deposit gate runs on the merged row, like the
+  // capacity/coords/window pairs above. Enabling requires_deposit via API
+  // without re-sending deposit_amount no longer 400s when a deposit is
+  // already stored; clearing the amount while a deposit is required
+  // still 400s.
+  const mergedRequiresDeposit = payload.requires_deposit ?? existing?.requires_deposit ?? false;
+  const mergedDepositAmount = cleared.has('deposit_amount') ? null : (payload.deposit_amount ?? existing?.deposit_amount ?? null);
+  if (mergedRequiresDeposit && !(mergedDepositAmount > 0)) {
     errors.deposit_amount = 'deposit_amount is required when a deposit is required';
   }
   payload.owner_attestation_accepted = parseBoolean(body.owner_attestation_accepted);
@@ -589,7 +627,7 @@ function normalizeToolPayload(body, { partial = false, existing = null } = {}) {
     errors.owner_attestation_accepted = 'Confirm the peer rental acknowledgement before listing this tool';
   }
 
-  return { payload, errors };
+  return { payload, errors, cleared: [...cleared] };
 }
 
 // GET /api/tool-rentals/categories?q=pow&limit=20
@@ -1007,12 +1045,21 @@ router.get('/me', authenticate, async (req, res) => {
   try {
     const { toolFields, hasModerationHold } = await getToolFields();
     const holdExpr = hasModerationHold ? 't.moderation_hold' : 'FALSE AS moderation_hold';
+    // G11-A12 (D-624): the owner list is paged (30/page, max 100) instead
+    // of unbounded. Responses stay { tools } shaped; hasMore tells the
+    // client whether another page exists (a short page means no more).
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 30), 100);
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
     const result = await pool.query(
       `SELECT ${toolFields}, ${holdExpr}
          FROM tool_rentals t
         WHERE t.user_id = $1
-        ORDER BY t.created_at DESC`,
-      [req.user.id]
+        ORDER BY t.created_at DESC
+        LIMIT $2 OFFSET $3`,
+      // G11-A12 (D-624): fetch one extra row so hasMore is exact.
+      // rows.length === limit would lie on a last page that is exactly
+      // full (2 tools, limit 1, offset 1 returns 1 row but has no more).
+      [req.user.id, limit + 1, offset]
     );
     let publicationBlocked = false;
     try {
@@ -1024,13 +1071,17 @@ router.get('/me', authenticate, async (req, res) => {
     } catch { publicationBlocked = false; }
     const { computeListingReadiness } = require('../services/toolListingReadiness');
     // Group 11 item 594: safety documents ride with the owner's rows.
+    // G11-A12 (D-624): the extra row fetched above is only the hasMore
+    // probe; the page itself is the first `limit` rows.
+    const pageRows = result.rows.slice(0, limit);
+    const hasMore = result.rows.length > limit;
     let safetyByTool = new Map();
     try {
       const { rows: docs } = await pool.query(
         `SELECT id, tool_id, title, file_url, mime_type, created_at
            FROM tool_rental_safety_documents
           WHERE tool_id = ANY($1::int[]) ORDER BY created_at DESC`,
-        [result.rows.map((t) => t.id)],
+        [pageRows.map((t) => t.id)],
       );
       for (const doc of docs) {
         if (!safetyByTool.has(doc.tool_id)) safetyByTool.set(doc.tool_id, []);
@@ -1038,7 +1089,7 @@ router.get('/me', authenticate, async (req, res) => {
       }
     } catch { safetyByTool = new Map(); }
     res.json({
-      tools: result.rows.map((tool) => {
+      tools: pageRows.map((tool) => {
         const activationStatus = tool.moderation_hold === true
           ? 'blocked_hold'
           : publicationBlocked
@@ -1049,10 +1100,30 @@ router.get('/me', authenticate, async (req, res) => {
         // 552: server-computed readiness checklist for the owner dashboard.
         return { ...tool, publication_blocked: publicationBlocked, activation_status: activationStatus, readiness: computeListingReadiness(tool), safety_documents: safetyByTool.get(tool.id) || [] };
       }),
+      hasMore,
     });
   } catch (err) {
     require('../utils/logger').error('[toolRentals] list error:', err.message);
     res.status(500).json({ error: 'Failed to fetch your tools' });
+  }
+});
+
+// G11-A13 (D-625): the renter's own rental identity status, for the
+// BookingModal warning. Own row only; the same rentalIdentityStatus the
+// booking lists and the pickup confirm use, so the modal and the block
+// can never disagree.
+router.get('/identity/mine', authenticate, async (req, res) => {
+  try {
+    const { rentalIdentityStatus } = require('../utils/rentalIdentity');
+    const { rows } = await pool.query(
+      `SELECT didit_status, didit_verified_at, identity_verified, id_verified, identity_verified_at
+         FROM users WHERE id = $1`,
+      [req.user.id],
+    );
+    return res.json(rentalIdentityStatus(rows[0] || null));
+  } catch (err) {
+    require('../utils/logger').error('[toolRentals] identity/mine error:', err.message);
+    return res.status(500).json({ error: 'Failed to load identity status' });
   }
 });
 
@@ -1191,7 +1262,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
 
     // Fetch existing record first (ownership check)
     const existing = await pool.query(
-      'SELECT id, is_available, moderation_hold, image_gallery, capacity_value, capacity_unit, location_lat, location_lng, pickup_window_start, pickup_window_end, return_window_start, return_window_end FROM tool_rentals WHERE id = $1 AND user_id = $2',
+      'SELECT id, is_available, moderation_hold, image_gallery, capacity_value, capacity_unit, location_lat, location_lng, pickup_window_start, pickup_window_end, return_window_start, return_window_end, deposit_amount, requires_deposit FROM tool_rentals WHERE id = $1 AND user_id = $2',
       [id, req.user.id]
     );
     if (!existing.rows.length) {
@@ -1199,7 +1270,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
     }
     const underAdminHold = existing.rows[0].moderation_hold === true;
 
-    const { payload, errors } = normalizeToolPayload(req.body, { partial: true, existing: existing.rows[0] });
+    const { payload, errors, cleared } = normalizeToolPayload(req.body, { partial: true, existing: existing.rows[0] });
     if (Object.keys(errors).length) {
       return res.status(400).json({ error: 'Validation failed', code: 'validation_failed', fields: errors });
     }
@@ -1252,55 +1323,59 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
     // 563: capacity columns sit after the image params, so their positions
     // shift by two when the gallery column exists.
     const capacityBase = hasImageGallery ? 23 : 21;
+    // G11-A9 (D-621): the clear set rides as the last parameter. Its
+    // index is capacityBase + 15: 6 capacity + 2 location + 2 pickup
+    // window + 2 return window + 1 cleaning + 1 id + 1 user_id.
+    const clearIndex = capacityBase + 15;
     const capacitySetSql = `
-         capacity_value = COALESCE($${capacityBase}, capacity_value),
-         capacity_unit  = COALESCE($${capacityBase + 1}, capacity_unit),
-         weight_kg      = COALESCE($${capacityBase + 2}, weight_kg),
-         size_length_cm = COALESCE($${capacityBase + 3}, size_length_cm),
-         size_width_cm  = COALESCE($${capacityBase + 4}, size_width_cm),
-         size_height_cm = COALESCE($${capacityBase + 5}, size_height_cm),`;
+         capacity_value = CASE WHEN $${clearIndex}::jsonb ? 'capacity_value' THEN NULL ELSE COALESCE($${capacityBase}, capacity_value) END,
+         capacity_unit  = CASE WHEN $${clearIndex}::jsonb ? 'capacity_unit' THEN NULL ELSE COALESCE($${capacityBase + 1}, capacity_unit) END,
+         weight_kg      = CASE WHEN $${clearIndex}::jsonb ? 'weight_kg' THEN NULL ELSE COALESCE($${capacityBase + 2}, weight_kg) END,
+         size_length_cm = CASE WHEN $${clearIndex}::jsonb ? 'size_length_cm' THEN NULL ELSE COALESCE($${capacityBase + 3}, size_length_cm) END,
+         size_width_cm  = CASE WHEN $${clearIndex}::jsonb ? 'size_width_cm' THEN NULL ELSE COALESCE($${capacityBase + 4}, size_width_cm) END,
+         size_height_cm = CASE WHEN $${clearIndex}::jsonb ? 'size_height_cm' THEN NULL ELSE COALESCE($${capacityBase + 5}, size_height_cm) END,`;
     // 564: pickup coordinates sit after the capacity params.
     const locationBase = capacityBase + 6;
     const locationSetSql = `
-         location_lat = COALESCE($${locationBase}, location_lat),
-         location_lng = COALESCE($${locationBase + 1}, location_lng),`;
+         location_lat = CASE WHEN $${clearIndex}::jsonb ? 'location_lat' THEN NULL ELSE COALESCE($${locationBase}, location_lat) END,
+         location_lng = CASE WHEN $${clearIndex}::jsonb ? 'location_lng' THEN NULL ELSE COALESCE($${locationBase + 1}, location_lng) END,`;
     // 574: pickup window sits after the location params.
     const pickupWindowBase = locationBase + 2;
     const pickupWindowSetSql = `
-         pickup_window_start = COALESCE($${pickupWindowBase}, pickup_window_start),
-         pickup_window_end = COALESCE($${pickupWindowBase + 1}, pickup_window_end),`;
+         pickup_window_start = CASE WHEN $${clearIndex}::jsonb ? 'pickup_window_start' THEN NULL ELSE COALESCE($${pickupWindowBase}, pickup_window_start) END,
+         pickup_window_end = CASE WHEN $${clearIndex}::jsonb ? 'pickup_window_end' THEN NULL ELSE COALESCE($${pickupWindowBase + 1}, pickup_window_end) END,`;
     // 576: return window sits after the pickup window params.
     const returnWindowBase = pickupWindowBase + 2;
     const returnWindowSetSql = `
-         return_window_start = COALESCE($${returnWindowBase}, return_window_start),
-         return_window_end = COALESCE($${returnWindowBase + 1}, return_window_end),`;
+         return_window_start = CASE WHEN $${clearIndex}::jsonb ? 'return_window_start' THEN NULL ELSE COALESCE($${returnWindowBase}, return_window_start) END,
+         return_window_end = CASE WHEN $${clearIndex}::jsonb ? 'return_window_end' THEN NULL ELSE COALESCE($${returnWindowBase + 1}, return_window_end) END,`;
     // 580: cleaning instructions sit after the return window params.
     const cleaningBase = returnWindowBase + 2;
     const cleaningSetSql = `
-         cleaning_instructions = COALESCE($${cleaningBase}, cleaning_instructions),`;
+         cleaning_instructions = CASE WHEN $${clearIndex}::jsonb ? 'cleaning_instructions' THEN NULL ELSE COALESCE($${cleaningBase}, cleaning_instructions) END,`;
     const whereOffset = cleaningBase + 2; // cleaning param, then id, then user_id
 
     const result = await pool.query(
       `UPDATE tool_rentals SET
          name               = COALESCE($1,  name),
          category           = COALESCE($2,  category),
-         description        = COALESCE($3,  description),
+         description        = CASE WHEN $${clearIndex}::jsonb ? 'description' THEN NULL ELSE COALESCE($3, description) END,
          daily_rate         = COALESCE($4, daily_rate),
-         hourly_rate        = COALESCE($5, hourly_rate),
-         deposit_amount     = COALESCE($6, deposit_amount),
+         hourly_rate        = CASE WHEN $${clearIndex}::jsonb ? 'hourly_rate' THEN NULL ELSE COALESCE($5, hourly_rate) END,
+         deposit_amount     = CASE WHEN $${clearIndex}::jsonb ? 'deposit_amount' THEN NULL ELSE COALESCE($6, deposit_amount) END,
          condition          = COALESCE($7,  condition),
-         brand              = COALESCE($8,  brand),
-         model              = COALESCE($9,  model),
+         brand              = CASE WHEN $${clearIndex}::jsonb ? 'brand' THEN NULL ELSE COALESCE($8, brand) END,
+         model              = CASE WHEN $${clearIndex}::jsonb ? 'model' THEN NULL ELSE COALESCE($9, model) END,
          is_available       = COALESCE($10, is_available),
          requires_deposit   = COALESCE($11, requires_deposit),
          delivery_available = COALESCE($12, delivery_available),
          pickup_only        = COALESCE($13, pickup_only),
          location_city      = COALESCE($14, location_city),
-         location_state     = COALESCE($15, location_state),
-         owner_rules        = COALESCE($16, owner_rules),
-         owner_custom_terms = COALESCE($17, owner_custom_terms),
-         owner_custom_terms_hash = COALESCE($18, owner_custom_terms_hash),
-         replacement_value  = COALESCE($19, replacement_value),
+         location_state     = CASE WHEN $${clearIndex}::jsonb ? 'location_state' THEN NULL ELSE COALESCE($15, location_state) END,
+         owner_rules        = CASE WHEN $${clearIndex}::jsonb ? 'owner_rules' THEN NULL ELSE COALESCE($16, owner_rules) END,
+         owner_custom_terms = CASE WHEN $${clearIndex}::jsonb ? 'owner_custom_terms' THEN NULL ELSE COALESCE($17, owner_custom_terms) END,
+         owner_custom_terms_hash = CASE WHEN $${clearIndex}::jsonb ? 'owner_custom_terms' THEN NULL ELSE COALESCE($18, owner_custom_terms_hash) END,
+         replacement_value  = CASE WHEN $${clearIndex}::jsonb ? 'replacement_value' THEN NULL ELSE COALESCE($19, replacement_value) END,
          owner_attested_at  = CASE WHEN $20::boolean THEN NOW() ELSE owner_attested_at END,
          owner_attestation_version = CASE WHEN $20::boolean THEN '${TOOL_RENTAL_ATTESTATION_VERSION}' ELSE owner_attestation_version END,
          ${imageSetSql}
@@ -1361,6 +1436,8 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
         payload.cleaning_instructions ?? null,
         id,
         req.user.id,
+        // G11-A9: JSON array of explicitly-cleared optional fields.
+        JSON.stringify(cleared || []),
       ]
     );
 

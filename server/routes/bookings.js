@@ -91,6 +91,7 @@ router.post('/recurring/:id/resume', requireAuth, bookingController.updateRecurr
 router.get('/business/:businessId/available-slots', scopeExempt('public-storefront'), bookingController.getBusinessAvailableSlots);
 router.get('/helper/:helperId/available-slots', bookingController.getHelperAvailableSlots);
 
+router.get('/:bookingId/ical', requireAuth, bookingController.getBookingIcal);
 router.get('/:bookingId', requireAuth, bookingController.getBookingRequest);
 // G-6: account-linked recipient accept/decline; booker revokes the links.
 router.post('/:bookingId/recipient/respond', requireAuth, bookingController.respondAsRecipient);

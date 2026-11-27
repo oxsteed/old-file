@@ -31,6 +31,8 @@ const OPTIONAL = [
   ['AWS_GEO_ROUTES_ENABLED',   'Amazon Location Routes v2 disabled'],
   ['RESEND_API_KEY',           'Transactional emails disabled'],
   ['TWILIO_ACCOUNT_SID',       'SMS / OTP via Twilio disabled'],
+  ['TWILIO_RELAY_NUMBER_PICKUP', 'Delivery phone relay disabled for pickup stops: drivers get no call link there'],
+  ['TWILIO_RELAY_NUMBER_DROPOFF', 'Delivery phone relay disabled for dropoff stops: drivers get no call link there'],
   ['DIDIT_WEBHOOK_SECRET',     'Didit identity webhooks disabled'],
   ['CHECKR_API_KEY',           'Background checks disabled'],
   ['CHECKR_WEBHOOK_SECRET',    'Checkr webhooks disabled'],

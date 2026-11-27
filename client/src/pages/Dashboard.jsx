@@ -401,6 +401,47 @@ export default function Dashboard() {
   const [showHomeTaskModal, setShowHomeTaskModal] = useState(false);
   const [showChecklistModal, setShowChecklistModal] = useState(false);
 
+  // G1-A5: private-note editor for the saved-helpers card.
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
+
+  const saveHelperNote = async (h) => {
+    setNoteSaving(true);
+    try {
+      await api.post('/life/saved-helpers', { helper_id: h.helper_id, note: noteDraft.trim() });
+      await life.fetchSavedHelpers();
+      setEditingNoteId(null);
+      toast.success(t('dashboard.home.savedHelperNoteSaved'));
+    } catch {
+      toast.error(t('dashboard.home.savedHelperNoteFailed'));
+    } finally {
+      setNoteSaving(false);
+    }
+  };
+
+  // G1-B9: first-run setup checklist. Each item's done-state derives from
+  // data that already exists: email verification on the user, saved homes
+  // and saved helpers in Dashboard state, and the notification
+  // preferences row (done when the user has ever saved it, i.e. its
+  // updated_at moved past created_at). No new account fields.
+  const [notifPrefsSet, setNotifPrefsSet] = useState(false);
+  const [setupDismissed, setSetupDismissed] = useState(() => {
+    try { return localStorage.getItem(`oxsteed.setupChecklistDismissed.${user?.id || 'anon'}`) === '1'; } catch { return false; }
+  });
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    api.get('/notifications/preferences').then((r) => {
+      if (cancelled) return;
+      const p = r.data?.preferences;
+      setNotifPrefsSet(Boolean(p && p.updated_at && p.created_at
+        && new Date(p.updated_at).getTime() > new Date(p.created_at).getTime()));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
   // ── Skills & Tools state ──────────────────────────────────────────────────
   const [mySkills, setMySkills] = useState([]);
   const [myTools, setMyTools] = useState([]);
@@ -1635,6 +1676,38 @@ export default function Dashboard() {
 
         {/* ═══════ HOME TAB ═══════ */}
         {tab==='home' && (<>
+          {/* G1-B9: first-run setup checklist. Dismissible only once every
+              item is done; until then it stays as the nudge to finish setup. */}
+          {!setupDismissed && (
+            <Card className="mb-5">
+              <CardHeader icon={IcoCheck} title={t('dashboard.home.setupChecklistTitle')} right={<span className="text-xs text-gray-500">{t('dashboard.home.setupProgress', { done: [Boolean(user?.email_verified), homes.length > 0, notifPrefsSet, (life.savedHelpers || []).length > 0].filter(Boolean).length, total: 4 })}</span>}/>
+              {(() => {
+                const items = [
+                  { key: 'email', done: Boolean(user?.email_verified), to: '/verify-email', label: t('dashboard.home.setupVerifyEmail'), action: t('dashboard.home.setupVerifyEmailAction') },
+                  { key: 'location', done: homes.length > 0, to: '/settings/locations', label: t('dashboard.home.setupAddLocation'), action: t('dashboard.home.setupAddLocationAction') },
+                  { key: 'notifications', done: notifPrefsSet, to: '/settings/notifications', label: t('dashboard.home.setupNotificationPrefs'), action: t('dashboard.home.setupNotificationPrefsAction') },
+                  { key: 'helper', done: (life.savedHelpers || []).length > 0, to: '/helpers', label: t('dashboard.home.setupSaveHelper'), action: t('dashboard.home.setupSaveHelperAction') },
+                ];
+                const allDone = items.every((i) => i.done);
+                return allDone ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm text-gray-300">{t('dashboard.home.setupComplete')}</p>
+                    <button type="button" onClick={() => { try { localStorage.setItem(`oxsteed.setupChecklistDismissed.${user?.id || 'anon'}`, '1'); } catch { /* storage unavailable; hide for this session */ } setSetupDismissed(true); }} className="text-xs text-orange-400 font-semibold whitespace-nowrap" data-track="ui.f7da0d332b.28">{t('dashboard.home.setupDismiss')}</button>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {items.map((item) => (
+                      <div key={item.key} className="flex items-center gap-3 p-2 rounded-lg">
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 border ${item.done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-600'}`}>{item.done && <IcoCheck size={12} cls="text-gray-950" />}</span>
+                        <p className={`flex-1 text-sm ${item.done ? 'line-through text-gray-600' : 'text-white'}`}>{item.label}</p>
+                        {!item.done && <Link to={item.to} className="text-xs text-orange-400 font-semibold whitespace-nowrap">{item.action}</Link>}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </Card>
+          )}
           {/* My Properties */}
           <Card className="mb-5">
             <CardHeader icon={IcoHome} title={t('dashboard.home.myProperties')}
@@ -1786,16 +1859,43 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-2">
                   {life.savedHelpers.map(h=>(
-                    <div key={h.id} className="flex items-center gap-3 p-3 bg-gray-800/30 rounded-xl group">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500/30 to-purple-500/30 flex items-center justify-center font-bold text-sm flex-shrink-0">{(h.first_name||'?')[0]}</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white">{h.display_name || h.first_name}</p>
-                        <p className="text-xs text-gray-500 truncate">{h.categories || t('dashboard.home.savedHelperFallback')} · {h.avg_rating?`${h.avg_rating}★`:t('dashboard.home.newHelper')} · {h.completed_jobs||0} {t('dashboard.home.jobsLabel')}</p>
+                    <div key={h.id} className="p-3 bg-gray-800/30 rounded-xl group">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500/30 to-purple-500/30 flex items-center justify-center font-bold text-sm flex-shrink-0">{(h.first_name||'?')[0]}</div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white">{h.display_name || h.first_name}</p>
+                          <p className="text-xs text-gray-500 truncate">{h.categories || t('dashboard.home.savedHelperFallback')} · {h.avg_rating?`${h.avg_rating}★`:t('dashboard.home.newHelper')} · {h.completed_jobs||0} {t('dashboard.home.jobsLabel')}</p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Link to={`/helpers/${h.helper_id}`} className="text-xs text-orange-400 font-medium">{t('common.viewAll')}</Link>
+                          <button onClick={async()=>{await life.removeSavedHelper(h.id);toast.success(t('dashboard.home.removed'));}} className="opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition" aria-label={t('dashboard.home.unsaveHelper', { name: h.display_name || h.first_name || '' })} data-track="ui.f7da0d332b.20"><IcoTrash size={13} cls="text-gray-600 hover:text-red-400"/></button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Link to={`/helpers/${h.helper_id}`} className="text-xs text-orange-400 font-medium">{t('common.viewAll')}</Link>
-                        <button onClick={async()=>{await life.removeSavedHelper(h.id);toast.success(t('dashboard.home.removed'));}} className="opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition" aria-label={t('dashboard.home.unsaveHelper', { name: h.display_name || h.first_name || '' })} data-track="ui.f7da0d332b.20"><IcoTrash size={13} cls="text-gray-600 hover:text-red-400"/></button>
-                      </div>
+                      {/* G1-A5: the private note. Only this account ever
+                          sees it; the server returns it on the owner's
+                          saved-helpers list and nowhere else. */}
+                      {editingNoteId === h.id ? (
+                        <div className="mt-2">
+                          <textarea
+                            value={noteDraft}
+                            onChange={(e) => setNoteDraft(e.target.value)}
+                            maxLength={255}
+                            rows={2}
+                            placeholder={t('dashboard.home.savedHelperNotePlaceholder')}
+                            aria-label={t('dashboard.home.savedHelperNoteLabel')}
+                            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none resize-none"
+                          />
+                          <div className="flex gap-3 mt-2">
+                            <button type="button" onClick={() => saveHelperNote(h)} disabled={noteSaving} className="text-xs text-orange-400 font-semibold disabled:opacity-50" data-track="ui.f7da0d332b.25">{noteSaving ? t('common.saving') : t('dashboard.home.savedHelperNoteSave')}</button>
+                            <button type="button" onClick={() => setEditingNoteId(null)} className="text-xs text-gray-400 font-medium" data-track="ui.f7da0d332b.26">{t('common.cancel')}</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-1.5 pl-12">
+                          {h.note ? <p className="text-xs text-gray-400 italic break-words">{h.note}</p> : null}
+                          <button type="button" onClick={() => { setEditingNoteId(h.id); setNoteDraft(h.note || ''); }} className="text-xs text-orange-400 font-medium mt-0.5" data-track="ui.f7da0d332b.27">{h.note ? t('dashboard.home.savedHelperNoteEdit') : t('dashboard.home.savedHelperNoteAdd')}</button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

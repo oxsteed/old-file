@@ -56,10 +56,15 @@ async function sendFranchiseStandardReminders({ db: dbClient, force = false, sta
   let skipped = 0;
   const sentThisRun = new Set();
   for (const standard of standards) {
+    // G12-A14 (D-659): a rejected or archived application is a dead
+    // territory — its ex-members must not be reminded about standards
+    // for an assignment they no longer hold. The franchise-wide sweep
+    // (application_id NULL) used to iterate every application with no
+    // status filter at all.
     const { rows: applications } = await db.query(
       standard.application_id
-        ? 'SELECT id FROM franchise_applications WHERE id = $1'
-        : 'SELECT id FROM franchise_applications',
+        ? `SELECT id FROM franchise_applications WHERE id = $1 AND status NOT IN ('rejected', 'archived')`
+        : `SELECT id FROM franchise_applications WHERE status NOT IN ('rejected', 'archived')`,
       standard.application_id ? [standard.application_id] : []
     );
     for (const application of applications) {

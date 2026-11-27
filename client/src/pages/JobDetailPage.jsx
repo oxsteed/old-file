@@ -18,16 +18,17 @@ import CancellationStats from '../components/CancellationStats';
 import UserReputationCard from '../components/UserReputationCard';
 import ReportModal from '../components/ReportModal';
 import JobMaterialsPanel from '../components/JobMaterialsPanel';
+import DiyKitPicker from '../components/DiyKitPicker';
 import DirectPaymentRecordModal from '../components/DirectPaymentRecordModal';
 import JobAutoExpiryWarning from '../components/JobAutoExpiryWarning';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../utils/analytics';
-import { detectLocale, formatDate, formatMoney } from '../lib/format';
+import { detectLocale, formatDate, formatDateTime, formatMoney } from '../lib/format';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
 import JobImageViewer from '../components/JobImageViewer';
 import { useJobDetailBids } from '../hooks/useJobDetailBids';
-import { JOB_STATUS_KEYS, jobDetailView, jobList, jobMediaType, matchingHelpersPath, samePartyId } from '../utils/jobDetailModel';
+import { JOB_STATUS_KEYS, buildJobTimeline, buildJobWarranty, jobDetailView, jobList, jobMediaType, matchingHelpersPath, samePartyId } from '../utils/jobDetailModel';
 import { bidNeedingReconfirm, canEditJob } from '../utils/jobEditModel';
 import PaymentReauthorizationBanner from '../components/PaymentReauthorizationBanner';
 import JobPaymentLayersPanel from '../components/paymentLayers/JobPaymentLayersPanel';
@@ -36,6 +37,7 @@ import JobSuitabilityPreview from '../components/JobSuitabilityPreview';
 import JobPortfolioConsent from '../components/JobPortfolioConsent';
 import { JobWorkRecord } from '../components/HelperWorkPanel';
 import HelperJobSupport from '../components/HelperJobSupport';
+import { buildBookingSupportHandoff } from '../components/helperProfile/chat/supportEscalationHandoff';
 import JobRescheduleProposals from '../components/JobRescheduleProposals';
 import JobHandback from '../components/JobHandback';
 import JobChangeRequests from '../components/JobChangeRequests';
@@ -45,6 +47,7 @@ import JobRevisionHistory from '../components/JobRevisionHistory';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 import { listManagedBusinesses, requestJobRefund, listJobRefundRequests } from '../api/businesses';
+import { requestCustomerJobRefund, listCustomerJobRefundRequests } from '../api/jobs';
 
 function formatBudget(job, t) {
   if (!job) return '-';
@@ -112,6 +115,11 @@ const DISPUTABLE_JOB_STATUSES = ['accepted', 'in_progress', 'pending_completion'
 // a paid job; the request always queues for platform-admin approval and the
 // requester can never execute it. The business is the owner's business
 // (jobs carry no business_id; the job belongs to the business via its client).
+// G1-B8: a plain customer with no managed business files the same kind of
+// request through the customer endpoint instead (POST /jobs/:id/
+// refund-request), which queues the identical job_refund movement. The
+// customer path is the default; the business path applies only when the
+// owner has a managed business with refunds.request.
 function JobRefundRequestSection({ job, fieldId }) {
   const { t } = useTranslation();
   // Static keys only: verify-i18n cannot resolve a concatenated key, and the
@@ -133,6 +141,9 @@ function JobRefundRequestSection({ job, fieldId }) {
 
   useEffect(() => {
     let current = true;
+    const loadCustomerRequests = () => {
+      listCustomerJobRefundRequests(job.id).then((rows) => { if (current) setRequests(rows); }).catch(() => {});
+    };
     listManagedBusinesses()
       .then((businesses) => {
         if (!current) return;
@@ -141,14 +152,16 @@ function JobRefundRequestSection({ job, fieldId }) {
         if (owned) {
           setBusinessId(owned.id);
           listJobRefundRequests(owned.id, job.id).then((rows) => { if (current) setRequests(rows); }).catch(() => {});
+        } else {
+          loadCustomerRequests();
         }
       })
-      .catch(() => {});
+      .catch(() => { if (current) loadCustomerRequests(); });
     return () => { current = false; };
   }, [job.id]);
 
   const submit = async () => {
-    if (!businessId || submitting) return;
+    if (submitting) return;
     const cleanReason = reason.trim();
     if (!cleanReason) { setError(t('jobDetail.refundReasonRequired')); return; }
     const parsed = amount.trim() === '' ? null : Number(amount);
@@ -159,10 +172,18 @@ function JobRefundRequestSection({ job, fieldId }) {
       const payload = { reason: cleanReason, idempotencyKey: `job-refund-${job.id}-${Date.now()}` };
       if (parsed === null) payload.fullRefund = true;
       else payload.amount_cents = Math.round(parsed * 100);
-      await requestJobRefund(businessId, job.id, payload);
+      if (businessId) {
+        await requestJobRefund(businessId, job.id, payload);
+      } else {
+        await requestCustomerJobRefund(job.id, payload);
+      }
       toast.success(t('jobDetail.refundRequestQueued'));
       setAmount(''); setReason('');
-      listJobRefundRequests(businessId, job.id).then(setRequests).catch(() => {});
+      if (businessId) {
+        listJobRefundRequests(businessId, job.id).then(setRequests).catch(() => {});
+      } else {
+        listCustomerJobRefundRequests(job.id).then(setRequests).catch(() => {});
+      }
     } catch (err) {
       setError(err?.response?.data?.error || t('jobDetail.refundRequestFailed'));
     } finally { setSubmitting(false); }
@@ -172,7 +193,7 @@ function JobRefundRequestSection({ job, fieldId }) {
     <section className="jdp-card" aria-labelledby={`${fieldId}-refund`}>
       <h2 id={`${fieldId}-refund`} className="jdp-section-title">{t('jobDetail.refundTitle')}</h2>
       <p className="jdp-count">{t('jobDetail.refundHelp')}</p>
-      {businessId ? <>
+      <>
         <label htmlFor={`${fieldId}-refund-amount`}>{t('jobDetail.refundAmountLabel')}</label>
         <div className="jdp-input-prefix">
           <span>{job.currency || 'USD'}</span>
@@ -186,7 +207,7 @@ function JobRefundRequestSection({ job, fieldId }) {
         <button type="button" className="jdp-btn-ghost" onClick={submit} disabled={submitting} data-track="ui.573dfef74b.18">
           {submitting ? t('jobDetail.refundSubmitting') : t('jobDetail.requestRefund')}
         </button>
-      </> : <p className="jdp-count">{t('jobDetail.refundNoBusiness')}</p>}
+      </>
       {requests.length > 0 && <div className="jdp-refund-list">
         <h3 className="jdp-small-heading">{t('jobDetail.refundRequestsHeading')}</h3>
         {requests.map((r) => (
@@ -310,7 +331,9 @@ function JobDetailContent() {
           if (!current) return;
           const a = r.data?.agreement;
           const mine = r.data?.myRole && (r.data?.signatures || []).some((sig) => sig.signer_role === r.data.myRole);
-          setAgreementInfo(a ? { id: a.id, status: a.status, needsMySignature: a.status === 'pending_signatures' && !mine } : { id: null });
+          // G1-A3: carry the agreement's warranty fields for the summary
+          // card; without an agreement the card shows the platform default.
+          setAgreementInfo(a ? { id: a.id, status: a.status, needsMySignature: a.status === 'pending_signatures' && !mine, warrantyMonths: a.warranty_months, warrantyTerms: a.warranty_terms, reimbursementTerms: a.reimbursement_terms } : { id: null });
         })
         .catch(() => { if (current) setAgreementInfo(null); });
     }
@@ -646,6 +669,22 @@ function JobDetailContent() {
   const { isOwner, isHelper, isAssignedHelper, visibleBids, totalBids, action } = view;
   const partialBids = isOwner && bidsStatus === 'success' && totalBids > visibleBids.length;
   const acceptedBid = visibleBids.find(bid => bid.status === 'accepted');
+  // G1-A4: chronological status timeline from the timestamps the job
+  // payload already carries plus the earliest visible bid. Events that
+  // have not happened yet are omitted, never fabricated.
+  const timeline = buildJobTimeline(job, visibleBids);
+  // G1-A3: warranty summary from the by-job agreement fetch. Null until
+  // the fetch resolves and for viewers who are not a party, so the card
+  // below never renders for strangers or on a failed read.
+  const warranty = buildJobWarranty(agreementInfo);
+  const timelineLabels = {
+    posted: t('jobDetail.timelinePosted'),
+    bidsReceived: t('jobDetail.timelineBidsReceived'),
+    accepted: t('jobDetail.timelineAccepted'),
+    started: t('jobDetail.timelineStarted'),
+    completed: t('jobDetail.timelineCompleted'),
+    cancelled: t('jobDetail.timelineCancelled'),
+  };
   const ownBidToReconfirm = !isOwner && isHelper ? bidNeedingReconfirm(visibleBids, user, job) : null;
   const showRevisions = Number(job.revision) > 1 || Number(job.version) > 1;
   const canSeeRevisions = showRevisions && (isOwner || isAssignedHelper || Boolean(visibleBids.length));
@@ -841,6 +880,41 @@ function JobDetailContent() {
             <h3>{t('jobDetail.aftercareTitle')}</h3>
             <p className="jd-aftercare-text">{job.aftercare_instructions}</p>
           </div>}
+          {/* Group 1, item 25: the owner's private notes. The server
+              strips private_notes for every other viewer (jobSerializer
+              OWNER_ONLY), so this block is owner-only by construction;
+              it never renders for helpers, recipients, or the public. */}
+          {isOwner && job.private_notes && <div className="jdp-card" role="region" aria-label={t('jobDetail.privateNotesTitle')}>
+            <h3>{t('jobDetail.privateNotesTitle')}</h3>
+            <p className="jd-aftercare-text">{job.private_notes}</p>
+            <p className="jd-aftercare-hint">{t('jobDetail.privateNotesOnlyYou')}</p>
+            {canEditJob(job, user) && <Link className="jdp-btn-ghost" to={`/jobs/${id}/edit`}>{t('jobDetail.privateNotesEdit')}</Link>}
+          </div>}
+          {/* G1-A3: warranty summary. Agreement terms when one exists (the
+              View agreement link already sits in the actions above; filing
+              happens on the agreement page), the 6-month platform default
+              when none does, with the claim routed to support through the
+              booking-linked Get help flow. */}
+          {warranty && <div className="jdp-card" role="region" aria-label={t('jobDetail.warrantyTitle')}>
+            <h3>{t('jobDetail.warrantyTitle')}</h3>
+            <p><strong>{t('jobDetail.warrantyMonths')}:</strong>{' '}<span dir="ltr">{warranty.months}</span></p>
+            {warranty.source === 'agreement' ? (<>
+              {warranty.terms
+                ? <p><strong>{t('jobDetail.warrantyTerms')}:</strong>{' '}{warranty.terms}</p>
+                : <p className="jd-aftercare-hint">{t('jobDetail.warrantyNoTerms')}</p>}
+              {warranty.reimbursementTerms && <p><strong>{t('jobDetail.warrantyReimbursement')}:</strong>{' '}{warranty.reimbursementTerms}</p>}
+              <p className="jd-aftercare-hint">{t('jobDetail.warrantyPlatformNote')}</p>
+              <div className="jdp-modal-actions">
+                <Link className="jdp-btn-primary" to={`/agreements/${warranty.agreementId}`}>{t('jobDetail.warrantyFileClaim')}</Link>
+              </div>
+            </>) : (<>
+              <p>{t('jobDetail.warrantyPlatformDefault')}</p>
+              <p className="jd-aftercare-hint">{t('jobDetail.warrantyPlatformNote')}</p>
+              <div className="jdp-modal-actions">
+                <button type="button" className="jdp-btn-ghost" onClick={() => navigate(buildBookingSupportHandoff({ jobId: id, bookingLabel: job.title || null, returnTo: `/jobs/${id}` }))} data-track="ui.573dfef74b.34">{t('jobDetail.getHelp')}</button>
+              </div>
+            </>)}
+          </div>}
           {/* D-451 (270, G5-4): the assigned helper confirms attendance; the
               exact address stays hidden until this stamp exists. */}
           {isAssignedHelper && ['accepted', 'in_progress'].includes(job.status) && !job.attendance_confirmed_at && <div className="jdp-secondary-action">
@@ -872,7 +946,7 @@ function JobDetailContent() {
           {job.status === 'no_show' && <p role="status" className="jdp-completion-pending">
             {t('jobDetail.noShowNotice', { reason: job.no_show_reason || '' })}
           </p>}
-          {isOwner && job.status === 'no_show' && <div className="jdp-secondary-action">
+          {isOwner && ['no_show', 'completed'].includes(job.status) && <div className="jdp-secondary-action">
             <button type="button" className="jdp-btn-primary" onClick={handleRebook} data-track="ui.573dfef74b.22">{t('jobDetail.rebookJob')}</button>
           </div>}
           {/* G-16: the customer asks for changes on a completion request
@@ -909,6 +983,12 @@ function JobDetailContent() {
           {(isOwner || isAssignedHelper) && job.assigned_helper_id && <JobExceptions jobId={id} canRaise={['accepted', 'in_progress'].includes(job.status)} />}
           {isAssignedHelper && job.status === 'accepted' && !job.arrived_at && <JobHandback jobId={id} onDone={(msg) => { toast.success(msg); navigate('/dashboard'); }} />}
           {isAssignedHelper && <HelperJobSupport jobId={id} />}
+          {/* G1-B7: the customer files booking-linked support from the job
+              detail. The helper-only entry above is unchanged. The server
+              derives the booking from the job, so only the job id travels. */}
+          {isOwner && <div className="jdp-secondary-action">
+            <button type="button" className="jdp-btn-ghost" onClick={() => navigate(buildBookingSupportHandoff({ jobId: id, bookingLabel: job.title || null, returnTo: `/jobs/${id}` }))} data-track="ui.573dfef74b.29">{t('jobDetail.getHelp')}</button>
+          </div>}
           {isOwner && job.assigned_helper_id && ['completed', 'closed'].includes(job.status) && <JobSkillEndorsements jobId={id} />}
           {(isOwner || (user && String(job.assigned_helper_id) === String(user.id))) && <PaymentReauthorizationBanner jobId={id} job={job} onResolved={() => fetchJob(id)} />}
           <JobPaymentLayersPanel job={job} isOwner={isOwner} isAssignedHelper={isAssignedHelper} onChanged={() => fetchJob(id)} />
@@ -927,6 +1007,18 @@ function JobDetailContent() {
           {!isOwner && <JobSuitabilityPreview jobId={id} />}
           {(isOwner || isAssignedHelper) && job.assigned_helper_id && ['completed', 'closed'].includes(job.status) && <JobPortfolioConsent jobId={id} />}
           {isOwner && ['accepted', 'in_progress', 'completed', 'closed'].includes(job.status) && <JobRefundRequestSection job={job} fieldId={fieldId} />}
+          {timeline.length > 0 && <section className="jdp-card" aria-labelledby={`${fieldId}-timeline`}>
+            <h2 id={`${fieldId}-timeline`} className="jdp-section-title">{t('jobDetail.timelineHeading')}</h2>
+            <ol className="jdp-timeline">
+              {timeline.map(event => (
+                <li key={event.key} className="jdp-timeline-item" data-event={event.key}>
+                  <span className="jdp-timeline-dot" aria-hidden="true" />
+                  <span className="jdp-timeline-label">{timelineLabels[event.key]}</span>
+                  <time dateTime={event.at} className="jdp-timeline-time">{formatDateTime(event.at, { month: 'long' })}</time>
+                </li>
+              ))}
+            </ol>
+          </section>}
           {requirementsCard}
           {view.canSubmitBid && <section className="jdp-card jdp-bid-form-card" aria-labelledby={`${fieldId}-bid-form`}>
             <h2 id={`${fieldId}-bid-form`} className="jdp-section-title" tabIndex={-1}>{t('jobDetail.submitYourBid')}</h2>
@@ -1000,6 +1092,10 @@ function JobDetailContent() {
           {job.assigned_helper_id && <><UserReputationCard userId={job.assigned_helper_id} />
             {user && !isOwner && <button className="jdp-btn-danger" onClick={() => setReportModalOpen(true)} data-track="ui.573dfef74b.15">{t('jobDetail.reportHelper')}</button>}</>}
           {LAUNCH_VISIBILITY.jobMaterialsLogistics && isHelper && job.category_name && <JobMaterialsPanel category={job.category_name} jobId={id} />}
+          {/* Group 1, item 31: the customer sees the DIY kits matching
+              this job's category on the job itself, not only on the
+              marketplace page. */}
+          {isOwner && job.category_name && <DiyKitPicker signedIn={!!user} category={job.category_name} />}
         </aside>
       </div>
       {mediaIndex !== null && <JobImageViewer images={imageUrls} index={mediaIndex} onIndexChange={setMediaIndex} onClose={() => setMediaIndex(null)} />}

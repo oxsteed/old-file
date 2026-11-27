@@ -693,13 +693,18 @@ exports.saveHelper = async (req, res) => {
       return res.status(404).json({ error: 'Helper not found.' });
     }
 
+    // G1-A5: a note sent with the save replaces the stored note, including
+    // an empty string, which clears it. A save with no note key leaves the
+    // stored note untouched (the one-tap directory save sends none).
+    const noteProvided = Object.prototype.hasOwnProperty.call(req.body || {}, 'note');
+    const noteValue = noteProvided ? (note == null ? null : String(note).slice(0, 255)) : null;
     const { rows } = await db.query(`
       INSERT INTO saved_helpers (user_id, helper_id, note)
       VALUES ($1, $2, $3)
       ON CONFLICT (user_id, helper_id) DO UPDATE
-      SET note = COALESCE($3, saved_helpers.note)
+      SET note = ${noteProvided ? '$3' : 'saved_helpers.note'}
       RETURNING *
-    `, [userId, helper_id, note || null]);
+    `, [userId, helper_id, noteValue]);
 
     res.status(201).json(rows[0]);
   } catch (err) {

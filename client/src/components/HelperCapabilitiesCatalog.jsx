@@ -9,6 +9,7 @@ const normalized = (value) => String(value || '').trim().toLocaleLowerCase();
 
 export default function HelperCapabilitiesCatalog({
   skills, tools, skillsLoading, toolsLoading, showTools,
+  toolsHasMore, onLoadMoreTools,
   onAddSkill, onEditSkill, onDeleteSkill,
   onAddTool, onEditTool, onDeleteTool, onViewTool, onViewProfile,
 }) {
@@ -166,6 +167,14 @@ export default function HelperCapabilitiesCatalog({
                   </div>
                 </article>)}
             {!toolsLoading && !shownTools.length && <p className="helper-capabilities__empty">{t('dashboard.skillsTools.noTools')}</p>}
+            {/* G11-A12 (D-624): the owner tool list is paged server-side
+                (30/page); load the next page instead of fetching every
+                tool up front. */}
+            {!toolsLoading && toolsHasMore && (
+              <button type="button" className="helper-capabilities__load-more" onClick={onLoadMoreTools} data-track="ui.9751dba441.10">
+                {t('toolRentals.loadMore')}
+              </button>
+            )}
           </div>
         </section>}
       </div>

@@ -89,6 +89,62 @@ function summarizeTimeline(timeline) {
   return lines.join('\n').slice(0, MAX_SUMMARY_CHARS);
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * G1-B7: build a handoff from a booking or job detail to /support/escalation.
+ * The ids travel in the query string so a refresh keeps the linkage; the
+ * display label travels in location.state only (never trusted server-side —
+ * the server re-derives the real linkage from the ids).
+ * @param {object} opts
+ * @param {string} [opts.jobId]
+ * @param {string} [opts.bookingId]
+ * @param {string} [opts.bookingLabel] display-only service/job title
+ * @param {string} [opts.returnTo] absolute path+search, e.g. /my-bookings
+ * @returns {{ pathname: string, search: string, state: object }}
+ */
+export function buildBookingSupportHandoff({
+  jobId,
+  bookingId,
+  bookingLabel,
+  returnTo,
+} = {}) {
+  const params = new URLSearchParams();
+  params.set('from', 'booking');
+  if (jobId && UUID_RE.test(String(jobId))) params.set('jobId', String(jobId));
+  if (bookingId && UUID_RE.test(String(bookingId))) params.set('bookingId', String(bookingId));
+  if (returnTo && typeof returnTo === 'string' && returnTo.startsWith('/')) {
+    params.set('returnTo', returnTo.slice(0, 500));
+  }
+
+  return {
+    pathname: '/support/escalation',
+    search: `?${params.toString()}`,
+    state: {
+      from: 'booking',
+      jobId: jobId && UUID_RE.test(String(jobId)) ? String(jobId) : null,
+      bookingId: bookingId && UUID_RE.test(String(bookingId)) ? String(bookingId) : null,
+      bookingLabel: typeof bookingLabel === 'string' && bookingLabel.trim()
+        ? bookingLabel.trim().slice(0, 120)
+        : null,
+      returnTo: returnTo && typeof returnTo === 'string' && returnTo.startsWith('/') ? returnTo : null,
+    },
+  };
+}
+
+/** UUIDs for the booking linkage carried by a handoff. */
+function readBookingLink(state, params) {
+  const rawJobId = state.jobId || params.get('jobId') || null;
+  const rawBookingId = state.bookingId || params.get('bookingId') || null;
+  return {
+    jobId: rawJobId && UUID_RE.test(String(rawJobId)) ? String(rawJobId) : null,
+    bookingId: rawBookingId && UUID_RE.test(String(rawBookingId)) ? String(rawBookingId) : null,
+    bookingLabel: typeof state.bookingLabel === 'string' && state.bookingLabel.trim()
+      ? state.bookingLabel.trim().slice(0, 120)
+      : null,
+  };
+}
+
 /**
  * Read handoff context from location.search + location.state (state wins for prefill).
  * @param {{ search?: string, state?: object | null }} location
@@ -109,6 +165,7 @@ export function readSupportEscalationHandoff(location = {}) {
   const prefillMessage = state.prefillMessage || null;
   const messageSummary = state.messageSummary || null;
   const isFromProfile = from === 'profile' || Boolean(helperId || businessId);
+  const bookingLink = readBookingLink(state, params);
 
   return {
     from,
@@ -120,5 +177,7 @@ export function readSupportEscalationHandoff(location = {}) {
     prefillMessage,
     messageSummary,
     isFromProfile,
+    ...bookingLink,
+    isFromBooking: from === 'booking' || Boolean(bookingLink.jobId || bookingLink.bookingId),
   };
 }

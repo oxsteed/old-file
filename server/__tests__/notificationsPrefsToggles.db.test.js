@@ -348,6 +348,151 @@ ddescribe('Track C preference toggles (DB)', () => {
       );
     });
 
+    // G12-A1 (D-640): the new territory-invitation type resolves through
+    // the real send path to a stored row with a non-empty localized title.
+    test('franchise_territory_invitation sends through the real path with a resolved title', async () => {
+      const user = await makeUser();
+      const result = await sendNotification({
+        userId: user.id,
+        type: 'franchise_territory_invitation',
+        data: { params: { inviterName: 'Fran Chise' }, application_id: '00000000-0000-0000-0000-000000000000' },
+        action_url: '/franchise/invitations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        idempotencyKey: `g12a1-real-send-${user.id}`,
+      });
+      expect(result.success).toBe(true);
+      const { rows: [note] } = await pool.query(
+        `SELECT title, body, action_url FROM notifications WHERE user_id = $1 AND type = 'franchise_territory_invitation'`,
+        [user.id],
+      );
+      expect(note).toBeDefined();
+      expect(note.title).toBe('Territory invitation');
+      expect(note.body).toContain('Fran Chise');
+      expect(note.action_url).toBe('/franchise/invitations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+    });
+
+    test('the five G12-A3 applicant types send through the real path with resolved titles', async () => {
+      const user = await makeUser();
+      const applicationId = '00000000-0000-0000-0000-000000000000';
+      const sends = [
+        {
+          type: 'franchise_application_status_changed',
+          data: { params: { status: 'approved' }, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12a3-real-send-status-${user.id}`,
+        },
+        {
+          type: 'franchise_territory_offered',
+          data: { params: {}, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12a3-real-send-offer-${user.id}`,
+        },
+        {
+          type: 'franchise_interview_proposed',
+          data: { params: { startsAt: '2026-12-01T15:00:00.000Z' }, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12a3-real-send-interview-${user.id}`,
+        },
+        {
+          type: 'franchise_document_reviewed',
+          data: { params: { fileName: 'capital.pdf', decision: 'rejected', reasonPart: ' Reason: Bank statement is older than 90 days.' }, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12a3-real-send-document-${user.id}`,
+        },
+        {
+          type: 'franchise_followup_replied',
+          data: { params: {}, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12a3-real-send-followup-${user.id}`,
+        },
+      ];
+      for (const send of sends) {
+        const result = await sendNotification({ userId: user.id, ...send });
+        expect(result.success).toBe(true);
+      }
+      const { rows } = await pool.query(
+        `SELECT type, title, body FROM notifications WHERE user_id = $1 AND type LIKE 'franchise_%' ORDER BY created_at ASC`,
+        [user.id],
+      );
+      expect(rows.map((row) => row.type)).toEqual([
+        'franchise_application_status_changed',
+        'franchise_territory_offered',
+        'franchise_interview_proposed',
+        'franchise_document_reviewed',
+        'franchise_followup_replied',
+      ]);
+      for (const row of rows) expect(row.title.length).toBeGreaterThan(0);
+      expect(rows[0].body).toContain('approved');
+      expect(rows[2].body).toContain('2026-12-01T15:00:00.000Z');
+      expect(rows[3].body).toContain('capital.pdf');
+      expect(rows[3].body).toContain('Bank statement is older than 90 days.');
+    });
+
+    test('the six G12-B5 transition types send through the real path with resolved titles', async () => {
+      const user = await makeUser();
+      const applicationId = '00000000-0000-0000-0000-000000000000';
+      const sends = [
+        {
+          type: 'franchise_handoff_decided',
+          data: { params: { decision: 'approved' }, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12b5-real-send-handoff-${user.id}`,
+        },
+        {
+          type: 'franchise_territory_access_removed',
+          data: { params: { reason: 'Left the opening team' }, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12b5-real-send-access-${user.id}`,
+        },
+        {
+          type: 'franchise_exception_escalated',
+          data: { params: { ticketNumber: 'T-123' }, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12b5-real-send-escalation-${user.id}`,
+        },
+        {
+          type: 'franchise_remediation_assigned',
+          data: { params: { ticketNumber: 'T-123', dueDate: '2026-12-01' }, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12b5-real-send-remediation-${user.id}`,
+        },
+        {
+          type: 'franchise_training_escalation_resolved',
+          data: { params: { resolution: 'Re-uploaded the video; the quiz passes now.' }, application_id: applicationId },
+          action_url: '/franchise/territory',
+          idempotencyKey: `g12b5-real-send-training-${user.id}`,
+        },
+        {
+          type: 'franchise_ops_appointment_updated',
+          data: { params: { transition: 'confirmed', startsAt: '2026-12-01T15:00:00.000Z' }, application_id: applicationId },
+          action_url: '/franchise/territory',
+          idempotencyKey: `g12b5-real-send-ops-${user.id}`,
+        },
+      ];
+      for (const send of sends) {
+        const result = await sendNotification({ userId: user.id, ...send });
+        expect(result.success).toBe(true);
+      }
+      const { rows } = await pool.query(
+        `SELECT type, title, body FROM notifications WHERE user_id = $1 AND type LIKE 'franchise_%' ORDER BY created_at ASC`,
+        [user.id],
+      );
+      expect(rows.map((row) => row.type)).toEqual([
+        'franchise_handoff_decided',
+        'franchise_territory_access_removed',
+        'franchise_exception_escalated',
+        'franchise_remediation_assigned',
+        'franchise_training_escalation_resolved',
+        'franchise_ops_appointment_updated',
+      ]);
+      for (const row of rows) expect(row.title.length).toBeGreaterThan(0);
+      expect(rows[0].body).toContain('approved');
+      expect(rows[1].body).toContain('Left the opening team');
+      expect(rows[2].body).toContain('T-123');
+      expect(rows[3].body).toContain('2026-12-01');
+      expect(rows[4].body).toContain('Re-uploaded the video');
+      expect(rows[5].body).toContain('confirmed');
+    });
+
     test('catalog stays in sync with the live sendNotification call sites (N3)', async () => {
       // N3: the catalog is a static snapshot that drifted from the call
       // sites (the batch's own new types had no toggle, and neither did
@@ -457,9 +602,10 @@ ddescribe('Track C preference toggles (DB)', () => {
         // omitted it, so the N3 diff never enforced its catalog entry.
         { file: 'services/restaurantPayoutService.js', name: 'type', expansions: ['payout_requested', 'payout_failed', 'payout_approved', 'payout_deposited', 'payout_reversed', 'payout_rejected', 'payout_draft_created'] },
         // Group 9 partials Wave 2 Batch L (451, G9-A8, D-529): notifyDriver
-        // fan-out in the delivery controller; the three types are the only
-        // ones its callers pass (approval, payout approved, payout paid).
-        { file: 'controllers/localDeliveryController.js', name: 'type', expansions: ['driver_approved', 'driver_payout_approved', 'driver_payout_paid'] },
+        // fan-out in the delivery controller; the four types are the only
+        // ones its callers pass (approval, payout approved, payout paid,
+        // payout voided — N16 remainder, D-651).
+        { file: 'controllers/localDeliveryController.js', name: 'type', expansions: ['driver_approved', 'driver_payout_approved', 'driver_payout_paid', 'driver_payout_voided'] },
         { file: 'services/supportNotificationService.js', name: 'type', expansions: ['support_sla_breach'] },
         // G11 checkpoint 1 (D-603): notifyRental fan-out in the
         // tool-rental notifications helper; the two types are the only
@@ -470,6 +616,14 @@ ddescribe('Track C preference toggles (DB)', () => {
         // escalation-reply type is NOT here: it is sent by the disputes
         // controller's own sender (safety thread), with a literal type.
         { file: 'utils/toolRentalNotifications.js', name: 'type', expansions: ['tool_rental_payment_proof_submitted', 'tool_rental_payment_confirmed', 'tool_rental_booking_approved', 'tool_rental_booking_declined', 'tool_rental_invoice_sent', 'tool_rental_booking_cancelled', 'tool_rental_return_marked', 'tool_rental_damage_claim_filed', 'tool_rental_damage_claim_resolved', 'tool_rental_damage_claim_acknowledged', 'tool_rental_reschedule_proposed', 'tool_rental_reschedule_approved', 'tool_rental_reschedule_declined', 'tool_rental_refund_proposed', 'tool_rental_refund_confirmed', 'tool_rental_refund_settled', 'tool_rental_deposit_resolved', 'tool_rental_deposit_acknowledged'] },
+        // G12-A3 (D-644): deliverFranchiseNotice fan-out in the franchise
+        // controller; the five types are the only ones its callers pass
+        // (status change, territory offer, interview proposed, document
+        // reviewed, HQ follow-up reply).
+        // G12-B5 (D-645): the same fan-out carries six more types (handoff
+        // decided, access removed, exception escalated, remediation
+        // assigned, training escalation resolved, ops appointment updated).
+        { file: 'controllers/franchiseController.js', name: 'type', expansions: ['franchise_application_status_changed', 'franchise_territory_offered', 'franchise_interview_proposed', 'franchise_document_reviewed', 'franchise_followup_replied', 'franchise_handoff_decided', 'franchise_territory_access_removed', 'franchise_exception_escalated', 'franchise_remediation_assigned', 'franchise_training_escalation_resolved', 'franchise_ops_appointment_updated'] },
         // Redis job-data replay: the queued payload is a full
         // notification object produced by a sendNotification caller
         // upstream, so the type already passed through the central

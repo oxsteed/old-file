@@ -119,16 +119,8 @@ describeDb('Group 12 Slice 3c: Open locations (611-615)', () => {
       })
       .expect(201);
     const applicationId = created.body.application.id;
-    // The intake is a public lead form (no `authenticate` on POST
-    // /applications), so the row is created ownerless; HQ links the
-    // applicant's account through the admin owner assignment, which is the
-    // production path that makes the application visible to the applicant.
-    const adminId = await addUser('super_admin');
-    await request(app)
-      .patch(`/api/franchise/applications/${applicationId}`)
-      .set('x-test-user', adminId)
-      .send({ owner_user_id: applicantId })
-      .expect(200);
+    // Group 12 Slice A (G12-A2 / S-E4, D-643): intake is authenticated-only,
+    // so the row is created owned by the applicant at creation.
     return applicationId;
   }
 
@@ -392,6 +384,45 @@ describeDb('Group 12 Slice 3c: Open locations (611-615)', () => {
       ]);
     });
 
+    test('a non-operator applicant gets 403 on milestone status; the assigned operator succeeds', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ owner_user_id: operator })
+        .expect(200);
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      const location = detail.body.locations[0];
+      const added = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/locations/${location.id}/milestones`)
+        .set('x-test-user', admin)
+        .send({ title: 'Fit out the store' })
+        .expect(201);
+      const milestone = added.body.locations[0].milestones[0];
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${location.id}/milestones/${milestone.id}/status`)
+        .set('x-test-user', applicant)
+        .send({ status: 'completed' })
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+      const stillPending = await applicantDetail(applicant, applicationId).expect(200);
+      expect(stillPending.body.locations[0].milestones[0].status).toBe('pending');
+
+      const updated = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${location.id}/milestones/${milestone.id}/status`)
+        .set('x-test-user', operator)
+        .send({ status: 'completed' })
+        .expect(200);
+      const done = updated.body.locations[0].milestones[0];
+      expect(done.status).toBe('completed');
+      expect(done.completed_by).toBe(operator);
+    });
+
     test('milestones are scoped per application: a second application sees none of the first', async () => {
       const first = await addUser();
       const second = await addUser();
@@ -552,10 +583,9 @@ describeDb('Group 12 Slice 3c: Open locations (611-615)', () => {
       const applicationId = await makeApplication(applicant, { desired_region: 'TX' });
       const helper = await addHelper();
 
-      // The public lead form leaves applicant_user_id NULL; link the
-      // applicant's account (as 3b does) so the applicant-vs-operator
-      // distinction below is the one the handler enforces.
-      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant, applicationId]);
+      // Intake is authenticated-only (D-643), so the row is already owned
+      // by the applicant; the applicant-vs-operator distinction below is
+      // the one the handler enforces.
       // HQ reassigns the territory to a second operator; the original
       // applicant record alone is no longer the operator.
       await request(app)
@@ -1189,6 +1219,91 @@ describeDb('Group 12 Slice 3c: Open locations (611-615)', () => {
       const confirmed = await confirm(operator, applicationId, location.id, { opened_date: '2026-11-24' }).expect(201);
       const confirmedLocation = confirmed.body.locations.find((entry) => entry.id === location.id);
       expect(confirmedLocation.launch_complete).toBe(true);
+    });
+  });
+
+  describe('G12-A7/A8: fee collection guards and signing on closed applications', () => {
+    async function signedApplication(applicant, admin, feeCents = 10000) {
+      const applicationId = await makeApplication(applicant);
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ status: 'approved' })
+        .expect(200);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/agreement/sign`)
+        .set('x-test-user', applicant)
+        .send({ signed_by_name: 'Franchise Fixture' })
+        .expect(200);
+      await db.query(
+        'UPDATE franchise_agreements SET initial_fee_cents = $2 WHERE application_id = $1',
+        [applicationId, feeCents]
+      );
+      return applicationId;
+    }
+
+    function collect(admin, applicationId, body) {
+      return request(app)
+        .post(`/api/franchise/applications/${applicationId}/agreement/collect-fee`)
+        .set('x-test-user', admin)
+        .send(body);
+    }
+
+    test('a duplicate collection reference is a 409; over-collection is capped unless a reason is supplied', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await signedApplication(applicant, admin, 10000);
+
+      // Half the fee with REF-1 lands.
+      await collect(admin, applicationId, { amount_cents: 5000, collection_reference: 'REF-1' }).expect(200);
+      // The same reference again is the same wire entered twice.
+      const dup = await collect(admin, applicationId, { amount_cents: 5000, collection_reference: 'REF-1' });
+      expect(dup.status).toBe(409);
+      expect(dup.body.code).toBe('collection_reference_duplicate');
+      // More than the remaining 5000 with a fresh reference is capped.
+      const over = await collect(admin, applicationId, { amount_cents: 5001, collection_reference: 'REF-2' });
+      expect(over.status).toBe(409);
+      expect(over.body.code).toBe('collection_exceeds_fee');
+      expect(over.body.remaining_cents).toBe(5000);
+      // The same over-collection with an explicit reason is allowed and logged.
+      await collect(admin, applicationId, { amount_cents: 5001, collection_reference: 'REF-3', reason: 'Overpaid one cent, refund pending' }).expect(200);
+      const { rows } = await db.query(
+        `SELECT metadata FROM franchise_activity_log
+          WHERE application_id = $1 AND event_type = 'initial_fee_collected'
+            AND metadata->>'collection_reference' = 'REF-3'`,
+        [applicationId]
+      );
+      expect(rows[0]?.metadata?.overpayment_reason).toBe('Overpaid one cent, refund pending');
+    });
+
+    test('signing a rejected or archived application is a 409', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const rejectedId = await makeApplication(applicant);
+      await request(app)
+        .patch(`/api/franchise/applications/${rejectedId}`)
+        .set('x-test-user', admin)
+        .send({ status: 'rejected' })
+        .expect(200);
+      const rejected = await request(app)
+        .post(`/api/franchise/applications/${rejectedId}/agreement/sign`)
+        .set('x-test-user', applicant)
+        .send({ signed_by_name: 'Franchise Fixture' });
+      expect(rejected.status).toBe(409);
+      expect(rejected.body.code).toBe('franchise_agreement_application_closed');
+
+      const archivedId = await makeApplication(applicant);
+      await request(app)
+        .patch(`/api/franchise/applications/${archivedId}`)
+        .set('x-test-user', admin)
+        .send({ status: 'archived' })
+        .expect(200);
+      const archived = await request(app)
+        .post(`/api/franchise/applications/${archivedId}/agreement/sign`)
+        .set('x-test-user', applicant)
+        .send({ signed_by_name: 'Franchise Fixture' });
+      expect(archived.status).toBe(409);
+      expect(archived.body.code).toBe('franchise_agreement_application_closed');
     });
   });
 });

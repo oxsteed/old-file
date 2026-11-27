@@ -131,6 +131,6 @@ test('jobEdit copy exists in both catalogs for every language, identical, with m
 test('jobDetail namespace size is unchanged', async () => {
   for (const language of LANGUAGES) {
     const common = JSON.parse(await readFile(new URL(`../src/i18n/locales/${language}/common.json`, import.meta.url)));
-    assert.equal(Object.keys(common.jobDetail).length, 44);
+    assert.equal(Object.keys(common.jobDetail).length, 59);
   }
 });

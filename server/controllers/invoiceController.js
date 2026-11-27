@@ -82,7 +82,9 @@ const resolveDeposit = async (req, res) => {
 const generateInvoiceNumber = async () => {
   const today = new Date();
   const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-  const randomBytes = crypto.randomInt(10000, 99999).toString();
+  // G11-A15 (D-627): six random digits (900,000/day) instead of five,
+  // so two invoices on the same day collide ~10x less often.
+  const randomBytes = crypto.randomInt(100000, 999999).toString();
   return `INV-${dateStr}-${randomBytes}`;
 };
 
@@ -237,36 +239,55 @@ const createInvoice = async (req, res) => {
     // Start transaction
     await client.query('BEGIN');
 
-    // Create invoice record
-    const invoiceNumber = await generateInvoiceNumber();
-    const invoiceResult = await client.query(
-      `INSERT INTO tool_rental_invoices
-       (booking_id, invoice_number, customer_id, owner_id, tool_id, start_date, end_date, daily_rate, total_amount,
-        payment_type, payment_identifier, payment_identifier_encrypted, owner_payment_method_id, idempotency_key,
-        rental_amount, deposit_amount)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-       RETURNING *`,
-      [
-        bookingId,
-        invoiceNumber,
-        booking.customer_id,
-        ownerId,
-        booking.tool_id,
-        booking.start_date,
-        booking.end_date,
-        booking.daily_rate,
-        invoiceTotal,
-        paymentRow.payment_type,
-        maskedIdentifier,
-        encryptedIdentifier,
-        paymentRow.id,
-        idempotencyKey,
-        rentalAmount,
-        depositAmount
-      ]
-    );
-
-    const invoice = invoiceResult.rows[0];
+    // Create invoice record.
+    // G11-A15 (D-627): retry on an invoice-number collision instead of
+    // 500ing. A failed INSERT aborts the transaction, so each attempt
+    // runs behind a SAVEPOINT and rolls back to it on the unique
+    // violation, then retries with a fresh number (max 5 attempts).
+    // Only the invoice_number constraint retries; any other failure
+    // (e.g. the idempotency key) throws straight to the outer catch.
+    let invoice = null;
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      const invoiceNumber = await generateInvoiceNumber();
+      await client.query('SAVEPOINT invoice_number');
+      try {
+        const invoiceResult = await client.query(
+          `INSERT INTO tool_rental_invoices
+           (booking_id, invoice_number, customer_id, owner_id, tool_id, start_date, end_date, daily_rate, total_amount,
+            payment_type, payment_identifier, payment_identifier_encrypted, owner_payment_method_id, idempotency_key,
+            rental_amount, deposit_amount)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+           RETURNING *`,
+          [
+            bookingId,
+            invoiceNumber,
+            booking.customer_id,
+            ownerId,
+            booking.tool_id,
+            booking.start_date,
+            booking.end_date,
+            booking.daily_rate,
+            invoiceTotal,
+            paymentRow.payment_type,
+            maskedIdentifier,
+            encryptedIdentifier,
+            paymentRow.id,
+            idempotencyKey,
+            rentalAmount,
+            depositAmount
+          ]
+        );
+        invoice = invoiceResult.rows[0];
+        await client.query('RELEASE SAVEPOINT invoice_number');
+        break;
+      } catch (insertErr) {
+        await client.query('ROLLBACK TO SAVEPOINT invoice_number');
+        await client.query('RELEASE SAVEPOINT invoice_number');
+        const isCollision = insertErr.code === '23505'
+          && String(insertErr.constraint || '').includes('invoice_number');
+        if (!isCollision || attempt === 5) throw insertErr;
+      }
+    }
     await client.query(
       `UPDATE tool_rentals_bookings SET deposit_amount = $2, deposit_status = $3 WHERE id = $1`,
       [bookingId, depositAmount, depositAmount > 0 ? 'due' : 'none']

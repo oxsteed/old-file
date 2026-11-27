@@ -405,6 +405,22 @@ export default function FranchiseHQPage() {
     return () => { cancelled = true; };
   }, [selectedBundle, hqTicketStatus, hqTicketLocationId, hqTicketRefresh]);
 
+  // G12-A5 (D-649): the training catalogue for the HQ assign form —
+  // the same modules the operator sees, served by the admin twin.
+  const [hqTrainingModules, setHqTrainingModules] = useState([]);
+  useEffect(() => {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) {
+      setHqTrainingModules([]);
+      return undefined;
+    }
+    let cancelled = false;
+    axios.get(`/franchise/applications/${applicationId}/training-modules`)
+      .then((res) => { if (!cancelled) setHqTrainingModules(res.data?.training_modules ?? []); })
+      .catch(() => { if (!cancelled) setHqTrainingModules([]); });
+    return () => { cancelled = true; };
+  }, [selectedBundle]);
+
   // Group 12 Slice 3j (649): the per-territory case tracker for HQ —
   // the territory's cases in one view, filterable by status, type, and
   // location.
@@ -899,6 +915,25 @@ export default function FranchiseHQPage() {
     }
   }
 
+  // G12-A11 (D-656): mint the document download URL on click — the
+  // bundle's read-time URL is 600s and stale by the time HQ clicks.
+  // The blank window opens in the click handler so the popup blocker
+  // does not swallow the navigation after the fetch.
+  async function downloadDocument(doc) {
+    if (!selectedApplication) return;
+    const win = window.open('', '_blank', 'noopener');
+    try {
+      const res = await axios.get(`/franchise/applications/${selectedApplication.id}/documents/${doc.id}/download-url`);
+      const url = res.data?.download_url;
+      if (!url) throw new Error('no download url');
+      if (win) win.location.href = url;
+      else window.location.href = url;
+    } catch (err) {
+      if (win) win.close();
+      toast.error(err?.response?.data?.error || t('adminFranchiseDocumentDownloadFailed'));
+    }
+  }
+
   async function sendFollowup() {
     if (!selectedApplication || !followupText.trim()) return;
     try {
@@ -1132,6 +1167,7 @@ export default function FranchiseHQPage() {
       const res = await axios.post(`/franchise/applications/${selectedApplication.id}/invitations`, body);
       setSelectedBundle(res.data);
       toast.success(t('adminFranchiseTerritoryInviteSent'));
+      return { token: res.data.new_invite_token, email: body.email };
     } catch (err) {
       toast.error(err?.response?.data?.error || t('adminFranchiseTerritoryInviteFailed'));
       throw err;
@@ -1856,10 +1892,10 @@ export default function FranchiseHQPage() {
                               {t(`dashboards.franchise.${{ identity: 'docIdentity', entity: 'docEntity', financials: 'docFinancials', territory_plan: 'docTerritoryPlan' }[doc.category] || 'docIdentity'}`)} · {formatLabel(doc.status, t)} · {new Date(doc.created_at).toLocaleString()}
                             </div>
                             {doc.review_reason && <div className="frhq-row-meta">{doc.review_reason}</div>}
-                            {doc.download_url && (
-                              <a className="frhq-link" href={doc.download_url} target="_blank" rel="noreferrer">
+                            {!doc.download_unavailable && (
+                              <button type="button" className="frhq-link" onClick={() => downloadDocument(doc)}>
                                 {t('adminFranchiseDownloadDocument')}
-                              </a>
+                              </button>
                             )}
                           </div>
                           <div className="frhq-doc-review">
@@ -2274,6 +2310,7 @@ export default function FranchiseHQPage() {
                     assignments={selectedBundle.training_assignments || []}
                     members={territoryMembers()}
                     locations={selectedBundle.locations || []}
+                    modules={hqTrainingModules}
                     canAssign
                     canComplete
                     onAssign={assignTraining}
@@ -2519,6 +2556,10 @@ export default function FranchiseHQPage() {
                     canDelete
                     onUpload={uploadBrandAsset}
                     onDelete={deleteBrandAsset}
+                    onDownload={async (asset) => {
+                      const res = await axios.get(`/franchise/applications/${selectedApplication.id}/brand-assets/${asset.id}/download-url`);
+                      return res.data?.download_url;
+                    }}
                     disabled={saving}
                   />
 

@@ -34,6 +34,25 @@ const NOTIFICATION_TYPES = [
   { type: 'bid_deadline_reminder', group: 'work' },
   // Group 12 Slice 3e (625): franchise standard version change reminder.
   { type: 'franchise_standard_updated', group: 'work' },
+  // G12-A1 (D-640): territory invitation — the invitee answers on the
+  // accept page the notice links to.
+  { type: 'franchise_territory_invitation', group: 'work' },
+  // G12-A3 (D-644): applicant notices — status change, territory offer,
+  // interview proposed, document reviewed, HQ follow-up reply.
+  { type: 'franchise_application_status_changed', group: 'work' },
+  { type: 'franchise_territory_offered', group: 'work' },
+  { type: 'franchise_interview_proposed', group: 'work' },
+  { type: 'franchise_document_reviewed', group: 'work' },
+  { type: 'franchise_followup_replied', group: 'work' },
+  // G12-B5 (D-645): 626-650 transition notices — handoff decided, access
+  // removed, exception escalated, remediation assigned, training
+  // escalation resolved, ops appointment updated.
+  { type: 'franchise_handoff_decided', group: 'work' },
+  { type: 'franchise_territory_access_removed', group: 'work' },
+  { type: 'franchise_exception_escalated', group: 'work' },
+  { type: 'franchise_remediation_assigned', group: 'work' },
+  { type: 'franchise_training_escalation_resolved', group: 'work' },
+  { type: 'franchise_ops_appointment_updated', group: 'work' },
   { type: 'bid_received', group: 'work' },
   { type: 'bid_reconfirmed', group: 'work' },
   // Group 4 Slice C (166-170): counterparty notices for the helper-quote
@@ -216,6 +235,8 @@ const NOTIFICATION_TYPES = [
   { type: 'driver_approved', group: 'work' },
   { type: 'driver_payout_approved', group: 'payments' },
   { type: 'driver_payout_paid', group: 'payments' },
+  // N16 remainder (G12 batch, D-651): the driver hears when a payout is voided.
+  { type: 'driver_payout_voided', group: 'payments' },
   { type: 'delivery_offer_expired', group: 'orders' },
   // Group 9 partials Wave 2 Batch M (456, G9-A9): the periodic new-offer
   // digest for eligible drivers.
@@ -334,6 +355,9 @@ const NOTIFICATION_TYPES = [
   // Group 14 Slice 5d (716, D-430): a new audit request reaches the
   // bookkeeper/admin queue.
   { type: 'audit_request_received', group: 'credit' },
+  // G1-B6 (D-673): a customer files a product return request; the
+  // helper who sold the order and the operations admins are notified.
+  { type: 'marketplace_return_requested', group: 'support' },
   { type: 'statement_ready', group: 'credit' },
   { type: 'customer360_attention', group: 'support' },
   { type: 'dispute_opened', group: 'support' },
@@ -345,6 +369,10 @@ const NOTIFICATION_TYPES = [
   // Wave 3 (589, D-572/D-569): rental escalation opened/resolved.
   { type: 'tool_rental_escalation_opened', group: 'support' },
   { type: 'tool_rental_escalation_resolved', group: 'support' },
+  // G11-B13 (D-620): a party accepts or disputes an admin-closed
+  // escalation; a dispute also tells the moderation admins.
+  { type: 'tool_rental_escalation_acknowledged', group: 'support' },
+  { type: 'tool_rental_escalation_disputed', group: 'support' },
   // G11-A1/A3 (D-603): payment proof recorded, payment confirmed.
   { type: 'tool_rental_payment_proof_submitted', group: 'support' },
   { type: 'tool_rental_payment_confirmed', group: 'support' },
@@ -394,6 +422,13 @@ const NOTIFICATION_TYPES = [
   { type: 'business_invite_expired', group: 'account' },
   { type: 'credential_removed', group: 'account' },
   { type: 'planned_need_expired', group: 'account' },
+  // G1-B3 (D-689): the customer is reminded once, the day before a
+  // personal-care need activates, that it posts for helpers tomorrow.
+  { type: 'planned_need_reminder', group: 'account' },
+  // G1-B2 (D-693): the vehicle owner is reminded once per
+  // vehicle+kind+status+service-anchor when an oil change or service
+  // is due or due soon (weekly sweeper).
+  { type: 'vehicle_service_reminder', group: 'account' },
   { type: 'planned_need_request', group: 'account' },
   { type: 'preferred_helper_accepted', group: 'account' },
   { type: 'preferred_helper_declined', group: 'account' },

@@ -2,6 +2,8 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendError } = require('../utils/apiError');
 const { AppError } = require('../middleware/errorHandler');
+const { sendNotification } = require('../services/notificationService');
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const { processMarketplaceRefund } = require('../services/marketplaceRefundService');
 
@@ -187,6 +189,67 @@ async function cancelOrder(req, res, next) {
   }
 }
 
+// G1-B6 (D-672/D-673): a return request reaches the seller side and
+// the admin side. The marketplace records no seller on the order or the
+// product (both are platform-sourced), so the "merchant" is the helper
+// who built the cart the order was checked out from
+// (shopping_carts.helper_id via marketplace_orders.cart_id). An order
+// with no cart has no merchant to notify and reaches the admins only.
+// Admins follow the dispute_opened pattern: active admins and
+// super_admins, gated on the manage_operations grant the admin return
+// queue itself requires. Per-recipient failures are swallowed
+// (allSettled): the request row is already stored and the caller
+// already has their 201.
+async function notifyReturnRequested({ returnRequest, order, customerId }) {
+  const data = { return_id: returnRequest.id, order_id: order.id };
+
+  let merchantId = null;
+  if (order.cart_id) {
+    const { rows: cartRows } = await pool.query(
+      'SELECT helper_id FROM shopping_carts WHERE id = $1',
+      [order.cart_id]
+    );
+    merchantId = cartRows[0]?.helper_id || null;
+  }
+
+  const { rows: adminRows } = await pool.query(
+    `SELECT id, role FROM users
+       WHERE role IN ('admin', 'super_admin')
+         AND is_active = true
+         AND deleted_at IS NULL`
+  );
+  const eligibleAdminRows = (await Promise.all(
+    adminRows.map(async (admin) => (
+      admin.role === 'super_admin' || await hasGlobalGrant(admin.id, 'manage_operations')
+        ? admin
+        : null
+    ))
+  )).filter(Boolean);
+
+  const sends = [];
+  // The helper buying from their own cart is the customer already; a
+  // notice about their own request would be noise.
+  if (merchantId && merchantId !== customerId) {
+    sends.push(sendNotification({
+      userId: merchantId,
+      type: 'marketplace_return_requested',
+      data,
+      action_url: '/marketplace/returns',
+      idempotencyKey: `marketplace-return:${returnRequest.id}:merchant:${merchantId}`,
+    }));
+  }
+  for (const admin of eligibleAdminRows) {
+    sends.push(sendNotification({
+      userId: admin.id,
+      type: 'marketplace_return_requested',
+      data,
+      action_url: '/admin/orders',
+      idempotencyKey: `marketplace-return:${returnRequest.id}:admin:${admin.id}`,
+    }));
+  }
+  await Promise.allSettled(sends);
+}
+
 async function createReturnRequest(req, res, next) {
   try {
     const { orderId } = req.params;
@@ -231,8 +294,18 @@ async function createReturnRequest(req, res, next) {
          RETURNING *`,
         [orderId, userId, reason.slice(0, 1000)]
       );
-      logger.info('Marketplace return requested', { orderId, userId, returnId: rows[0].id });
-      return res.status(201).json({ success: true, data: rows[0] });
+      const created = rows[0];
+      // G1-B6: the request now reaches someone. Notify the helper who
+      // sold the order through the cart and the operations admins, after
+      // the row is stored. A notification failure never fails the
+      // request itself (dispute_opened pattern).
+      try {
+        await notifyReturnRequested({ returnRequest: created, order: order.rows[0], customerId: userId });
+      } catch (notifErr) {
+        logger.warn('Marketplace return notification failed', { returnId: created.id, error: notifErr.message });
+      }
+      logger.info('Marketplace return requested', { orderId, userId, returnId: created.id });
+      return res.status(201).json({ success: true, data: created });
     } catch (err) {
       // The partial unique index allows one open request per order.
       if (err.code === '23505') {

@@ -194,6 +194,7 @@ export default function PlannedNeedsPage() {
   const [sinkingOpen, setSinkingOpen] = useState(true);
   const [fundNeed, setFundNeed] = useState(null);
   const [fundAmount, setFundAmount] = useState('');
+  const [fundSubmitting, setFundSubmitting] = useState(false);
 
   const loadNeeds = useCallback(async () => {
     try {
@@ -542,14 +543,28 @@ export default function PlannedNeedsPage() {
   async function submitTopUp(e) {
     e.preventDefault();
     if (!fundNeed || !fundAmount || parseFloat(fundAmount) <= 0) return;
+    // N11: in-flight guard so a double-click (or double submit) cannot
+    // fire two fund requests. The server also honors an Idempotency-Key
+    // per submit, so a retried request still increments only once.
+    if (fundSubmitting) return;
+    setFundSubmitting(true);
+    let idempotencyKey = null;
     try {
-      await api.post(`/planned-needs/${fundNeed.id}/fund`, { amount: parseFloat(fundAmount) });
+      idempotencyKey = globalThis.crypto?.randomUUID?.() ?? null;
+    } catch {
+      idempotencyKey = null;
+    }
+    try {
+      await api.post(`/planned-needs/${fundNeed.id}/fund`, { amount: parseFloat(fundAmount) },
+        idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined);
       setFundNeed(null);
       setFundAmount('');
       await loadNeeds();
       await loadProjection(window_);
     } catch (err) {
       toast.error(err.response?.data?.error || t('common.failed', 'Failed'));
+    } finally {
+      setFundSubmitting(false);
     }
   }
 
@@ -1457,11 +1472,12 @@ export default function PlannedNeedsPage() {
                   step="0.01"
                   required
                 />
+                <p className="pn-form-hint">{t('plannedNeeds.topUpNote')}</p>
                 <div className="pn-modal-actions">
                   <button type="button" className="btn-ghost" onClick={() => setFundNeed(null)} data-track="ui.9f3c395c29.22">
                     {t('plannedNeeds.cancelBtn')}
                   </button>
-                  <button type="submit" className="btn-primary" data-track="ui.9f3c395c29.23">
+                  <button type="submit" className="btn-primary" disabled={fundSubmitting} data-track="ui.9f3c395c29.23">
                     {t('plannedNeeds.topUpSubmit')}
                   </button>
                 </div>

@@ -310,6 +310,19 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
             <span className="detail-label">{t('booking.location')}:</span>
             <span className="detail-value">{live.serviceLocation}</span>
           </div>
+          {/* Group 1, item 13: calendar export for the saved booking. The
+              server builds the .ics for the booking's parties; request-only
+              bookings have no concrete time and get no link. */}
+          {live.availabilityMode !== 'request_only' && live.requestedDate && live.requestedStartTime && (
+            <div className="detail-row">
+              <span className="detail-label">{t('booking.calendarExport')}:</span>
+              <span className="detail-value">
+                <a href={`/api/bookings/${live.id}/ical`} download={`oxsteed-booking-${live.id}.ics`} className="booking-btn-secondary" data-track="ui.474702b501.28">
+                  {t('booking.downloadIcal')}
+                </a>
+              </span>
+            </div>
+          )}
           {live.confirmationHours != null && (
             <div className="detail-row">
               <span className="detail-label">{t('booking.confirmationWindowShort')}:</span>

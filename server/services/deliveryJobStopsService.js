@@ -18,6 +18,7 @@
 
 const { roundCoord, maskPhone } = require('./localDeliveryIntegrity');
 const AppError = require('../utils/appError');
+const relayService = require('./deliveryPhoneRelayService');
 
 // Group 9 Slice C (item 463, D-69): a window is "closing" when its end is
 // within this many minutes. Warn-only: no auto-cancel, no auto-reschedule.
@@ -166,6 +167,34 @@ function safeStops(job, user, stops) {
   }));
 }
 
+// S-G2 (D-642): the relay replaces the raw dial value. Same projection
+// as safeStops, but for the assigned driver each stop's
+// contact_phone_tel is the Twilio relay number for that stop (minted
+// on first read, one active relay per job/stop/driver), never the raw
+// number. When no relay can be issued — no relay number provisioned, or
+// the driver has no phone on file for the webhook to match — the stop
+// carries no dial value at all: the driver sees the masked number with
+// no call link, and the raw number never leaks as a fallback.
+async function safeStopsWithRelay(db, job, user, stops) {
+  const base = safeStops(job, user, stops);
+  const assigned = [job.helper_user_id, job.internal_driver_user_id].some((id) => id && String(id) === String(user.id));
+  if (!assigned) return base;
+  return Promise.all(base.map(async (stop) => {
+    if (!stop.contact_phone_tel) return stop;
+    const relay = await relayService.getOrCreateRelay(db, {
+      deliveryJobId: job.id,
+      stopKey: stop.stop_type,
+      stopPhone: stop.contact_phone_tel,
+      driverUserId: user.id,
+    });
+    if (!relay) {
+      const { contact_phone_tel, ...rest } = stop;
+      return rest;
+    }
+    return { ...stop, contact_phone_tel: relay };
+  }));
+}
+
 function normalizeStopInput(body = {}) {
   const stopType = String(body.stopType || '').trim();
   if (!['pickup', 'dropoff'].includes(stopType)) {
@@ -252,6 +281,7 @@ module.exports = {
   loadJobStops,
   ensureJobStops,
   safeStops,
+  safeStopsWithRelay,
   normalizeStopInput,
   computeWindowWarnings,
 };

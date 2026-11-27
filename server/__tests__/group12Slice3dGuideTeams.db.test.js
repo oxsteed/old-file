@@ -224,9 +224,8 @@ describeDb('Group 12 Slice 3d: Guide teams (616-620)', () => {
       const operator = await addUser();
       const stranger = await addUser();
       const applicationId = await makeApplication(applicant, operator);
-      // The public lead form leaves applicant_user_id NULL; link the
-      // applicant record directly, as the 3c fixtures do.
-      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+      // Intake is authenticated-only (D-643), so the row is already owned
+      // by the applicant; the applicant record alone is not the operator.
 
       await request(app)
         .post(`/api/franchise/my-applications/${applicationId}/invitations`)
@@ -285,6 +284,60 @@ describeDb('Group 12 Slice 3d: Guide teams (616-620)', () => {
 
       const { invite } = await inviteAsOperator(operator, applicationId, invitee.email);
       expect(invite.status).toBe('invited');
+    });
+
+    // G12-A1 (D-640): the invite is delivered. This suite mocks the
+    // notification service at the boundary, so the assertion is on the
+    // send call itself; the real send path is proven by the
+    // franchise_territory_invitation test in notificationsPrefsToggles.
+    test('inviting an existing account holder sends the notice with the accept link; a non-account email sends nothing', async () => {
+      const { sendNotification } = require('../services/notificationService');
+      const operator = await addUser();
+      const invitee = await addUser();
+      const applicationId = await makeApplication(operator);
+      sendNotification.mockClear();
+
+      const { token } = await inviteAsOperator(operator, applicationId, invitee.email);
+      expect(sendNotification).toHaveBeenCalledTimes(1);
+      const call = sendNotification.mock.calls[0][0];
+      expect(call).toMatchObject({
+        userId: invitee.id,
+        type: 'franchise_territory_invitation',
+        action_url: `/franchise/invitations/${token}`,
+      });
+      expect(call.idempotencyKey).toMatch(/^franchise-territory-invite:/);
+      expect(call.data.params.inviterName).toBeTruthy();
+
+      sendNotification.mockClear();
+      await inviteAsOperator(operator, applicationId, 'nobody-here@example.invalid');
+      expect(sendNotification).not.toHaveBeenCalled();
+    });
+
+    test('the accept page loads the invite by token; unknown and malformed tokens 404', async () => {
+      const operator = await addUser();
+      const invitee = await addUser();
+      const applicationId = await makeApplication(operator);
+      const { token } = await inviteAsOperator(operator, applicationId, invitee.email);
+
+      const loaded = await request(app)
+        .get(`/api/franchise/invitations/${token}`)
+        .expect(200);
+      expect(loaded.body.invitation.email).toBe(invitee.email);
+      expect(loaded.body.invitation.role).toBe('member');
+      expect(loaded.body.invitation.status).toBe('invited');
+      expect(loaded.body.invitation.invite_token).toBeUndefined();
+      expect(loaded.body.territory.desired_city).toBe('Austin');
+      expect(loaded.body.territory.desired_country).toBe('US');
+      expect(loaded.body.inviter.first_name).toBe('Franchise');
+
+      await request(app)
+        .get(`/api/franchise/invitations/${'a'.repeat(48)}`)
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('territory_invite_not_found'));
+      await request(app)
+        .get('/api/franchise/invitations/not-a-token')
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('territory_invite_not_found'));
     });
 
     test('operator cancels an outstanding invite; cancelling again is a 409', async () => {
@@ -599,6 +652,130 @@ describeDb('Group 12 Slice 3d: Guide teams (616-620)', () => {
         .set('x-test-user', admin.id)
         .expect(200);
       expect(removed.body.training_assignments).toHaveLength(0);
+    });
+
+    // G12-A5 (D-649): the assign form's catalogue picker.
+    async function addBusiness(owner) {
+      const { rows } = await db.query(
+        'INSERT INTO businesses (user_id, business_name) VALUES ($1, $2) RETURNING id',
+        [owner.id, 'G12d Training Business'],
+      );
+      return rows[0].id;
+    }
+
+    async function addRestaurant(businessId, owner, name) {
+      const { rows } = await db.query(
+        `INSERT INTO food_restaurants (business_id, owner_user_id, display_name)
+         VALUES ($1, $2, $3) RETURNING id`,
+        [businessId, owner.id, name],
+      );
+      return rows[0].id;
+    }
+
+    async function addModule(restaurantId, title, category, isActive = true) {
+      const { rows } = await db.query(
+        `INSERT INTO restaurant_training_modules (restaurant_id, title, category, is_active)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        [restaurantId, title, category, isActive],
+      );
+      return rows[0].id;
+    }
+
+    async function linkBusiness(applicationId, businessId) {
+      await db.query(
+        'UPDATE franchise_applications SET linked_business_id = $1 WHERE id = $2',
+        [businessId, applicationId],
+      );
+    }
+
+    function modulesFor(user, applicationId) {
+      return request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/training-modules`)
+        .set('x-test-user', user.id);
+    }
+
+    test('the modules endpoint lists only the linked business active modules; HQ sees the same list', async () => {
+      const { operator, admin, applicationId } = await setupTraining();
+      const businessId = await addBusiness(operator);
+      await linkBusiness(applicationId, businessId);
+      const restaurantA = await addRestaurant(businessId, operator, 'Downtown');
+      const restaurantB = await addRestaurant(businessId, operator, 'Uptown');
+      const activeA = await addModule(restaurantA, 'Food safety basics', 'food_safety');
+      const activeB = await addModule(restaurantB, 'Knife skills', 'kitchen');
+      await addModule(restaurantA, 'Retired module', 'general', false);
+      // Another business's module must not leak in.
+      const otherBusinessId = await addBusiness(operator);
+      const otherRestaurant = await addRestaurant(otherBusinessId, operator, 'Elsewhere');
+      await addModule(otherRestaurant, 'Foreign module', 'general');
+
+      const listed = await modulesFor(operator, applicationId).expect(200);
+      expect(listed.body.training_modules.map((row) => row.id).sort()).toEqual([activeA, activeB].sort());
+      expect(listed.body.training_modules.find((row) => row.id === activeA)).toMatchObject({
+        title: 'Food safety basics', category: 'food_safety', restaurant_name: 'Downtown',
+      });
+
+      const adminListed = await request(app)
+        .get(`/api/franchise/applications/${applicationId}/training-modules`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(adminListed.body.training_modules.map((row) => row.id).sort()).toEqual([activeA, activeB].sort());
+    });
+
+    test('no linked business means an empty catalogue; strangers get 404 and the applicant gets 403', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const stranger = await addUser();
+      const applicationId = await makeApplication(applicant, operator);
+
+      const empty = await modulesFor(operator, applicationId).expect(200);
+      expect(empty.body.training_modules).toEqual([]);
+
+      await modulesFor(stranger, applicationId).expect(404);
+      await modulesFor(applicant, applicationId)
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+    });
+
+    test('assigning a catalogue module resolves its title and category; an explicit category wins', async () => {
+      const { operator, applicationId } = await setupTraining();
+      const businessId = await addBusiness(operator);
+      await linkBusiness(applicationId, businessId);
+      const restaurantId = await addRestaurant(businessId, operator, 'Downtown');
+      const moduleId = await addModule(restaurantId, 'Food safety basics', 'food_safety');
+
+      // Module only: title and category come from the catalogue.
+      const assigned = await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: operator.id, module_id: moduleId,
+      }).expect(201);
+      const row = assigned.body.training_assignments[0];
+      expect(row.module_id).toBe(moduleId);
+      expect(row.module_title).toBe('Food safety basics');
+      expect(row.category).toBe('food_safety');
+
+      // Explicit category overrides the module's category.
+      const invitee = await addUser();
+      const { token } = await inviteAsOperator(operator, applicationId, invitee.email);
+      await acceptInvite(invitee, token).expect(200);
+      const overridden = await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: invitee.id, module_id: moduleId, category: 'kitchen',
+      }).expect(201);
+      const overrideRow = overridden.body.training_assignments.find(
+        (entry) => entry.assignee_user_id === invitee.id);
+      expect(overrideRow.module_id).toBe(moduleId);
+      expect(overrideRow.module_title).toBe('Food safety basics');
+      expect(overrideRow.category).toBe('kitchen');
+    });
+
+    test('free-text training carries an explicit category', async () => {
+      const { operator, applicationId } = await setupTraining();
+
+      const assigned = await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: operator.id, module_title: 'Knife skills', category: 'kitchen',
+      }).expect(201);
+      const row = assigned.body.training_assignments[0];
+      expect(row.module_id).toBeNull();
+      expect(row.module_title).toBe('Knife skills');
+      expect(row.category).toBe('kitchen');
     });
   });
 

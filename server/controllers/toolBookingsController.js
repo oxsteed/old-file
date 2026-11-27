@@ -11,6 +11,15 @@ const { notifyRental, notifyRentalCounterparty } = require('../utils/toolRentalN
 
 const TOOL_RENTAL_AGREEMENT_VERSION = 'peer-rental-v1';
 
+// G11-A12 (D-624): booking lists are paged (30/page, max 100). The
+// response stays an array, so existing callers and tests keep working;
+// a short page means there is no more to load.
+function pageParams(req) {
+  const limit = Math.min(Math.max(1, parseInt(req.query?.limit, 10) || 30), 100);
+  const offset = Math.max(0, parseInt(req.query?.offset, 10) || 0);
+  return { limit, offset };
+}
+
 // G11-A6 (D-610): tool-owner enforcement is 'off' only as an escape hatch;
 // otherwise a booking requires the owner's tool_owner.list_equipment grant
 // to be effective. Mirrors GET /tool-rentals/me (publication_blocked).
@@ -124,6 +133,25 @@ const createBooking = async (req, res, next) => {
       throw new AppError('End date must be after start date', 400, 'validation_failed', { endDate: 'Must be after startDate' });
     }
 
+    // G11-A14 (D-626): the renter's email must be verified to book, the
+    // same gate the owner side already enforces in the join below. A
+    // renter who signed up with a typo'd address would otherwise book,
+    // never receive the invoice, and leave the owner wondering why the
+    // renter "didn't pay". Fail closed: 409, not a warning the booking
+    // flow can skip. (D-264's onboarding_completed scope-out is
+    // untouched: this is the narrower email/active gate.)
+    const renterResult = await client.query(
+      `SELECT id, email_verified, is_active, deleted_at FROM users WHERE id = $1`,
+      [userId],
+    );
+    const renter = renterResult.rows[0];
+    if (!renter || renter.deleted_at || renter.is_active === false) {
+      throw new AppError('Your account is not active', 409, 'state_conflict');
+    }
+    if (renter.email_verified !== true) {
+      throw new AppError('Verify your email before booking', 409, 'renter_email_not_verified');
+    }
+
     // Get tool and owner info
     const toolResult = await client.query(
       `SELECT tr.id, tr.user_id AS owner_id, tr.name, tr.category, tr.brand, tr.model, tr.condition,
@@ -212,6 +240,18 @@ const createBooking = async (req, res, next) => {
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`tool-rental:${toolId}`]);
     const currentTool=await client.query('SELECT equipment_version,is_available,moderation_hold,pickup_only,delivery_available FROM tool_rentals WHERE id=$1 FOR SHARE',[toolId]);
     if(!currentTool.rows[0]||currentTool.rows[0].is_available===false||currentTool.rows[0].moderation_hold)throw new AppError('Tool unavailable',409,'state_conflict');
+    // G11-A14 (D-626): re-check the owner's email/active gates under the
+    // per-tool lock. The first read's join enforces them, but an owner
+    // deactivated (or unverified) between the two reads must not still
+    // get booked.
+    const currentOwner = await client.query(
+      'SELECT email_verified, is_active, deleted_at FROM users WHERE id = $1',
+      [ownerId],
+    );
+    if (!currentOwner.rows[0] || currentOwner.rows[0].deleted_at
+      || currentOwner.rows[0].is_active === false || currentOwner.rows[0].email_verified !== true) {
+      throw new AppError('Tool is not available', 409, 'state_conflict');
+    }
     // 554: re-check fulfillment under the per-tool lock; the flags may have
     // changed between the first read and the lock.
     if (fulfillment === 'delivery' && (currentTool.rows[0].pickup_only === true || currentTool.rows[0].delivery_available !== true)) throw new AppError('Delivery is not available for this tool',409,'fulfillment_not_available');
@@ -316,11 +356,19 @@ const createBooking = async (req, res, next) => {
 const getMyBookings = async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const { limit, offset } = pageParams(req);
     const result = await db.query(
       `SELECT b.*, tr.name, tr.daily_rate,
               inv.id AS invoice_id, inv.invoice_number, inv.status AS invoice_status,
               inv.total_amount AS invoice_total_amount,
               inv.payment_proof_reference, inv.payment_proof_amount, inv.payment_proof_submitted_at,
+              -- G11-B8 (D-628): the latest resolved damage claim's agreed
+              -- amount, so the deposit section can show what was agreed
+              -- against what the owner withholds. NULL when no claim
+              -- resolved with an agreed amount.
+              (SELECT c.agreed_amount FROM tool_rental_damage_claims c
+                WHERE c.booking_id = b.id AND c.status = 'resolved' AND c.agreed_amount IS NOT NULL
+                ORDER BY c.resolved_at DESC NULLS LAST, c.created_at DESC LIMIT 1) AS agreed_damage_amount,
               cu.didit_status AS renter_didit_status,
               cu.didit_verified_at AS renter_didit_verified_at,
               cu.identity_verified AS renter_identity_verified,
@@ -337,8 +385,9 @@ const getMyBookings = async (req, res, next) => {
        JOIN users cu ON b.customer_id = cu.id
        JOIN users ou ON b.owner_id = ou.id
        WHERE b.customer_id = $1
-       ORDER BY b.created_at DESC`,
-      [userId]
+       ORDER BY b.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, limit, offset]
     );
     // Group 11 item 571: identity status for both parties on every
     // booking (Didit state; 'skipped' is not verified).
@@ -367,11 +416,17 @@ const getMyBookings = async (req, res, next) => {
 const getBookingsByOwner = async (req, res, next) => {
   try {
     const ownerId = req.user.id;
+    const { limit, offset } = pageParams(req);
     const result = await db.query(
       `SELECT b.*, tr.name, u.first_name, u.last_name,
               inv.id AS invoice_id, inv.invoice_number, inv.status AS invoice_status,
               inv.total_amount AS invoice_total_amount,
               inv.payment_proof_reference, inv.payment_proof_amount, inv.payment_proof_submitted_at,
+              -- G11-B8 (D-628): latest resolved damage claim's agreed
+              -- amount, mirrored from getMyBookings.
+              (SELECT c.agreed_amount FROM tool_rental_damage_claims c
+                WHERE c.booking_id = b.id AND c.status = 'resolved' AND c.agreed_amount IS NOT NULL
+                ORDER BY c.resolved_at DESC NULLS LAST, c.created_at DESC LIMIT 1) AS agreed_damage_amount,
               cu.didit_status AS renter_didit_status,
               cu.didit_verified_at AS renter_didit_verified_at,
               cu.identity_verified AS renter_identity_verified,
@@ -389,8 +444,9 @@ const getBookingsByOwner = async (req, res, next) => {
        JOIN users cu ON b.customer_id = cu.id
        JOIN users ou ON b.owner_id = ou.id
        WHERE b.owner_id = $1
-       ORDER BY b.created_at DESC`,
-      [ownerId]
+       ORDER BY b.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [ownerId, limit, offset]
     );
     res.json(result.rows.map((row) => ({
       ...row,
@@ -471,16 +527,25 @@ const updateBookingStatus = async (req, res, next) => {
     // pre-existing single-parameter form 500d every returned/completed
     // update through this endpoint. $1 is used once (the assignment) and
     // $4 only inside the CASE comparisons, so each deduces cleanly.
+    // G11-B12 (D-632): the write is atomic. The UPDATE carries the
+    // expected prior status, so two concurrent transitions (or a stale
+    // client re-trying after the booking moved on) cannot both apply.
+    // A zero-row update means the booking changed under us: 409, not a
+    // silent no-op. $5 is the pre-read status; $1/$4 stay the new
+    // status (D-574 type-deduction split).
     const result = await db.query(
       `UPDATE tool_rentals_bookings
           SET status = $1,
               returned_at = CASE WHEN $4 = 'returned' THEN NOW() ELSE returned_at END,
               completed_at = CASE WHEN $4 = 'completed' THEN NOW() ELSE completed_at END,
               return_condition_note = CASE WHEN $4 = 'returned' THEN $3 ELSE return_condition_note END
-        WHERE id = $2 RETURNING *`,
-      [status, bookingId, returnNote, status]
+        WHERE id = $2 AND status = $5 RETURNING *`,
+      [status, bookingId, returnNote, status, booking.status]
     );
 
+    if (result.rows.length === 0) {
+      throw new AppError('This booking changed; refresh and try again', 409, 'state_conflict');
+    }
     const updatedBooking = result.rows[0];
 
     // G11-A5/B2 (D-609): the dead payment_confirmed email branch is

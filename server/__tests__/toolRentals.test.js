@@ -75,7 +75,11 @@ describe('tool rental listing routes', () => {
     const updateSql = updateCall[0];
     const updateParams = updateCall[1];
     expect(updateSql).toMatch(/daily_rate\s+= COALESCE\(\$4, daily_rate\)/);
-    expect(updateSql).toMatch(/deposit_amount\s+= COALESCE\(\$6, deposit_amount\)/);
+    // G11-A9 (D-621): deposit_amount is clearable, so the SET is a CASE
+    // on the clear set (the $n is the clear param, which shifts with the
+    // gallery columns); the COALESCE fallback still keeps the stored
+    // value when the field is neither sent nor cleared.
+    expect(updateSql).toMatch(/deposit_amount\s+= CASE WHEN \$\d+::jsonb \? 'deposit_amount' THEN NULL ELSE COALESCE\(\$6, deposit_amount\) END/);
     expect(updateParams[3]).toBeNull();
     expect(updateParams[5]).toBeNull();
     expect(updateParams[9]).toBe(false);

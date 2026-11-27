@@ -15,6 +15,13 @@ router.get('/', adminOrdersController.getOrders);
 // Get order statistics
 router.get('/stats', adminOrdersController.getOrderStats);
 
+// G1-B6: the admin return queue. Registered before /:orderId so the
+// static 'returns' segment is never captured as an order id.
+router.get('/returns', adminOrdersController.listReturnRequests);
+
+// Decide a return request (approved/declined, status only, never a refund).
+router.post('/returns/:returnId/decision', adminOrdersController.decideReturnRequest);
+
 // Get single order detail
 router.get('/:orderId', adminOrdersController.getOrder);
 

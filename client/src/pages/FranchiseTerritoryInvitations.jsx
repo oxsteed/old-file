@@ -44,17 +44,39 @@ export default function FranchiseTerritoryInvitations({
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('member');
   const [formError, setFormError] = useState('');
+  // G12-A1 (D-640): the accept link for the invite just sent, so the
+  // inviter can share it with someone who has no OxSteed account yet.
+  // Account holders also get the invite by email and in-app.
+  const [lastInvite, setLastInvite] = useState(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   async function submit(event) {
     event.preventDefault();
     if (!onInvite) return;
     setFormError('');
+    setLinkCopied(false);
     try {
-      await onInvite({ email: email.trim(), role });
+      const result = await onInvite({ email: email.trim(), role });
+      if (result?.token) {
+        setLastInvite({
+          email: email.trim(),
+          link: `${window.location.origin}/franchise/invitations/${result.token}`,
+        });
+      }
       setEmail('');
       setRole('member');
     } catch (err) {
       setFormError(err?.response?.data?.error || copy('territoryInvitesFailed'));
+    }
+  }
+
+  async function copyLink() {
+    if (!lastInvite?.link) return;
+    try {
+      await navigator.clipboard?.writeText(lastInvite.link);
+      setLinkCopied(true);
+    } catch {
+      setLinkCopied(false);
     }
   }
 
@@ -103,6 +125,19 @@ export default function FranchiseTerritoryInvitations({
             </button>
           </div>
         </form>
+      )}
+
+      {canInvite && onInvite && lastInvite && (
+        <div className="fr-doc-list">
+          <p className="fr-detail-list-label">{copy('territoryInvitesLinkTitle', { email: lastInvite.email })}</p>
+          <p className="fr-detail-empty">{copy('territoryInvitesLinkHint')}</p>
+          <p className="fr-doc-file-name" style={{ overflowWrap: 'anywhere' }}>{lastInvite.link}</p>
+          <div>
+            <button type="button" className="fr-btn-primary" onClick={copyLink} data-track="ui.bc1d7a34f9.4">
+              {linkCopied ? copy('territoryInvitesLinkCopied') : copy('territoryInvitesCopyLink')}
+            </button>
+          </div>
+        </div>
       )}
 
       {invitations.length === 0 ? (

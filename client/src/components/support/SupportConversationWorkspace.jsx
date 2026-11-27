@@ -104,12 +104,16 @@ function SlaTimer({ target, label }) {
 }
 
 export default function SupportConversationWorkspace({ businessId = null, embedded = false }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const copy = (key, options) => t(`support.workspace.${key}`, options);
   const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(null);
+  // G1-B7: the booking linked to the open conversation (channel_metadata),
+  // loaded through the same redacted read admins use.
+  const [linkedBooking, setLinkedBooking] = useState(null);
+  const [linkedBookingError, setLinkedBookingError] = useState(false);
   const [agents, setAgents] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
@@ -423,6 +427,26 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
     setAiDraft(null);
     stickToBottomRef.current = true;
   }, [loadChannelDeliveries, loadCustomer360, loadDetail, loadFollowUpReminders, selectedId]);
+
+  // G1-B7: load the booking linked to the open conversation, when the
+  // customer filed it from a booking or job detail page. The fetch fails
+  // closed: a 403/404 leaves the panel on its error line, never on a
+  // partial or foreign booking.
+  const linkedBookingId = detail?.channel_metadata?.booking_id || null;
+  useEffect(() => {
+    if (!linkedBookingId) {
+      setLinkedBooking(null);
+      setLinkedBookingError(false);
+      return;
+    }
+    let active = true;
+    setLinkedBooking(null);
+    setLinkedBookingError(false);
+    api.get(`/support/bookings/${linkedBookingId}`)
+      .then(({ data }) => { if (active) setLinkedBooking(data || null); })
+      .catch(() => { if (active) setLinkedBookingError(true); });
+    return () => { active = false; };
+  }, [linkedBookingId]);
 
   useEffect(() => {
     if (!selectedId || detailLoading) return;
@@ -1280,6 +1304,28 @@ export default function SupportConversationWorkspace({ businessId = null, embedd
                       <SlaTimer target={selected.sla_first_response_target} label={copy('firstResponse')} />
                       <SlaTimer target={selected.sla_resolution_target} label={copy('resolution')} />
                     </div>
+                    {/* G1-B7: booking linked to this conversation, filed from
+                        the customer booking/job detail. Same redacted read
+                        admins use; never shown when the conversation links
+                        no booking. */}
+                    {linkedBookingId && (
+                      <div className="mt-3 rounded-xl border border-orange-500/30 bg-orange-500/5 p-3" data-track-private>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-orange-200">{copy('linkedBookingTitle')}</p>
+                        {linkedBookingError && <p className="mt-1 text-xs text-red-300">{t('adminSupportBooking.loadFailed')}</p>}
+                        {!linkedBooking && !linkedBookingError && <p className="mt-1 text-xs text-slate-400">{t('adminSupportBooking.loading')}</p>}
+                        {linkedBooking?.booking && (
+                          <dl className="mt-2 grid gap-x-4 gap-y-1 text-xs text-slate-300 sm:grid-cols-2">
+                            <div><dt className="text-slate-500">{t('adminSupportBooking.service')}</dt><dd className="font-medium text-slate-100">{linkedBooking.booking.serviceName || '—'}</dd></div>
+                            <div><dt className="text-slate-500">{t('adminSupportBooking.status')}</dt><dd>{linkedBooking.booking.status}</dd></div>
+                            <div><dt className="text-slate-500">{t('adminSupportBooking.requestedDate')}</dt><dd>{linkedBooking.booking.requestedDate ? new Date(`${linkedBooking.booking.requestedDate}T12:00:00`).toLocaleDateString(i18n.language) : '—'}{linkedBooking.booking.requestedStartTime ? ` · ${linkedBooking.booking.requestedStartTime}` : ''}</dd></div>
+                            <div><dt className="text-slate-500">{t('adminSupportBooking.customer')}</dt><dd>{linkedBooking.booking.customer?.name || linkedBooking.booking.customer?.email || '—'}</dd></div>
+                            <div><dt className="text-slate-500">{t('adminSupportBooking.helper')}</dt><dd>{linkedBooking.booking.helper?.name || linkedBooking.booking.helper?.email || t('adminSupportBooking.unassigned')}</dd></div>
+                            <div><dt className="text-slate-500">{t('adminSupportBooking.paymentStatus')}</dt><dd>{linkedBooking.payment?.status || '—'}{linkedBooking.payment?.amountCents != null ? ` · ${new Intl.NumberFormat(i18n.language || 'en', { style: 'currency', currency: 'USD' }).format(linkedBooking.payment.amountCents / 100)}` : ''}</dd></div>
+                            {linkedBooking.job && <div><dt className="text-slate-500">{t('adminSupportBooking.convertedJob')}</dt><dd>{linkedBooking.job.title || linkedBooking.job.id} · {linkedBooking.job.status}</dd></div>}
+                          </dl>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <button type="button" onClick={downloadTranscript} disabled={downloadBusy} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-300 hover:border-orange-500/50 disabled:opacity-50" title={copy('downloadTranscript')}>

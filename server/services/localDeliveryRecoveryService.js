@@ -2,6 +2,8 @@
 
 const integrity = require('./localDeliveryIntegrity');
 const { normalizeIssueMetadata } = require('./deliveryIssueMetadata');
+const trackingService = require('./deliveryTrackingService');
+const relayService = require('./deliveryPhoneRelayService');
 const {
   createActionRunner, handler, TERMINAL, fail, pickedUp, cleanText,
   lockResources, assignmentOf, windowForJob, checkAssignment, reserve,
@@ -162,6 +164,16 @@ function createRecoveryService(deps = {}) {
         await lockResources(client, assignmentOf(job));
         await client.query("UPDATE delivery_jobs SET status = 'returned', dispatch_state = 'returned', returned_at = NOW(), exception_code = NULL, proof_verified_at = NOW(), proof_verified_by_user_id = $2, updated_at = NOW() WHERE id = $1", [job.id, req.user.id]);
         await client.query("UPDATE delivery_assignment_reservations SET status = 'completed' WHERE delivery_job_id = $1 AND status = 'active'", [job.id]);
+        // S-G1 (D-641): the live tracking session ends with the job, in
+        // this same transaction — the same rule updateStatus applies for
+        // delivered/cancelled. A returned job is terminal, so the
+        // assignment ends revoked with reason 'returned'; ingest is
+        // already refused on it, and the driver's tracking-controls
+        // session no longer shows a live session on a finished job.
+        await trackingService.endTrackingForJob(client, job.id, 'returned');
+        // S-G2 (D-642): the phone relays end with the job too, in this
+        // same transaction.
+        await relayService.endPhoneRelaysForJob(client, job.id, 'returned');
       } else if (decision === 'rejected') {
         // Preserve custody and owner. Old rows without a trustworthy prior state
         // remain exceptions for explicit operator recovery.

@@ -4,6 +4,9 @@ const { AppError } = require('../middleware/errorHandler');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const { withTransaction } = require('../utils/transaction');
 const { emitDomainEvent } = require('../growth/emit');
+const { getClientRequestId } = require('../utils/idempotency');
+const { fingerprintFor, lookupIdempotency, storeIdempotency } = require('../utils/idempotencyStore');
+const { placePlannedNeedCreditHold } = require('../services/plannedNeedCreditHoldService');
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -351,26 +354,39 @@ exports.cancelPlannedNeed = async (req, res, next) => {
     const userId = req.user.id;
     const { id } = req.params;
 
-    const { rows: existing } = await db.query(
-      'SELECT * FROM planned_needs WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
-    if (!existing.length) throw new AppError('Planned need not found.', 404, 'not_found');
-    if (existing[0].status === 'cancelled') {
-      throw new AppError('Already cancelled.', 400, 'invalid_state');
-    }
-    if (existing[0].status === 'completed') {
-      throw new AppError('Cannot cancel a completed need.', 400, 'invalid_state');
-    }
+    // G1-B1 (D-719): cancelling a need releases its Credit holds in the same
+    // transaction as the status change, so a cancelled need can never keep
+    // money held. A release failure rolls the cancel back (fail closed).
+    const { releasePlannedNeedCreditHolds } = require('../services/plannedNeedCreditHoldService');
+    const cancelled = await withTransaction(db, async (client) => {
+      const { rows: existing } = await client.query(
+        'SELECT * FROM planned_needs WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [id, userId]
+      );
+      if (!existing.length) throw new AppError('Planned need not found.', 404, 'not_found');
+      if (existing[0].status === 'cancelled') {
+        throw new AppError('Already cancelled.', 400, 'invalid_state');
+      }
+      if (existing[0].status === 'completed') {
+        throw new AppError('Cannot cancel a completed need.', 400, 'invalid_state');
+      }
 
-    const { rows } = await db.query(`
-      UPDATE planned_needs
-      SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
-      WHERE id = $1 AND user_id = $2
-      RETURNING *
-    `, [id, userId]);
+      const { rows } = await client.query(`
+        UPDATE planned_needs
+        SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
+        WHERE id = $1 AND user_id = $2
+        RETURNING *
+      `, [id, userId]);
 
-    res.json(rows[0]);
+      await releasePlannedNeedCreditHolds(client, {
+        needId: id,
+        reason: 'need_cancelled',
+        actorUserId: userId,
+      });
+      return rows[0];
+    }, 'cancel_planned_need');
+
+    res.json(cancelled);
   } catch (err) {
     if (err instanceof AppError) return next(err);
     logger.error('cancelPlannedNeed error', { needId: req.params?.id, userId: req.user?.id, error: err.message });
@@ -895,10 +911,28 @@ exports.addToFund = async (req, res, next) => {
       });
     }
 
+    // N11: a replayed Idempotency-Key returns the original result without
+    // re-incrementing reserved_amount. Same shape as openDispute: the key
+    // is a UUID from the Idempotency-Key header (or clientRequestId body
+    // field), optional, and a non-UUID key is a 400. Dedupe scope is per
+    // need + key: the stored key is namespaced with the need id, and the
+    // fingerprint covers the amount, so the same key for a different
+    // amount is a 422 instead of a silent replay.
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      throw new AppError('clientRequestId must be a valid UUID', 400, 'validation_failed', {
+        clientRequestId: 'Must be a valid UUID',
+      });
+    }
+    const idemKey = clientRequestId ? `planned-need-fund:${id}:${clientRequestId}` : null;
+    const idemAction = 'planned_need_fund';
+    const idemPayload = { amount: parsedAmount };
+    const idemFingerprint = idemKey ? fingerprintFor(idemAction, id, idemPayload) : null;
+
     await client.query('BEGIN');
 
     const { rows: existing } = await client.query(`
-      SELECT id, status
+      SELECT id, status, estimated_cost, reserved_amount
       FROM planned_needs
       WHERE id = $1 AND user_id = $2
       FOR UPDATE
@@ -909,7 +943,58 @@ exports.addToFund = async (req, res, next) => {
     }
 
     if (!['planned', 'funding', 'activating_soon'].includes(existing[0].status)) {
-      throw new AppError('Only active planned needs can be funded.', 400, 'invalid_state');
+      throw new AppError('Only active planned needs can be updated.', 400, 'invalid_state');
+    }
+
+    // The FOR UPDATE lock above serializes concurrent fund calls on this
+    // need, so a replayed key is always seen before any second increment.
+    if (idemKey) {
+      const prior = await lookupIdempotency(client, {
+        actorId: userId, key: idemKey, action: idemAction, target: id, payload: idemPayload,
+      });
+      if (prior && prior.mismatch) {
+        throw new AppError('This request key was already used for a different request.', 422, 'idempotency_key_reused');
+      }
+      if (prior) {
+        await client.query('COMMIT');
+        return res.status(prior.status).json(prior.body);
+      }
+    }
+
+    // G1-B1 (D-718): funding a goal places a real Credit hold, not just the
+    // reserved_amount increment. The hold runs inside this same transaction
+    // and before the increment, so any hold failure rolls the whole fund
+    // back: insufficient balance, a frozen rail, an unsupported currency,
+    // or any service error refuses with a clear error and never silently
+    // falls back to a reservation. The hold amount is the capped increment
+    // the reservation below actually records, so the two can never diverge.
+    // A need already funded to its estimate records no further hold (the
+    // existing 200 no-op). A sub-cent fund rounds to zero holdable cents
+    // and is refused rather than recording money no hold can represent.
+    const estimatedCost = Number(existing[0].estimated_cost) || 0;
+    const alreadyReserved = Number(existing[0].reserved_amount) || 0;
+    const holdableIncrement = estimatedCost > 0
+      ? Math.min(estimatedCost - alreadyReserved, parsedAmount)
+      : parsedAmount;
+    if (holdableIncrement > 0) {
+      const amountCents = Math.round(holdableIncrement * 100);
+      if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+        throw new AppError('Amount is below the smallest holdable unit.', 400, 'validation_failed', {
+          amount: 'Amount is below the smallest holdable unit.',
+        });
+      }
+      const { rows: ownerRows } = await client.query(
+        'SELECT preferred_currency FROM users WHERE id = $1',
+        [userId]
+      );
+      await placePlannedNeedCreditHold(client, {
+        needId: id,
+        customerId: userId,
+        amountCents,
+        currencyCode: ownerRows[0]?.preferred_currency || 'USD',
+        idempotencyKey: clientRequestId ? `planned-need-hold:${id}:${clientRequestId}` : null,
+        actorUserId: userId,
+      });
     }
 
     const { rows } = await client.query(`
@@ -923,6 +1008,24 @@ exports.addToFund = async (req, res, next) => {
       WHERE id = $1 AND user_id = $2
       RETURNING *
     `, [id, userId, parsedAmount]);
+
+    if (idemKey) {
+      const stored = await storeIdempotency(client, {
+        actorId: userId, key: idemKey, action: idemAction,
+        fingerprint: idemFingerprint, status: 200, body: rows[0],
+      });
+      if (!stored) {
+        // A concurrent request with the same key stored first; return its
+        // result instead of incrementing a second time.
+        const prior = await lookupIdempotency(client, {
+          actorId: userId, key: idemKey, action: idemAction, target: id, payload: idemPayload,
+        });
+        if (prior && !prior.mismatch) {
+          await client.query('COMMIT');
+          return res.status(prior.status).json(prior.body);
+        }
+      }
+    }
 
     await client.query('COMMIT');
     res.json(rows[0]);

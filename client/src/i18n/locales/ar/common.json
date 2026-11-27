@@ -2513,6 +2513,21 @@
     "previousImage": "الصورة السابقة",
     "nextImage": "الصورة التالية",
     "bidPrice": "سعرك",
+    "timelineHeading": "الجدول الزمني للوظيفة",
+    "timelinePosted": "نُشرت",
+    "timelineBidsReceived": "تم استلام عرض",
+    "timelineAccepted": "تم قبول العرض",
+    "timelineStarted": "بدأ العمل",
+    "timelineCompleted": "مكتملة",
+    "timelineCancelled": "ملغاة",
+    "warrantyTitle": "الضمان",
+    "warrantyMonths": "الضمان (بالأشهر)",
+    "warrantyTerms": "شروط الضمان",
+    "warrantyReimbursement": "شروط الاسترداد",
+    "warrantyNoTerms": "لم تتم إضافة شروط ضمان مكتوبة.",
+    "warrantyPlatformDefault": "لم يتم توقيع اتفاقية عمل لهذه المهمة، لذا تسري ضمانة منصة OxSteed.",
+    "warrantyPlatformNote": "تسجّل OxSteed المطالبة. ويقوم الطرفان بحلّها بينهما.",
+    "warrantyFileClaim": "تقديم مطالبة ضمان",
     "imagePosition": "الصورة {{current}} من {{total}}"
   },
   "jobEdit": {
@@ -2524,7 +2539,7 @@
     "materialPreview": "ستطلب هذه التغييرات من كل مقدّم عرض حالي إعادة التأكيد.",
     "reloadLatest": "تحميل أحدث نسخة",
     "fixErrors": "صحّح الحقول المحددة ({{count}}).",
-    "privateNotesHelp": "الملاحظات الخاصة تظهر لك وللمساعد الذي توظّفه فقط.",
+    "privateNotesHelp": "الملاحظات الخاصة تظهر لك وحدك فقط.",
     "cancel": "إلغاء",
     "save": "حفظ التغييرات",
     "saving": "جارٍ الحفظ…",
@@ -6894,7 +6909,10 @@
       "review_complete": "اكتملت المراجعة.",
       "territory_assigned": "تم إسناد المنطقة.",
       "territory_assignment_ended": "انتهى إسناد المنطقة."
-    }
+    },
+    "accessHistoryTitle": "سجل الوصول",
+    "accessHistoryEmpty": "لا توجد تغييرات وصول بعد.",
+    "historyGranted": "تم المنح"
   },
   "businessLaunchAttachments": {
     "download": "تنزيل",

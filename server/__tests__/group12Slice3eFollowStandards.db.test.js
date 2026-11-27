@@ -432,6 +432,33 @@ describeDb('Group 12 Slice 3e: Follow standards (621-625)', () => {
       expect(stored.rows[0].n).toBe(1);
     });
 
+    test('re-acknowledging the same version does not upload a second signature (G12-A12)', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const standard = await curateStandard(admin, applicationId);
+
+      await acknowledgeAs(operator, applicationId, standard.id, 1).expect(201);
+      const first = await db.query(
+        'SELECT signature_storage_key FROM franchise_standard_acknowledgments WHERE standard_id = $1 AND user_id = $2 AND version = 1',
+        [standard.id, operator.id],
+      );
+      expect(first.rows).toHaveLength(1);
+      const firstKey = first.rows[0].signature_storage_key;
+      expect(firstKey).toMatch(/franchise-standards\/signatures\//);
+
+      // A different PNG on the re-ack: if a second upload happened, the
+      // random storage key would change.
+      const otherPng = Buffer.concat([PNG_BYTES, Buffer.from([0x01])]);
+      await acknowledgeAs(operator, applicationId, standard.id, 1, otherPng).expect(200);
+      const second = await db.query(
+        'SELECT signature_storage_key FROM franchise_standard_acknowledgments WHERE standard_id = $1 AND user_id = $2 AND version = 1',
+        [standard.id, operator.id],
+      );
+      expect(second.rows).toHaveLength(1);
+      expect(second.rows[0].signature_storage_key).toBe(firstKey);
+    });
+
     test('stale version, missing signature, non-PNG signature, and missing version are refused', async () => {
       const operator = await addUser();
       const admin = await addUser('super_admin');
@@ -662,6 +689,50 @@ describeDb('Group 12 Slice 3e: Follow standards (621-625)', () => {
 
       const detail = await applicantDetail(operator, applicationId).expect(200);
       expect(detail.body.brand_assets).toHaveLength(0);
+    });
+
+    test('the brand asset download URL is minted on click, for the territory asset and the franchise-wide one (G12-A11)', async () => {
+      const operator = await addUser();
+      const otherOperator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const otherApplicationId = await makeApplication(otherOperator);
+
+      const territory = await uploadAs(admin, applicationId, PDF_BYTES, 'brand-guide.pdf', {
+        name: 'Brand guide 2026',
+      }).expect(201);
+      const territoryAsset = territory.body.brand_assets[0];
+      const wide = await request(app)
+        .post('/api/franchise/brand-assets')
+        .set('x-test-user', admin.id)
+        .attach('file', PDF_BYTES, 'logo-pack.pdf')
+        .expect(201);
+      const wideAsset = wide.body.brand_assets[0];
+
+      // The operator mints a fresh URL for their territory asset.
+      const minted = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/brand-assets/${territoryAsset.id}/download-url`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(typeof minted.body.download_url).toBe('string');
+      expect(minted.body.download_url).toContain('/api/storage/files/franchise-brand-assets/');
+      // The franchise-wide asset is mintable from any territory.
+      const wideMinted = await request(app)
+        .get(`/api/franchise/my-applications/${otherApplicationId}/brand-assets/${wideAsset.id}/download-url`)
+        .set('x-test-user', otherOperator.id)
+        .expect(200);
+      expect(typeof wideMinted.body.download_url).toBe('string');
+      // But a territory asset from another territory is not.
+      await request(app)
+        .get(`/api/franchise/my-applications/${otherApplicationId}/brand-assets/${territoryAsset.id}/download-url`)
+        .set('x-test-user', otherOperator.id)
+        .expect(404);
+      // HQ's admin twin mints the same way.
+      const adminMinted = await request(app)
+        .get(`/api/franchise/applications/${applicationId}/brand-assets/${territoryAsset.id}/download-url`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(typeof adminMinted.body.download_url).toBe('string');
     });
 
     test('deleting a franchise-wide asset removes it from every territory', async () => {
@@ -1040,6 +1111,41 @@ describeDb('Group 12 Slice 3e: Follow standards (621-625)', () => {
         .set('x-test-user', admin.id)
         .expect(404);
       expect(sendNotification).not.toHaveBeenCalled();
+    });
+
+    test('the sweeper skips rejected and archived applications (G12-A14)', async () => {
+      const liveOperator = await addUser();
+      const deadOperator = await addUser();
+      const admin = await addUser('super_admin');
+      const liveId = await makeApplication(liveOperator);
+      const deadId = await makeApplication(deadOperator);
+      const liveStandard = await curateStandard(admin, liveId, 'Live standard');
+      const deadStandard = await curateStandard(admin, deadId, 'Dead standard');
+
+      // The live application still reminds its operator.
+      const liveSweep = await sendFranchiseStandardReminders({ db, standardId: liveStandard.id });
+      expect(liveSweep.reminded).toEqual([liveOperator.id]);
+
+      // Reject the second application: its operator is no longer reminded,
+      // even with the standard still current and unacknowledged.
+      await request(app)
+        .patch(`/api/franchise/applications/${deadId}`)
+        .set('x-test-user', admin.id)
+        .send({ status: 'rejected' })
+        .expect(200);
+      sendNotification.mockClear();
+      const deadSweep = await sendFranchiseStandardReminders({ db, standardId: deadStandard.id });
+      expect(deadSweep.reminded).toEqual([]);
+      expect(sendNotification).not.toHaveBeenCalled();
+
+      // Archiving behaves the same way.
+      await request(app)
+        .patch(`/api/franchise/applications/${deadId}`)
+        .set('x-test-user', admin.id)
+        .send({ status: 'archived' })
+        .expect(200);
+      const archivedSweep = await sendFranchiseStandardReminders({ db, standardId: deadStandard.id });
+      expect(archivedSweep.reminded).toEqual([]);
     });
   });
 });

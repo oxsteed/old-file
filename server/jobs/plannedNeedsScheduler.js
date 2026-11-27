@@ -9,6 +9,12 @@ const { sendNotification } = require('../services/notificationService');
  * Pass 1 - Mark "activating_soon"
  *   Needs where activation day is tomorrow get a heads-up status.
  *
+ * Pass 1b - Personal-care due-soon reminder (G1-B3)
+ *   Needs in the same 1-day window as Pass 1, restricted to
+ *   category 'personal_care', notify their owner (customer) once that
+ *   the need posts for helpers tomorrow. Once-only per need+occasion
+ *   rides the notification delivery key (need id + due date).
+ *
  * Pass 2 - Auto-publish
  *   Needs where (due_date − lead_time_days) <= today get a job post.
  *   • No preferred helper → job published immediately to all.
@@ -160,124 +166,178 @@ async function tryPublishPlannedNeed(need) {
   }
 }
 
-const startPlannedNeedsScheduler = () => {
-  cron.schedule('0 6 * * *', async () => {
-    logger.info('Planned needs scheduler started');
+/**
+ * Run one full scheduler pass (Passes 1, 1b, 2, 3 + pending cleanup).
+ * Exported so tests can drive the real passes against a test database
+ * without waiting for the 06:00 ET cron; `database` defaults to the
+ * pool. `tryPublishPlannedNeed` still uses the pool directly.
+ */
+async function runPlannedNeedsScheduler(database) {
+  const dbClient = database || db;
+  logger.info('Planned needs scheduler started');
 
-    try {
-      // ── Pass 1: activating_soon ───────────────────────────────────────
-      // Use `<=` (not `=`) so a missed cron day doesn't permanently skip a need
-      // — anything within 1 day of activation gets the heads-up flag on the
-      // next run. We still gate on `due_date >= CURRENT_DATE` so we don't touch
-      // already-overdue rows that should fall through to Pass 2 / human review.
-      const { rowCount: soonCount } = await db.query(`
-        UPDATE planned_needs
-        SET status = 'activating_soon', updated_at = NOW()
-        WHERE status IN ('planned', 'funding')
-          AND COALESCE(is_paused, FALSE) = FALSE
-          AND (due_date - lead_time_days - 1) <= CURRENT_DATE
-          AND (due_date - lead_time_days)     >  CURRENT_DATE
-      `);
-      if (soonCount > 0) {
-        logger.info('Marked planned needs as activating_soon', { count: soonCount });
+  try {
+    // ── Pass 1: activating_soon ───────────────────────────────────────
+    // Use `<=` (not `=`) so a missed cron day doesn't permanently skip a need
+    // — anything within 1 day of activation gets the heads-up flag on the
+    // next run. We still gate on `due_date >= CURRENT_DATE` so we don't touch
+    // already-overdue rows that should fall through to Pass 2 / human review.
+    const { rowCount: soonCount } = await dbClient.query(`
+      UPDATE planned_needs
+      SET status = 'activating_soon', updated_at = NOW()
+      WHERE status IN ('planned', 'funding')
+        AND COALESCE(is_paused, FALSE) = FALSE
+        AND (due_date - lead_time_days - 1) <= CURRENT_DATE
+        AND (due_date - lead_time_days)     >  CURRENT_DATE
+    `);
+    if (soonCount > 0) {
+      logger.info('Marked planned needs as activating_soon', { count: soonCount });
+    }
+
+    // ── Pass 1b: personal-care due-soon reminder (G1-B3, D-689) ─────
+    // The need owner (customer) is told once, the day before the need
+    // activates, that their personal-care need posts for helpers
+    // tomorrow. Same 1-day window Pass 1 just flagged, restricted to
+    // personal_care: a need due today is published by Pass 2 in this
+    // same run, so there is no separate "due today" reminder moment.
+    // Once-only per need+occasion: the delivery key carries the need
+    // id and the due date, and notifications.delivery_key is unique
+    // (migration 555), so a re-run replays instead of duplicating;
+    // a regenerated recurring need gets a new row and a new due date,
+    // so it reminds again for its own occasion.
+    const { rows: toRemind } = await dbClient.query(`
+      SELECT pn.id, pn.user_id, pn.title, pn.due_date
+      FROM planned_needs pn
+      WHERE pn.category = 'personal_care'
+        AND pn.status IN ('planned', 'funding', 'activating_soon')
+        AND COALESCE(pn.is_paused, FALSE) = FALSE
+        AND pn.published_job_id IS NULL
+        AND (pn.due_date - pn.lead_time_days - 1) <= CURRENT_DATE
+        AND (pn.due_date - pn.lead_time_days)     >  CURRENT_DATE
+    `);
+    for (const need of toRemind) {
+      try {
+        const dueDay = need.due_date instanceof Date
+          ? need.due_date.toISOString().slice(0, 10)
+          : String(need.due_date).slice(0, 10);
+        await sendNotification({
+          userId: need.user_id,
+          type: 'planned_need_reminder',
+          title: 'Personal care reminder',
+          body: `Your personal care need "${need.title}" is coming up tomorrow and will be posted for helpers then.`,
+          data: { planned_need_id: need.id, params: { title: need.title } },
+          action_url: '/planned-needs',
+          idempotencyKey: `planned-need-reminder:${need.id}:${dueDay}`,
+        });
+      } catch (innerErr) {
+        logger.warn('Personal-care reminder failed', {
+          plannedNeedId: need.id, error: innerErr.message,
+        });
       }
+    }
+    if (toRemind.length > 0) {
+      logger.info('Personal-care due-soon reminders sent', { count: toRemind.length });
+    }
 
-      // ── Pass 2: auto-publish ────────────────────────────────────────
-      const { rows: toPublish } = await db.query(`
-        SELECT
-          pn.id, pn.user_id, pn.title, pn.description, pn.category,
-          pn.estimated_cost, pn.due_date, pn.lead_time_days,
-          pn.preferred_helper_id,
-          u.location_city, u.location_state, u.location_zip,
-          u.location_lat, u.location_lng,
-          ph.first_name AS helper_first_name,
-          ph.is_active  AS helper_is_active
-        FROM planned_needs pn
-        JOIN users u  ON u.id  = pn.user_id
-        LEFT JOIN users ph ON ph.id = pn.preferred_helper_id
-        WHERE pn.status IN ('planned', 'funding', 'activating_soon')
-          AND COALESCE(pn.is_paused, FALSE) = FALSE
-          AND (pn.due_date - pn.lead_time_days) <= CURRENT_DATE
-          AND pn.published_job_id IS NULL
-      `);
-      logger.info('Planned needs ready for auto-publish', { count: toPublish.length });
+    // ── Pass 2: auto-publish ────────────────────────────────────────
+    const { rows: toPublish } = await dbClient.query(`
+      SELECT
+        pn.id, pn.user_id, pn.title, pn.description, pn.category,
+        pn.estimated_cost, pn.due_date, pn.lead_time_days,
+        pn.preferred_helper_id,
+        u.location_city, u.location_state, u.location_zip,
+        u.location_lat, u.location_lng,
+        ph.first_name AS helper_first_name,
+        ph.is_active  AS helper_is_active
+      FROM planned_needs pn
+      JOIN users u  ON u.id  = pn.user_id
+      LEFT JOIN users ph ON ph.id = pn.preferred_helper_id
+      WHERE pn.status IN ('planned', 'funding', 'activating_soon')
+        AND COALESCE(pn.is_paused, FALSE) = FALSE
+        AND (pn.due_date - pn.lead_time_days) <= CURRENT_DATE
+        AND pn.published_job_id IS NULL
+    `);
+    logger.info('Planned needs ready for auto-publish', { count: toPublish.length });
 
-      for (const need of toPublish) {
-        await tryPublishPlannedNeed(need);
-      }
+    for (const need of toPublish) {
+      await tryPublishPlannedNeed(need);
+    }
 
-      // ── Pass 3: 72-hour preferred-helper expiry ─────────────────────
-      // Now we check hold_expires_at on the jobs table directly
-      const { rows: expiredJobs } = await db.query(`
-        SELECT
-          j.id AS job_id, j.held_for_helper_id, j.planned_need_id,
-          pn.id AS pn_id, pn.user_id, pn.title,
-          ph.first_name AS helper_first_name
-        FROM jobs j
-        LEFT JOIN planned_needs pn ON pn.id = j.planned_need_id
-        LEFT JOIN users ph ON ph.id = j.held_for_helper_id
-        WHERE j.held_for_helper_id IS NOT NULL
-          AND j.hold_expires_at <= NOW()
-      `);
+    // ── Pass 3: 72-hour preferred-helper expiry ─────────────────────
+    // Now we check hold_expires_at on the jobs table directly
+    const { rows: expiredJobs } = await dbClient.query(`
+      SELECT
+        j.id AS job_id, j.held_for_helper_id, j.planned_need_id,
+        pn.id AS pn_id, pn.user_id, pn.title,
+        ph.first_name AS helper_first_name
+      FROM jobs j
+      LEFT JOIN planned_needs pn ON pn.id = j.planned_need_id
+      LEFT JOIN users ph ON ph.id = j.held_for_helper_id
+      WHERE j.held_for_helper_id IS NOT NULL
+        AND j.hold_expires_at <= NOW()
+    `);
 
-      if (expiredJobs.length > 0) {
-        logger.info('Preferred helper holds expired', { count: expiredJobs.length });
-      }
+    if (expiredJobs.length > 0) {
+      logger.info('Preferred helper holds expired', { count: expiredJobs.length });
+    }
 
-      for (const row of expiredJobs) {
-        try {
-          // Clear the hold - job stays published, now open to everyone
-          await db.query(`
-            UPDATE jobs
-            SET held_for_helper_id = NULL,
-                hold_expires_at   = NULL,
-                updated_at        = NOW()
+    for (const row of expiredJobs) {
+      try {
+        // Clear the hold - job stays published, now open to everyone
+        await dbClient.query(`
+          UPDATE jobs
+          SET held_for_helper_id = NULL,
+              hold_expires_at   = NULL,
+              updated_at        = NOW()
+          WHERE id = $1
+        `, [row.job_id]);
+
+        // Update planned_needs status
+        if (row.pn_id) {
+          await dbClient.query(`
+            UPDATE planned_needs
+            SET preferred_helper_status = 'expired', updated_at = NOW()
             WHERE id = $1
-          `, [row.job_id]);
+          `, [row.pn_id]);
+        }
 
-          // Update planned_needs status
-          if (row.pn_id) {
-            await db.query(`
-              UPDATE planned_needs
-              SET preferred_helper_status = 'expired', updated_at = NOW()
-              WHERE id = $1
-            `, [row.pn_id]);
-          }
-
-          const helperName = row.helper_first_name || 'Your preferred helper';
-          if (row.user_id) {
-            await sendNotification({
-              userId:     row.user_id,
-              type:       'planned_need_expired',
-              title:      'Preferred helper didn\'t respond',
-              body:       `${helperName} didn't confirm availability for "${row.title}" within 72 hours. The job is now open to all helpers nearby.`,
-              data:       { job_id: row.job_id, planned_need_id: row.pn_id },
-              action_url: `/jobs/${row.job_id}`,
-              idempotencyKey: `planned-need-expired:${row.job_id}:${row.user_id}`,
-            });
-          }
-          logger.info('Job hold expired, now open to all helpers', { jobId: row.job_id });
-        } catch (innerErr) {
-          logger.error('Failed to expire job hold', {
-            jobId: row.job_id,
-            error: innerErr.message,
+        const helperName = row.helper_first_name || 'Your preferred helper';
+        if (row.user_id) {
+          await sendNotification({
+            userId:     row.user_id,
+            type:       'planned_need_expired',
+            title:      'Preferred helper didn\'t respond',
+            body:       `${helperName} didn't confirm availability for "${row.title}" within 72 hours. The job is now open to all helpers nearby.`,
+            data:       { job_id: row.job_id, planned_need_id: row.pn_id },
+            action_url: `/jobs/${row.job_id}`,
+            idempotencyKey: `planned-need-expired:${row.job_id}:${row.user_id}`,
           });
         }
+        logger.info('Job hold expired, now open to all helpers', { jobId: row.job_id });
+      } catch (innerErr) {
+        logger.error('Failed to expire job hold', {
+          jobId: row.job_id,
+          error: innerErr.message,
+        });
       }
-
-      // Also clean up old planned_needs records still showing 'pending'
-      await db.query(`
-        UPDATE planned_needs
-        SET preferred_helper_status = 'expired', updated_at = NOW()
-        WHERE preferred_helper_status = 'pending'
-          AND helper_notified_at <= NOW() - INTERVAL '72 hours'
-      `);
-
-      logger.info('Planned needs scheduler completed');
-    } catch (err) {
-      logger.error('Planned needs scheduler error', { error: err.message });
     }
-  }, { timezone: 'America/New_York' });
+
+    // Also clean up old planned_needs records still showing 'pending'
+    await dbClient.query(`
+      UPDATE planned_needs
+      SET preferred_helper_status = 'expired', updated_at = NOW()
+      WHERE preferred_helper_status = 'pending'
+        AND helper_notified_at <= NOW() - INTERVAL '72 hours'
+    `);
+
+    logger.info('Planned needs scheduler completed');
+  } catch (err) {
+    logger.error('Planned needs scheduler error', { error: err.message });
+  }
+}
+
+const startPlannedNeedsScheduler = () => {
+  cron.schedule('0 6 * * *', () => runPlannedNeedsScheduler(), { timezone: 'America/New_York' });
 };
 
 function categoryToJobName(category) {
@@ -289,4 +349,4 @@ function categoryToJobName(category) {
   return map[category] || 'Other / Specify in Description';
 }
 
-module.exports = { startPlannedNeedsScheduler, tryPublishPlannedNeed };
+module.exports = { startPlannedNeedsScheduler, tryPublishPlannedNeed, runPlannedNeedsScheduler };

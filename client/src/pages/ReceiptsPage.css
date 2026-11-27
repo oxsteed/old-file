@@ -1,0 +1,125 @@
+/* Group 1 (Customer), item 23 — receipt vault (G1-A2, checkpoint 3). */
+.receipts-container {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+}
+
+.receipts-hero {
+  margin-bottom: 1.5rem;
+}
+
+.receipts-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+  color: var(--muted-text);
+  margin: 0 0 0.25rem;
+}
+
+.receipts-title {
+  font-size: 1.75rem;
+  margin: 0 0 0.5rem;
+}
+
+.receipts-subtitle {
+  color: var(--muted-text);
+  margin: 0 0 1rem;
+}
+
+.receipts-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.receipts-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 3rem 0;
+  color: var(--muted-text);
+}
+
+.receipts-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+  padding: 3rem 1rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 0.75rem;
+}
+
+.receipts-empty-kicker {
+  font-weight: 600;
+  margin: 0;
+}
+
+.receipts-empty-copy {
+  color: var(--muted-text);
+  margin: 0;
+}
+
+.receipts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.receipts-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  background: var(--card-bg);
+}
+
+.receipts-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.receipts-kind {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-text);
+}
+
+.receipts-row-title {
+  font-size: 1rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.receipts-row-meta {
+  font-size: 0.875rem;
+  color: var(--muted-text);
+}
+
+.receipts-row-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.receipts-amount {
+  font-weight: 700;
+  font-size: 1.05rem;
+}

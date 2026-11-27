@@ -11,6 +11,7 @@ const { sendNotification } = require('../services/notificationService');
 const { broadcastToUser } = require('../services/socketService');
 const recipientSvc = require('../services/bookingRecipientService');
 const bookingLifecycle = require('../services/bookingRequestLifecycle');
+const { buildIcsEvent } = require('../utils/ics');
 const { withTransaction } = require('../utils/transaction');
 const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
 const { publicHelperStandingPredicate } = require('./helpersController');
@@ -631,6 +632,76 @@ exports.getBookingRequest = async (req, res) => {
   } catch (err) {
     logger.error('Error fetching booking request', { error: err.message });
     sendError(res, 500, 'Failed to fetch booking request');
+  }
+};
+
+// ─── getBookingIcal ─────────────────────────────────────────────────
+// GET /api/bookings/:bookingId/ical (G1-A7)
+// Returns a valid RFC 5545 .ics file for the booking's scheduled visit.
+// Same parties who may read the booking may export it (booker,
+// recipient, site contact, household delegate, provider). A request-only
+// booking has no concrete time, so it refuses instead of exporting a
+// guessed time. Times are wall-clock values, emitted floating.
+exports.getBookingIcal = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const userId = req.user?.id;
+
+    const { rows } = await pool.query(
+      `SELECT id, customer_id, helper_id, business_id, service_name,
+              status, requested_date, requested_start_time, requested_end_time,
+              service_location, description, availability_mode,
+              recipient_user_id, site_contact_user_id, conversation_id, guest_session_id
+         FROM booking_requests WHERE id = $1`,
+      [bookingId]
+    );
+    if (!rows.length) return sendError(res, 404, 'Booking request not found');
+
+    const booking = rows[0];
+    const isCustomer = userId && String(userId) === String(booking.customer_id);
+    const isRecipient = userId && booking.recipient_user_id && String(userId) === String(booking.recipient_user_id);
+    const isSiteContact = userId && booking.site_contact_user_id && String(userId) === String(booking.site_contact_user_id);
+    let isDelegate = false;
+    if (userId && !isCustomer && !isRecipient && !isSiteContact) {
+      const householdSvc = require('../services/householdDelegationService');
+      const delegation = await householdSvc.findActiveDelegation(pool, booking.customer_id, userId);
+      isDelegate = Boolean(delegation && ['book', 'schedule', 'prepare'].some((s) => householdSvc.hasScope(delegation, s)));
+    }
+    const isProvider = userId && (await bookingLifecycle.isProviderForBooking(userId, booking));
+    if (!isCustomer && !isRecipient && !isSiteContact && !isDelegate && !isProvider) {
+      return sendError(res, 403, 'Not authorized to view this booking');
+    }
+
+    if (!booking.requested_date || !booking.requested_start_time) {
+      return sendError(res, 400, 'This booking has no scheduled time to export', 'no_scheduled_time');
+    }
+    const datePart = booking.requested_date instanceof Date
+      ? booking.requested_date.toISOString().slice(0, 10)
+      : String(booking.requested_date).slice(0, 10);
+    const start = new Date(`${datePart}T${String(booking.requested_start_time).slice(0, 8)}`);
+    const end = booking.requested_end_time
+      ? new Date(`${datePart}T${String(booking.requested_end_time).slice(0, 8)}`)
+      : new Date(start.getTime() + 60 * 60 * 1000);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return sendError(res, 400, 'This booking has no scheduled time to export', 'no_scheduled_time');
+    }
+
+    const ics = buildIcsEvent({
+      uid: `oxsteed-booking-${booking.id}@oxsteed.com`,
+      title: booking.service_name || 'OxSteed Booking',
+      start,
+      end,
+      location: booking.service_location || '',
+      description: `OxSteed booking. Status: ${booking.status}.`,
+      status: booking.status === 'accepted' ? 'CONFIRMED' : 'TENTATIVE',
+    });
+
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="oxsteed-booking-${booking.id}.ics"`);
+    res.send(ics);
+  } catch (err) {
+    logger.error('Failed to generate booking iCal', { bookingId: req.params?.bookingId, error: err.message });
+    return sendError(res, 500, 'Failed to generate calendar file', 'INTERNAL_ERROR');
   }
 };
 
