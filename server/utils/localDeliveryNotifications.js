@@ -691,4 +691,44 @@ for (const [name, translations] of Object.entries(copy)) {
 // Older callers may still use the internal assignment event key.
 deliveryNotifications['delivery:delivery_coordinated'] = deliveryNotifications['delivery:delivery_assigned'];
 
+// N14 (D-729): these two types are sent as literals, not
+// DELIVERY_NOTIFICATION_EVENTS, so the copy table above never built
+// entries for them and the notices were lost on the NOT NULL title
+// insert (no template, no title at the send site). Explicit entries
+// here keep delivery copy in the delivery module; the send sites keep
+// passing their specific body copy, which the service appends to the
+// template body.
+deliveryNotifications['delivery:tracking_stale'] = {
+  title: {
+    en: 'Delivery tracking went quiet',
+    fr: 'Le suivi de livraison s’est interrompu',
+    es: 'El seguimiento de la entrega se detuvo',
+    ht: 'Swiv livrezon an sispann',
+    ar: 'توقف تتبع التوصيل',
+  },
+  body: {
+    en: 'Delivery tracking has gone quiet.',
+    fr: 'Le suivi de votre livraison s’est interrompu.',
+    es: 'El seguimiento de tu entrega se ha detenido.',
+    ht: 'Swiv livrezon ou an sispann.',
+    ar: 'توقف تتبع عملية التوصيل الخاصة بك.',
+  },
+};
+deliveryNotifications['delivery:weekly_report_ready'] = {
+  title: {
+    en: 'Weekly delivery report ready',
+    fr: 'Rapport hebdomadaire de livraison prêt',
+    es: 'Informe semanal de entregas listo',
+    ht: 'Rapò livrezon chak semèn pare',
+    ar: 'التقرير الأسبوعي للتوصيل جاهز',
+  },
+  body: {
+    en: 'Your weekly delivery report is ready. Open it to review your earnings.',
+    fr: 'Votre rapport hebdomadaire de livraison est prêt. Ouvrez-le pour revoir vos gains.',
+    es: 'Tu informe semanal de entregas está listo. Ábrelo para revisar tus ganancias.',
+    ht: 'Rapò livrezon chak semèn ou pare. Louvri l pou w wè salè ou.',
+    ar: 'تقرير التوصيل الأسبوعي الخاص بك جاهز. افتحه لمراجعة أرباحك.',
+  },
+};
+
 module.exports = { DELIVERY_NOTIFICATION_EVENTS, deliveryNotifications };

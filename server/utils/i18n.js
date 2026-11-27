@@ -2000,6 +2000,43 @@ const T = {
       ar: 'لديك فواتير متأخرة. تابع مع العملاء لتحصيل الدفع.',
     },
   },
+  // N14 (D-729): account_banned / account_restored were sent with no
+  // template and no title at any site (toggleUserBan and the two
+  // notifyUserAccountEvent callers), so the notice was lost on the
+  // NOT NULL title insert. The ban body stays static: the reason rides
+  // in the notification data, not in params.
+  account_banned: {
+    title: {
+      en: 'Account banned',
+      fr: 'Compte banni',
+      es: 'Cuenta suspendida',
+      ht: 'Kont ou an bloke',
+      ar: 'تم حظر الحساب',
+    },
+    body: {
+      en: 'Your account was banned. Contact support if you believe this is a mistake.',
+      fr: 'Votre compte a été banni. Contactez le support si vous pensez qu’il s’agit d’une erreur.',
+      es: 'Tu cuenta fue suspendida. Contacta con soporte si crees que es un error.',
+      ht: 'Yo bloke kont ou. Kontakte sipò a si ou panse se yon erè.',
+      ar: 'تم حظر حسابك. اتصل بالدعم إذا كنت تعتقد أن هذا خطأ.',
+    },
+  },
+  account_restored: {
+    title: {
+      en: 'Account restored',
+      fr: 'Compte restauré',
+      es: 'Cuenta restaurada',
+      ht: 'Kont ou an retabli',
+      ar: 'تمت استعادة الحساب',
+    },
+    body: {
+      en: 'Your account has been restored. You can sign in again.',
+      fr: 'Votre compte a été restauré. Vous pouvez vous reconnecter.',
+      es: 'Tu cuenta ha sido restaurada. Ya puedes iniciar sesión.',
+      ht: 'Yo retabli kont ou. Ou ka konekte ankò.',
+      ar: 'تمت استعادة حسابك. يمكنك تسجيل الدخول مرة أخرى.',
+    },
+  },
 };
 
 const EMAIL_TEMPLATES = {
@@ -2161,6 +2198,22 @@ const EMAIL_TEMPLATES = {
       es: 'Ver conducción',
       ht: 'Gade kondwi',
       ar: 'عرض القيادة',
+    },
+    // N14 (D-729): button labels for the two literal delivery: types;
+    // their T entries live in localDeliveryNotifications.js.
+    'delivery:tracking_stale': {
+      en: 'View Delivery',
+      fr: 'Voir la livraison',
+      es: 'Ver entrega',
+      ht: 'Gade livrezon an',
+      ar: 'عرض التوصيل',
+    },
+    'delivery:weekly_report_ready': {
+      en: 'View Report',
+      fr: 'Voir le rapport',
+      es: 'Ver informe',
+      ht: 'Gade rapò a',
+      ar: 'عرض التقرير',
     },
     payout_failed: {
       en: 'View Payouts',
