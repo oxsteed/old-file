@@ -239,6 +239,40 @@ describeDb('Group 12 Slice 3a: Enter program (604, 603, 605)', () => {
       await proposeSlot(admin, applicationId, { starts_at: futureIso(80), ends_at: futureIso(79) }).expect(400);
     });
 
+    test('a proposed slot that lapses before booking is refused with 409 and stays proposed', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      const proposed = await proposeSlot(admin, applicationId).expect(201);
+      const slot = proposed.body.interviews[0];
+      expect(slot.status).toBe('proposed');
+      // The slot was proposed for the future; time passes and the start
+      // goes by while it sits unbooked (HQ proposed Tuesday, the
+      // applicant opens the page Friday).
+      await db.query(
+        `UPDATE franchise_interview_slots SET starts_at = NOW() - interval '1 hour' WHERE id = $1`,
+        [slot.id],
+      );
+
+      const lapsed = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/interviews/${slot.id}/book`)
+        .set('x-test-user', applicant)
+        .expect(409);
+      expect(lapsed.body.code).toBe('interview_slot_lapsed');
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      expect(detail.body.interviews[0].status).toBe('proposed');
+
+      // A still-future slot on the same application books normally.
+      const fresh = await proposeSlot(admin, applicationId, { starts_at: futureIso(72), ends_at: futureIso(73) }).expect(201);
+      const freshSlot = fresh.body.interviews.find((entry) => entry.id !== slot.id);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/interviews/${freshSlot.id}/book`)
+        .set('x-test-user', applicant)
+        .expect(200);
+    });
+
     test('applicant cancel returns the slot to proposed; HQ cancel/complete rules are enforced', async () => {
       const applicant = await addUser();
       const admin = await addUser('super_admin');

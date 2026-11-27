@@ -405,6 +405,22 @@ export default function FranchiseHQPage() {
     return () => { cancelled = true; };
   }, [selectedBundle, hqTicketStatus, hqTicketLocationId, hqTicketRefresh]);
 
+  // G12-A5 (D-649): the training catalogue for the HQ assign form —
+  // the same modules the operator sees, served by the admin twin.
+  const [hqTrainingModules, setHqTrainingModules] = useState([]);
+  useEffect(() => {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) {
+      setHqTrainingModules([]);
+      return undefined;
+    }
+    let cancelled = false;
+    axios.get(`/franchise/applications/${applicationId}/training-modules`)
+      .then((res) => { if (!cancelled) setHqTrainingModules(res.data?.training_modules ?? []); })
+      .catch(() => { if (!cancelled) setHqTrainingModules([]); });
+    return () => { cancelled = true; };
+  }, [selectedBundle]);
+
   // Group 12 Slice 3j (649): the per-territory case tracker for HQ —
   // the territory's cases in one view, filterable by status, type, and
   // location.
@@ -2275,6 +2291,7 @@ export default function FranchiseHQPage() {
                     assignments={selectedBundle.training_assignments || []}
                     members={territoryMembers()}
                     locations={selectedBundle.locations || []}
+                    modules={hqTrainingModules}
                     canAssign
                     canComplete
                     onAssign={assignTraining}

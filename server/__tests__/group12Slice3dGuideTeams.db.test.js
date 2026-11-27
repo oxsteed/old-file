@@ -653,6 +653,130 @@ describeDb('Group 12 Slice 3d: Guide teams (616-620)', () => {
         .expect(200);
       expect(removed.body.training_assignments).toHaveLength(0);
     });
+
+    // G12-A5 (D-649): the assign form's catalogue picker.
+    async function addBusiness(owner) {
+      const { rows } = await db.query(
+        'INSERT INTO businesses (user_id, business_name) VALUES ($1, $2) RETURNING id',
+        [owner.id, 'G12d Training Business'],
+      );
+      return rows[0].id;
+    }
+
+    async function addRestaurant(businessId, owner, name) {
+      const { rows } = await db.query(
+        `INSERT INTO food_restaurants (business_id, owner_user_id, display_name)
+         VALUES ($1, $2, $3) RETURNING id`,
+        [businessId, owner.id, name],
+      );
+      return rows[0].id;
+    }
+
+    async function addModule(restaurantId, title, category, isActive = true) {
+      const { rows } = await db.query(
+        `INSERT INTO restaurant_training_modules (restaurant_id, title, category, is_active)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        [restaurantId, title, category, isActive],
+      );
+      return rows[0].id;
+    }
+
+    async function linkBusiness(applicationId, businessId) {
+      await db.query(
+        'UPDATE franchise_applications SET linked_business_id = $1 WHERE id = $2',
+        [businessId, applicationId],
+      );
+    }
+
+    function modulesFor(user, applicationId) {
+      return request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/training-modules`)
+        .set('x-test-user', user.id);
+    }
+
+    test('the modules endpoint lists only the linked business active modules; HQ sees the same list', async () => {
+      const { operator, admin, applicationId } = await setupTraining();
+      const businessId = await addBusiness(operator);
+      await linkBusiness(applicationId, businessId);
+      const restaurantA = await addRestaurant(businessId, operator, 'Downtown');
+      const restaurantB = await addRestaurant(businessId, operator, 'Uptown');
+      const activeA = await addModule(restaurantA, 'Food safety basics', 'food_safety');
+      const activeB = await addModule(restaurantB, 'Knife skills', 'kitchen');
+      await addModule(restaurantA, 'Retired module', 'general', false);
+      // Another business's module must not leak in.
+      const otherBusinessId = await addBusiness(operator);
+      const otherRestaurant = await addRestaurant(otherBusinessId, operator, 'Elsewhere');
+      await addModule(otherRestaurant, 'Foreign module', 'general');
+
+      const listed = await modulesFor(operator, applicationId).expect(200);
+      expect(listed.body.training_modules.map((row) => row.id).sort()).toEqual([activeA, activeB].sort());
+      expect(listed.body.training_modules.find((row) => row.id === activeA)).toMatchObject({
+        title: 'Food safety basics', category: 'food_safety', restaurant_name: 'Downtown',
+      });
+
+      const adminListed = await request(app)
+        .get(`/api/franchise/applications/${applicationId}/training-modules`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(adminListed.body.training_modules.map((row) => row.id).sort()).toEqual([activeA, activeB].sort());
+    });
+
+    test('no linked business means an empty catalogue; strangers get 404 and the applicant gets 403', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const stranger = await addUser();
+      const applicationId = await makeApplication(applicant, operator);
+
+      const empty = await modulesFor(operator, applicationId).expect(200);
+      expect(empty.body.training_modules).toEqual([]);
+
+      await modulesFor(stranger, applicationId).expect(404);
+      await modulesFor(applicant, applicationId)
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+    });
+
+    test('assigning a catalogue module resolves its title and category; an explicit category wins', async () => {
+      const { operator, applicationId } = await setupTraining();
+      const businessId = await addBusiness(operator);
+      await linkBusiness(applicationId, businessId);
+      const restaurantId = await addRestaurant(businessId, operator, 'Downtown');
+      const moduleId = await addModule(restaurantId, 'Food safety basics', 'food_safety');
+
+      // Module only: title and category come from the catalogue.
+      const assigned = await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: operator.id, module_id: moduleId,
+      }).expect(201);
+      const row = assigned.body.training_assignments[0];
+      expect(row.module_id).toBe(moduleId);
+      expect(row.module_title).toBe('Food safety basics');
+      expect(row.category).toBe('food_safety');
+
+      // Explicit category overrides the module's category.
+      const invitee = await addUser();
+      const { token } = await inviteAsOperator(operator, applicationId, invitee.email);
+      await acceptInvite(invitee, token).expect(200);
+      const overridden = await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: invitee.id, module_id: moduleId, category: 'kitchen',
+      }).expect(201);
+      const overrideRow = overridden.body.training_assignments.find(
+        (entry) => entry.assignee_user_id === invitee.id);
+      expect(overrideRow.module_id).toBe(moduleId);
+      expect(overrideRow.module_title).toBe('Food safety basics');
+      expect(overrideRow.category).toBe('kitchen');
+    });
+
+    test('free-text training carries an explicit category', async () => {
+      const { operator, applicationId } = await setupTraining();
+
+      const assigned = await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: operator.id, module_title: 'Knife skills', category: 'kitchen',
+      }).expect(201);
+      const row = assigned.body.training_assignments[0];
+      expect(row.module_id).toBeNull();
+      expect(row.module_title).toBe('Knife skills');
+      expect(row.category).toBe('kitchen');
+    });
   });
 
   describe('619: coverage planning', () => {

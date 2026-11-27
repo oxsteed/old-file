@@ -765,7 +765,13 @@ export default function FranchiseApplicationDetail({ applicationId }) {
 
   const interviews = detail.interviews || [];
   const booked = interviews.find((slot) => slot.status === 'booked');
-  const proposed = interviews.filter((slot) => slot.status === 'proposed');
+  // G12-A6 (D-650): a proposed slot whose start has passed is lapsed —
+  // it renders as expired with no Book button, and the server refuses
+  // the booking with 409. The applicant sees the time HQ proposed and
+  // that it is gone, instead of a live button for a past time.
+  const isLapsed = (slot) => slot.starts_at && new Date(slot.starts_at).getTime() <= Date.now();
+  const proposed = interviews.filter((slot) => slot.status === 'proposed' && !isLapsed(slot));
+  const lapsed = interviews.filter((slot) => slot.status === 'proposed' && isLapsed(slot));
   const past = interviews.filter((slot) => ['completed', 'cancelled'].includes(slot.status));
   const documents = detail.documents || [];
   const categoryStatus = new Map((detail.document_categories || []).map((entry) => [entry.category, entry.status]));
@@ -904,6 +910,21 @@ export default function FranchiseApplicationDetail({ applicationId }) {
           </div>
         )}
 
+        {lapsed.length > 0 && (
+          <div className="fr-interview-list">
+            {lapsed.map((slot) => (
+              <div key={slot.id} className="fr-interview-row fr-interview-row-past">
+                <div>
+                  <div className="fr-interview-when">{formatDateTime(slot.starts_at)}</div>
+                  {slot.interviewer_name && <div className="fr-interview-meta">{copy('interviewer')}: {slot.interviewer_name}</div>}
+                  {slot.note && <div className="fr-interview-meta">{slot.note}</div>}
+                </div>
+                <span className="fr-status-badge">{copy('interviewExpired')}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {past.length > 0 && (
           <div className="fr-interview-list">
             {past.map((slot) => (
@@ -918,7 +939,7 @@ export default function FranchiseApplicationDetail({ applicationId }) {
           </div>
         )}
 
-        {!booked && proposed.length === 0 && past.length === 0 && (
+        {!booked && proposed.length === 0 && lapsed.length === 0 && past.length === 0 && (
           <p className="fr-detail-empty">{copy('interviewNone')}</p>
         )}
       </section>

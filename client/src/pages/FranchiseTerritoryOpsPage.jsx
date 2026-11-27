@@ -223,6 +223,22 @@ export default function FranchiseTerritoryOpsPage() {
     return () => { cancelled = true; };
   }, [resolvedApplicationId, territoryBlocked]);
 
+  // G12-A5 (D-649): the training catalogue for the assign form — the
+  // active modules of the linked business's restaurants. An empty list
+  // leaves the form on free-text training.
+  const [trainingModules, setTrainingModules] = useState([]);
+  useEffect(() => {
+    if (!resolvedApplicationId || territoryBlocked) {
+      setTrainingModules([]);
+      return undefined;
+    }
+    let cancelled = false;
+    api.get(`/franchise/my-applications/${resolvedApplicationId}/training-modules`)
+      .then((res) => { if (!cancelled) setTrainingModules(res.data?.training_modules ?? []); })
+      .catch(() => { if (!cancelled) setTrainingModules([]); });
+    return () => { cancelled = true; };
+  }, [resolvedApplicationId, territoryBlocked]);
+
   // Group 12 Slice 3j (649): the territory case tracker — the
   // territory's cases in one view, filterable by status, type, and
   // location. Derived from the existing records, never a new store.
@@ -1190,6 +1206,7 @@ export default function FranchiseTerritoryOpsPage() {
               assignments={boundaryDetail.training_assignments || []}
               members={territoryMembers()}
               locations={boundaryDetail.locations || []}
+              modules={trainingModules}
               canAssign
               canComplete
               onAssign={assignTraining}

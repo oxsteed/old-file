@@ -67,6 +67,8 @@ const {
   removeLocationManagerAsAdmin,
   assignTraining,
   assignTrainingAsAdmin,
+  listTrainingModules,
+  listTrainingModulesAsAdmin,
   completeTrainingAssignment,
   completeTrainingAssignmentAsAdmin,
   removeTrainingAssignment,
@@ -236,6 +238,9 @@ router.get('/invitations/:token', getTerritoryInvitationByToken);
 router.post('/my-applications/:id/training', authenticate, requireFranchiseEnabled, assignTraining);
 router.post('/my-applications/:id/training/:assignmentId/complete', authenticate, requireFranchiseEnabled, completeTrainingAssignment);
 router.delete('/my-applications/:id/training/:assignmentId', authenticate, requireFranchiseEnabled, removeTrainingAssignment);
+// G12-A5 (D-649): the catalogue behind the assign form — active
+// modules of the linked business's restaurants.
+router.get('/my-applications/:id/training-modules', authenticate, requireFranchiseEnabled, listTrainingModules);
 // Group 12 Slice 3d (619): territory coverage planning — read-only
 // rollup over the linked business's staff shifts.
 router.get('/my-applications/:id/coverage', authenticate, requireFranchiseEnabled, getTerritoryCoverage);
@@ -390,6 +395,7 @@ router.delete('/applications/:id/locations/:locationId/manager', authenticate, r
 router.post('/applications/:id/training', authenticate, requireAdmin, requirePermission('manage_operations'), assignTrainingAsAdmin);
 router.post('/applications/:id/training/:assignmentId/complete', authenticate, requireAdmin, requirePermission('manage_operations'), completeTrainingAssignmentAsAdmin);
 router.delete('/applications/:id/training/:assignmentId', authenticate, requireAdmin, requirePermission('manage_operations'), removeTrainingAssignmentAsAdmin);
+router.get('/applications/:id/training-modules', authenticate, requireAdmin, requirePermission('manage_operations'), listTrainingModulesAsAdmin);
 // Group 12 Slice 3d (619): HQ reads the territory coverage rollup.
 router.get('/applications/:id/coverage', authenticate, requireAdmin, requirePermission('manage_operations'), getTerritoryCoverageAsAdmin);
 // Group 12 Slice 3f (628): HQ reads the exception summary and links or

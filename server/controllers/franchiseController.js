@@ -2868,6 +2868,17 @@ async function bookInterviewSlot(req, res) {
           code: 'interview_not_proposed',
         });
       }
+      // G12-A6 (D-650): a proposed slot whose start has passed is no
+      // longer bookable. proposeInterviewSlot requires a future start
+      // and rescheduling re-validates it, but nothing stopped the
+      // applicant booking a slot that lapsed while it sat proposed.
+      if (new Date(slot.starts_at).getTime() <= Date.now()) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'That interview time has already passed.',
+          code: 'interview_slot_lapsed',
+        });
+      }
       const { rows: bookedRows } = await client.query(
         `SELECT id FROM franchise_interview_slots
           WHERE application_id = $1 AND status = 'booked' FOR UPDATE`,
@@ -5476,6 +5487,74 @@ async function removeLocationManagerAsAdmin(req, res) {
 // resolved from the module when one is picked); assignment and
 // completion state live in franchise_training_assignments, not in the
 // restaurant-scoped table. The assignee must be a territory member.
+
+/**
+ * GET /api/franchise/my-applications/:id/training-modules
+ * G12-A5 (D-649): the catalogue behind the training assign form — the
+ * active modules of the territory's linked business's restaurants.
+ * No linked business means no catalogue, and the form still offers
+ * free-text training. Operator-only; the admin twin serves HQ.
+ */
+async function listTrainingModules(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      let linkedBusinessId = null;
+      if (asAdmin) {
+        const { rows } = await client.query(
+          'SELECT linked_business_id FROM franchise_applications WHERE id = $1',
+          [id]
+        );
+        if (!rows.length) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        linkedBusinessId = rows[0].linked_business_id;
+      } else {
+        if (!req.user?.id) return res.status(401).json({ error: 'Authentication required.' });
+        const owned = await loadOperatorApplication(client, id, req.user.id);
+        if (!owned.application || !owned.isAssociated) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          return res.status(403).json({
+            error: 'Only the assigned operator can distribute training in the territory.',
+            code: 'franchise_operator_only',
+          });
+        }
+        const { rows } = await client.query(
+          'SELECT linked_business_id FROM franchise_applications WHERE id = $1',
+          [id]
+        );
+        linkedBusinessId = rows[0]?.linked_business_id || null;
+      }
+      if (!linkedBusinessId) {
+        return res.json({ training_modules: [] });
+      }
+      const { rows } = await client.query(
+        `SELECT m.id, m.title, m.category, m.restaurant_id,
+                r.display_name AS restaurant_name
+           FROM restaurant_training_modules m
+           JOIN food_restaurants r ON r.id = m.restaurant_id
+           JOIN businesses b ON b.id = r.business_id AND b.deleted_at IS NULL
+          WHERE r.business_id = $1 AND m.is_active = TRUE
+          ORDER BY m.sort_order ASC, m.title ASC`,
+        [linkedBusinessId]
+      );
+      return res.json({ training_modules: rows });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error listing franchise training modules', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to list training modules.' });
+  }
+}
+
+async function listTrainingModulesAsAdmin(req, res) {
+  return listTrainingModules(req, res, { asAdmin: true });
+}
+
 async function assignTrainingCore(client, { applicationId, locationId, assigneeUserId, moduleId, moduleTitle, category, dueDate, actorId }) {
   if (locationId) {
     const location = await loadLocation(client, applicationId, locationId);
@@ -12537,6 +12616,8 @@ module.exports = {
   removeLocationManagerAsAdmin,
   assignTraining,
   assignTrainingAsAdmin,
+  listTrainingModules,
+  listTrainingModulesAsAdmin,
   completeTrainingAssignment,
   completeTrainingAssignmentAsAdmin,
   removeTrainingAssignment,
