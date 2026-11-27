@@ -60,6 +60,10 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
             ...(handoff ? { signupResume: { capability: null, kind: 'domain_enrollment', statusPath: handoff } } : {}) } }),
           listRequests: async () => ({ requests: resuming ? (recovered ? [request()] : []) : [request(), approved] }),
           listMyGrants: async () => [],
+          // G1-B11 (D-709): ApplicationsPage.load() also reads the access
+          // history; the mock must define it or load() throws a TypeError
+          // and the page renders its load-error state (test 110).
+          getAccessHistory: async () => [],
           listPolicies: async () => ({ policies: [policy] }),
           getRequest: async (id) => (id === 'r2' ? { request: approved, history } : { request: request(), history }),
           updateRequest: async (id, body) => ({ request: checkVersion(body) }),
