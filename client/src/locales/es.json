@@ -25179,7 +25179,30 @@
       "helpersVerified": "{{count}} verificados",
       "jobsActive": "{{count}} activos",
       "completedJobs": "{{count}} completados",
+      "completedJobs30d": "{{count}} completados en 30 días",
+      "dataUnavailable": "Datos no disponibles",
       "revenueTotal": "Total: {{amount}}"
+    },
+    "royalties": {
+      "title": "Regalías y tarifas",
+      "royalty30d": "Regalía acumulada (30d)",
+      "royaltyTotal": "Total acumulado: {{amount}}",
+      "marketingFee30d": "Tarifa de marketing acumulada (30d)",
+      "marketingFeeTotal": "Total acumulado: {{amount}}",
+      "terms": "Regalía {{royaltyRate}}% · Tarifa de marketing {{marketingRate}}% · {{currency}}",
+      "noTerms": "Aún no hay términos de regalías registrados para este territorio.",
+      "unavailable": "Los datos de regalías no están disponibles en este momento."
+    },
+    "locations": {
+      "title": "Rendimiento por ubicación",
+      "location": "Ubicación",
+      "jobsPosted": "Trabajos publicados (30d)",
+      "completed": "Completados (30d)",
+      "active": "Activos",
+      "completion": "Finalización",
+      "noLocations": "Aún no hay ubicaciones.",
+      "unavailable": "Los datos de ubicación no están disponibles en este momento.",
+      "jobsUnavailable": "Los números de trabajos no están disponibles en este momento."
     },
     "compliance": {
       "title": "Preparación de cumplimiento",

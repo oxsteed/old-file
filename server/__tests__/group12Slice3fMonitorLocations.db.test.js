@@ -834,4 +834,212 @@ describeDb('Group 12 Slice 3f: Monitor locations (626-630)', () => {
       expect(adminTrend.body.days).toHaveLength(28);
     });
   });
+
+  describe('626: permitted performance rollup (G12-B4, D-648)', () => {
+    // Same as the 3b acceptance describe: the territory-stats route sits
+    // behind the franchise capability gate (enforce by default). The
+    // grant path is covered by franchiseRouteAccess.test.js; here the
+    // gate is off so the rollup values themselves are exercised.
+    beforeAll(() => {
+      process.env.ACCESS_FRANCHISE_ENFORCEMENT = 'off';
+    });
+
+    async function approveApplication(applicationId) {
+      await db.query(
+        `UPDATE franchise_applications
+            SET status = 'approved', acceptance_status = 'accepted'
+          WHERE id = $1`,
+        [applicationId],
+      );
+    }
+
+    async function addHelper({ city = 'Austin', state = 'TX', verified = false, rating = 0, reviews = 0 } = {}) {
+      const user = await addUser();
+      await db.query(
+        `INSERT INTO helper_profiles
+           (user_id, service_city, service_state, avg_rating, total_reviews,
+            is_identity_verified, is_background_checked)
+         VALUES ($1, $2, $3, $4, $5, $6, $6)`,
+        [user.id, city, state, rating, reviews, verified],
+      );
+      return user;
+    }
+
+    async function addJob(client, { city = 'Austin', state = 'TX', status = 'completed', daysAgo = 0 } = {}) {
+      const { rows } = await db.query(
+        `INSERT INTO jobs (client_id, title, description, status, location_city, location_state, created_at)
+         VALUES ($1, 'Fixture job', 'Fixture job', $2, $3, $4, now() - ($5 || ' days')::interval)
+         RETURNING id`,
+        [client.id, status, city, state, String(daysAgo)],
+      );
+      return rows[0];
+    }
+
+    function statsFor(operator, applicationId) {
+      return request(app)
+        .get(`/api/franchise/territory-stats?application_id=${applicationId}`)
+        .set('x-test-user', operator.id);
+    }
+
+    test('helpers are the territory roster, not every helper in the city', async () => {
+      const operatorA = await addUser();
+      const applicationA = await makeApplication(operatorA);
+      await approveApplication(applicationA);
+      const locationA = await locationIdFor(operatorA, applicationA);
+
+      // On the team: a verified opening-team member and an accepted invitee.
+      const onTeam = await addHelper({ verified: true, rating: 4.8, reviews: 5 });
+      await db.query(
+        `INSERT INTO franchise_opening_team_members (application_id, helper_user_id, location_id, role)
+         VALUES ($1, $2, $3, 'member')`,
+        [applicationA, onTeam.id, locationA],
+      );
+      const invitee = await addHelper({ verified: false, rating: 4.0, reviews: 4 });
+      await db.query(
+        `INSERT INTO franchise_territory_invitations (application_id, email, status, invite_token, role, invited_by)
+         VALUES ($1, $2, 'accepted', $3, 'member', $4)`,
+        [applicationA, invitee.email, randomUUID(), operatorA.id],
+      );
+      // In the same city but on no roster: must not leak into the rollup.
+      await addHelper({ verified: true, rating: 5.0, reviews: 9 });
+      await addHelper({ city: 'Dallas', state: 'TX', verified: true, rating: 5.0, reviews: 9 });
+
+      const statsA = await statsFor(operatorA, applicationA).expect(200);
+      expect(statsA.body.has_territory).toBe(true);
+      expect(statsA.body.territory_kpis.helpers_total).toBe(2);
+      expect(statsA.body.territory_kpis.helpers_verified).toBe(1);
+      expect(statsA.body.territory_kpis.avg_rating).toBe(4.4);
+      expect(statsA.body.data_unavailable).toEqual([]);
+
+      // A second operator in the same city, with an empty roster, sees
+      // an empty team — not the first operator's helpers.
+      const operatorB = await addUser();
+      const applicationB = await makeApplication(operatorB);
+      await approveApplication(applicationB);
+      const statsB = await statsFor(operatorB, applicationB).expect(200);
+      expect(statsB.body.territory_kpis.helpers_total).toBe(0);
+      expect(statsB.body.territory_kpis.helpers_verified).toBe(0);
+      expect(statsB.body.territory_kpis.avg_rating).toBeNull();
+    });
+
+    // The g12f database persists between runs, so a jobs test scoped to
+    // a fixed city would count jobs left behind by earlier runs. Each
+    // run uses its own city, which the application create seeds as the
+    // territory's location.
+    async function makeApplicationInCity(operator, city) {
+      const created = await request(app)
+        .post('/api/franchise/applications')
+        .set('x-test-user', operator.id)
+        .send({
+          first_name: 'Fran',
+          last_name: 'Chise',
+          email: operator.email,
+          desired_country: 'US',
+          desired_region: 'Texas',
+          desired_city: city,
+        })
+        .expect(201);
+      const applicationId = created.body.application.id;
+      const admin = await addUser('super_admin');
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin.id)
+        .send({ owner_user_id: operator.id })
+        .expect(200);
+      return applicationId;
+    }
+
+    test('jobs are the territory locations with one 30-day window, broken down per location', async () => {
+      const operator = await addUser();
+      const city = `B4City-${randomUUID().slice(0, 8)}`;
+      const applicationId = await makeApplicationInCity(operator, city);
+      await approveApplication(applicationId);
+      const locationId = await locationIdFor(operator, applicationId);
+
+      await addJob(operator, { city, status: 'completed', daysAgo: 10 });
+      // Outside the 30-day window: counts in neither posted nor completed.
+      await addJob(operator, { city, status: 'completed', daysAgo: 40 });
+      await addJob(operator, { city, status: 'cancelled', daysAgo: 5 });
+      await addJob(operator, { city, status: 'in_progress', daysAgo: 0 });
+      // Another city entirely: not a territory location, excluded.
+      await addJob(operator, { city: 'Dallas', state: 'TX', status: 'completed', daysAgo: 5 });
+
+      const stats = await statsFor(operator, applicationId).expect(200);
+      const kpis = stats.body.territory_kpis;
+      expect(kpis.jobs_posted_30d).toBe(3);
+      expect(kpis.jobs_completed).toBe(1);
+      expect(kpis.jobs_active).toBe(1);
+      expect(kpis.completion_rate).toBe(50);
+      expect(stats.body.locations).toHaveLength(1);
+      const loc = stats.body.locations[0];
+      expect(loc.location_id).toBe(locationId);
+      expect(loc.jobs_posted_30d).toBe(3);
+      expect(loc.jobs_completed_30d).toBe(1);
+      expect(loc.jobs_cancelled_30d).toBe(1);
+      expect(loc.jobs_active).toBe(1);
+      expect(loc.completion_rate).toBe(50);
+      expect(stats.body.data_unavailable).toEqual([]);
+    });
+
+    test('royalty and marketing-fee accruals surface read-only, scoped to this territory', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      await approveApplication(applicationId);
+      const otherOperator = await addUser();
+      const otherApplicationId = await makeApplication(otherOperator);
+      await approveApplication(otherApplicationId);
+
+      const { rows: agreementRows } = await db.query(
+        'SELECT id FROM franchise_agreements WHERE application_id = $1',
+        [applicationId],
+      );
+      expect(agreementRows).toHaveLength(1);
+      const agreementId = agreementRows[0].id;
+      await db.query(
+        `UPDATE franchise_agreements
+            SET royalty_bps = 500, marketing_fee_bps = 200,
+                marketing_fee_accrued_cents = 1200, currency = 'USD'
+          WHERE id = $1`,
+        [agreementId],
+      );
+      const ledgerMeta = JSON.stringify({ application_id: applicationId, agreement_id: agreementId });
+      await db.query(
+        `INSERT INTO platform_ledger
+           (user_id, type, amount_cents, description, metadata, source_type, idempotency_key, created_at)
+         VALUES ($1, 'franchise_royalty', 5000, 'Territory royalty', $2::jsonb, 'franchise_royalty', $3, now() - interval '5 days')`,
+        [operator.id, ledgerMeta, randomUUID()],
+      );
+      await db.query(
+        `INSERT INTO platform_ledger
+           (user_id, type, amount_cents, description, metadata, source_type, idempotency_key, created_at)
+         VALUES ($1, 'franchise_royalty', 2000, 'Territory royalty', $2::jsonb, 'franchise_royalty', $3, now() - interval '40 days')`,
+        [operator.id, ledgerMeta, randomUUID()],
+      );
+      // Same owner, another territory's application id: must not count here.
+      await db.query(
+        `INSERT INTO platform_ledger
+           (user_id, type, amount_cents, description, metadata, source_type, idempotency_key, created_at)
+         VALUES ($1, 'franchise_royalty', 9000, 'Territory royalty', $2::jsonb, 'franchise_royalty', $3, now() - interval '5 days')`,
+        [operator.id, JSON.stringify({ application_id: otherApplicationId }), randomUUID()],
+      );
+      await db.query(
+        `INSERT INTO franchise_marketing_fee_accruals (agreement_id, source_type, source_id, marketing_cents, created_at)
+         VALUES ($1, 'job', 'g12b4-fee-recent', 300, now() - interval '5 days'),
+                ($1, 'job', 'g12b4-fee-old', 100, now() - interval '40 days')`,
+        [agreementId],
+      );
+
+      const stats = await statsFor(operator, applicationId).expect(200);
+      expect(stats.body.royalties).toEqual({
+        royalty_bps: 500,
+        marketing_fee_bps: 200,
+        royalty_30d_cents: 5000,
+        royalty_total_cents: 7000,
+        marketing_fee_30d_cents: 300,
+        marketing_fee_total_cents: 1200,
+        currency_code: 'USD',
+      });
+      expect(stats.body.data_unavailable).toEqual([]);
+    });
+  });
 });

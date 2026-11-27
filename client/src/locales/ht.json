@@ -25179,7 +25179,30 @@
       "helpersVerified": "{{count}} verifye",
       "jobsActive": "{{count}} aktif",
       "completedJobs": "{{count}} fini",
+      "completedJobs30d": "{{count}} fini nan 30 jou",
+      "dataUnavailable": "Done pa disponib",
       "revenueTotal": "Total: {{amount}}"
+    },
+    "royalties": {
+      "title": "Devwa ak frè",
+      "royalty30d": "Devwa ki akimile (30d)",
+      "royaltyTotal": "Total ki akimile: {{amount}}",
+      "marketingFee30d": "Frè maketing ki akimile (30d)",
+      "marketingFeeTotal": "Total ki akimile: {{amount}}",
+      "terms": "Devwa {{royaltyRate}}% · Frè maketing {{marketingRate}}% · {{currency}}",
+      "noTerms": "Pa gen okenn kondisyon devwa anrejistre pou teritwa sa a pou kounye a.",
+      "unavailable": "Done devwa yo pa disponib pou kounye a."
+    },
+    "locations": {
+      "title": "Pèfòmans pa kote",
+      "location": "Kote",
+      "jobsPosted": "Travay ki afiche (30d)",
+      "completed": "Fini (30d)",
+      "active": "Aktif",
+      "completion": "Fini",
+      "noLocations": "Pa gen kote pou kounye a.",
+      "unavailable": "Done kote yo pa disponib pou kounye a.",
+      "jobsUnavailable": "Nimewo travay yo pa disponib pou kounye a."
     },
     "compliance": {
       "title": "Preparasyon konfòmite",

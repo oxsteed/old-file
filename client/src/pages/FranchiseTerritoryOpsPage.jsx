@@ -813,6 +813,19 @@ export default function FranchiseTerritoryOpsPage() {
 
   const app      = stats?.application ?? {};
   const kpis     = stats?.territory_kpis ?? {};
+  // G12-B4 (D-648): this territory's royalty accruals, per-location job
+  // rows, and the sources the server could not read. A source in
+  // data_unavailable means its numbers are unknown, not zero, so the
+  // tiles show an "unavailable" state instead of a 0.
+  const royalties = stats?.royalties ?? null;
+  const locations = stats?.locations ?? [];
+  const unavailableSources = new Set(stats?.data_unavailable ?? []);
+  const isUnavailable = (source) => unavailableSources.has(source);
+  const royaltyCurrencyCode = royalties?.currency_code || 'USD';
+  const royaltyRate = royalties?.royalty_bps == null
+    ? '—' : (royalties.royalty_bps / 100).toFixed(1);
+  const marketingFeeRate = royalties?.marketing_fee_bps == null
+    ? '—' : (royalties.marketing_fee_bps / 100).toFixed(1);
   // The currency the server actually scoped the revenue to; falls back to
   // the selected currency while loading or if an older response omits it.
   const revenueCurrencyCode = kpis.revenue_currency_code || currency;
@@ -965,20 +978,94 @@ export default function FranchiseTerritoryOpsPage() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
             <KpiTile icon={Users}      label={t('franchiseTerritoryPage.kpis.helpers')} loading={loading}
-              value={fmt(kpis.helpers_total)}   sub={t('franchiseTerritoryPage.kpis.helpersVerified', { count: fmt(kpis.helpers_verified) })} accent="blue" />
+              value={isUnavailable('helpers') ? '—' : fmt(kpis.helpers_total)}   sub={isUnavailable('helpers') ? t('franchiseTerritoryPage.kpis.dataUnavailable') : t('franchiseTerritoryPage.kpis.helpersVerified', { count: fmt(kpis.helpers_verified) })} accent="blue" />
             <KpiTile icon={Star}       label={t('franchiseTerritoryPage.kpis.avgRating')}    loading={loading}
-              value={kpis.avg_rating ? kpis.avg_rating.toFixed(2) : '—'} accent="orange" />
+              value={isUnavailable('helpers') ? '—' : (kpis.avg_rating ? kpis.avg_rating.toFixed(2) : '—')} sub={isUnavailable('helpers') ? t('franchiseTerritoryPage.kpis.dataUnavailable') : undefined} accent="orange" />
             <KpiTile icon={Hammer}     label={t('franchiseTerritoryPage.kpis.jobsPosted')}    loading={loading}
-              value={fmt(kpis.jobs_posted_30d)} sub={t('franchiseTerritoryPage.kpis.jobsActive', { count: fmt(kpis.jobs_active) })} accent="emerald" />
+              value={isUnavailable('jobs') ? '—' : fmt(kpis.jobs_posted_30d)} sub={isUnavailable('jobs') ? t('franchiseTerritoryPage.kpis.dataUnavailable') : t('franchiseTerritoryPage.kpis.jobsActive', { count: fmt(kpis.jobs_active) })} accent="emerald" />
             <KpiTile icon={CheckCircle2} label={t('franchiseTerritoryPage.kpis.completionRate')}    loading={loading}
-              value={pct(kpis.completion_rate)} sub={t('franchiseTerritoryPage.kpis.completedJobs', { count: fmt(kpis.jobs_completed) })} accent="emerald" />
+              value={isUnavailable('jobs') ? '—' : pct(kpis.completion_rate)} sub={isUnavailable('jobs') ? t('franchiseTerritoryPage.kpis.dataUnavailable') : t('franchiseTerritoryPage.kpis.completedJobs30d', { count: fmt(kpis.jobs_completed) })} accent="emerald" />
             <KpiTile icon={DollarSign} label={t('franchiseTerritoryPage.kpis.revenue')}        loading={loading}
-              value={fmtCents(kpis.revenue_30d_cents, revenueCurrencyCode)} sub={`${t('franchiseTerritoryPage.kpis.revenueTotal', { amount: fmtCents(kpis.revenue_total_cents, revenueCurrencyCode) })} (${revenueCurrencyCode})`} accent="purple" />
+              value={isUnavailable('revenue') ? '—' : fmtCents(kpis.revenue_30d_cents, revenueCurrencyCode)} sub={isUnavailable('revenue') ? t('franchiseTerritoryPage.kpis.dataUnavailable') : `${t('franchiseTerritoryPage.kpis.revenueTotal', { amount: fmtCents(kpis.revenue_total_cents, revenueCurrencyCode) })} (${revenueCurrencyCode})`} accent="purple" />
             <KpiTile icon={ShieldCheck} label={t('franchiseTerritoryPage.kpis.compliance')}          loading={loading}
               value={pct(app.compliance_pct)} sub={t('franchiseTerritoryPage.compliance.stepsComplete', {
                 done: app.checklist_done ?? 0,
                 total: app.checklist_all ?? 0,
               })} accent="emerald" />
+          </div>
+
+          {/* G12-B4 (D-648): royalty accruals and per-location performance.
+              The KPIs above are now this territory's own numbers; these
+              cards show what the territory owes and has accrued, and
+              which location earned what. */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
+              <h2 className="text-sm font-semibold text-gray-200 mb-4 flex items-center gap-2">
+                <DollarSign size={14} className="text-purple-400" /> {t('franchiseTerritoryPage.royalties.title')}
+              </h2>
+              {loading
+                ? <Skeleton className="h-3 w-full" />
+                : !royalties
+                  ? <p className="text-xs text-gray-400">{isUnavailable('royalties')
+                      ? t('franchiseTerritoryPage.royalties.unavailable')
+                      : t('franchiseTerritoryPage.royalties.noTerms')}</p>
+                  : (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-gray-500">{t('franchiseTerritoryPage.royalties.royalty30d')}</p>
+                          <p className="text-xl font-bold text-white mt-1">{isUnavailable('royalties') ? '—' : fmtCents(royalties.royalty_30d_cents, royaltyCurrencyCode)}</p>
+                          <p className="text-xs text-gray-500 mt-1">{isUnavailable('royalties') ? t('franchiseTerritoryPage.kpis.dataUnavailable') : t('franchiseTerritoryPage.royalties.royaltyTotal', { amount: fmtCents(royalties.royalty_total_cents, royaltyCurrencyCode) })}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-gray-500">{t('franchiseTerritoryPage.royalties.marketingFee30d')}</p>
+                          <p className="text-xl font-bold text-white mt-1">{isUnavailable('royalties') ? '—' : fmtCents(royalties.marketing_fee_30d_cents, royaltyCurrencyCode)}</p>
+                          <p className="text-xs text-gray-500 mt-1">{isUnavailable('royalties') ? t('franchiseTerritoryPage.kpis.dataUnavailable') : t('franchiseTerritoryPage.royalties.marketingFeeTotal', { amount: fmtCents(royalties.marketing_fee_total_cents, royaltyCurrencyCode) })}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-4">{t('franchiseTerritoryPage.royalties.terms', { royaltyRate, marketingRate: marketingFeeRate, currency: royaltyCurrencyCode })}</p>
+                    </>
+                  )}
+            </div>
+
+            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
+              <h2 className="text-sm font-semibold text-gray-200 mb-4 flex items-center gap-2">
+                <MapPin size={14} className="text-emerald-400" /> {t('franchiseTerritoryPage.locations.title')}
+              </h2>
+              {loading
+                ? <Skeleton className="h-3 w-full" />
+                : isUnavailable('locations')
+                  ? <p className="text-xs text-gray-400">{t('franchiseTerritoryPage.locations.unavailable')}</p>
+                  : locations.length === 0
+                    ? <p className="text-xs text-gray-400">{t('franchiseTerritoryPage.locations.noLocations')}</p>
+                    : (
+                      <>
+                        {isUnavailable('jobs') && <p className="text-xs text-amber-400 mb-3">{t('franchiseTerritoryPage.locations.jobsUnavailable')}</p>}
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-left text-gray-500 border-b border-gray-800">
+                              <th className="py-1.5 pr-2 font-medium">{t('franchiseTerritoryPage.locations.location')}</th>
+                              <th className="py-1.5 pr-2 font-medium text-right">{t('franchiseTerritoryPage.locations.jobsPosted')}</th>
+                              <th className="py-1.5 pr-2 font-medium text-right">{t('franchiseTerritoryPage.locations.completed')}</th>
+                              <th className="py-1.5 pr-2 font-medium text-right">{t('franchiseTerritoryPage.locations.active')}</th>
+                              <th className="py-1.5 font-medium text-right">{t('franchiseTerritoryPage.locations.completion')}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {locations.map((loc) => (
+                              <tr key={loc.location_id} className="border-b border-gray-800/60 last:border-0 text-gray-300">
+                                <td className="py-2 pr-2 font-medium text-white">{loc.location_name}{loc.city ? ` · ${loc.city}` : ''}</td>
+                                <td className="py-2 pr-2 text-right">{isUnavailable('jobs') ? '—' : fmt(loc.jobs_posted_30d)}</td>
+                                <td className="py-2 pr-2 text-right">{isUnavailable('jobs') ? '—' : fmt(loc.jobs_completed_30d)}</td>
+                                <td className="py-2 pr-2 text-right">{isUnavailable('jobs') ? '—' : fmt(loc.jobs_active)}</td>
+                                <td className="py-2 text-right">{isUnavailable('jobs') ? '—' : pct(loc.completion_rate)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </>
+                    )}
+            </div>
           </div>
 
           {/* ── Compliance + quick actions ──────────────────────────── */}

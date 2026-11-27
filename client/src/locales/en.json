@@ -25179,7 +25179,30 @@
       "helpersVerified": "{{count}} verified",
       "jobsActive": "{{count}} active",
       "completedJobs": "{{count}} completed",
+      "completedJobs30d": "{{count}} completed in 30 days",
+      "dataUnavailable": "Data unavailable",
       "revenueTotal": "Total: {{amount}}"
+    },
+    "royalties": {
+      "title": "Royalties and fees",
+      "royalty30d": "Royalty accrued (30d)",
+      "royaltyTotal": "Total accrued: {{amount}}",
+      "marketingFee30d": "Marketing fee accrued (30d)",
+      "marketingFeeTotal": "Total accrued: {{amount}}",
+      "terms": "Royalty {{royaltyRate}}% · Marketing fee {{marketingRate}}% · {{currency}}",
+      "noTerms": "No royalty terms on file for this territory yet.",
+      "unavailable": "Royalty data is unavailable right now."
+    },
+    "locations": {
+      "title": "Performance by location",
+      "location": "Location",
+      "jobsPosted": "Jobs posted (30d)",
+      "completed": "Completed (30d)",
+      "active": "Active",
+      "completion": "Completion",
+      "noLocations": "No locations yet.",
+      "unavailable": "Location data is unavailable right now.",
+      "jobsUnavailable": "Job numbers are unavailable right now."
     },
     "compliance": {
       "title": "Compliance readiness",

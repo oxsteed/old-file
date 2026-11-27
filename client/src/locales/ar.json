@@ -25190,7 +25190,30 @@
       "helpersVerified": "{{count}} تم التحقق",
       "jobsActive": "{{count}} نشط",
       "completedJobs": "{{count}} مكتملة",
+      "completedJobs30d": "{{count}} مكتملة خلال 30 يومًا",
+      "dataUnavailable": "البيانات غير متاحة",
       "revenueTotal": "الإجمالي: {{amount}}"
+    },
+    "royalties": {
+      "title": "العوائد والرسوم",
+      "royalty30d": "العوائد المستحقة (30 يومًا)",
+      "royaltyTotal": "إجمالي المستحق: {{amount}}",
+      "marketingFee30d": "رسوم التسويق المستحقة (30 يومًا)",
+      "marketingFeeTotal": "إجمالي المستحق: {{amount}}",
+      "terms": "العوائد {{royaltyRate}}٪ · رسوم التسويق {{marketingRate}}٪ · {{currency}}",
+      "noTerms": "لا توجد شروط عوائد مسجلة لهذا الإقليم بعد.",
+      "unavailable": "بيانات العوائد غير متاحة حاليًا."
+    },
+    "locations": {
+      "title": "الأداء حسب الموقع",
+      "location": "الموقع",
+      "jobsPosted": "الوظائف المنشورة (30 يومًا)",
+      "completed": "المكتملة (30 يومًا)",
+      "active": "نشطة",
+      "completion": "الإكمال",
+      "noLocations": "لا توجد مواقع بعد.",
+      "unavailable": "بيانات المواقع غير متاحة حاليًا.",
+      "jobsUnavailable": "أرقام الوظائف غير متاحة حاليًا."
     },
     "compliance": {
       "title": "جاهزية الامتثال",

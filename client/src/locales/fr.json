@@ -25179,7 +25179,30 @@
       "helpersVerified": "{{count}} vérifiés",
       "jobsActive": "{{count}} actifs",
       "completedJobs": "{{count}} terminés",
+      "completedJobs30d": "{{count}} terminés en 30 jours",
+      "dataUnavailable": "Données indisponibles",
       "revenueTotal": "Total : {{amount}}"
+    },
+    "royalties": {
+      "title": "Redevances et frais",
+      "royalty30d": "Redevance accumulée (30j)",
+      "royaltyTotal": "Total accumulé : {{amount}}",
+      "marketingFee30d": "Frais marketing accumulés (30j)",
+      "marketingFeeTotal": "Total accumulé : {{amount}}",
+      "terms": "Redevance {{royaltyRate}} % · Frais marketing {{marketingRate}} % · {{currency}}",
+      "noTerms": "Aucune condition de redevance enregistrée pour ce territoire pour le moment.",
+      "unavailable": "Les données de redevances sont indisponibles pour le moment."
+    },
+    "locations": {
+      "title": "Performance par emplacement",
+      "location": "Emplacement",
+      "jobsPosted": "Missions publiées (30j)",
+      "completed": "Terminées (30j)",
+      "active": "Actives",
+      "completion": "Complétion",
+      "noLocations": "Aucun emplacement pour le moment.",
+      "unavailable": "Les données des emplacements sont indisponibles pour le moment.",
+      "jobsUnavailable": "Les chiffres des missions sont indisponibles pour le moment."
     },
     "compliance": {
       "title": "Prêt de conformité",
