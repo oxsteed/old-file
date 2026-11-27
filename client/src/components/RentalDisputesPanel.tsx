@@ -14,19 +14,32 @@ export default function RentalDisputesPanel({ booking, isOwner, currentUserId, o
   const [claims, setClaims] = useState([]);
   const [escalations, setEscalations] = useState([]);
   const [loaded, setLoaded] = useState(false);
-  const [claimDraft, setClaimDraft] = useState({ amount: '', description: '' });
+  const [claimDraft, setClaimDraft] = useState({ amount: '', description: '', evidenceReportId: '' });
   const [resolveDraft, setResolveDraft] = useState({});
   const [escDraft, setEscDraft] = useState({ category: 'damage', message: '' });
   const [escReply, setEscReply] = useState({});
+  // G11-B10 (D-630): the booking's condition reports, so a damage
+  // claim can link the report the damage was found on.
+  const [reports, setReports] = useState([]);
+  const [reportPhotoCounts, setReportPhotoCounts] = useState({});
 
   const load = async () => {
     try {
-      const [c, e] = await Promise.all([
+      const [c, e, ops] = await Promise.all([
         toolRentalsApi.getDamageClaims(booking.id).catch(() => ({ claims: [] })),
         toolRentalsApi.getEscalations(booking.id).catch(() => ({ escalations: [] })),
+        toolRentalsApi.getEquipmentBooking(booking.id).catch(() => null),
       ]);
       setClaims(c.claims || []);
       setEscalations(e.escalations || []);
+      if (ops) {
+        setReports(ops.reports || []);
+        const counts = {};
+        for (const photo of ops.evidence || []) {
+          counts[photo.report_id] = (counts[photo.report_id] || 0) + 1;
+        }
+        setReportPhotoCounts(counts);
+      }
     } catch { /* disputes unavailable; the panel stays empty */ }
     setLoaded(true);
   };
@@ -47,8 +60,15 @@ export default function RentalDisputesPanel({ booking, isOwner, currentUserId, o
       return;
     }
     try {
-      await toolRentalsApi.fileDamageClaim(booking.id, { amount, description: claimDraft.description.trim() });
-      setClaimDraft({ amount: '', description: '' });
+      // G11-B10 (D-630): link the claim to the condition report the
+      // damage was found on, when the filer picks one. The server
+      // already accepts and validates evidence_report_id.
+      await toolRentalsApi.fileDamageClaim(booking.id, {
+        amount,
+        description: claimDraft.description.trim(),
+        evidence_report_id: claimDraft.evidenceReportId || undefined,
+      });
+      setClaimDraft({ amount: '', description: '', evidenceReportId: '' });
       toast.success(t('toolRentals.damageClaimFiled') || 'Damage claim filed');
       refresh();
     } catch (err) {
@@ -314,6 +334,25 @@ export default function RentalDisputesPanel({ booking, isOwner, currentUserId, o
               onChange={(e) => setClaimDraft((prev) => ({ ...prev, description: e.target.value }))}
             />
           </label>
+          {/* G11-B10 (D-630): link the claim to a condition report so
+              the damage is tied to the report (and its photos) that
+              found it. Optional; no report means the claim stands alone. */}
+          {reports.length > 0 && (
+            <label>
+              {t('toolRentals.damageClaimReport') || 'Condition report (optional)'}
+              <select
+                value={claimDraft.evidenceReportId}
+                onChange={(e) => setClaimDraft((prev) => ({ ...prev, evidenceReportId: e.target.value }))}
+              >
+                <option value="">{t('toolRentals.damageClaimNoReport') || 'No report'}</option>
+                {reports.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {`${r.phase === 'return' ? t('equipmentOperations.returnReport') : t('equipmentOperations.pickupReport')} v${r.version}${reportPhotoCounts[r.id] ? ` · ${reportPhotoCounts[r.id]} ${t('equipmentOperations.photos')}` : ''}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <button type="button" onClick={handleFileClaim} className="booking-action-btn booking-action-approve" data-track-private>
             {t('toolRentals.damageClaimFile') || 'File damage claim'}
           </button>

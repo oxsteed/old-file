@@ -438,6 +438,7 @@ export default function HelperDashboard() {
   // ── Skills & Tools state ──────────────────────────────────────────────────
   const [mySkills, setMySkills] = useState([]);
   const [myTools, setMyTools] = useState([]);
+  const [toolsHasMore, setToolsHasMore] = useState(false);
   const [skillsLoading, setSkillsLoading] = useState(false);
   const [toolsLoading, setToolsLoading] = useState(false);
   const [showSkillModal, setShowSkillModal] = useState(false);
@@ -474,11 +475,22 @@ export default function HelperDashboard() {
   const fetchMyTools = useCallback(async () => {
     setToolsLoading(true);
     try {
-      const res = await api.get('/tool-rentals/me');
+      // G11-A12 (D-624): the owner list is paged (30/page); load more
+      // through the catalog's button below.
+      const res = await api.get('/tool-rentals/me', { params: { limit: 30 } });
       setMyTools(res.data?.tools || []);
+      setToolsHasMore(res.data?.hasMore === true);
     } catch { /* silent */ }
     finally { setToolsLoading(false); }
   }, []);
+
+  const loadMoreTools = useCallback(async () => {
+    try {
+      const res = await api.get('/tool-rentals/me', { params: { limit: 30, offset: myTools.length } });
+      setMyTools((prev) => [...prev, ...(res.data?.tools || [])]);
+      setToolsHasMore(res.data?.hasMore === true);
+    } catch { /* silent */ }
+  }, [myTools.length]);
 
   const searchSkillLookup = useCallback(async (q) => {
     if (q.length < 2) { setSkillLookup([]); return; }
@@ -633,7 +645,13 @@ export default function HelperDashboard() {
   const buildToolFormData = (payload) => {
     const formData = new FormData();
     Object.entries(payload).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) formData.append(key, String(value));
+      if (value === undefined) return;
+      // G11-A9 (D-621): a null optional field rides as an empty string
+      // on edit, so the server can clear it. (Omitting it used to mean
+      // "keep the stored value", which made clearing impossible.) On
+      // create the parsers treat '' as null, so nothing changes there;
+      // required fields are never clearable server-side.
+      formData.append(key, value === null ? '' : String(value));
     });
     // 559: on create, the first pending photo rides the existing single
     // image upload (it becomes the cover); the rest upload to the gallery
@@ -2368,6 +2386,8 @@ export default function HelperDashboard() {
           <HelperCapabilitiesCatalog
             skills={mySkills}
             tools={myTools}
+            toolsHasMore={toolsHasMore}
+            onLoadMoreTools={loadMoreTools}
             skillsLoading={skillsLoading}
             toolsLoading={toolsLoading}
             showTools={SHOW_HELPER_TOOL_RENTALS}

@@ -75,6 +75,12 @@ function BookingControls({data,send,url,busy,userId}){
  }
  const latest=data.reports.filter(row=>row.phase===phase&&String(row.actor_id)===String(userId)).reduce((n,row)=>Math.max(n,row.version),0);
  const canReport=['payment_confirmed','returned','completed'].includes(b.status),pending=data.extensions.some(row=>row.status==='pending');
+ // G11-B15 (D-634): the late-return follow-up form shows only once the
+ // return is actually overdue (end_date before today, the same
+ // definition B4 uses server-side). Before that it was offered on
+ // every payment_confirmed booking. The server still 409s an early
+ // follow-up; this only hides the dead-end form.
+ const isOverdue = b.status === 'payment_confirmed' && !!b.end_date && String(b.end_date).slice(0, 10) < new Date().toISOString().slice(0, 10);
  return <fieldset disabled={busy}><legend>{tr('booking')} {b.id}</legend><p>{tr('due')}: {formatDate(b.end_date)}</p><p>{tr('rules')}: {snapshot.rules||tr('none')}</p><p>{tr('reportHelp')}</p>
   {canReport&&<><label htmlFor={`${id}-phase`}>{tr('phase')}</label><select id={`${id}-phase`} value={phase} onChange={e=>setPhase(e.target.value)}><option value="pickup">{tr('pickup')}</option><option value="return">{tr('return')}</option></select>
    {(snapshot.accessories||[]).map((item,index)=><label key={item.name}>{item.name} · {tr('expected')}: {item.quantity}<input aria-label={`${tr('count')}: ${item.name}`} type="number" min="0" max="999" value={counts[index]} onChange={e=>setCounts(current=>current.map((value,i)=>i===index?Number(e.target.value):value))}/></label>)}
@@ -90,7 +96,11 @@ function BookingControls({data,send,url,busy,userId}){
    {evidenceError&&<p role="alert">{tr(evidenceError)}</p>}
   </div>}
   <ul>{data.reports.map(row=><li key={row.id}><strong>{tr(row.phase)} · {String(row.actor_id)===String(b.owner_id)?tr('owner'):tr('renter')} · v{row.version}</strong><p>{row.notes}</p><ul>{row.counts.map(item=><li key={item.name}>{item.name} × {item.quantity}</li>)}</ul><ul>{row.checklist.map(item=><li key={item.label}>{item.checked?'✓':'—'} {item.label}</li>)}</ul>
-   {evidenceFor(row.id).length>0&&<ul>{evidenceFor(row.id).map(photo=><li key={photo.id}><img src={photo.image_url} alt={tr('evidencePhoto')} className="equipment-evidence-photo"/></li>)}</ul>}
+   {/* G11-B11 (D-631): every evidence photo names its uploader, so a
+       photo is never anonymous evidence. The role comes from the
+       uploader id vs the booking owner; the name from the readBooking
+       join (falls back to the role when the user row is gone). */}
+   {evidenceFor(row.id).length>0&&<ul>{evidenceFor(row.id).map(photo=>{const name=[photo.uploader_first_name,photo.uploader_last_name].filter(Boolean).join(' ');const role=String(photo.uploaded_by)===String(b.owner_id)?tr('owner'):tr('renter');return <li key={photo.id}><img src={photo.image_url} alt={tr('evidencePhoto')} className="equipment-evidence-photo"/><p>{t('equipmentOperations.evidenceUploadedBy',{name:name||role,role})}</p></li>;})}</ul>}
    {!!row.missing_items?.length&&<><h4>{tr('missing')}</h4><ul>{row.missing_items.map(item=><li key={item.name}>{item.name} × {item.quantity}</li>)}</ul>{row.resolved_at?<><p>{tr('resolved')}: {row.resolution}</p>
     {/* Group 11 item 590: the renter acknowledges the owner's missing-item
         resolution, or disputes it (which clears the resolution). */}
@@ -103,7 +113,7 @@ function BookingControls({data,send,url,busy,userId}){
   {b.status==='payment_confirmed'&&<label><input type="checkbox" checked={noCharge} onChange={e=>setNoCharge(e.target.checked)} data-track="ui.8535e53f37.8"/>{tr('noCharge')}</label>}
   {!data.owner&&b.status==='payment_confirmed'&&!pending&&<><label>{tr('newEnd')}<input type="date" value={end} onChange={e=>setEnd(e.target.value)}/></label><button type="button" disabled={!end||!noCharge} onClick={async()=>{if(retry.current?.end!==end)retry.current={end,id:createMessageRequestId()};if(await send('post',`${url}/extensions`,{end_date:end,requestId:retry.current.id,no_additional_charge:true})){retry.current=null;setEnd('');setNoCharge(false);}}} data-track="ui.8535e53f37.9">{tr('request')}</button></>}
   <ul>{data.extensions.map(row=><li key={row.id}>{formatDate(row.requested_end)} · {tr(row.status)}{row.status==='pending'&&b.status==='payment_confirmed'&&<div>{data.owner?<><button type="button" disabled={!noCharge} onClick={()=>send('post',`${url}/extensions/${row.id}`,{status:'approved',no_additional_charge:true})} data-track="ui.8535e53f37.10">{tr('approve')}</button><button type="button" onClick={()=>send('post',`${url}/extensions/${row.id}`,{status:'declined'})} data-track="ui.8535e53f37.11">{tr('decline')}</button></>:<button type="button" onClick={()=>send('post',`${url}/extensions/${row.id}`,{status:'cancelled'})} data-track="ui.8535e53f37.12">{tr('cancel')}</button>}</div>}</li>)}</ul>
-  <h3>{tr('followups')}</h3>{data.owner&&b.status==='payment_confirmed'&&<><label>{tr('followupNote')}<textarea value={followup} maxLength={2000} onChange={e=>setFollowup(e.target.value)}/></label><button type="button" disabled={!followup.trim()} onClick={async()=>{if(await send('post',`${BASE}/tools/${b.tool_id}/records`,{kind:'late_return_followup',booking_id:b.id,notes:followup,occurred_on:new Date().toISOString().slice(0,10)}))setFollowup('');}} data-track="ui.8535e53f37.13">{tr('saveFollowup')}</button></>}
+  <h3>{tr('followups')}</h3>{data.owner&&isOverdue&&<><label>{tr('followupNote')}<textarea value={followup} maxLength={2000} onChange={e=>setFollowup(e.target.value)}/></label><button type="button" disabled={!followup.trim()} onClick={async()=>{if(await send('post',`${BASE}/tools/${b.tool_id}/records`,{kind:'late_return_followup',booking_id:b.id,notes:followup,occurred_on:new Date().toISOString().slice(0,10)}))setFollowup('');}} data-track="ui.8535e53f37.13">{tr('saveFollowup')}</button></>}
   <ul>{data.followups.map(row=><li key={row.id}>{formatDate(row.occurred_on)} · {row.notes}</li>)}</ul>
  </fieldset>;
 }

@@ -40,7 +40,7 @@ async function saveTool(toolId,userId,body){const value=policy(body);return with
 async function readBooking(bookingId,userId){
  const {row,owner}=await booking(pool,bookingId,userId);
  const {rows:reports}=await pool.query('SELECT r.*,m.items AS missing_items,m.resolved_at,m.resolution,m.version AS missing_version,m.ack_status AS missing_ack_status FROM equipment_reports r LEFT JOIN equipment_missing_accessories m ON m.report_id=r.id WHERE r.booking_id=$1 ORDER BY r.created_at,r.id LIMIT 200',[bookingId]);
- const {rows:evidence}=await pool.query("SELECT id,report_id,uploaded_by,image_url,created_at FROM tool_rental_report_evidence WHERE booking_id=$1 ORDER BY created_at,id LIMIT 200",[bookingId]);
+ const {rows:evidence}=await pool.query("SELECT e.id,e.report_id,e.uploaded_by,e.image_url,e.created_at,u.first_name AS uploader_first_name,u.last_name AS uploader_last_name FROM tool_rental_report_evidence e LEFT JOIN users u ON u.id=e.uploaded_by WHERE e.booking_id=$1 ORDER BY e.created_at,e.id LIMIT 200",[bookingId]);
  const {rows:extensions}=await pool.query('SELECT * FROM equipment_extensions WHERE booking_id=$1 ORDER BY created_at DESC LIMIT 50',[bookingId]);
  const {rows:followups}=await pool.query("SELECT id,notes,occurred_on FROM equipment_records WHERE booking_id=$1 AND kind='late_return_followup' ORDER BY created_at DESC LIMIT 100",[bookingId]);
  return {booking:{id:row.id,tool_id:row.tool_id,status:row.status,end_date:row.end_date,equipment:row.equipment_snapshot||{accessories:[],checklist:[],rules:''},owner_id:row.owner_id},owner,reports,evidence,extensions,followups};

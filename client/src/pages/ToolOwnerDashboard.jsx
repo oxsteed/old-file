@@ -82,6 +82,7 @@ function ToolOwnerDashboardContent() {
   const currency = user?.preferred_currency || 'USD';
 
   const [listings, setListings] = useState([]);
+  const [listingsHasMore, setListingsHasMore] = useState(false);
   const [bookings, setBookings] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -89,16 +90,29 @@ function ToolOwnerDashboardContent() {
     let cancelled = false;
     const safe = (url) => api.get(url).then(r => r.data).catch(() => null);
     Promise.all([
-      safe('/tool-rentals/me'),
-      safe('/tool-rentals/bookings/owner'),
+      // G11-A12 (D-624): the owner list is paged (30/page); the
+      // bookings list is fetched at the 100 cap because the stats
+      // (pending, handoffs, 30-day earnings) are derived from it.
+      safe('/tool-rentals/me?limit=30'),
+      safe('/tool-rentals/bookings/owner?limit=100'),
     ]).then(([l, b]) => {
       if (cancelled) return;
       setListings(Array.isArray(l?.tools) ? l.tools : (Array.isArray(l) ? l : []));
+      setListingsHasMore(l?.hasMore === true);
       setBookings(Array.isArray(b?.bookings) ? b.bookings : (Array.isArray(b) ? b : []));
       setLoaded(true);
     });
     return () => { cancelled = true; };
   }, []);
+
+  // G11-A12 (D-624): load the next page of listings (the maintain
+  // panel and workspace selects see every loaded listing).
+  const loadMoreListings = async () => {
+    const page = await api.get(`/tool-rentals/me?limit=30&offset=${listings.length}`).then(r => r.data).catch(() => null);
+    if (!page) return;
+    setListings((prev) => [...prev, ...(Array.isArray(page.tools) ? page.tools : [])]);
+    setListingsHasMore(page.hasMore === true);
+  };
 
   const stats = useMemo(() => deriveToolOwnerStats(listings, bookings), [listings, bookings]);
 
@@ -153,7 +167,12 @@ function ToolOwnerDashboardContent() {
             icon={<DollarSign size={14} />}
             label={t('dashboards.toolOwner.earnings30')}
             value={fmtCurrency(stats.earnings30, currency)}
-            hint={t('dashboards.toolOwner.earningsHint')}
+            // G11-B14 (D-633): invoices sent but not paid are invoiced,
+            // not earnings. The hint names the invoiced total so the
+            // owner never mistakes it for money in hand.
+            hint={stats.invoiced > 0
+              ? t('dashboards.toolOwner.invoicedHint', { amount: fmtCurrency(stats.invoiced, currency) })
+              : t('dashboards.toolOwner.earningsHint')}
           />
         </div>
 
@@ -229,8 +248,13 @@ function ToolOwnerDashboardContent() {
               ) : (
                 <ul className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
                   {upcomingHandoffs.map((b) => {
-                    const isReturn = b.status === 'in_progress';
-                    const when = isReturn ? (b.end_date || b.end_at) : (b.start_date || b.start_at);
+                    // G11-A10/B1 (D-622): return-ness comes from the
+                    // util's date derivation (_handoffKind), not from
+                    // the status — the old status-based test was dead
+                    // (no such status exists) and every handoff
+                    // rendered as a pickup.
+                    const isReturn = b._handoffKind === 'return';
+                    const when = b._handoffWhen || (isReturn ? (b.end_date || b.end_at) : (b.start_date || b.start_at));
                     return (
                       <li key={b.id} className="py-3 flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
@@ -321,7 +345,11 @@ function ToolOwnerDashboardContent() {
                       </div>
                     )}
                     <div className="text-[11px] mt-1 flex items-center gap-2" style={{ color: 'var(--color-text-muted)' }}>
-                      {l.daily_rate_cents != null && <span>{fmtCurrency(l.daily_rate_cents, currency)} / day</span>}
+                      {/* G11-A10/B1 (D-622): GET /tool-rentals/me returns
+                          daily_rate in dollars; fmtCurrency takes cents,
+                          so the old cents-field read was always
+                          undefined and the card showed no rate. */}
+                      {l.daily_rate != null && <span>{fmtCurrency(Math.round(Number(l.daily_rate) * 100), currency)} / day</span>}
                       {l.avg_rating != null && l.review_count > 0 && (
                         <span className="flex items-center gap-0.5">
                           <Star size={11} className="text-orange-400" />
@@ -335,6 +363,16 @@ function ToolOwnerDashboardContent() {
                   </li>
                 ))}
               </ul>
+            )}
+            {listingsHasMore && (
+              <button
+                type="button"
+                onClick={loadMoreListings}
+                className="mt-3 text-xs px-3 py-1.5 rounded-md border font-semibold"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }} data-track="ui.a977a2bee6.1"
+              >
+                {t('toolRentals.loadMore')}
+              </button>
             )}
           </div>
         </section>
