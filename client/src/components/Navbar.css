@@ -78,6 +78,23 @@
           }
           .ox-nav-mobile-menu { text-align: end; }
           .ox-nav-mobile-menu .ox-nav-signout { text-align: end; }
+          /* Palette item 6 (D-726): labeled search entry at the top of the
+             expanded mobile menu. Full width, 44px target, themed tokens. */
+          .ox-nav-mobile-search {
+            display: flex; align-items: center; gap: 0.6rem;
+            width: 100%; min-height: 44px; padding: 0.5rem 0.75rem;
+            border: 1px solid var(--color-border); border-radius: var(--radius-md);
+            background: var(--color-surface-muted); color: var(--color-text);
+            font: inherit; font-size: var(--text-sm); font-weight: 600;
+            text-align: start; cursor: pointer;
+          }
+          .ox-nav-mobile-search:hover { background: var(--color-surface); }
+          .ox-nav-mobile-search svg { flex: none; color: var(--color-text-muted); }
+          .ox-nav-mobile-search kbd {
+            margin-inline-start: auto; font-size: 0.7rem; opacity: 0.75;
+            border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+            padding: 0.1rem 0.35rem;
+          }
         }
         @media (max-width: 375px) {
           /* 320px header: the four 44px controls plus the language

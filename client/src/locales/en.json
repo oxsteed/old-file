@@ -43107,6 +43107,7 @@
   "commandPalette": {
     "title": "Command palette",
     "placeholder": "Type a command or search...",
+    "search": "Search",
     "noResults": "No results found",
     "loading": "Loading...",
     "footer": "Up and Down to navigate, Enter to open, Esc to close",

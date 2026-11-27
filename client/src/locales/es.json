@@ -43107,6 +43107,7 @@
   "commandPalette": {
     "title": "Paleta de comandos",
     "placeholder": "Escribe un comando o busca...",
+    "search": "Buscar",
     "noResults": "Sin resultados",
     "loading": "Cargando...",
     "footer": "Arriba y Abajo para navegar, Enter para abrir, Esc para cerrar",

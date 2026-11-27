@@ -43107,6 +43107,7 @@
   "commandPalette": {
     "title": "Palèt kòmand",
     "placeholder": "Ekri yon kòmand oswa chèche...",
+    "search": "Chèche",
     "noResults": "Pa gen rezilta",
     "loading": "Ap chaje...",
     "footer": "Monte Desann pou navige, Antre pou louvri, Echap pou fèmen",
