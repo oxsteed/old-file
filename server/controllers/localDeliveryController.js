@@ -2356,6 +2356,11 @@ exports.voidDriverPayout = async (req, res, next) => {
     await client.query('BEGIN');
     const payout = await voidPayout(client, req.params.payoutId, req.user.id, req.body.note);
     await client.query('COMMIT');
+    // N16 remainder (G12 batch, D-651): a voided payout notifies the
+    // driver, like approval and payment do. After COMMIT, never
+    // blocking. Re-voiding an already-voided row reuses the same key,
+    // so the driver is not notified twice for one void.
+    await notifyDriver(payout.driver_user_id, 'driver_payout_voided', { payout_id: String(payout.id), delivery_job_id: payout.delivery_job_id ? String(payout.delivery_job_id) : null, payout_cents: payout.payout_cents }, '/delivery/payouts', `driver-payout-voided:${payout.id}`);
     res.json({ success: true, payout });
   } catch (error) {
     if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }

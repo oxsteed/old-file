@@ -602,9 +602,10 @@ ddescribe('Track C preference toggles (DB)', () => {
         // omitted it, so the N3 diff never enforced its catalog entry.
         { file: 'services/restaurantPayoutService.js', name: 'type', expansions: ['payout_requested', 'payout_failed', 'payout_approved', 'payout_deposited', 'payout_reversed', 'payout_rejected', 'payout_draft_created'] },
         // Group 9 partials Wave 2 Batch L (451, G9-A8, D-529): notifyDriver
-        // fan-out in the delivery controller; the three types are the only
-        // ones its callers pass (approval, payout approved, payout paid).
-        { file: 'controllers/localDeliveryController.js', name: 'type', expansions: ['driver_approved', 'driver_payout_approved', 'driver_payout_paid'] },
+        // fan-out in the delivery controller; the four types are the only
+        // ones its callers pass (approval, payout approved, payout paid,
+        // payout voided — N16 remainder, D-651).
+        { file: 'controllers/localDeliveryController.js', name: 'type', expansions: ['driver_approved', 'driver_payout_approved', 'driver_payout_paid', 'driver_payout_voided'] },
         { file: 'services/supportNotificationService.js', name: 'type', expansions: ['support_sla_breach'] },
         // G11 checkpoint 1 (D-603): notifyRental fan-out in the
         // tool-rental notifications helper; the two types are the only

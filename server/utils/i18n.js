@@ -291,6 +291,23 @@ const T = {
       ar: 'تم دفع دفعة التوصيل الخاصة بك. تحقق من سجل الدفعات للاطلاع على التفاصيل.',
     },
   },
+  // N16 remainder (G12 batch, D-651): the driver hears when a payout is voided.
+  driver_payout_voided: {
+    title: {
+      en: 'Driver payout voided',
+      fr: 'Paiement chauffeur annulé',
+      es: 'Pago de conductor anulado',
+      ht: 'Peman chofè anile',
+      ar: 'تم إلغاء دفعة السائق',
+    },
+    body: {
+      en: 'Your delivery payout was voided and will not be paid. Check your payout history for the details.',
+      fr: 'Votre paiement de livraison a été annulé et ne sera pas versé. Consultez votre historique de paiements pour les détails.',
+      es: 'Tu pago de entrega fue anulado y no se pagará. Revisa tu historial de pagos para ver los detalles.',
+      ht: 'Yo anile peman livrezon ou an epi yo pap peye li. Gade istwa peman ou pou detay yo.',
+      ar: 'تم إلغاء دفعة التوصيل الخاصة بك ولن يتم دفعها. تحقق من سجل الدفعات للاطلاع على التفاصيل.',
+    },
+  },
   // Group 9 partials Wave 2 Batch M (456, G9-A9): the periodic new-offer
   // digest. The body interpolates {count} from data.params in the
   // recipient's language.
@@ -2082,6 +2099,13 @@ const EMAIL_TEMPLATES = {
       ar: 'عرض المدفوعات',
     },
     driver_payout_paid: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
+    driver_payout_voided: {
       en: 'View Payouts',
       fr: 'Voir les paiements',
       es: 'Ver pagos',

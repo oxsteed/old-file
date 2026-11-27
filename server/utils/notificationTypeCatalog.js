@@ -235,6 +235,8 @@ const NOTIFICATION_TYPES = [
   { type: 'driver_approved', group: 'work' },
   { type: 'driver_payout_approved', group: 'payments' },
   { type: 'driver_payout_paid', group: 'payments' },
+  // N16 remainder (G12 batch, D-651): the driver hears when a payout is voided.
+  { type: 'driver_payout_voided', group: 'payments' },
   { type: 'delivery_offer_expired', group: 'orders' },
   // Group 9 partials Wave 2 Batch M (456, G9-A9): the periodic new-offer
   // digest for eligible drivers.
