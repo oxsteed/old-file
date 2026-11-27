@@ -2524,7 +2524,7 @@
     "materialPreview": "Estos cambios pedirán a cada ofertante actual que reconfirme.",
     "reloadLatest": "Cargar la versión más reciente",
     "fixErrors": "Corrige los campos marcados ({{count}}).",
-    "privateNotesHelp": "Las notas privadas solo las ves tú y el ayudante que contrates.",
+    "privateNotesHelp": "Las notas privadas solo las ves tú.",
     "cancel": "Cancelar",
     "save": "Guardar cambios",
     "saving": "Guardando…",

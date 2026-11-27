@@ -2524,7 +2524,7 @@
     "materialPreview": "Ces modifications demanderont à chaque prestataire ayant fait une offre de reconfirmer.",
     "reloadLatest": "Charger la dernière version",
     "fixErrors": "Corrigez les champs signalés ({{count}}).",
-    "privateNotesHelp": "Les notes privées ne sont visibles que par vous et le prestataire engagé.",
+    "privateNotesHelp": "Les notes privées ne sont visibles que par vous.",
     "cancel": "Annuler",
     "save": "Enregistrer",
     "saving": "Enregistrement…",

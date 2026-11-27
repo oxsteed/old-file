@@ -4,6 +4,8 @@ const { AppError } = require('../middleware/errorHandler');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const { withTransaction } = require('../utils/transaction');
 const { emitDomainEvent } = require('../growth/emit');
+const { getClientRequestId } = require('../utils/idempotency');
+const { fingerprintFor, lookupIdempotency, storeIdempotency } = require('../utils/idempotencyStore');
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -895,6 +897,24 @@ exports.addToFund = async (req, res, next) => {
       });
     }
 
+    // N11: a replayed Idempotency-Key returns the original result without
+    // re-incrementing reserved_amount. Same shape as openDispute: the key
+    // is a UUID from the Idempotency-Key header (or clientRequestId body
+    // field), optional, and a non-UUID key is a 400. Dedupe scope is per
+    // need + key: the stored key is namespaced with the need id, and the
+    // fingerprint covers the amount, so the same key for a different
+    // amount is a 422 instead of a silent replay.
+    const clientRequestId = getClientRequestId(req);
+    if (clientRequestId === false) {
+      throw new AppError('clientRequestId must be a valid UUID', 400, 'validation_failed', {
+        clientRequestId: 'Must be a valid UUID',
+      });
+    }
+    const idemKey = clientRequestId ? `planned-need-fund:${id}:${clientRequestId}` : null;
+    const idemAction = 'planned_need_fund';
+    const idemPayload = { amount: parsedAmount };
+    const idemFingerprint = idemKey ? fingerprintFor(idemAction, id, idemPayload) : null;
+
     await client.query('BEGIN');
 
     const { rows: existing } = await client.query(`
@@ -909,7 +929,22 @@ exports.addToFund = async (req, res, next) => {
     }
 
     if (!['planned', 'funding', 'activating_soon'].includes(existing[0].status)) {
-      throw new AppError('Only active planned needs can be funded.', 400, 'invalid_state');
+      throw new AppError('Only active planned needs can be updated.', 400, 'invalid_state');
+    }
+
+    // The FOR UPDATE lock above serializes concurrent fund calls on this
+    // need, so a replayed key is always seen before any second increment.
+    if (idemKey) {
+      const prior = await lookupIdempotency(client, {
+        actorId: userId, key: idemKey, action: idemAction, target: id, payload: idemPayload,
+      });
+      if (prior && prior.mismatch) {
+        throw new AppError('This request key was already used for a different request.', 422, 'idempotency_key_reused');
+      }
+      if (prior) {
+        await client.query('COMMIT');
+        return res.status(prior.status).json(prior.body);
+      }
     }
 
     const { rows } = await client.query(`
@@ -923,6 +958,24 @@ exports.addToFund = async (req, res, next) => {
       WHERE id = $1 AND user_id = $2
       RETURNING *
     `, [id, userId, parsedAmount]);
+
+    if (idemKey) {
+      const stored = await storeIdempotency(client, {
+        actorId: userId, key: idemKey, action: idemAction,
+        fingerprint: idemFingerprint, status: 200, body: rows[0],
+      });
+      if (!stored) {
+        // A concurrent request with the same key stored first; return its
+        // result instead of incrementing a second time.
+        const prior = await lookupIdempotency(client, {
+          actorId: userId, key: idemKey, action: idemAction, target: id, payload: idemPayload,
+        });
+        if (prior && !prior.mismatch) {
+          await client.query('COMMIT');
+          return res.status(prior.status).json(prior.body);
+        }
+      }
+    }
 
     await client.query('COMMIT');
     res.json(rows[0]);
