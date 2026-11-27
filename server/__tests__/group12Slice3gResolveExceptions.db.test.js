@@ -78,6 +78,9 @@ jest.mock('../utils/email', () => ({
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue({ success: true }),
 }));
+
+// The mocked send path: B5 assertions read its calls, never the inbox.
+const { sendNotification } = require('../services/notificationService');
 jest.mock('../growth/emit', () => ({
   emitDomainEvent: jest.fn().mockResolvedValue(undefined),
   commerceEventProps: (value) => value,
@@ -89,6 +92,8 @@ const describeDb = dbUrl ? describe : describe.skip;
 describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
   let db;
   let app;
+
+  beforeEach(() => { sendNotification.mockClear(); });
 
   beforeAll(async () => {
     process.env.ACCESS_REQUESTS_ENABLED = 'true';
@@ -302,6 +307,12 @@ describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
         .expect(201);
       expect(escalated.body.escalation.priority_before).toBe('high');
       expect(escalated.body.escalation.priority_after).toBe('urgent');
+      // G12-B5 (D-645): the ticket filer learns their exception was escalated.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: applicant.id,
+        type: 'franchise_exception_escalated',
+        data: expect.objectContaining({ params: expect.objectContaining({ ticketNumber: ticket.ticket_number }) }),
+      }));
 
       const hqQueue = await request(app)
         .get(`/api/franchise/applications/${applicationId}/escalations`)
@@ -356,10 +367,19 @@ describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
       expect(assigned.body.remediation.ticket_id).toBe(ticket.id);
       expect(assigned.body.remediation.ticket_number).toBe(ticket.ticket_number);
 
+      // G12-B5 (D-645): the new owner learns they own the fix.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: member.id,
+        type: 'franchise_remediation_assigned',
+        data: expect.objectContaining({ params: expect.objectContaining({ ticketNumber: ticket.ticket_number, dueDate: '2026-12-01' }) }),
+      }));
+
       const reassigned = await assignFor(operator, applicationId, ticket,
         { owner_user_id: operator.id, due_date: '2026-12-15' })
         .expect(200);
       expect(reassigned.body.remediation.owner_user_id).toBe(operator.id);
+      // Reassigning to the assigner themselves sends no notice.
+      expect(sendNotification.mock.calls.filter(([call]) => call.type === 'franchise_remediation_assigned')).toHaveLength(1);
       expect(String(reassigned.body.remediation.due_date).slice(0, 10)).toBe('2026-12-15');
 
       const { rows } = await db.query(

@@ -83,6 +83,9 @@ jest.mock('../utils/email', () => ({
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue({ success: true }),
 }));
+
+// The mocked send path: B5 assertions read its calls, never the inbox.
+const { sendNotification } = require('../services/notificationService');
 jest.mock('../growth/emit', () => ({
   emitDomainEvent: jest.fn().mockResolvedValue(undefined),
   commerceEventProps: (value) => value,
@@ -94,6 +97,8 @@ const describeDb = dbUrl ? describe : describe.skip;
 describeDb('Group 12 Slice 3i: Transition (641-645)', () => {
   let db;
   let app;
+
+  beforeEach(() => { sendNotification.mockClear(); });
 
   beforeAll(async () => {
     process.env.ACCESS_REQUESTS_ENABLED = 'true';
@@ -411,6 +416,16 @@ describeDb('Group 12 Slice 3i: Transition (641-645)', () => {
         .then((res) => expect(res.body.code).toBe('handoff_decision_reason_required'));
       const rejected = await reviewAs(admin, applicationId, handoffId, { decision: 'reject', reason: 'Incoming operator is not vetted yet.' }).expect(200);
       expect(rejected.body.handoffs.handoffs[0].status).toBe('rejected');
+      // G12-B5 (D-645): the outgoing operator learns the handoff was rejected; the incoming is not told.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: operator.id,
+        type: 'franchise_handoff_decided',
+        data: expect.objectContaining({ params: expect.objectContaining({ decision: 'rejected' }) }),
+      }));
+      expect(sendNotification).not.toHaveBeenCalledWith(expect.objectContaining({
+        userId: incoming.id,
+        type: 'franchise_handoff_decided',
+      }));
       const detail = await applicantDetail(operator, applicationId).expect(200);
       expect(detail.body.application.owner_user_id).toBe(operator.id);
       // A decided handoff cannot be decided again.
@@ -451,6 +466,17 @@ describeDb('Group 12 Slice 3i: Transition (641-645)', () => {
 
       const approved = await reviewAs(admin, applicationId, handoffId, { decision: 'approve' }).expect(200);
       expect(approved.body.handoff.status).toBe('approved');
+      // G12-B5 (D-645): both operators learn the handoff was approved.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: incoming.id,
+        type: 'franchise_handoff_decided',
+        data: expect.objectContaining({ params: expect.objectContaining({ decision: 'approved' }) }),
+      }));
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: operator.id,
+        type: 'franchise_handoff_decided',
+        data: expect.objectContaining({ params: expect.objectContaining({ decision: 'approved' }) }),
+      }));
       expect(approved.body.handoff.checklist_snapshot.items).toHaveLength(5);
       const after = await db.query(
         'SELECT owner_user_id, due_date FROM franchise_remediations WHERE id = $1', [remediation.id],
@@ -667,6 +693,12 @@ describeDb('Group 12 Slice 3i: Transition (641-645)', () => {
         .send({ user_id: helper.id, reason: 'Left the opening team' })
         .expect(201);
       expect(removed.body.access_removal.membership_kind).toBe('helper');
+      // G12-B5 (D-645): the removed member is told, with HQ's reason.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: helper.id,
+        type: 'franchise_territory_access_removed',
+        data: expect.objectContaining({ params: expect.objectContaining({ reason: 'Left the opening team' }) }),
+      }));
       const { rows: teamRows } = await db.query(
         'SELECT id FROM franchise_opening_team_members WHERE application_id = $1 AND helper_user_id = $2',
         [applicationId, helper.id],

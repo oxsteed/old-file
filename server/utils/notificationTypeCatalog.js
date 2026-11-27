@@ -44,6 +44,15 @@ const NOTIFICATION_TYPES = [
   { type: 'franchise_interview_proposed', group: 'work' },
   { type: 'franchise_document_reviewed', group: 'work' },
   { type: 'franchise_followup_replied', group: 'work' },
+  // G12-B5 (D-645): 626-650 transition notices — handoff decided, access
+  // removed, exception escalated, remediation assigned, training
+  // escalation resolved, ops appointment updated.
+  { type: 'franchise_handoff_decided', group: 'work' },
+  { type: 'franchise_territory_access_removed', group: 'work' },
+  { type: 'franchise_exception_escalated', group: 'work' },
+  { type: 'franchise_remediation_assigned', group: 'work' },
+  { type: 'franchise_training_escalation_resolved', group: 'work' },
+  { type: 'franchise_ops_appointment_updated', group: 'work' },
   { type: 'bid_received', group: 'work' },
   { type: 'bid_reconfirmed', group: 'work' },
   // Group 4 Slice C (166-170): counterparty notices for the helper-quote

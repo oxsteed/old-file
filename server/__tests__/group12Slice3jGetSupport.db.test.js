@@ -79,6 +79,9 @@ jest.mock('../utils/email', () => ({
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue({ success: true }),
 }));
+
+// The mocked send path: B5 assertions read its calls, never the inbox.
+const { sendNotification } = require('../services/notificationService');
 jest.mock('../growth/emit', () => ({
   emitDomainEvent: jest.fn().mockResolvedValue(undefined),
   commerceEventProps: (value) => value,
@@ -90,6 +93,8 @@ const describeDb = dbUrl ? describe : describe.skip;
 describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
   let db;
   let app;
+
+  beforeEach(() => { sendNotification.mockClear(); });
 
   beforeAll(async () => {
     process.env.ACCESS_REQUESTS_ENABLED = 'true';
@@ -391,6 +396,12 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
         .expect(200);
       expect(completed.body.slot.status).toBe('completed');
       expect(completed.body.slot.completed_at).toBeTruthy();
+      // G12-B5 (D-645): book, confirm, and complete each notify the booker.
+      const opsNotices = sendNotification.mock.calls
+        .filter(([call]) => call.type === 'franchise_ops_appointment_updated');
+      expect(opsNotices).toHaveLength(3);
+      expect(opsNotices.map(([call]) => call.data.params.transition)).toEqual(['booked', 'confirmed', 'completed']);
+      for (const [call] of opsNotices) expect(call.userId).toBe(operator.id);
 
       const detail = await applicantDetail(operator, applicationId).expect(200);
       expect(detail.body.ops_appointments).toHaveLength(1);
@@ -605,6 +616,8 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
         .send({ status: 'in_progress' })
         .expect(200);
       expect(started.body.training_escalation.status).toBe('in_progress');
+      // G12-B5 (D-645): an in-progress move sends nothing.
+      expect(sendNotification).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'franchise_training_escalation_resolved' }));
 
       const resolved = await request(app)
         .post(`/api/franchise/applications/${applicationId}/training-escalations/${escalationId}/resolve`)
@@ -613,6 +626,14 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
         .expect(200);
       expect(resolved.body.training_escalation.status).toBe('resolved');
       expect(resolved.body.training_escalation.resolution).toContain('Re-uploaded');
+      // G12-B5 (D-645): the resolution notifies the affected member (here
+      // also the filer, so exactly one notice) with HQ's resolution note.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: operator.id,
+        type: 'franchise_training_escalation_resolved',
+        data: expect.objectContaining({ params: expect.objectContaining({ resolution: 'Re-uploaded the video; the quiz passes now.' }) }),
+      }));
+      expect(sendNotification.mock.calls.filter(([call]) => call.type === 'franchise_training_escalation_resolved')).toHaveLength(1);
       expect(resolved.body.training_escalation.resolved_at).toBeTruthy();
 
       await request(app)

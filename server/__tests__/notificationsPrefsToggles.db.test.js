@@ -427,6 +427,72 @@ ddescribe('Track C preference toggles (DB)', () => {
       expect(rows[3].body).toContain('Bank statement is older than 90 days.');
     });
 
+    test('the six G12-B5 transition types send through the real path with resolved titles', async () => {
+      const user = await makeUser();
+      const applicationId = '00000000-0000-0000-0000-000000000000';
+      const sends = [
+        {
+          type: 'franchise_handoff_decided',
+          data: { params: { decision: 'approved' }, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12b5-real-send-handoff-${user.id}`,
+        },
+        {
+          type: 'franchise_territory_access_removed',
+          data: { params: { reason: 'Left the opening team' }, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12b5-real-send-access-${user.id}`,
+        },
+        {
+          type: 'franchise_exception_escalated',
+          data: { params: { ticketNumber: 'T-123' }, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12b5-real-send-escalation-${user.id}`,
+        },
+        {
+          type: 'franchise_remediation_assigned',
+          data: { params: { ticketNumber: 'T-123', dueDate: '2026-12-01' }, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12b5-real-send-remediation-${user.id}`,
+        },
+        {
+          type: 'franchise_training_escalation_resolved',
+          data: { params: { resolution: 'Re-uploaded the video; the quiz passes now.' }, application_id: applicationId },
+          action_url: '/franchise/territory',
+          idempotencyKey: `g12b5-real-send-training-${user.id}`,
+        },
+        {
+          type: 'franchise_ops_appointment_updated',
+          data: { params: { transition: 'confirmed', startsAt: '2026-12-01T15:00:00.000Z' }, application_id: applicationId },
+          action_url: '/franchise/territory',
+          idempotencyKey: `g12b5-real-send-ops-${user.id}`,
+        },
+      ];
+      for (const send of sends) {
+        const result = await sendNotification({ userId: user.id, ...send });
+        expect(result.success).toBe(true);
+      }
+      const { rows } = await pool.query(
+        `SELECT type, title, body FROM notifications WHERE user_id = $1 AND type LIKE 'franchise_%' ORDER BY created_at ASC`,
+        [user.id],
+      );
+      expect(rows.map((row) => row.type)).toEqual([
+        'franchise_handoff_decided',
+        'franchise_territory_access_removed',
+        'franchise_exception_escalated',
+        'franchise_remediation_assigned',
+        'franchise_training_escalation_resolved',
+        'franchise_ops_appointment_updated',
+      ]);
+      for (const row of rows) expect(row.title.length).toBeGreaterThan(0);
+      expect(rows[0].body).toContain('approved');
+      expect(rows[1].body).toContain('Left the opening team');
+      expect(rows[2].body).toContain('T-123');
+      expect(rows[3].body).toContain('2026-12-01');
+      expect(rows[4].body).toContain('Re-uploaded the video');
+      expect(rows[5].body).toContain('confirmed');
+    });
+
     test('catalog stays in sync with the live sendNotification call sites (N3)', async () => {
       // N3: the catalog is a static snapshot that drifted from the call
       // sites (the batch's own new types had no toggle, and neither did
@@ -553,7 +619,10 @@ ddescribe('Track C preference toggles (DB)', () => {
         // controller; the five types are the only ones its callers pass
         // (status change, territory offer, interview proposed, document
         // reviewed, HQ follow-up reply).
-        { file: 'controllers/franchiseController.js', name: 'type', expansions: ['franchise_application_status_changed', 'franchise_territory_offered', 'franchise_interview_proposed', 'franchise_document_reviewed', 'franchise_followup_replied'] },
+        // G12-B5 (D-645): the same fan-out carries six more types (handoff
+        // decided, access removed, exception escalated, remediation
+        // assigned, training escalation resolved, ops appointment updated).
+        { file: 'controllers/franchiseController.js', name: 'type', expansions: ['franchise_application_status_changed', 'franchise_territory_offered', 'franchise_interview_proposed', 'franchise_document_reviewed', 'franchise_followup_replied', 'franchise_handoff_decided', 'franchise_territory_access_removed', 'franchise_exception_escalated', 'franchise_remediation_assigned', 'franchise_training_escalation_resolved', 'franchise_ops_appointment_updated'] },
         // Redis job-data replay: the queued payload is a full
         // notification object produced by a sendNotification caller
         // upstream, so the type already passed through the central

@@ -6272,7 +6272,9 @@ async function escalateTerritoryTicket(client, applicationId, ticketId, actorId,
   await logActivity(client, applicationId, actorId, 'ticket_escalated',
     `Ticket #${ticket.ticket_number} escalated to headquarters (priority ${priorityBefore} → urgent).`,
     { ticket_id: ticket.id, escalation_id: rows[0].id });
-  return { escalation: rows[0], ticket: { id: ticket.id, ticket_number: ticket.ticket_number, priority: priorityAfter, status: ticket.status } };
+  // G12-B5 (D-645): the filer is returned so the route handler can notify
+  // them after commit (unless they escalated it themselves).
+  return { escalation: rows[0], ticket: { id: ticket.id, ticket_number: ticket.ticket_number, priority: priorityAfter, status: ticket.status }, filerUserId: ticket.user_id };
 }
 
 async function escalateTicketToTerritory(req, res, { asAdmin = false } = {}) {
@@ -6318,6 +6320,18 @@ async function escalateTicketToTerritory(req, res, { asAdmin = false } = {}) {
         return res.status(escalated.error.status).json(escalated.error.body);
       }
       await client.query('COMMIT');
+      // G12-B5 (D-645): the ticket filer learns their exception was
+      // escalated to HQ — unless they escalated it themselves.
+      if (escalated.filerUserId && String(escalated.filerUserId) !== String(req.user?.id)) {
+        await deliverFranchiseNotice({
+          applicationId: id,
+          userId: escalated.filerUserId,
+          type: 'franchise_exception_escalated',
+          params: { ticketNumber: escalated.ticket.ticket_number },
+          actionUrl: '/franchise/status',
+          idempotencyKey: `franchise-exception-escalated:${escalated.escalation.id}:${escalated.filerUserId}`,
+        });
+      }
       const summary = await buildExceptionSummary(id);
       return res.status(201).json({ escalation: escalated.escalation, ticket: escalated.ticket, exception_summary: summary });
     } catch (err) {
@@ -6497,7 +6511,7 @@ async function setRemediationCore(client, { applicationId, ticketId, ownerUserId
     return { error: { status: 400, body: { error: 'due_date must be a valid YYYY-MM-DD date.', code: 'invalid_remediation_due_date' } } };
   }
   const { rows: existing } = await client.query(
-    'SELECT id FROM franchise_remediations WHERE application_id = $1 AND ticket_id = $2',
+    'SELECT id, owner_user_id, due_date FROM franchise_remediations WHERE application_id = $1 AND ticket_id = $2',
     [applicationId, ticket.id]
   );
   const { rows } = await client.query(
@@ -6515,7 +6529,10 @@ async function setRemediationCore(client, { applicationId, ticketId, ownerUserId
   await logActivity(client, applicationId, actorId, 'remediation_assigned',
     `Remediation for ticket #${ticket.ticket_number} assigned to a territory member, due ${dueDate}.`,
     { ticket_id: ticket.id, remediation_id: rows[0].id, owner_user_id: ownerUserId, due_date: dueDate });
-  return { remediation: rows[0], created: !existing.length, ticket };
+  // G12-B5 (D-645): the previous assignment, so the route handler notifies
+  // only on a real change (new, different owner, or different due date) —
+  // a no-change re-submit is not a new event.
+  return { remediation: rows[0], created: !existing.length, previous: existing[0] || null, ticket };
 }
 
 async function setRemediation(req, res, { asAdmin = false } = {}) {
@@ -6563,6 +6580,26 @@ async function setRemediation(req, res, { asAdmin = false } = {}) {
         return res.status(result.error.status).json(result.error.body);
       }
       await client.query('COMMIT');
+      // G12-B5 (D-645): the remediation owner learns they own the fix —
+      // only on a real change, and never a notice to the assigner about
+      // their own assignment.
+      const previousDue = result.previous?.due_date
+        ? new Date(result.previous.due_date).toISOString().slice(0, 10)
+        : null;
+      const changed = result.created
+        || !result.previous
+        || String(result.previous.owner_user_id) !== String(ownerUserId)
+        || previousDue !== dueDate;
+      if (changed && String(ownerUserId) !== String(req.user?.id)) {
+        await deliverFranchiseNotice({
+          applicationId: id,
+          userId: ownerUserId,
+          type: 'franchise_remediation_assigned',
+          params: { ticketNumber: result.ticket.ticket_number, dueDate },
+          actionUrl: '/franchise/status',
+          idempotencyKey: `franchise-remediation-assigned:${result.remediation.id}:${result.remediation.updated_at.toISOString()}:${ownerUserId}`,
+        });
+      }
       const remediations = await fetchRemediations(id);
       const remediation = remediations.find((row) => row.id === result.remediation.id) || result.remediation;
       return res.status(result.created ? 201 : 200).json({ remediation });
@@ -7834,6 +7871,15 @@ async function bookOpsSlot(req, res) {
         `Operations appointment booked for ${slot.starts_at.toISOString().slice(0, 10)}.`,
         { slot_id: slotId });
       await client.query('COMMIT');
+      // G12-B5 (D-645): booking confirmation receipt with the date.
+      await deliverFranchiseNotice({
+        applicationId: id,
+        userId: req.user?.id,
+        type: 'franchise_ops_appointment_updated',
+        params: { transition: 'booked', startsAt: rows[0].starts_at.toISOString() },
+        actionUrl: '/franchise/territory',
+        idempotencyKey: `franchise-ops-appointment:${slotId}:booked:${req.user?.id}`,
+      });
       const opsAppointments = await fetchOpsAppointments(id);
       return res.status(201).json({ slot: rows[0], ops_appointments: opsAppointments, total: opsAppointments.length });
     } catch (err) {
@@ -7974,6 +8020,18 @@ async function updateOpsSlotAsAdmin(req, res, transition) {
       );
       await logActivity(client, id, req.user?.id, eventType, eventSummary, { slot_id: slotId });
       await client.query('COMMIT');
+      // G12-B5 (D-645): HQ's confirm/complete/cancel reaches the operator
+      // who booked the appointment.
+      if (rows[0].booked_by) {
+        await deliverFranchiseNotice({
+          applicationId: id,
+          userId: rows[0].booked_by,
+          type: 'franchise_ops_appointment_updated',
+          params: { transition: rows[0].status, startsAt: rows[0].starts_at.toISOString() },
+          actionUrl: '/franchise/territory',
+          idempotencyKey: `franchise-ops-appointment:${slotId}:${rows[0].status}:${rows[0].booked_by}`,
+        });
+      }
       const opsAppointments = await fetchOpsAppointments(id);
       return res.json({ slot: rows[0], ops_appointments: opsAppointments, total: opsAppointments.length });
     } catch (err) {
@@ -8331,6 +8389,23 @@ async function resolveTrainingEscalationAsAdmin(req, res) {
           : 'Training escalation moved to in progress by headquarters.',
         { escalation_id: escalationId });
       await client.query('COMMIT');
+      // G12-B5 (D-645): on resolution, the affected member and the filer
+      // learn the outcome with HQ's resolution note. An in-progress move
+      // sends nothing — the work is still open, not decided.
+      if (status === 'resolved') {
+        const recipients = [escalation.member_user_id, escalation.escalated_by]
+          .filter((value, index, list) => value && list.indexOf(value) === index);
+        for (const userId of recipients) {
+          await deliverFranchiseNotice({
+            applicationId: id,
+            userId,
+            type: 'franchise_training_escalation_resolved',
+            params: { resolution },
+            actionUrl: '/franchise/territory',
+            idempotencyKey: `franchise-training-escalation-resolved:${escalationId}:${userId}`,
+          });
+        }
+      }
       const trainingEscalations = await fetchTrainingEscalations(id);
       return res.json({
         training_escalation: rows[0],
@@ -11659,6 +11734,15 @@ async function reviewHandoffAsAdmin(req, res) {
           'HQ rejected a handoff; the territory stays with its operator.',
           { handoff_id: handoffId, decision_reason: reason });
         await client.query('COMMIT');
+        // G12-B5 (D-645): the outgoing operator learns the handoff was rejected.
+        await deliverFranchiseNotice({
+          applicationId: id,
+          userId: handoff.outgoing_operator_id,
+          type: 'franchise_handoff_decided',
+          params: { decision: 'rejected' },
+          actionUrl: '/franchise/status',
+          idempotencyKey: `franchise-handoff-decided:${handoffId}:rejected:${handoff.outgoing_operator_id}`,
+        });
         return res.json({ handoffs: await buildHandoffs(id) });
       }
 
@@ -11724,6 +11808,18 @@ async function reviewHandoffAsAdmin(req, res) {
         { handoff_id: handoffId, records: recordsSnapshot });
       await client.query('COMMIT');
       const handoffs = await buildHandoffs(id);
+      // G12-B5 (D-645): both operators learn the handoff was approved — the
+      // incoming operator now owns the territory, the outgoing loses it.
+      for (const userId of [handoff.incoming_operator_id, handoff.outgoing_operator_id]) {
+        await deliverFranchiseNotice({
+          applicationId: id,
+          userId,
+          type: 'franchise_handoff_decided',
+          params: { decision: 'approved' },
+          actionUrl: '/franchise/status',
+          idempotencyKey: `franchise-handoff-decided:${handoffId}:approved:${userId}`,
+        });
+      }
       return res.json({
         handoff: handoffs.handoffs.find((row) => row.id === handoffId),
         handoffs,
@@ -12282,6 +12378,15 @@ async function removeTerritoryAccessAsAdmin(req, res) {
         `HQ removed a territory member's access (${membershipKind}).`,
         { access_removal_id: rows[0].id, user_id: userId, membership_kind: membershipKind, reason, residue });
       await client.query('COMMIT');
+      // G12-B5 (D-645): the removed member is told, with HQ's reason.
+      await deliverFranchiseNotice({
+        applicationId: id,
+        userId,
+        type: 'franchise_territory_access_removed',
+        params: { reason },
+        actionUrl: '/franchise/status',
+        idempotencyKey: `franchise-territory-access-removed:${rows[0].id}:${userId}`,
+      });
       return res.status(201).json({ access_removal: rows[0], residue });
     } catch (err) {
       await client.query('ROLLBACK');

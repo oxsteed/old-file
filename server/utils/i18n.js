@@ -1114,6 +1114,105 @@ const T = {
       ar: 'ردّت HQ في سلسلة المتابعة لطلب الفرع الخاص بك. افتحها لقراءة الرد.',
     },
   },
+  // G12-B5 (D-645): the six 626-650 transition notices — handoff decided,
+  // access removed, exception escalated, remediation assigned, training
+  // escalation resolved, ops appointment updated.
+  franchise_handoff_decided: {
+    title: {
+      en: 'Your franchise handoff was decided',
+      fr: 'Votre transfert de franchise a été décidé',
+      es: 'Se decidió tu traspaso de franquicia',
+      ht: 'Yo deside transfè franchiz ou',
+      ar: 'تم البت في تسليم الفرع الخاص بك',
+    },
+    body: {
+      en: 'Your franchise handoff was {decision}. Open your application to see the details.',
+      fr: 'Votre transfert de franchise a été {decision}. Ouvrez votre demande pour voir les détails.',
+      es: 'Tu traspaso de franquicia fue {decision}. Abre tu solicitud para ver los detalles.',
+      ht: 'Transfè franchiz ou te {decision}. Louvri aplikasyon ou pou wè detay yo.',
+      ar: 'تم {decision} تسليم الفرع الخاص بك. افتح طلبك لعرض التفاصيل.',
+    },
+  },
+  franchise_territory_access_removed: {
+    title: {
+      en: 'Your franchise territory access was removed',
+      fr: 'Votre accès au territoire de franchise a été retiré',
+      es: 'Se retiró tu acceso al territorio de franquicia',
+      ht: 'Yo retire aksè ou nan teritwa franchiz la',
+      ar: 'تمت إزالة وصولك إلى إقليم الامتياز',
+    },
+    body: {
+      en: 'Your access to a franchise territory was removed. Reason: {reason}',
+      fr: 'Votre accès à un territoire de franchise a été retiré. Motif : {reason}',
+      es: 'Se retiró tu acceso a un territorio de franquicia. Motivo: {reason}',
+      ht: 'Yo retire aksè ou nan yon teritwa franchiz. Rezon: {reason}',
+      ar: 'تمت إزالة وصولك إلى إقليم امتياز. السبب: {reason}',
+    },
+  },
+  franchise_exception_escalated: {
+    title: {
+      en: 'A franchise exception was escalated',
+      fr: 'Une exception de franchise a été transmise',
+      es: 'Se escaló una excepción de franquicia',
+      ht: 'Yo voye yon eksepsyon franchiz bay katye jeneral',
+      ar: 'تم تصعيد استثناء امتياز',
+    },
+    body: {
+      en: 'Exception #{ticketNumber} was escalated to headquarters. Open your application to follow it.',
+      fr: 'L’exception nº {ticketNumber} a été transmise au siège. Ouvrez votre demande pour la suivre.',
+      es: 'La excepción n.º {ticketNumber} se escaló a la sede. Abre tu solicitud para seguirla.',
+      ht: 'Eksepsyon #{ticketNumber} te voye bay katye jeneral. Louvri aplikasyon ou pou swiv li.',
+      ar: 'تم تصعيد الاستثناء رقم {ticketNumber} إلى المقر الرئيسي. افتح طلبك لمتابعته.',
+    },
+  },
+  franchise_remediation_assigned: {
+    title: {
+      en: 'A franchise remediation was assigned to you',
+      fr: 'Une correction de franchise vous a été assignée',
+      es: 'Se te asignó una corrección de franquicia',
+      ht: 'Yo ba ou yon koreksyon franchiz pou ou fè',
+      ar: 'تم إسناد إجراء تصحيحي لك',
+    },
+    body: {
+      en: 'You own the fix for exception #{ticketNumber}, due {dueDate}. Open your application to see it.',
+      fr: 'La correction de l’exception nº {ticketNumber} vous appartient, pour le {dueDate}. Ouvrez votre demande pour la voir.',
+      es: 'La corrección de la excepción n.º {ticketNumber} es tuya, vence el {dueDate}. Abre tu solicitud para verla.',
+      ht: 'Koreksyon pou eksepsyon #{ticketNumber} la se pou ou, li dwe fèt anvan {dueDate}. Louvri aplikasyon ou pou wè li.',
+      ar: 'أنت مسؤول عن إصلاح الاستثناء رقم {ticketNumber}، والموعد النهائي {dueDate}. افتح طلبك لعرضه.',
+    },
+  },
+  franchise_training_escalation_resolved: {
+    title: {
+      en: 'Your franchise training escalation was resolved',
+      fr: 'Votre escalade de formation a été résolue',
+      es: 'Se resolvió tu escalada de formación',
+      ht: 'Yo rezoud eskalasyon fòmasyon ou',
+      ar: 'تم حل تصعيد التدريب الخاص بك',
+    },
+    body: {
+      en: 'Your training escalation was resolved. Resolution: {resolution}',
+      fr: 'Votre escalade de formation a été résolue. Résolution : {resolution}',
+      es: 'Se resolvió tu escalada de formación. Resolución: {resolution}',
+      ht: 'Yo rezoud eskalasyon fòmasyon ou. Rezolisyon: {resolution}',
+      ar: 'تم حل تصعيد التدريب الخاص بك. الحل: {resolution}',
+    },
+  },
+  franchise_ops_appointment_updated: {
+    title: {
+      en: 'Your operations appointment changed',
+      fr: 'Votre rendez-vous d’exploitation a changé',
+      es: 'Tu cita de operaciones cambió',
+      ht: 'Randevou operasyon ou chanje',
+      ar: 'تغيّر موعد العمليات الخاص بك',
+    },
+    body: {
+      en: 'Your operations appointment was {transition}. It is scheduled for {startsAt}.',
+      fr: 'Votre rendez-vous d’exploitation a été {transition}. Il est prévu pour le {startsAt}.',
+      es: 'Tu cita de operaciones fue {transition}. Está programada para el {startsAt}.',
+      ht: 'Randevou operasyon ou te {transition}. Li pwograme pou {startsAt}.',
+      ar: 'تم {transition} موعد العمليات الخاص بك. وهو مجدول في {startsAt}.',
+    },
+  },
   // G-6/G-7: book-for-another invite, site-contact status link, and the
   // booker's notice that the recipient responded.
   booking_recipient_invite: {
@@ -2079,6 +2178,48 @@ const EMAIL_TEMPLATES = {
       es: 'Ver solicitud',
       ht: 'Gade aplikasyon an',
       ar: 'عرض الطلب',
+    },
+    franchise_handoff_decided: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_territory_access_removed: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_exception_escalated: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_remediation_assigned: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_training_escalation_resolved: {
+      en: 'View Territory',
+      fr: 'Voir le territoire',
+      es: 'Ver territorio',
+      ht: 'Gade teritwa a',
+      ar: 'عرض الإقليم',
+    },
+    franchise_ops_appointment_updated: {
+      en: 'View Territory',
+      fr: 'Voir le territoire',
+      es: 'Ver territorio',
+      ht: 'Gade teritwa a',
+      ar: 'عرض الإقليم',
     },
     booking_site_contact_link: {
       en: 'View Booking Status',
