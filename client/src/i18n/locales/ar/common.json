@@ -2513,6 +2513,13 @@
     "previousImage": "الصورة السابقة",
     "nextImage": "الصورة التالية",
     "bidPrice": "سعرك",
+    "timelineHeading": "الجدول الزمني للوظيفة",
+    "timelinePosted": "نُشرت",
+    "timelineBidsReceived": "تم استلام عرض",
+    "timelineAccepted": "تم قبول العرض",
+    "timelineStarted": "بدأ العمل",
+    "timelineCompleted": "مكتملة",
+    "timelineCancelled": "ملغاة",
     "imagePosition": "الصورة {{current}} من {{total}}"
   },
   "jobEdit": {

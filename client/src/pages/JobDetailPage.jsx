@@ -22,12 +22,12 @@ import DirectPaymentRecordModal from '../components/DirectPaymentRecordModal';
 import JobAutoExpiryWarning from '../components/JobAutoExpiryWarning';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../utils/analytics';
-import { detectLocale, formatDate, formatMoney } from '../lib/format';
+import { detectLocale, formatDate, formatDateTime, formatMoney } from '../lib/format';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 
 import JobImageViewer from '../components/JobImageViewer';
 import { useJobDetailBids } from '../hooks/useJobDetailBids';
-import { JOB_STATUS_KEYS, jobDetailView, jobList, jobMediaType, matchingHelpersPath, samePartyId } from '../utils/jobDetailModel';
+import { JOB_STATUS_KEYS, buildJobTimeline, jobDetailView, jobList, jobMediaType, matchingHelpersPath, samePartyId } from '../utils/jobDetailModel';
 import { bidNeedingReconfirm, canEditJob } from '../utils/jobEditModel';
 import PaymentReauthorizationBanner from '../components/PaymentReauthorizationBanner';
 import JobPaymentLayersPanel from '../components/paymentLayers/JobPaymentLayersPanel';
@@ -666,6 +666,18 @@ function JobDetailContent() {
   const { isOwner, isHelper, isAssignedHelper, visibleBids, totalBids, action } = view;
   const partialBids = isOwner && bidsStatus === 'success' && totalBids > visibleBids.length;
   const acceptedBid = visibleBids.find(bid => bid.status === 'accepted');
+  // G1-A4: chronological status timeline from the timestamps the job
+  // payload already carries plus the earliest visible bid. Events that
+  // have not happened yet are omitted, never fabricated.
+  const timeline = buildJobTimeline(job, visibleBids);
+  const timelineLabels = {
+    posted: t('jobDetail.timelinePosted'),
+    bidsReceived: t('jobDetail.timelineBidsReceived'),
+    accepted: t('jobDetail.timelineAccepted'),
+    started: t('jobDetail.timelineStarted'),
+    completed: t('jobDetail.timelineCompleted'),
+    cancelled: t('jobDetail.timelineCancelled'),
+  };
   const ownBidToReconfirm = !isOwner && isHelper ? bidNeedingReconfirm(visibleBids, user, job) : null;
   const showRevisions = Number(job.revision) > 1 || Number(job.version) > 1;
   const canSeeRevisions = showRevisions && (isOwner || isAssignedHelper || Boolean(visibleBids.length));
@@ -953,6 +965,18 @@ function JobDetailContent() {
           {!isOwner && <JobSuitabilityPreview jobId={id} />}
           {(isOwner || isAssignedHelper) && job.assigned_helper_id && ['completed', 'closed'].includes(job.status) && <JobPortfolioConsent jobId={id} />}
           {isOwner && ['accepted', 'in_progress', 'completed', 'closed'].includes(job.status) && <JobRefundRequestSection job={job} fieldId={fieldId} />}
+          {timeline.length > 0 && <section className="jdp-card" aria-labelledby={`${fieldId}-timeline`}>
+            <h2 id={`${fieldId}-timeline`} className="jdp-section-title">{t('jobDetail.timelineHeading')}</h2>
+            <ol className="jdp-timeline">
+              {timeline.map(event => (
+                <li key={event.key} className="jdp-timeline-item" data-event={event.key}>
+                  <span className="jdp-timeline-dot" aria-hidden="true" />
+                  <span className="jdp-timeline-label">{timelineLabels[event.key]}</span>
+                  <time dateTime={event.at} className="jdp-timeline-time">{formatDateTime(event.at, { month: 'long' })}</time>
+                </li>
+              ))}
+            </ol>
+          </section>}
           {requirementsCard}
           {view.canSubmitBid && <section className="jdp-card jdp-bid-form-card" aria-labelledby={`${fieldId}-bid-form`}>
             <h2 id={`${fieldId}-bid-form`} className="jdp-section-title" tabIndex={-1}>{t('jobDetail.submitYourBid')}</h2>

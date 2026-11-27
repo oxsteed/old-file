@@ -2513,6 +2513,13 @@
     "previousImage": "Previous image",
     "nextImage": "Next image",
     "bidPrice": "Your price",
+    "timelineHeading": "Job timeline",
+    "timelinePosted": "Posted",
+    "timelineBidsReceived": "Bid received",
+    "timelineAccepted": "Bid accepted",
+    "timelineStarted": "Work started",
+    "timelineCompleted": "Completed",
+    "timelineCancelled": "Cancelled",
     "imagePosition": "Image {{current}} of {{total}}"
   },
   "jobEdit": {

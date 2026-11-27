@@ -54,7 +54,7 @@ test('new translations have matching legacy and namespace copies in every langua
   for(const language of ['en','es','fr','ht','ar']){
     const legacy=JSON.parse(await readFile(new URL(`../src/locales/${language}.json`,import.meta.url)));
     const common=JSON.parse(await readFile(new URL(`../src/i18n/locales/${language}/common.json`,import.meta.url)));
-    assert.equal(Object.keys(common.jobDetail).length,44);
+    assert.equal(Object.keys(common.jobDetail).length,51);
     for(const [key,value]of Object.entries(common.jobDetail)){assert.ok(value.trim());assert.equal(legacy.jobDetail[key],value,`${language} ${key}`);}
   }
 });

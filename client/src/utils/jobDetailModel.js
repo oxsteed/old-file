@@ -73,6 +73,59 @@ export function jobDetailView({ job, user, bids = [], bidsStatus = 'idle', canAp
 
 // Review P1-132: days until the accepted-job auto-cancel (7 days after
 // acceptance unless work starts). null when not applicable.
+// G1-A4 (item 16): chronological job status timeline. Every event comes
+// from a timestamp the server already serializes — the job row's own
+// created_at / accepted_at / started_at / completed_at / cancelled_at
+// (getJob selects all five; serializeJob passes them through, they are in
+// none of the stripped lists) plus the earliest visible bid's created_at
+// (GET /bids/job/:jobId selects b.created_at; helpers are server-filtered
+// to their own bid, so their timeline shows their own bid, never another
+// helper's). Events that have not happened yet are omitted, never
+// fabricated; an invalid or missing timestamp drops its event. No
+// owner-only field is read here, so the timeline is safe for every viewer
+// the page already admits.
+export const JOB_TIMELINE_KEYS = Object.freeze({
+  posted: 'timelinePosted',
+  bidsReceived: 'timelineBidsReceived',
+  accepted: 'timelineAccepted',
+  started: 'timelineStarted',
+  completed: 'timelineCompleted',
+  cancelled: 'timelineCancelled',
+});
+export function buildJobTimeline(job, bids = []) {
+  if (!job || typeof job !== 'object') return [];
+  const atMs = (value) => {
+    if (value == null || value === '') return null;
+    const ms = value instanceof Date ? value.getTime() : Date.parse(value);
+    return Number.isFinite(ms) ? ms : null;
+  };
+  const events = [];
+  const push = (key, value, extra = {}) => {
+    const ms = atMs(value);
+    if (ms == null) return;
+    events.push({ key, at: value instanceof Date ? value.toISOString() : value, ms, ...extra });
+  };
+  push('posted', job.created_at);
+  // First bid received: the earliest created_at among the bids this viewer
+  // may see. The list endpoint pages (50 by default, newest first), so on
+  // a job with more bids than the loaded page this is the earliest loaded
+  // bid, not necessarily the job's first bid ever — the count below is the
+  // job's own bid_count, which stays exact.
+  const bidTimes = jobList(bids).map((bid) => atMs(bid?.created_at)).filter((ms) => ms != null);
+  if (bidTimes.length > 0) {
+    const earliest = Math.min(...bidTimes);
+    events.push({ key: 'bidsReceived', at: new Date(earliest).toISOString(), ms: earliest, count: bidTimes.length });
+  }
+  push('accepted', job.accepted_at);
+  push('started', job.started_at);
+  push('completed', job.completed_at);
+  push('cancelled', job.cancelled_at);
+  // Chronological; ties keep lifecycle order (posted, bids, accepted,
+  // started, completed/cancelled) because Array.sort is stable.
+  events.sort((a, b) => a.ms - b.ms);
+  return events.map(({ key, at, count }) => (count == null ? { key, at } : { key, at, count }));
+}
+
 export const ACCEPTED_JOB_EXPIRY_DAYS = 7;
 export function acceptedExpiryDaysLeft(job, now = Date.now()) {
   if (!job || job.status !== 'accepted' || !job.accepted_at || job.started_at) return null;

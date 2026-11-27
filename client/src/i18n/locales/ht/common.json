@@ -2513,6 +2513,13 @@
     "previousImage": "Imaj anvan an",
     "nextImage": "Imaj apre a",
     "bidPrice": "Pri ou",
+    "timelineHeading": "Kwoloji travay la",
+    "timelinePosted": "Pibliye",
+    "timelineBidsReceived": "Òf resevwa",
+    "timelineAccepted": "Òf aksepte",
+    "timelineStarted": "Travay la kòmanse",
+    "timelineCompleted": "Fini",
+    "timelineCancelled": "Anile",
     "imagePosition": "Imaj {{current}} sou {{total}}"
   },
   "jobEdit": {
