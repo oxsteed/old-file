@@ -1711,6 +1711,107 @@ const T = {
       ar: 'اكتملت الزيارة.',
     },
   },
+  // R9 (D-734): the 6 booking auto-notice types were sent with a caller
+  // body but no template and no title, so the notices were lost on the
+  // NOT NULL title insert. The caller body appends after these template
+  // bodies (notificationService joins them), so the templates stay
+  // generic and carry no placeholders.
+  booking_auto_posted: {
+    title: {
+      en: 'Booking posted for bids',
+      fr: 'Réservation publiée pour offres',
+      es: 'Reserva publicada para ofertas',
+      ht: 'Rezèvasyon pibliye pou òf',
+      ar: 'تم نشر الحجز للعروض',
+    },
+    body: {
+      en: 'Your booking is now open for bids.',
+      fr: 'Votre réservation est maintenant ouverte aux offres.',
+      es: 'Tu reserva ahora está abierta a ofertas.',
+      ht: 'Rezèvasyon ou an louvri pou òf kounye a.',
+      ar: 'حجزك مفتوح الآن للعروض.',
+    },
+  },
+  booking_counter_proposed: {
+    title: {
+      en: 'Counter-proposal received',
+      fr: 'Contre-proposition reçue',
+      es: 'Contrapropuesta recibida',
+      ht: 'Kont-pwopozisyon resevwa',
+      ar: 'تم استلام اقتراح بديل',
+    },
+    body: {
+      en: 'Your helper proposed a different time for your booking.',
+      fr: 'Votre assistant a proposé un autre horaire pour votre réservation.',
+      es: 'Tu ayudante propuso otra hora para tu reserva.',
+      ht: 'Asistan ou pwopoze yon lòt lè pou rezèvasyon ou.',
+      ar: 'اقترح مساعدك وقتًا آخر لحجزك.',
+    },
+  },
+  booking_counter_accepted: {
+    title: {
+      en: 'Counter-proposal accepted',
+      fr: 'Contre-proposition acceptée',
+      es: 'Contrapropuesta aceptada',
+      ht: 'Kont-pwopozisyon aksepte',
+      ar: 'تم قبول الاقتراح البديل',
+    },
+    body: {
+      en: 'Your helper accepted the counter-proposal.',
+      fr: 'Votre assistant a accepté la contre-proposition.',
+      es: 'Tu ayudante aceptó la contrapropuesta.',
+      ht: 'Asistan ou aksepte kont-pwopozisyon an.',
+      ar: 'قبل مساعدك الاقتراح البديل.',
+    },
+  },
+  booking_counter_declined: {
+    title: {
+      en: 'Counter-proposal declined',
+      fr: 'Contre-proposition refusée',
+      es: 'Contrapropuesta rechazada',
+      ht: 'Kont-pwopozisyon refize',
+      ar: 'تم رفض الاقتراح البديل',
+    },
+    body: {
+      en: 'Your helper declined the counter-proposal.',
+      fr: 'Votre assistant a refusé la contre-proposition.',
+      es: 'Tu ayudante rechazó la contrapropuesta.',
+      ht: 'Asistan ou refize kont-pwopozisyon an.',
+      ar: 'رفض مساعدك الاقتراح البديل.',
+    },
+  },
+  booking_expired: {
+    title: {
+      en: 'Booking expired',
+      fr: 'Réservation expirée',
+      es: 'Reserva vencida',
+      ht: 'Rezèvasyon ekspire',
+      ar: 'انتهت صلاحية الحجز',
+    },
+    body: {
+      en: 'A booking request expired without a response.',
+      fr: 'Une demande de réservation a expiré sans réponse.',
+      es: 'Una solicitud de reserva venció sin respuesta.',
+      ht: 'Yon demann rezèvasyon ekspire san okenn repons.',
+      ar: 'انتهت صلاحية طلب حجز دون رد.',
+    },
+  },
+  recurring_booking_new: {
+    title: {
+      en: 'New recurring booking',
+      fr: 'Nouvelle réservation récurrente',
+      es: 'Nueva reserva recurrente',
+      ht: 'Nouvo rezèvasyon ki repete',
+      ar: 'حجز متكرر جديد',
+    },
+    body: {
+      en: 'A new recurring booking was created for you.',
+      fr: 'Une nouvelle réservation récurrente a été créée pour vous.',
+      es: 'Se creó una nueva reserva recurrente para ti.',
+      ht: 'Yo kreye yon nouvo rezèvasyon ki repete pou ou.',
+      ar: 'تم إنشاء حجز متكرر جديد لك.',
+    },
+  },
   booking_auto_released: {
     title: {
       en: 'Booking Auto Released',
@@ -3012,37 +3113,65 @@ const EMAIL_TEMPLATES = {
       ht: 'Gade peman yo',
       ar: 'عرض المدفوعات',
     },
+  // R9 (D-734): booking_auto_completed and booking_auto_released were
+  // pasted here in T shape (title/body objects) instead of flat locale
+  // strings, so tNotifEmail fell back to 'View Dashboard' for both.
+  // They are flat labels now; the T templates above are untouched.
   booking_auto_completed: {
-    title: {
-      en: 'Booking Completed',
-      fr: 'Réservation terminée',
-      es: 'Reserva completada',
-      ht: 'Rezèvasyon an fini',
-      ar: 'اكتمل الحجز',
-    },
-    body: {
-      en: 'The visit was completed.',
-      fr: 'La visite est terminée.',
-      es: 'La visita se completó.',
-      ht: 'Vizit la fini.',
-      ar: 'اكتملت الزيارة.',
-    },
+    en: 'View Bookings',
+    fr: 'Voir les réservations',
+    es: 'Ver reservas',
+    ht: 'Gade rezèvasyon yo',
+    ar: 'عرض الحجوزات',
   },
   booking_auto_released: {
-    title: {
-      en: 'Booking Request Expired',
-      fr: 'Demande de réservation expirée',
-      es: 'La solicitud de reserva expiró',
-      ht: 'Demann rezèvasyon an ekspire',
-      ar: 'انتهت صلاحية طلب الحجز',
-    },
-    body: {
-      en: 'The booking request expired without a response.',
-      fr: 'La demande de réservation a expiré sans réponse.',
-      es: 'La solicitud de reserva expiró sin respuesta.',
-      ht: 'Demann rezèvasyon an ekspire san okenn repons.',
-      ar: 'انتهت صلاحية طلب الحجز دون تلقي أي رد.',
-    },
+    en: 'View Bookings',
+    fr: 'Voir les réservations',
+    es: 'Ver reservas',
+    ht: 'Gade rezèvasyon yo',
+    ar: 'عرض الحجوزات',
+  },
+  booking_auto_posted: {
+    en: 'View Job',
+    fr: 'Voir l’annonce',
+    es: 'Ver trabajo',
+    ht: 'Gade travay la',
+    ar: 'عرض الوظيفة',
+  },
+  booking_counter_proposed: {
+    en: 'View Booking',
+    fr: 'Voir la réservation',
+    es: 'Ver reserva',
+    ht: 'Gade rezèvasyon an',
+    ar: 'عرض الحجز',
+  },
+  booking_counter_accepted: {
+    en: 'View Bookings',
+    fr: 'Voir les réservations',
+    es: 'Ver reservas',
+    ht: 'Gade rezèvasyon yo',
+    ar: 'عرض الحجوزات',
+  },
+  booking_counter_declined: {
+    en: 'View Bookings',
+    fr: 'Voir les réservations',
+    es: 'Ver reservas',
+    ht: 'Gade rezèvasyon yo',
+    ar: 'عرض الحجوزات',
+  },
+  booking_expired: {
+    en: 'View Bookings',
+    fr: 'Voir les réservations',
+    es: 'Ver reservas',
+    ht: 'Gade rezèvasyon yo',
+    ar: 'عرض الحجوزات',
+  },
+  recurring_booking_new: {
+    en: 'View Calendar',
+    fr: 'Voir le calendrier',
+    es: 'Ver calendario',
+    ht: 'Gade kalandriye a',
+    ar: 'عرض التقويم',
   },
   booking_request_expired: {
     en: 'Post as Job',

@@ -912,16 +912,9 @@ ddescribe('Track C preference toggles (DB)', () => {
       // the batch ends with this list empty. Nothing may be added here
       // except by a checkpoint that owns the fix; a stale entry (a type
       // that gained a template or a title) fails on purpose.
-      const KNOWN_UNTITLED = {
-        // R9 (checkpoint 6): the 4 auto-notice types plus the adjacent
-        // counter accept/decline pair the guard caught at the same site.
-        booking_auto_posted: 'R9',
-        booking_counter_proposed: 'R9',
-        booking_expired: 'R9',
-        recurring_booking_new: 'R9',
-        booking_counter_accepted: 'R9',
-        booking_counter_declined: 'R9',
-      };
+      // The list is empty: S-C2 left in checkpoint 2 (D-730/D-731) and
+      // the last 6 R9 entries left in checkpoint 4 (D-734).
+      const KNOWN_UNTITLED = {};
       const untitledTypes = untitled.map((line) => line.split(' ')[0]);
       const staleKnown = Object.keys(KNOWN_UNTITLED).filter((type) => !untitledTypes.includes(type));
       expect(staleKnown).toEqual([]);
@@ -1032,6 +1025,40 @@ ddescribe('Track C preference toggles (DB)', () => {
         const row = byType.get(type);
         expect(row.title).toBe(title);
         expect(row.body).toBe(`${body} Caller specifics here.`);
+        expect(row.action_url).toBe(actionUrl);
+      }
+    });
+
+    // R9 (D-734): the 6 booking auto-notice types send through the real
+    // path. They were lost before (caller body, no template, no title).
+    // The sends below mirror the real sites' bodies and action URLs.
+    test('the 6 R9 booking auto-notice types send with resolved titles, bodies and links', async () => {
+      const user = await makeUser();
+      const sends = [
+        ['booking_auto_posted', 'Booking posted for bids', 'Your booking is now open for bids.', 'Plumbing fix is now open for bids', '/jobs/42'],
+        ['booking_counter_proposed', 'Counter-proposal received', 'Your helper proposed a different time for your booking.', 'Plumbing fix, 2026-12-02 09:00-11:00', '/my-bookings'],
+        ['booking_counter_accepted', 'Counter-proposal accepted', 'Your helper accepted the counter-proposal.', 'Plumbing fix: counter-proposal accepted', '/calendar?tab=bookingRequests'],
+        ['booking_counter_declined', 'Counter-proposal declined', 'Your helper declined the counter-proposal.', 'Plumbing fix: counter-proposal declined', '/calendar?tab=bookingRequests'],
+        ['booking_expired', 'Booking expired', 'A booking request expired without a response.', 'Plumbing fix, 2026-12-01', '/calendar?tab=bookingRequests'],
+        ['recurring_booking_new', 'New recurring booking', 'A new recurring booking was created for you.', 'Lawn care weekly', '/calendar?tab=recurring'],
+      ];
+      for (const [type, , , body, actionUrl] of sends) {
+        const result = await sendNotification({
+          userId: user.id, type, body, data: {}, action_url: actionUrl,
+          idempotencyKey: `r9-real-send-${type}-${user.id}`,
+        });
+        expect(result.success).toBe(true);
+      }
+      const { rows } = await pool.query(
+        `SELECT type, title, body, action_url FROM notifications WHERE user_id = $1 ORDER BY created_at ASC`,
+        [user.id],
+      );
+      expect(rows.map((row) => row.type)).toEqual(sends.map(([t]) => t));
+      const byType = new Map(rows.map((row) => [row.type, row]));
+      for (const [type, title, templateBody, callerBody, actionUrl] of sends) {
+        const row = byType.get(type);
+        expect(row.title).toBe(title);
+        expect(row.body).toBe(`${templateBody} ${callerBody}`);
         expect(row.action_url).toBe(actionUrl);
       }
     });
