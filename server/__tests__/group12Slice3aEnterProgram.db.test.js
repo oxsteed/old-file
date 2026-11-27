@@ -75,6 +75,9 @@ jest.mock('../utils/email', () => ({
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue({ success: true }),
 }));
+
+// The mocked send path: A3 assertions read its calls, never the inbox.
+const { sendNotification } = require('../services/notificationService');
 jest.mock('../growth/emit', () => ({
   emitDomainEvent: jest.fn().mockResolvedValue(undefined),
   commerceEventProps: (value) => value,
@@ -92,6 +95,8 @@ const PDF_BYTES = Buffer.from('%PDF-1.4\n% test franchise document\n', 'utf8');
 describeDb('Group 12 Slice 3a: Enter program (604, 603, 605)', () => {
   let db;
   let app;
+
+  beforeEach(() => { sendNotification.mockClear(); });
 
   beforeAll(async () => {
     process.env.ACCESS_REQUESTS_ENABLED = 'true';
@@ -170,6 +175,11 @@ describeDb('Group 12 Slice 3a: Enter program (604, 603, 605)', () => {
       const slot = proposed.body.interviews[0];
       expect(slot.status).toBe('proposed');
       expect(slot.interviewer_name).toBe('HQ Reviewer');
+      // G12-A3 (D-644): the applicant is notified of the proposed slot.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: applicant,
+        type: 'franchise_interview_proposed',
+      }));
 
       const detail = await applicantDetail(applicant, applicationId).expect(200);
       expect(detail.body.interviews).toHaveLength(1);
@@ -322,6 +332,34 @@ describeDb('Group 12 Slice 3a: Enter program (604, 603, 605)', () => {
     });
   });
 
+  describe('G12-A3: applicant notifications on status change', () => {
+    test('a real status change notifies the applicant; a re-save with the same status does not', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ status: 'screening' })
+        .expect(200);
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: applicant,
+        type: 'franchise_application_status_changed',
+        data: expect.objectContaining({ params: expect.objectContaining({ status: 'screening' }) }),
+      }));
+      expect(sendNotification).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'franchise_territory_offered' }));
+
+      sendNotification.mockClear();
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ status: 'screening' })
+        .expect(200);
+      expect(sendNotification).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'franchise_application_status_changed' }));
+    });
+  });
+
   describe('603: applicant document checklist', () => {
     function uploadDoc(applicantId, applicationId, category, filename = 'id.pdf') {
       return request(app)
@@ -355,6 +393,14 @@ describeDb('Group 12 Slice 3a: Enter program (604, 603, 605)', () => {
         .expect(200);
       expect(reviewed.body.documents[0].status).toBe('accepted');
       expect(reviewed.body.document_categories.find((entry) => entry.category === 'identity').status).toBe('accepted');
+      // G12-A3 (D-644): the applicant is notified of the review.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: applicant,
+        type: 'franchise_document_reviewed',
+        data: expect.objectContaining({
+          params: expect.objectContaining({ fileName: 'id.pdf', decision: 'accepted' }),
+        }),
+      }));
     });
 
     test('rejection needs a reason, shows it to the applicant, and a re-upload reads pending again', async () => {
@@ -378,6 +424,18 @@ describeDb('Group 12 Slice 3a: Enter program (604, 603, 605)', () => {
         .expect(200);
       expect(rejected.body.documents[0].status).toBe('rejected');
       expect(rejected.body.documents[0].review_reason).toBe('Bank statement is older than 90 days.');
+      // G12-A3 (D-644): the rejection notice carries the reason.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: applicant,
+        type: 'franchise_document_reviewed',
+        data: expect.objectContaining({
+          params: expect.objectContaining({ fileName: 'capital.pdf', decision: 'rejected' }),
+        }),
+      }));
+      expect(sendNotification.mock.calls
+        .filter(([call]) => call.type === 'franchise_document_reviewed')
+        .some(([call]) => String(call.data.params.reasonPart).includes('Bank statement is older than 90 days.'))
+      ).toBe(true);
 
       const detail = await applicantDetail(applicant, applicationId).expect(200);
       expect(detail.body.document_categories.find((entry) => entry.category === 'financials').status).toBe('rejected');
@@ -463,6 +521,8 @@ describeDb('Group 12 Slice 3a: Enter program (604, 603, 605)', () => {
       expect(fromApplicant.body.followup).toHaveLength(1);
       expect(fromApplicant.body.followup[0].author_role).toBe('applicant');
       expect(fromApplicant.body.followup[0].body).toContain('When is the interview');
+      // G12-A3 (D-644): an applicant reply notifies nobody.
+      expect(sendNotification).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'franchise_followup_replied' }));
 
       const fromAdmin = await request(app)
         .post(`/api/franchise/applications/${applicationId}/followup`)
@@ -471,6 +531,11 @@ describeDb('Group 12 Slice 3a: Enter program (604, 603, 605)', () => {
         .expect(201);
       expect(fromAdmin.body.followup).toHaveLength(2);
       expect(fromAdmin.body.followup[1].author_role).toBe('admin');
+      // G12-A3 (D-644): an HQ reply notifies the applicant.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: applicant,
+        type: 'franchise_followup_replied',
+      }));
 
       const detail = await applicantDetail(applicant, applicationId).expect(200);
       expect(detail.body.followup).toHaveLength(2);

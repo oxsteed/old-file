@@ -71,6 +71,9 @@ jest.mock('../utils/email', () => ({
 jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue({ success: true }),
 }));
+
+// The mocked send path: A3 assertions read its calls, never the inbox.
+const { sendNotification } = require('../services/notificationService');
 jest.mock('../growth/emit', () => ({
   emitDomainEvent: jest.fn().mockResolvedValue(undefined),
   commerceEventProps: (value) => value,
@@ -81,6 +84,8 @@ const describeDb = dbUrl ? describe : describe.skip;
 describeDb('Group 12 Slice 3b: Take responsibility (608, 606, 607, 609, 610)', () => {
   let db;
   let app;
+
+  beforeEach(() => { sendNotification.mockClear(); });
 
   beforeAll(async () => {
     process.env.ACCESS_REQUESTS_ENABLED = 'true';
@@ -258,6 +263,12 @@ describeDb('Group 12 Slice 3b: Take responsibility (608, 606, 607, 609, 610)', (
       // by the applicant; the applicant-vs-operator distinction below is
       // the one the handler enforces (owner-only answers).
       await offerToOperator(applicationId, admin, operator);
+
+      // G12-A3 (D-644): the new operator is notified of the territory offer.
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        userId: operator,
+        type: 'franchise_territory_offered',
+      }));
 
       // The applicant record alone is not the operator: only the assigned
       // operator may answer.

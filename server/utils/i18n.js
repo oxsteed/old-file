@@ -1031,6 +1031,89 @@ const T = {
       ar: 'دعاك {inviterName} للانضمام إلى إقليم امتياز. راجع الدعوة للقبول أو الرفض.',
     },
   },
+  // G12-A3 (D-644): the applicant is told about the five events they were
+  // never notified of — status change, territory offer, interview proposed,
+  // document reviewed, HQ follow-up reply.
+  franchise_application_status_changed: {
+    title: {
+      en: 'Your franchise application was updated',
+      fr: 'Votre demande de franchise a été mise à jour',
+      es: 'Tu solicitud de franquicia se actualizó',
+      ht: 'Aplikasyon frankti ou te mete ajou',
+      ar: 'تم تحديث طلب الفرع الخاص بك',
+    },
+    body: {
+      en: 'Your franchise application status changed to {status}. Open your application to see the details.',
+      fr: 'Le statut de votre demande de franchise est passé à {status}. Ouvrez votre demande pour voir les détails.',
+      es: 'El estado de tu solicitud de franquicia cambió a {status}. Abre tu solicitud para ver los detalles.',
+      ht: 'Estati aplikasyon frankti ou chanje pou {status}. Louvri aplikasyon ou pou wè detay yo.',
+      ar: 'تغيّرت حالة طلب الفرع الخاص بك إلى {status}. افتح طلبك لعرض التفاصيل.',
+    },
+  },
+  franchise_territory_offered: {
+    title: {
+      en: 'A franchise territory was offered to you',
+      fr: 'Un territoire de franchise vous a été proposé',
+      es: 'Te ofrecieron un territorio de franquicia',
+      ht: 'Yo ofri ou yon teritwa franchiz',
+      ar: 'تم عرض إقليم امتياز عليك',
+    },
+    body: {
+      en: 'A franchise territory was offered to you. Review the offer and accept or decline it from your application.',
+      fr: 'Un territoire de franchise vous a été proposé. Examinez l’offre et acceptez-la ou refusez-la depuis votre demande.',
+      es: 'Te ofrecieron un territorio de franquicia. Revisa la oferta y acéptala o recházala desde tu solicitud.',
+      ht: 'Yo ofri ou yon teritwa franchiz. Gade òf la epi aksepte li oswa refize li nan aplikasyon ou.',
+      ar: 'تم عرض إقليم امتياز عليك. راجع العرض واقبل أو ارفض من طلبك.',
+    },
+  },
+  franchise_interview_proposed: {
+    title: {
+      en: 'A franchise interview was proposed',
+      fr: 'Un entretien de franchise a été proposé',
+      es: 'Se propuso una entrevista de franquicia',
+      ht: 'Yo pwopoze yon entèvyou franchiz',
+      ar: 'تم اقتراح مقابلة امتياز',
+    },
+    body: {
+      en: 'An interview was proposed for {startsAt}. Book it from your application before the slot lapses.',
+      fr: 'Un entretien a été proposé pour le {startsAt}. Réservez-le depuis votre demande avant que le créneau n’expire.',
+      es: 'Se propuso una entrevista para el {startsAt}. Resérvala desde tu solicitud antes de que expire el horario.',
+      ht: 'Yo pwopoze yon entèvyou pou {startsAt}. Rezève li nan aplikasyon ou anvan plas la fini.',
+      ar: 'تم اقتراح مقابلة في {startsAt}. احجزها من طلبك قبل انتهاء الموعد.',
+    },
+  },
+  franchise_document_reviewed: {
+    title: {
+      en: 'A franchise document was reviewed',
+      fr: 'Un document de franchise a été examiné',
+      es: 'Se revisó un documento de franquicia',
+      ht: 'Yo revize yon dokiman franchiz',
+      ar: 'تمت مراجعة مستند امتياز',
+    },
+    body: {
+      en: 'Your document "{fileName}" was {decision}.{reasonPart}',
+      fr: 'Votre document « {fileName} » a été {decision}.{reasonPart}',
+      es: 'Tu documento «{fileName}» fue {decision}.{reasonPart}',
+      ht: 'Dokiman ou «{fileName}» te {decision}.{reasonPart}',
+      ar: 'تمت مراجعة مستندك «{fileName}» وكانت النتيجة {decision}.{reasonPart}',
+    },
+  },
+  franchise_followup_replied: {
+    title: {
+      en: 'HQ replied to your franchise application',
+      fr: 'HQ a répondu à votre demande de franchise',
+      es: 'HQ respondió a tu solicitud de franquicia',
+      ht: 'HQ reponn aplikasyon frankti ou',
+      ar: 'ردّت HQ على طلب الفرع الخاص بك',
+    },
+    body: {
+      en: 'HQ replied in the follow-up thread on your franchise application. Open it to read the reply.',
+      fr: 'HQ a répondu dans le fil de suivi de votre demande de franchise. Ouvrez-le pour lire la réponse.',
+      es: 'HQ respondió en el hilo de seguimiento de tu solicitud de franquicia. Ábrelo para leer la respuesta.',
+      ht: 'HQ reponn nan fil swivi aplikasyon frankti ou. Louvri li pou li repons lan.',
+      ar: 'ردّت HQ في سلسلة المتابعة لطلب الفرع الخاص بك. افتحها لقراءة الرد.',
+    },
+  },
   // G-6/G-7: book-for-another invite, site-contact status link, and the
   // booker's notice that the recipient responded.
   booking_recipient_invite: {
@@ -1961,6 +2044,41 @@ const EMAIL_TEMPLATES = {
       es: 'Revisar invitación',
       ht: 'Gade envitasyon an',
       ar: 'مراجعة الدعوة',
+    },
+    franchise_application_status_changed: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_territory_offered: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_interview_proposed: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_document_reviewed: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
+    },
+    franchise_followup_replied: {
+      en: 'View Application',
+      fr: 'Voir la demande',
+      es: 'Ver solicitud',
+      ht: 'Gade aplikasyon an',
+      ar: 'عرض الطلب',
     },
     booking_site_contact_link: {
       en: 'View Booking Status',

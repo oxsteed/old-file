@@ -1769,6 +1769,15 @@ async function updateFranchiseApplication(req, res) {
 
   values.push(applicationId);
 
+  // G12-A3 (D-644): the notice values are captured inside the transaction
+  // and sent after commit, so the notice block below (outside the inner
+  // try) can read them.
+  let statusBefore;
+  let statusAfter;
+  let ownerAfter;
+  let updatedAtAfter;
+  let offeredAfter = false;
+
   try {
     const client = await db.connect();
     try {
@@ -1825,7 +1834,7 @@ async function updateFranchiseApplication(req, res) {
             SET ${updates.join(', ')}, updated_at = NOW()
           WHERE id = $${idx}
           RETURNING id, status, owner_user_id, linked_business_id,
-                    agreement_status, training_status, launch_readiness_status`,
+                    agreement_status, training_status, launch_readiness_status, updated_at`,
         values
       );
 
@@ -1851,7 +1860,13 @@ async function updateFranchiseApplication(req, res) {
         && !isApplicantLink;
       const newlyApproved = body.status === 'approved'
         && before.rows[0].acceptance_status === 'not_offered';
+      // G12-A3 (D-644): whether the offer below fired, for the notice.
+      statusBefore = before.rows[0].status;
+      statusAfter = updateResult.rows[0].status;
+      ownerAfter = nextOwnerId;
+      updatedAtAfter = updateResult.rows[0].updated_at;
       if (nextOwnerId && !['rejected', 'archived'].includes(nextStatus) && (ownerChanged || newlyApproved)) {
+        offeredAfter = true;
         await client.query(
           `UPDATE franchise_applications
               SET acceptance_status = 'offered', acceptance_reason = NULL,
@@ -1899,6 +1914,30 @@ async function updateFranchiseApplication(req, res) {
     }
 
     const bundle = await fetchFranchiseApplicationBundle(applicationId);
+    // G12-A3 (D-644): the applicant learns of a status change, and the new
+    // operator learns of a territory offer, instead of finding out only by
+    // opening the status page. Best-effort; a failed notice never fails
+    // the update. The row's updated_at stamps the notice key, so a repeat
+    // transition (A to B, back to A, to B again) is a new event.
+    if (body.status !== undefined && body.status !== statusBefore) {
+      await notifyFranchiseApplicant({
+        applicationId,
+        type: 'franchise_application_status_changed',
+        params: { status: statusAfter },
+        actionUrl: '/franchise/status',
+        idempotencyKey: `franchise-application-status:${applicationId}:${updatedAtAfter.toISOString()}`,
+      });
+    }
+    if (offeredAfter) {
+      await deliverFranchiseNotice({
+        applicationId,
+        userId: ownerAfter,
+        type: 'franchise_territory_offered',
+        params: {},
+        actionUrl: '/franchise/status',
+        idempotencyKey: `franchise-territory-offered:${applicationId}:${updatedAtAfter.toISOString()}`,
+      });
+    }
     return res.json(bundle);
   } catch (err) {
     logger.error('Error updating franchise application', { id: applicationId, err: err.message });
@@ -2648,6 +2687,16 @@ async function proposeInterviewSlot(req, res) {
       );
       await client.query('COMMIT');
       const bundle = await fetchFranchiseApplicationBundle(req.params.id);
+      // G12-A3 (D-644): the applicant learns a slot was proposed, instead
+      // of finding out only by opening the status page (a slot can lapse
+      // unbooked while they wait for a message that never comes).
+      await notifyFranchiseApplicant({
+        applicationId: req.params.id,
+        type: 'franchise_interview_proposed',
+        params: { startsAt: rows[0].starts_at.toISOString() },
+        actionUrl: '/franchise/status',
+        idempotencyKey: `franchise-interview-proposed:${rows[0].id}`,
+      });
       return res.status(201).json(bundle);
     } catch (err) {
       await client.query('ROLLBACK');
@@ -3046,6 +3095,20 @@ async function reviewApplicationDocument(req, res) {
       );
       await client.query('COMMIT');
       const bundle = await fetchFranchiseApplicationBundle(req.params.id);
+      // G12-A3 (D-644): the applicant learns their document was accepted
+      // or rejected (with HQ's reason), instead of finding out only by
+      // opening the status page.
+      await notifyFranchiseApplicant({
+        applicationId: req.params.id,
+        type: 'franchise_document_reviewed',
+        params: {
+          fileName: rows[0].file_name,
+          decision: rows[0].status,
+          reasonPart: rows[0].review_reason ? ` Reason: ${rows[0].review_reason}` : '',
+        },
+        actionUrl: '/franchise/status',
+        idempotencyKey: `franchise-document-reviewed:${rows[0].id}:${rows[0].reviewed_at.toISOString()}`,
+      });
       return res.json(bundle);
     } catch (err) {
       await client.query('ROLLBACK');
@@ -3092,10 +3155,11 @@ async function addFollowupMessageAs(req, res, authorRole) {
           return res.status(404).json({ error: 'Franchise application not found.' });
         }
       }
-      await client.query(
+      const inserted = await client.query(
         `INSERT INTO franchise_followup_messages
            (application_id, author_role, author_id, body)
-         VALUES ($1, $2, $3, $4)`,
+         VALUES ($1, $2, $3, $4)
+         RETURNING id`,
         [req.params.id, authorRole, req.user?.id || null, body]
       );
       await logActivity(
@@ -3107,6 +3171,18 @@ async function addFollowupMessageAs(req, res, authorRole) {
         { author_role: authorRole }
       );
       await client.query('COMMIT');
+      // G12-A3 (D-644): an HQ reply notifies the applicant; an applicant
+      // reply does not notify anyone (HQ already works the thread from
+      // its dashboard, and the applicant is the author).
+      if (authorRole !== 'applicant') {
+        await notifyFranchiseApplicant({
+          applicationId: req.params.id,
+          type: 'franchise_followup_replied',
+          params: {},
+          actionUrl: '/franchise/status',
+          idempotencyKey: `franchise-followup-replied:${inserted.rows[0].id}`,
+        });
+      }
       if (authorRole === 'applicant') {
         const detail = await fetchApplicantApplicationDetail(req.params.id, req.user.id);
         return res.status(201).json(detail);
@@ -4901,6 +4977,56 @@ async function deliverTerritoryInvitation({ applicationId, inviteId, email, role
     return { delivered: true };
   } catch (err) {
     logger.warn('Territory invitation delivery failed', { inviteId, error: err.message });
+    return { delivered: false, reason: 'error' };
+  }
+}
+
+// G12-A3 (D-644): applicant notices for the five events the applicant was
+// never told about (status change, territory offer, interview proposed,
+// document reviewed, HQ follow-up reply). Best-effort like the invitation
+// delivery: the underlying change already committed, so a failed notice is
+// warned, never thrown — the applicant can still see the change on
+// /franchise/status. A legacy ownerless row has no applicant account to
+// notify, so the applicant notice is skipped for it. The `type` is a
+// parameter, so the N3 catalog-sync test lists this site in
+// VARIABLE_SITES with its five expansions.
+async function deliverFranchiseNotice({ applicationId, userId, type, params, actionUrl, idempotencyKey }) {
+  if (!userId) return { delivered: false, reason: 'no_recipient' };
+  try {
+    const result = await sendNotification({
+      userId,
+      type,
+      data: { params, application_id: applicationId },
+      action_url: actionUrl,
+      idempotencyKey,
+    });
+    if (!result?.success) {
+      logger.warn('Franchise applicant notice not delivered', { applicationId, type, reason: result?.reason || 'unknown' });
+      return { delivered: false, reason: result?.reason || 'unknown' };
+    }
+    return { delivered: true };
+  } catch (err) {
+    logger.warn('Franchise applicant notice delivery failed', { applicationId, type, error: err.message });
+    return { delivered: false, reason: 'error' };
+  }
+}
+
+async function notifyFranchiseApplicant({ applicationId, type, params, actionUrl, idempotencyKey }) {
+  try {
+    const { rows: [row] } = await db.query(
+      'SELECT applicant_user_id FROM franchise_applications WHERE id = $1',
+      [applicationId]
+    );
+    return deliverFranchiseNotice({
+      applicationId,
+      userId: row?.applicant_user_id || null,
+      type,
+      params,
+      actionUrl,
+      idempotencyKey,
+    });
+  } catch (err) {
+    logger.warn('Franchise applicant lookup failed', { applicationId, type, error: err.message });
     return { delivered: false, reason: 'error' };
   }
 }

@@ -370,6 +370,63 @@ ddescribe('Track C preference toggles (DB)', () => {
       expect(note.action_url).toBe('/franchise/invitations/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     });
 
+    test('the five G12-A3 applicant types send through the real path with resolved titles', async () => {
+      const user = await makeUser();
+      const applicationId = '00000000-0000-0000-0000-000000000000';
+      const sends = [
+        {
+          type: 'franchise_application_status_changed',
+          data: { params: { status: 'approved' }, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12a3-real-send-status-${user.id}`,
+        },
+        {
+          type: 'franchise_territory_offered',
+          data: { params: {}, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12a3-real-send-offer-${user.id}`,
+        },
+        {
+          type: 'franchise_interview_proposed',
+          data: { params: { startsAt: '2026-12-01T15:00:00.000Z' }, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12a3-real-send-interview-${user.id}`,
+        },
+        {
+          type: 'franchise_document_reviewed',
+          data: { params: { fileName: 'capital.pdf', decision: 'rejected', reasonPart: ' Reason: Bank statement is older than 90 days.' }, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12a3-real-send-document-${user.id}`,
+        },
+        {
+          type: 'franchise_followup_replied',
+          data: { params: {}, application_id: applicationId },
+          action_url: '/franchise/status',
+          idempotencyKey: `g12a3-real-send-followup-${user.id}`,
+        },
+      ];
+      for (const send of sends) {
+        const result = await sendNotification({ userId: user.id, ...send });
+        expect(result.success).toBe(true);
+      }
+      const { rows } = await pool.query(
+        `SELECT type, title, body FROM notifications WHERE user_id = $1 AND type LIKE 'franchise_%' ORDER BY created_at ASC`,
+        [user.id],
+      );
+      expect(rows.map((row) => row.type)).toEqual([
+        'franchise_application_status_changed',
+        'franchise_territory_offered',
+        'franchise_interview_proposed',
+        'franchise_document_reviewed',
+        'franchise_followup_replied',
+      ]);
+      for (const row of rows) expect(row.title.length).toBeGreaterThan(0);
+      expect(rows[0].body).toContain('approved');
+      expect(rows[2].body).toContain('2026-12-01T15:00:00.000Z');
+      expect(rows[3].body).toContain('capital.pdf');
+      expect(rows[3].body).toContain('Bank statement is older than 90 days.');
+    });
+
     test('catalog stays in sync with the live sendNotification call sites (N3)', async () => {
       // N3: the catalog is a static snapshot that drifted from the call
       // sites (the batch's own new types had no toggle, and neither did
@@ -492,6 +549,11 @@ ddescribe('Track C preference toggles (DB)', () => {
         // escalation-reply type is NOT here: it is sent by the disputes
         // controller's own sender (safety thread), with a literal type.
         { file: 'utils/toolRentalNotifications.js', name: 'type', expansions: ['tool_rental_payment_proof_submitted', 'tool_rental_payment_confirmed', 'tool_rental_booking_approved', 'tool_rental_booking_declined', 'tool_rental_invoice_sent', 'tool_rental_booking_cancelled', 'tool_rental_return_marked', 'tool_rental_damage_claim_filed', 'tool_rental_damage_claim_resolved', 'tool_rental_damage_claim_acknowledged', 'tool_rental_reschedule_proposed', 'tool_rental_reschedule_approved', 'tool_rental_reschedule_declined', 'tool_rental_refund_proposed', 'tool_rental_refund_confirmed', 'tool_rental_refund_settled', 'tool_rental_deposit_resolved', 'tool_rental_deposit_acknowledged'] },
+        // G12-A3 (D-644): deliverFranchiseNotice fan-out in the franchise
+        // controller; the five types are the only ones its callers pass
+        // (status change, territory offer, interview proposed, document
+        // reviewed, HQ follow-up reply).
+        { file: 'controllers/franchiseController.js', name: 'type', expansions: ['franchise_application_status_changed', 'franchise_territory_offered', 'franchise_interview_proposed', 'franchise_document_reviewed', 'franchise_followup_replied'] },
         // Redis job-data replay: the queued payload is a full
         // notification object produced by a sendNotification caller
         // upstream, so the type already passed through the central

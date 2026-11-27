@@ -37,6 +37,13 @@ const NOTIFICATION_TYPES = [
   // G12-A1 (D-640): territory invitation — the invitee answers on the
   // accept page the notice links to.
   { type: 'franchise_territory_invitation', group: 'work' },
+  // G12-A3 (D-644): applicant notices — status change, territory offer,
+  // interview proposed, document reviewed, HQ follow-up reply.
+  { type: 'franchise_application_status_changed', group: 'work' },
+  { type: 'franchise_territory_offered', group: 'work' },
+  { type: 'franchise_interview_proposed', group: 'work' },
+  { type: 'franchise_document_reviewed', group: 'work' },
+  { type: 'franchise_followup_replied', group: 'work' },
   { type: 'bid_received', group: 'work' },
   { type: 'bid_reconfirmed', group: 'work' },
   // Group 4 Slice C (166-170): counterparty notices for the helper-quote
