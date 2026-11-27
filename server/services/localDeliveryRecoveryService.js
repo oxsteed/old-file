@@ -3,6 +3,7 @@
 const integrity = require('./localDeliveryIntegrity');
 const { normalizeIssueMetadata } = require('./deliveryIssueMetadata');
 const trackingService = require('./deliveryTrackingService');
+const relayService = require('./deliveryPhoneRelayService');
 const {
   createActionRunner, handler, TERMINAL, fail, pickedUp, cleanText,
   lockResources, assignmentOf, windowForJob, checkAssignment, reserve,
@@ -170,6 +171,9 @@ function createRecoveryService(deps = {}) {
         // already refused on it, and the driver's tracking-controls
         // session no longer shows a live session on a finished job.
         await trackingService.endTrackingForJob(client, job.id, 'returned');
+        // S-G2 (D-642): the phone relays end with the job too, in this
+        // same transaction.
+        await relayService.endPhoneRelaysForJob(client, job.id, 'returned');
       } else if (decision === 'rejected') {
         // Preserve custody and owner. Old rows without a trustworthy prior state
         // remain exceptions for explicit operator recovery.

@@ -323,20 +323,30 @@ ddescribe('Group 9 Batch O: stops, notes, waiting notice, relay masking, excepti
     expect(extra.res.statusCode).toBe(201);
   });
 
-  test('471 (G9-A6): the stops phone is masked for the driver with a tel: dial value; recipient confirmation accepts the last 4 digits', async () => {
+  test('471 (G9-A6): the stops phone is masked for the driver with a relay dial value; recipient confirmation accepts the last 4 digits', async () => {
     const customerId = await makeUser('customer');
     const driverId = await makeUser('helper', { defaultMode: 'helper' });
     const otherId = await makeUser('helper', { defaultMode: 'helper' });
-    const job = await makeJob(customerId, { driverId, withStops: true });
+    await pool.query('UPDATE users SET phone_number = $2 WHERE id = $1', [driverId, '5550101777']);
+    const prevPickup = process.env.TWILIO_RELAY_NUMBER_PICKUP;
+    const prevDropoff = process.env.TWILIO_RELAY_NUMBER_DROPOFF;
+    process.env.TWILIO_RELAY_NUMBER_PICKUP = '+15550009111';
+    process.env.TWILIO_RELAY_NUMBER_DROPOFF = '+15550009222';
+    try {
+      const job = await makeJob(customerId, { driverId, withStops: true });
 
-    const driverStops = await call(localDelivery.listStops, {
-      params: { id: String(job.id) }, user: helperUser(driverId),
-    });
-    expect(driverStops.next.error).toBeUndefined();
-    const dropoff = driverStops.res.payload.stops.find((stop) => stop.stop_type === 'dropoff');
-    expect(dropoff.contact_phone).toBe('••••2000');
-    expect(dropoff.contact_phone).not.toContain('5550102000');
-    expect(dropoff.contact_phone_tel).toBe('5550102000');
+      const driverStops = await call(localDelivery.listStops, {
+        params: { id: String(job.id) }, user: helperUser(driverId),
+      });
+      expect(driverStops.next.error).toBeUndefined();
+      const dropoff = driverStops.res.payload.stops.find((stop) => stop.stop_type === 'dropoff');
+      expect(dropoff.contact_phone).toBe('••••2000');
+      expect(dropoff.contact_phone).not.toContain('5550102000');
+      // S-G2 (D-642): the dial value is the relay number now, never the
+      // raw number — and the raw number appears nowhere in the response.
+      expect(dropoff.contact_phone_tel).toBe('+15550009222');
+      expect(JSON.stringify(driverStops.res.payload)).not.toContain('5550102000');
+      expect(JSON.stringify(driverStops.res.payload)).not.toContain('5550101000');
 
     const strangerStops = await call(localDelivery.listStops, {
       params: { id: String(job.id) }, user: helperUser(otherId),
@@ -368,6 +378,167 @@ ddescribe('Group 9 Batch O: stops, notes, waiting notice, relay masking, excepti
       proofType: 'recipient_confirmation', recipientName: 'Dan Destination',
       recipientContact: '9999', confirmed: true,
     }, driverId)).rejects.toMatchObject({ code: 'delivery_recipient_confirmation_required' });
+    } finally {
+      if (prevPickup === undefined) delete process.env.TWILIO_RELAY_NUMBER_PICKUP;
+      else process.env.TWILIO_RELAY_NUMBER_PICKUP = prevPickup;
+      if (prevDropoff === undefined) delete process.env.TWILIO_RELAY_NUMBER_DROPOFF;
+      else process.env.TWILIO_RELAY_NUMBER_DROPOFF = prevDropoff;
+    }
+  });
+
+  // S-G2 (D-642): the relay is issued once per stop and reused; no relay
+  // without a provisioned number or a driver phone on file.
+  test('S-G2: the relay number is issued once per stop and reused; no relay without a provisioned number or a driver phone', async () => {
+    const prevPickup = process.env.TWILIO_RELAY_NUMBER_PICKUP;
+    const prevDropoff = process.env.TWILIO_RELAY_NUMBER_DROPOFF;
+    process.env.TWILIO_RELAY_NUMBER_PICKUP = '+15550009111';
+    process.env.TWILIO_RELAY_NUMBER_DROPOFF = '+15550009222';
+    try {
+      const customerId = await makeUser('customer');
+      const driverId = await makeUser('helper', { defaultMode: 'helper' });
+      await pool.query('UPDATE users SET phone_number = $2 WHERE id = $1', [driverId, '5550101777']);
+      const job = await makeJob(customerId, { driverId, withStops: true });
+
+      const first = await call(localDelivery.listStops, {
+        params: { id: String(job.id) }, user: helperUser(driverId),
+      });
+      expect(first.next.error).toBeUndefined();
+      expect(first.res.payload.stops.find((s) => s.stop_type === 'pickup').contact_phone_tel).toBe('+15550009111');
+      expect(first.res.payload.stops.find((s) => s.stop_type === 'dropoff').contact_phone_tel).toBe('+15550009222');
+      const { rows: relays } = await pool.query(
+        `SELECT stop_key, relay_number, target_phone, status FROM delivery_phone_relays WHERE delivery_job_id = $1 ORDER BY stop_key`,
+        [job.id],
+      );
+      expect(relays).toEqual([
+        { stop_key: 'dropoff', relay_number: '+15550009222', target_phone: '5550102000', status: 'active' },
+        { stop_key: 'pickup', relay_number: '+15550009111', target_phone: '5550101000', status: 'active' },
+      ]);
+
+      const second = await call(localDelivery.listStops, {
+        params: { id: String(job.id) }, user: helperUser(driverId),
+      });
+      expect(second.res.payload.stops.map((s) => s.contact_phone_tel).sort()).toEqual(['+15550009111', '+15550009222']);
+      const { rows: [{ n }] } = await pool.query(
+        `SELECT COUNT(*)::int AS n FROM delivery_phone_relays WHERE delivery_job_id = $1`, [job.id],
+      );
+      expect(n).toBe(2);
+
+      // No relay number provisioned: the stops carry no dial value at
+      // all, and the raw numbers appear nowhere in the response.
+      delete process.env.TWILIO_RELAY_NUMBER_PICKUP;
+      delete process.env.TWILIO_RELAY_NUMBER_DROPOFF;
+      const job2 = await makeJob(customerId, { driverId, withStops: true });
+      const unprovisioned = await call(localDelivery.listStops, {
+        params: { id: String(job2.id) }, user: helperUser(driverId),
+      });
+      expect(unprovisioned.res.payload.stops.every((s) => s.contact_phone_tel === undefined)).toBe(true);
+      expect(JSON.stringify(unprovisioned.res.payload)).not.toContain('5550102000');
+      expect(JSON.stringify(unprovisioned.res.payload)).not.toContain('5550101000');
+
+      // A driver with no phone on file gets no relay either: the webhook
+      // could never match their call.
+      process.env.TWILIO_RELAY_NUMBER_PICKUP = '+15550009111';
+      process.env.TWILIO_RELAY_NUMBER_DROPOFF = '+15550009222';
+      const phonelessId = await makeUser('helper', { defaultMode: 'helper' });
+      const job3 = await makeJob(customerId, { driverId: phonelessId, withStops: true });
+      const phoneless = await call(localDelivery.listStops, {
+        params: { id: String(job3.id) }, user: helperUser(phonelessId),
+      });
+      expect(phoneless.res.payload.stops.every((s) => s.contact_phone_tel === undefined)).toBe(true);
+    } finally {
+      if (prevPickup === undefined) delete process.env.TWILIO_RELAY_NUMBER_PICKUP;
+      else process.env.TWILIO_RELAY_NUMBER_PICKUP = prevPickup;
+      if (prevDropoff === undefined) delete process.env.TWILIO_RELAY_NUMBER_DROPOFF;
+      else process.env.TWILIO_RELAY_NUMBER_DROPOFF = prevDropoff;
+    }
+  });
+
+  // S-G2 (D-642): the webhook bridges a matched caller and rejects
+  // everyone else, with a real Twilio signature.
+  test('S-G2: the relay webhook bridges a matched caller and rejects strangers, bad signatures, and ended jobs', async () => {
+    const prevPickup = process.env.TWILIO_RELAY_NUMBER_PICKUP;
+    const prevDropoff = process.env.TWILIO_RELAY_NUMBER_DROPOFF;
+    const prevToken = process.env.TWILIO_AUTH_TOKEN;
+    process.env.TWILIO_RELAY_NUMBER_PICKUP = '+15550009111';
+    process.env.TWILIO_RELAY_NUMBER_DROPOFF = '+15550009222';
+    process.env.TWILIO_AUTH_TOKEN = 'g9o-relay-test-secret';
+    try {
+      const relayController = require('../controllers/deliveryPhoneRelayController');
+      const customerId = await makeUser('customer');
+      const driverId = await makeUser('helper', { defaultMode: 'helper' });
+      // A distinct driver phone from the other relay tests in this file,
+      // so their still-active relays cannot match this test's calls.
+      await pool.query('UPDATE users SET phone_number = $2 WHERE id = $1', [driverId, '5550101778']);
+      const job = await makeJob(customerId, { driverId, withStops: true });
+      await call(localDelivery.listStops, {
+        params: { id: String(job.id) }, user: helperUser(driverId),
+      });
+
+      const url = 'https://example.invalid/api/delivery/webhooks/phone-relay';
+      function signatureFor(params) {
+        const base = url + Object.keys(params).sort().map((k) => k + params[k]).join('');
+        return crypto.createHmac('sha1', 'g9o-relay-test-secret').update(base).digest('base64');
+      }
+      async function postWebhook(params, signature) {
+        const res = mockRes();
+        res.send = jest.fn((payload) => { res.payload = payload; return res; });
+        res.sendStatus = jest.fn((code) => { res.statusCode = code; return res; });
+        const req = {
+          protocol: 'https',
+          get: (name) => (name.toLowerCase() === 'host' ? 'example.invalid' : undefined),
+          originalUrl: '/api/delivery/webhooks/phone-relay',
+          headers: { 'x-twilio-signature': signature },
+          body: params,
+        };
+        await relayController.handleRelayCall(req, res, mockNext());
+        return res;
+      }
+
+      // The driver calls the dropoff relay: bridged to the dropoff contact.
+      const params = { To: '+15550009222', From: '+15550101778', CallSid: 'CA123' };
+      const bridged = await postWebhook(params, signatureFor(params));
+      expect(bridged.statusCode).toBe(200);
+      expect(bridged.payload).toContain('<Dial');
+      expect(bridged.payload).toContain('<Number>5550102000</Number>');
+      expect(bridged.payload).toContain('callerId="+15550009222"');
+
+      // The pickup relay bridges to the pickup contact instead.
+      const pickupParams = { To: '+15550009111', From: '+15550101778', CallSid: 'CA124' };
+      const pickupBridged = await postWebhook(pickupParams, signatureFor(pickupParams));
+      expect(pickupBridged.payload).toContain('<Number>5550101000</Number>');
+
+      // A stranger calling the relay number is rejected.
+      const strangerParams = { To: '+15550009222', From: '+15550109999', CallSid: 'CA125' };
+      const stranger = await postWebhook(strangerParams, signatureFor(strangerParams));
+      expect(stranger.payload).toContain('<Reject');
+
+      // A bad signature is refused before any resolution.
+      const badSig = await postWebhook(params, 'invalid');
+      expect(badSig.statusCode).toBe(403);
+
+      // Cancelling the job ends the relays, and the webhook refuses after.
+      const cancelled = await call(localDelivery.updateStatus, {
+        params: { id: String(job.id) }, user: customerUser(customerId),
+        headers: { 'idempotency-key': key('g9o-relay-cancel') },
+        body: { status: 'cancelled', reason: 'Customer changed mind' },
+      });
+      expect(cancelled.next.error).toBeUndefined();
+      expect(cancelled.res.payload.job.status).toBe('cancelled');
+      const { rows: ended } = await pool.query(
+        `SELECT status, ended_reason FROM delivery_phone_relays WHERE delivery_job_id = $1`, [job.id],
+      );
+      expect(ended).toHaveLength(2);
+      expect(ended.every((r) => r.status === 'ended' && r.ended_reason === 'cancelled')).toBe(true);
+      const afterEnd = await postWebhook(params, signatureFor(params));
+      expect(afterEnd.payload).toContain('<Reject');
+    } finally {
+      if (prevPickup === undefined) delete process.env.TWILIO_RELAY_NUMBER_PICKUP;
+      else process.env.TWILIO_RELAY_NUMBER_PICKUP = prevPickup;
+      if (prevDropoff === undefined) delete process.env.TWILIO_RELAY_NUMBER_DROPOFF;
+      else process.env.TWILIO_RELAY_NUMBER_DROPOFF = prevDropoff;
+      if (prevToken === undefined) delete process.env.TWILIO_AUTH_TOKEN;
+      else process.env.TWILIO_AUTH_TOKEN = prevToken;
+    }
   });
 
   test('470/475 (G9-A7): the exception summary carries the escalation timer; resume fails closed until ops acks, then restores the job', async () => {

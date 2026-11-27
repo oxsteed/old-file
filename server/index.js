@@ -367,6 +367,14 @@ app.post('/api/restaurant-marketplaces/:integrationId/webhook', webhookRateLimit
 const telematicsWebhookCtrl = require('./controllers/deliveryTelematicsWebhookController');
 app.post('/api/delivery/webhooks/telematics/:provider', webhookRateLimit, express.raw({ type: 'application/json' }), telematicsWebhookCtrl.receiveWebhook);
 
+// S-G2 (D-642): Twilio voice-relay webhook — Twilio calls this when the
+// relay number is dialed. The request carries Twilio's signature, not a
+// user session, so it mounts before the maintenance gate like the other
+// provider webhooks and parses its own urlencoded body (the global
+// parsers mount after the webhook mounts).
+const deliveryPhoneRelayCtrl = require('./controllers/deliveryPhoneRelayController');
+app.post('/api/delivery/webhooks/phone-relay', webhookRateLimit, express.urlencoded({ extended: true, limit: '64kb' }), deliveryPhoneRelayCtrl.handleRelayCall);
+
 // ── RATE LIMITING ────────────────────────────────────────────
 // Review P3-7-F07: maintenance_mode now has a real runtime reader. The gate
 // sits after the webhook mounts (provider webhooks carry their own HMAC auth

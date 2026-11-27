@@ -13,7 +13,8 @@ const { createLinkedSupportTicket } = require('../services/supportTicketLinkServ
 const { canStatusTransition, canInternalAssign, canReleaseToMarketplace, TERMINAL_STATUSES } = require('../services/localDeliveryState');
 const { accrueDriverPayout, approvePayout, markPayoutPaid, voidPayout, getPayout } = require('../services/deliveryDriverPayoutService');
 // Group 9 Slice C (items 462/463): multi-stop sequence + window warnings.
-const { loadJobStops, ensureJobStops, safeStops, normalizeStopInput, computeWindowWarnings, TERMINAL_STATUSES: STOP_TERMINAL_STATUSES } = require('../services/deliveryJobStopsService');
+const { loadJobStops, ensureJobStops, safeStopsWithRelay, normalizeStopInput, computeWindowWarnings, TERMINAL_STATUSES: STOP_TERMINAL_STATUSES } = require('../services/deliveryJobStopsService');
+const relayService = require('../services/deliveryPhoneRelayService');
 // Group 9 Slice D (items 470/475): structured metadata for the wrong-item
 // and recipient-unavailable issue codes.
 const { normalizeIssueMetadata } = require('../services/deliveryIssueMetadata');
@@ -833,7 +834,7 @@ exports.get = async (req,res,next) => {
     const stops = await loadJobStops(pool, job);
     const windowWarnings = computeWindowWarnings(stops);
     res.set('Cache-Control','no-store');
-    res.json({success:true,job:{...customerSafeJob(job,req.user), my_decline: myDecline.rows[0] || null},stops:safeStops(job,req.user,stops),windowWarnings,activity:activity.rows,proofs:proofs.rows,extras:extras.rows,issues:issues.rows,payments:payments.rows,rescheduleRequests:reschedules.rows,redeliveryRequests:redeliveries.rows,returns:returns.rows,itemPhotos});
+    res.json({success:true,job:{...customerSafeJob(job,req.user), my_decline: myDecline.rows[0] || null},stops:await safeStopsWithRelay(pool,job,req.user,stops),windowWarnings,activity:activity.rows,proofs:proofs.rows,extras:extras.rows,issues:issues.rows,payments:payments.rows,rescheduleRequests:reschedules.rows,redeliveryRequests:redeliveries.rows,returns:returns.rows,itemPhotos});
   } catch(error) {next(error);}
 };
 
@@ -858,7 +859,7 @@ exports.listStops = async (req, res, next) => {
   try {
     const job = await loadAuthorizedJob(req.params.id, req.user);
     const stops = await loadJobStops(pool, job);
-    res.json({ success: true, stops: safeStops(job, req.user, stops) });
+    res.json({ success: true, stops: await safeStopsWithRelay(pool, job, req.user, stops) });
   } catch (error) { next(error); }
 };
 
@@ -1384,6 +1385,10 @@ exports.updateStatus = async (req,res,next) => {
       // here, and ingest is refused on the terminal job (see
       // deliveryTrackingController.ingestLocations).
       await trackingService.endTrackingForJob(client, job.id, requested);
+      // S-G2 (D-642): the phone relays end with the job too, in this
+      // same transaction — a relay that outlived its job would keep
+      // bridging calls to a finished job's contacts.
+      await relayService.endPhoneRelaysForJob(client, job.id, requested);
     }
     // Group 9 Slice D (item 467): a mismatched pickup count rides in the
     // delivery_picked_up activity payload, so the existing picked_up

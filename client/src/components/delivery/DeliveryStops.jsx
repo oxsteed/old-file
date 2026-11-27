@@ -126,11 +126,13 @@ export default function DeliveryStops({ job, stops, warnings, isAssigned, isOwne
                 <strong>{stopLabel(stop, t)}</strong>
                 {stop.address && <p>{[stop.address, stop.city, stop.state].filter(Boolean).join(', ')}</p>}
                 {!stop.address && [stop.city, stop.state].filter(Boolean).length > 0 && <p>{[stop.city, stop.state].filter(Boolean).join(', ')}</p>}
-                {/* Group 9 partials Wave 2 Batch O (471, G9-A6, D-546):
-                  the stop phone is masked like the job-level mask
-                  (bullet + last 4); the driver calls through the tel:
-                  link, which carries the number as a dial value only
-                  and never renders it as text. */}
+                {/* S-G2 (D-642): the stop phone is masked like the
+                  job-level mask (bullet + last 4); the driver calls
+                  through the tel: link, which carries the Twilio relay
+                  number as a dial value only and never renders it as
+                  text — the recipient's real number never leaves the
+                  server. When no relay is provisioned there is no call
+                  link at all. */}
                 {stop.contact_name && <p>{stop.contact_name}{stop.contact_phone ? ` ${stop.contact_phone}` : ''}{stop.contact_phone_tel && <>{' '}<a href={`tel:${stop.contact_phone_tel}`} data-track="ui.68852bb3d7.10">{t('delivery.driver.stopCall')}</a></>}</p>}
                 {stop.instructions && <p>{stop.instructions}</p>}
                 {/* Group 9 partials Wave 2 Batch O (462/464, G9-A13,
