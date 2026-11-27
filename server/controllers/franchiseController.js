@@ -1041,7 +1041,12 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
          FROM franchise_application_checklist_items
          GROUP BY application_id
        ) progress ON progress.application_id = fa.id
-      WHERE fa.id = $1 AND (fa.applicant_user_id = $2 OR fa.owner_user_id = $2)`,
+      -- G12-B1 (D-638): the applicant leg is admitted only while the
+      -- application is pre-approval. Once approved/launched, only the
+      -- owner reads the bundle, so an approved handoff revokes the
+      -- outgoing operator's read (the applicant leg used to serve the
+      -- whole bundle, including HQ-only risk notes, indefinitely).
+      WHERE fa.id = $1 AND (fa.owner_user_id = $2 OR (fa.applicant_user_id = $2 AND fa.status NOT IN ('approved', 'launched')))`,
     [applicationId, userId]
   );
 

@@ -604,6 +604,39 @@ describeDb('Group 12 Slice 3i: Transition (641-645)', () => {
         .expect(200);
       expect(outgoingMine.body.total).toBe(1);
       expect(outgoingMine.body.handoffs[0].status).toBe('approved');
+      // G12-B1 (D-638): the territory-stats rollup and helper roster are
+      // owner-only too. The capability gate is set to off so the request
+      // reaches the controller (in enforce mode the revoked grant already
+      // 403s the outgoing operator before the SQL filter is reached).
+      const prevMode = process.env.ACCESS_FRANCHISE_ENFORCEMENT;
+      process.env.ACCESS_FRANCHISE_ENFORCEMENT = 'off';
+      try {
+        const outgoingStats = await request(app)
+          .get('/api/franchise/territory-stats')
+          .set('x-test-user', operator.id)
+          .expect(200);
+        expect(outgoingStats.body.has_territory).toBe(false);
+        // The incoming operator accepts the outstanding offer first: the
+        // stats endpoint stays locked while acceptance is 'offered' (D-307).
+        await request(app)
+          .post(`/api/franchise/my-applications/${applicationId}/acceptance`)
+          .set('x-test-user', incoming.id)
+          .send({ decision: 'accepted' })
+          .expect(200);
+        const incomingStats = await request(app)
+          .get('/api/franchise/territory-stats')
+          .set('x-test-user', incoming.id)
+          .expect(200);
+        expect(incomingStats.body.has_territory).toBe(true);
+        const outgoingHelpers = await request(app)
+          .get('/api/franchise/territory-helpers')
+          .set('x-test-user', operator.id)
+          .expect(200);
+        expect(outgoingHelpers.body.helpers).toEqual([]);
+      } finally {
+        if (prevMode === undefined) delete process.env.ACCESS_FRANCHISE_ENFORCEMENT;
+        else process.env.ACCESS_FRANCHISE_ENFORCEMENT = prevMode;
+      }
     });
   });
 

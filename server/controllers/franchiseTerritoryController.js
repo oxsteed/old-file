@@ -84,7 +84,10 @@ exports.getTerritoryStats = async (req, res) => {
             FROM franchise_application_checklist_items
            GROUP BY application_id
         ) progress ON progress.application_id = fa.id
-       WHERE (fa.applicant_user_id = $1 OR fa.owner_user_id = $1)
+       -- G12-B1 (D-638): approved/launched territories resolve by owner
+       -- only. The applicant leg used to keep serving the rollup to the
+       -- outgoing operator after an approved handoff.
+       WHERE fa.owner_user_id = $1
          AND fa.status IN ('approved','launched')
          ${applicationFilter}
        ORDER BY fa.submitted_at DESC
@@ -265,7 +268,8 @@ exports.getTerritoryHelpers = async (req, res) => {
     const [appRow] = await safeQuery(`
       SELECT fa.id, desired_country, desired_region, desired_city, acceptance_status
         FROM franchise_applications fa
-       WHERE (applicant_user_id = $1 OR owner_user_id = $1)
+       -- G12-B1 (D-638): owner only on approved/launched, same as stats.
+       WHERE owner_user_id = $1
          AND status IN ('approved','launched')
          ${applicationFilter}
        ORDER BY submitted_at DESC LIMIT 1
