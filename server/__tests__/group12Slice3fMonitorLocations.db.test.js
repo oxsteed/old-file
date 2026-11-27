@@ -685,6 +685,34 @@ describeDb('Group 12 Slice 3f: Monitor locations (626-630)', () => {
         .expect(403)
         .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
     });
+
+    test('the queue pages with a cursor and reports the true total (G12-B6)', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      await addTicket(operator, { applicationId, subject: 'First' });
+      await addTicket(operator, { applicationId, subject: 'Second' });
+      await addTicket(operator, { applicationId, subject: 'Third' });
+
+      const first = await queueFor(operator, applicationId, '?limit=2').expect(200);
+      expect(first.body.tickets).toHaveLength(2);
+      expect(first.body.total).toBe(3);
+      expect(first.body.next_before).toBeTruthy();
+      const lastId = first.body.tickets[first.body.tickets.length - 1].id;
+
+      const second = await queueFor(operator, applicationId, `?limit=2&before=${lastId}`).expect(200);
+      expect(second.body.tickets).toHaveLength(1);
+      expect(second.body.total).toBe(3);
+      expect(second.body.next_before).toBeNull();
+      const firstIds = new Set(first.body.tickets.map((t) => t.id));
+      expect(second.body.tickets.every((t) => !firstIds.has(t.id))).toBe(true);
+
+      await queueFor(operator, applicationId, '?before=not-a-uuid')
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_ticket_cursor'));
+      await queueFor(operator, applicationId, `?before=${randomUUID()}`)
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('ticket_cursor_not_found'));
+    });
   });
 
 

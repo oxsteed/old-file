@@ -96,6 +96,10 @@ export default function FranchiseApplicationDetail({ applicationId }) {
   const { user } = useAuth();
   const copy = (key, options) => t(`dashboards.franchise.${key}`, options);
   const [detail, setDetail] = useState(null);
+  // G12-A10 (D-655): older assignment-history pages, appended below the
+  // bundle's first 50 events.
+  const [extraActivity, setExtraActivity] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
   const [reply, setReply] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -109,20 +113,46 @@ export default function FranchiseApplicationDetail({ applicationId }) {
   const [ticketStatus, setTicketStatus] = useState('open');
   const [ticketLocationId, setTicketLocationId] = useState('');
   const [territoryTickets, setTerritoryTickets] = useState([]);
+  const [ticketTotal, setTicketTotal] = useState(null);
+  const [ticketLoadingMore, setTicketLoadingMore] = useState(false);
   const [ticketRefresh, setTicketRefresh] = useState(0);
   useEffect(() => {
     if (!detail || detail.application?.is_operator !== true) {
       setTerritoryTickets([]);
+      setTicketTotal(null);
       return undefined;
     }
     let cancelled = false;
     const params = new URLSearchParams({ status: ticketStatus });
     if (ticketLocationId) params.set('location_id', ticketLocationId);
     api.get(`/franchise/my-applications/${applicationId}/support-tickets?${params.toString()}`)
-      .then((response) => { if (!cancelled) setTerritoryTickets(response.data?.tickets ?? []); })
-      .catch(() => { if (!cancelled) setTerritoryTickets([]); });
+      .then((response) => {
+        if (cancelled) return;
+        setTerritoryTickets(response.data?.tickets ?? []);
+        setTicketTotal(typeof response.data?.total === 'number' ? response.data.total : null);
+      })
+      .catch(() => { if (!cancelled) { setTerritoryTickets([]); setTicketTotal(null); } });
     return () => { cancelled = true; };
   }, [detail, applicationId, ticketStatus, ticketLocationId, ticketRefresh]);
+
+  // G12-B6 (D-660): append the next ticket page, cursoring from the
+  // last shown ticket's id.
+  async function loadMoreTickets() {
+    const last = territoryTickets[territoryTickets.length - 1];
+    if (!last || ticketLoadingMore) return;
+    setTicketLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ status: ticketStatus, before: last.id });
+      if (ticketLocationId) params.set('location_id', ticketLocationId);
+      const response = await api.get(`/franchise/my-applications/${applicationId}/support-tickets?${params.toString()}`);
+      setTerritoryTickets((prev) => [...prev, ...(response.data?.tickets ?? [])]);
+      if (typeof response.data?.total === 'number') setTicketTotal(response.data.total);
+    } catch {
+      setError(copy('ticketsLoadFailed'));
+    } finally {
+      setTicketLoadingMore(false);
+    }
+  }
 
   // Group 12 Slice 3j (649): the territory case tracker for the
   // operator dashboard — the territory's cases in one view.
@@ -130,22 +160,75 @@ export default function FranchiseApplicationDetail({ applicationId }) {
   const [caseType, setCaseType] = useState('all');
   const [caseLocationId, setCaseLocationId] = useState('');
   const [territoryCases, setTerritoryCases] = useState([]);
+  const [caseTotal, setCaseTotal] = useState(null);
+  const [caseLoadingMore, setCaseLoadingMore] = useState(false);
   useEffect(() => {
     if (!detail || detail.application?.is_operator !== true) {
       setTerritoryCases([]);
+      setCaseTotal(null);
       return undefined;
     }
     let cancelled = false;
     const params = new URLSearchParams({ status: caseStatus, type: caseType });
     if (caseLocationId) params.set('location_id', caseLocationId);
     api.get(`/franchise/my-applications/${applicationId}/cases?${params.toString()}`)
-      .then((response) => { if (!cancelled) setTerritoryCases(response.data?.cases ?? []); })
-      .catch(() => { if (!cancelled) setTerritoryCases([]); });
+      .then((response) => {
+        if (cancelled) return;
+        setTerritoryCases(response.data?.cases ?? []);
+        setCaseTotal(typeof response.data?.total === 'number' ? response.data.total : null);
+      })
+      .catch(() => { if (!cancelled) { setTerritoryCases([]); setCaseTotal(null); } });
     return () => { cancelled = true; };
   }, [detail, applicationId, caseStatus, caseType, caseLocationId]);
 
+  // G12-B6 (D-660): append the next case page, cursoring from the last
+  // shown case's id.
+  async function loadMoreCases() {
+    const last = territoryCases[territoryCases.length - 1];
+    if (!last || caseLoadingMore) return;
+    setCaseLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ status: caseStatus, type: caseType, before: last.id });
+      if (caseLocationId) params.set('location_id', caseLocationId);
+      const response = await api.get(`/franchise/my-applications/${applicationId}/cases?${params.toString()}`);
+      setTerritoryCases((prev) => [...prev, ...(response.data?.cases ?? [])]);
+      if (typeof response.data?.total === 'number') setCaseTotal(response.data.total);
+    } catch {
+      setError(copy('casesLoadFailed'));
+    } finally {
+      setCaseLoadingMore(false);
+    }
+  }
+
+  // G12-B6 (D-660): older support-history pages, appended below the
+  // bundle's first 50 events. The cursor is the last shown event's
+  // sort key, "<at>|<ref_id>|<kind>".
+  const [extraHistory, setExtraHistory] = useState([]);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
+  async function loadMoreHistory() {
+    const shown = [...(detail?.support_history?.history || []), ...extraHistory];
+    const last = shown[shown.length - 1];
+    if (!last || historyLoadingMore) return;
+    setHistoryLoadingMore(true);
+    try {
+      const before = `${new Date(last.at).toISOString()}|${last.ref_id}|${last.kind}`;
+      const response = await api.get(`/franchise/my-applications/${applicationId}/support-history?before=${encodeURIComponent(before)}`);
+      setExtraHistory((prev) => [...prev, ...(response.data?.history ?? [])]);
+    } catch {
+      setError(copy('supportHistoryLoadFailed'));
+    } finally {
+      setHistoryLoadingMore(false);
+    }
+  }
+
   useEffect(() => {
     let cancelled = false;
+    // G12-A10 (D-655): older history pages append below the bundle's
+    // first 50; a new application resets them.
+    setExtraActivity([]);
+    // G12-B6 (D-660): older support-history pages append below the
+    // bundle's first 50; a new application resets them.
+    setExtraHistory([]);
     api.get(`/franchise/my-applications/${applicationId}`)
       .then((response) => {
         if (!cancelled) setDetail(response.data);
@@ -157,6 +240,42 @@ export default function FranchiseApplicationDetail({ applicationId }) {
       cancelled = true;
     };
   }, [applicationId]);
+
+  async function loadMoreActivity() {
+    const shown = [...(detail?.activity || []), ...extraActivity];
+    const last = shown[shown.length - 1];
+    if (!last || activityLoading) return;
+    setActivityLoading(true);
+    try {
+      const response = await api.get(`/franchise/my-applications/${applicationId}/activity?before=${last.id}`);
+      setExtraActivity((prev) => [...prev, ...(response.data?.activity || [])]);
+      if (typeof response.data?.total === 'number') {
+        setDetail((prev) => (prev ? { ...prev, activity_total: response.data.total } : prev));
+      }
+    } catch {
+      setError(copy('historyLoadFailed'));
+    } finally {
+      setActivityLoading(false);
+    }
+  }
+
+  async function downloadDocument(doc) {
+    // G12-A11 (D-656): mint the download URL on click — the bundle's
+    // read-time URL is 600s and stale by the time the operator clicks.
+    // The blank window opens in the click handler so the popup blocker
+    // does not swallow the navigation after the fetch.
+    const win = window.open('', '_blank', 'noopener');
+    try {
+      const response = await api.get(`/franchise/my-applications/${applicationId}/documents/${doc.id}/download-url`);
+      const url = response.data?.download_url;
+      if (!url) throw new Error('no download url');
+      if (win) win.location.href = url;
+      else window.location.href = url;
+    } catch {
+      if (win) win.close();
+      setError(copy('docDownloadFailed'));
+    }
+  }
 
   async function bookSlot(slotId) {
     setBusy(true);
@@ -993,10 +1112,10 @@ export default function FranchiseApplicationDetail({ applicationId }) {
                             <div className="fr-doc-file-reason">{copy('docReviewReason')}: {doc.review_reason}</div>
                           )}
                         </div>
-                        {doc.download_url && (
-                          <a className="fr-doc-download" href={doc.download_url} target="_blank" rel="noreferrer" data-track="ui.38155fa446.3">
+                        {!doc.download_unavailable && (
+                          <button type="button" className="fr-doc-download" onClick={() => downloadDocument(doc)} data-track="ui.38155fa446.3">
                             <Download size={14} /> {copy('docDownload')}
-                          </a>
+                          </button>
                         )}
                       </li>
                     ))}
@@ -1127,7 +1246,13 @@ export default function FranchiseApplicationDetail({ applicationId }) {
       />
 
       {/* Group 12 Slice 3e (623): the brand asset store. */}
-      <FranchiseBrandAssets assets={detail.brand_assets || []} />
+      <FranchiseBrandAssets
+        assets={detail.brand_assets || []}
+        onDownload={async (asset) => {
+          const response = await api.get(`/franchise/my-applications/${applicationId}/brand-assets/${asset.id}/download-url`);
+          return response.data?.download_url;
+        }}
+      />
 
       {/* Group 12 Slice 3e (624): the operator compliance checklist. */}
       <FranchiseComplianceChecklist checklist={detail.compliance_checklist || null} />
@@ -1159,6 +1284,9 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         canUnlink={detail.application?.is_operator === true}
         onUnlink={unlinkTicket}
         busy={busy}
+        total={ticketTotal}
+        onLoadMore={loadMoreTickets}
+        loadingMore={ticketLoadingMore}
       />
 
       {/* Group 12 Slice 3j (648, D-349): training escalation — a training
@@ -1186,7 +1314,11 @@ export default function FranchiseApplicationDetail({ applicationId }) {
 
       {/* Group 12 Slice 3j (650, D-351): the franchise support history
           — the territory's support interactions in chronological order. */}
-      <FranchiseSupportHistory history={detail.support_history || null} />
+      <FranchiseSupportHistory
+        history={detail.support_history ? { ...detail.support_history, history: [...(detail.support_history.history || []), ...extraHistory] } : null}
+        onLoadMore={loadMoreHistory}
+        loadingMore={historyLoadingMore}
+      />
 
       {/* Group 12 Slice 3j (649, D-350): the territory case tracker —
           tickets, policy questions, training escalations, and handoffs
@@ -1201,6 +1333,9 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         onTypeChange={setCaseType}
         onLocationChange={setCaseLocationId}
         busy={busy}
+        total={caseTotal}
+        onLoadMore={loadMoreCases}
+        loadingMore={caseLoadingMore}
       />
 
       {/* Group 12 Slice 3j (646, D-347): franchise-scoped policy
@@ -1284,14 +1419,22 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         </div>
 
         {(detail.activity || []).length > 0 ? (
-          <ul className="fr-history-list">
-            {(detail.activity || []).map((event) => (
-              <li key={event.id} className="fr-history-item">
-                <div className="fr-history-when">{formatDateTime(event.created_at)}</div>
-                <div className="fr-history-summary">{event.event_summary}</div>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="fr-history-list">
+              {[...(detail.activity || []), ...extraActivity].map((event) => (
+                <li key={event.id} className="fr-history-item">
+                  <div className="fr-history-when">{formatDateTime(event.created_at)}</div>
+                  <div className="fr-history-summary">{event.event_summary}</div>
+                </li>
+              ))}
+            </ul>
+            {typeof detail.activity_total === 'number'
+              && (detail.activity || []).length + extraActivity.length < detail.activity_total && (
+              <button type="button" className="fr-btn-ghost" disabled={activityLoading} onClick={loadMoreActivity} data-track="ui.38155fa446.10">
+                {copy('historyShowMore', { count: detail.activity_total - ((detail.activity || []).length + extraActivity.length) })}
+              </button>
+            )}
+          </>
         ) : (
           <p className="fr-detail-empty">{copy('historyEmpty')}</p>
         )}

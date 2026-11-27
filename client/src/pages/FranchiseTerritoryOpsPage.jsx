@@ -246,39 +246,113 @@ export default function FranchiseTerritoryOpsPage() {
   const [caseType, setCaseType] = useState('all');
   const [caseLocationId, setCaseLocationId] = useState('');
   const [territoryCases, setTerritoryCases] = useState([]);
+  const [caseTotal, setCaseTotal] = useState(null);
+  const [caseLoadingMore, setCaseLoadingMore] = useState(false);
   useEffect(() => {
     if (!resolvedApplicationId || territoryBlocked) {
       setTerritoryCases([]);
+      setCaseTotal(null);
       return undefined;
     }
     let cancelled = false;
     const params = new URLSearchParams({ status: caseStatus, type: caseType });
     if (caseLocationId) params.set('location_id', caseLocationId);
     api.get(`/franchise/my-applications/${resolvedApplicationId}/cases?${params.toString()}`)
-      .then((res) => { if (!cancelled) setTerritoryCases(res.data?.cases ?? []); })
-      .catch(() => { if (!cancelled) setTerritoryCases([]); });
+      .then((res) => {
+        if (cancelled) return;
+        setTerritoryCases(res.data?.cases ?? []);
+        setCaseTotal(typeof res.data?.total === 'number' ? res.data.total : null);
+      })
+      .catch(() => { if (!cancelled) { setTerritoryCases([]); setCaseTotal(null); } });
     return () => { cancelled = true; };
   }, [resolvedApplicationId, territoryBlocked, caseStatus, caseType, caseLocationId]);
+
+  // G12-B6 (D-660): append the next case page, cursoring from the last
+  // shown case's id.
+  async function loadMoreCases() {
+    const last = territoryCases[territoryCases.length - 1];
+    if (!last || !resolvedApplicationId || caseLoadingMore) return;
+    setCaseLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ status: caseStatus, type: caseType, before: last.id });
+      if (caseLocationId) params.set('location_id', caseLocationId);
+      const res = await api.get(`/franchise/my-applications/${resolvedApplicationId}/cases?${params.toString()}`);
+      setTerritoryCases((prev) => [...prev, ...(res.data?.cases ?? [])]);
+      if (typeof res.data?.total === 'number') setCaseTotal(res.data.total);
+    } catch {
+      setError(t('dashboards.franchise.casesLoadFailed'));
+    } finally {
+      setCaseLoadingMore(false);
+    }
+  }
 
   // Group 12 Slice 3f (629): the territory ticket queue — the
   // territory's open support requests, filterable by status and location.
   const [ticketStatus, setTicketStatus] = useState('open');
   const [ticketLocationId, setTicketLocationId] = useState('');
   const [territoryTickets, setTerritoryTickets] = useState([]);
+  const [ticketTotal, setTicketTotal] = useState(null);
+  const [ticketLoadingMore, setTicketLoadingMore] = useState(false);
   const [ticketRefresh, setTicketRefresh] = useState(0);
   useEffect(() => {
     if (!resolvedApplicationId || territoryBlocked) {
       setTerritoryTickets([]);
+      setTicketTotal(null);
       return undefined;
     }
     let cancelled = false;
     const params = new URLSearchParams({ status: ticketStatus });
     if (ticketLocationId) params.set('location_id', ticketLocationId);
     api.get(`/franchise/my-applications/${resolvedApplicationId}/support-tickets?${params.toString()}`)
-      .then((res) => { if (!cancelled) setTerritoryTickets(res.data?.tickets ?? []); })
-      .catch(() => { if (!cancelled) setTerritoryTickets([]); });
+      .then((res) => {
+        if (cancelled) return;
+        setTerritoryTickets(res.data?.tickets ?? []);
+        setTicketTotal(typeof res.data?.total === 'number' ? res.data.total : null);
+      })
+      .catch(() => { if (!cancelled) { setTerritoryTickets([]); setTicketTotal(null); } });
     return () => { cancelled = true; };
   }, [resolvedApplicationId, territoryBlocked, ticketStatus, ticketLocationId, ticketRefresh]);
+
+  // G12-B6 (D-660): append the next ticket page, cursoring from the
+  // last shown ticket's id.
+  async function loadMoreTickets() {
+    const last = territoryTickets[territoryTickets.length - 1];
+    if (!last || !resolvedApplicationId || ticketLoadingMore) return;
+    setTicketLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ status: ticketStatus, before: last.id });
+      if (ticketLocationId) params.set('location_id', ticketLocationId);
+      const res = await api.get(`/franchise/my-applications/${resolvedApplicationId}/support-tickets?${params.toString()}`);
+      setTerritoryTickets((prev) => [...prev, ...(res.data?.tickets ?? [])]);
+      if (typeof res.data?.total === 'number') setTicketTotal(res.data.total);
+    } catch {
+      setError(t('dashboards.franchise.ticketsLoadFailed'));
+    } finally {
+      setTicketLoadingMore(false);
+    }
+  }
+
+  // G12-B6 (D-660): older support-history pages, appended below the
+  // boundary detail's first 50 events. The cursor is the last shown
+  // event's sort key, "<at>|<ref_id>|<kind>".
+  const [extraHistory, setExtraHistory] = useState([]);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
+  useEffect(() => { setExtraHistory([]); }, [resolvedApplicationId]);
+  async function loadMoreHistory() {
+    const shown = [...(boundaryDetail?.support_history?.history || []), ...extraHistory];
+    const last = shown[shown.length - 1];
+    if (!last || !resolvedApplicationId || historyLoadingMore) return;
+    setHistoryLoadingMore(true);
+    try {
+      const before = `${new Date(last.at).toISOString()}|${last.ref_id}|${last.kind}`;
+      const res = await api.get(`/franchise/my-applications/${resolvedApplicationId}/support-history?before=${encodeURIComponent(before)}`);
+      setExtraHistory((prev) => [...prev, ...(res.data?.history ?? [])]);
+    } catch {
+      setError(t('dashboards.franchise.supportHistoryLoadFailed'));
+    } finally {
+      setHistoryLoadingMore(false);
+    }
+  }
 
   // Group 12 Slice 3f (630): the territory coverage trend for the
   // resolved territory — coverage % by day and by week over time.
@@ -879,6 +953,11 @@ export default function FranchiseTerritoryOpsPage() {
 
   // ── Not launched yet ─────────────────────────────────────────
   if (!loading && stats && !stats.has_territory) {
+    // G12-A13 (D-658): when an offer is outstanding, the blocker is
+    // the unanswered assignment, not approval or activation — the
+    // application is already approved. Say so, and send the operator
+    // to the offer instead of the generic apply flow.
+    const offerPending = stats.acceptance_status === 'offered';
     return (
       <PageShell>
         <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center px-4">
@@ -889,15 +968,21 @@ export default function FranchiseTerritoryOpsPage() {
             </div>
             <h1 className="text-2xl font-bold">{t('franchiseTerritoryPage.noTerritory.title')}</h1>
             <p className="text-gray-400 text-sm leading-relaxed">
-              {t('franchiseTerritoryPage.noTerritory.description')}
+              {offerPending
+                ? t('franchiseTerritoryPage.noTerritory.offeredDescription')
+                : t('franchiseTerritoryPage.noTerritory.description')}
             </p>
             <div className="flex gap-3 justify-center flex-wrap">
               <Link to="/franchise/status" className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition">
-                {t('franchiseTerritoryPage.noTerritory.viewApplication')} <ArrowRight size={14} />
+                {offerPending
+                  ? t('franchiseTerritoryPage.noTerritory.reviewOffer')
+                  : t('franchiseTerritoryPage.noTerritory.viewApplication')} <ArrowRight size={14} />
               </Link>
-              <Link to="/franchise/apply" className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-gray-700 text-sm font-semibold hover:bg-gray-800 transition">
-                {t('franchiseTerritoryPage.noTerritory.applyNow')}
-              </Link>
+              {!offerPending && (
+                <Link to="/franchise/apply" className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-gray-700 text-sm font-semibold hover:bg-gray-800 transition">
+                  {t('franchiseTerritoryPage.noTerritory.applyNow')}
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -1246,7 +1331,13 @@ export default function FranchiseTerritoryOpsPage() {
           {/* Group 12 Slice 3e (623): the brand asset store — HQ uploads,
               operators browse and download from the territory ops page. */}
           {boundaryDetail && (
-            <FranchiseBrandAssets assets={boundaryDetail.brand_assets || []} />
+            <FranchiseBrandAssets
+              assets={boundaryDetail.brand_assets || []}
+              onDownload={async (asset) => {
+                const response = await api.get(`/franchise/my-applications/${resolvedApplicationId}/brand-assets/${asset.id}/download-url`);
+                return response.data?.download_url;
+              }}
+            />
           )}
 
           {/* Group 12 Slice 3e (624): the operator compliance checklist —
@@ -1288,6 +1379,9 @@ export default function FranchiseTerritoryOpsPage() {
               onLocationChange={setTicketLocationId}
               canUnlink
               onUnlink={unlinkTicket}
+              total={ticketTotal}
+              onLoadMore={loadMoreTickets}
+              loadingMore={ticketLoadingMore}
             />
           )}
 
@@ -1395,7 +1489,11 @@ export default function FranchiseTerritoryOpsPage() {
               history — the territory's support interactions in
               chronological order, derived from the records. */}
           {boundaryDetail && (
-            <FranchiseSupportHistory history={boundaryDetail.support_history || null} />
+            <FranchiseSupportHistory
+              history={boundaryDetail.support_history ? { ...boundaryDetail.support_history, history: [...(boundaryDetail.support_history.history || []), ...extraHistory] } : null}
+              onLoadMore={loadMoreHistory}
+              loadingMore={historyLoadingMore}
+            />
           )}
 
           {/* Group 12 Slice 3j (649, D-350): the territory case tracker
@@ -1411,6 +1509,9 @@ export default function FranchiseTerritoryOpsPage() {
               onStatusChange={setCaseStatus}
               onTypeChange={setCaseType}
               onLocationChange={setCaseLocationId}
+              total={caseTotal}
+              onLoadMore={loadMoreCases}
+              loadingMore={caseLoadingMore}
             />
           )}
 

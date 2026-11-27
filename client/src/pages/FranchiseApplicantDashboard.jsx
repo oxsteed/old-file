@@ -66,9 +66,13 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-function formatMoney(cents) {
+function formatMoney(cents, currencyCode) {
   if (cents == null || Number.isNaN(Number(cents))) return '—';
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(cents) / 100);
+  // G12-A9 (D-654): capital is formatted in the program/agreement
+  // currency, not hardcoded USD — a EUR/HTG-program applicant used to
+  // see their capital mislabeled as dollars.
+  const code = /^[A-Za-z]{3}$/.test(String(currencyCode || '')) ? String(currencyCode).toUpperCase() : 'USD';
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: code, maximumFractionDigits: 0 }).format(Number(cents) / 100);
 }
 
 function ProgressRing({ pct, label = 'Progress' }) {
@@ -161,7 +165,13 @@ export default function FranchiseApplicantDashboard() {
     [applications]
   );
 
-  const primary = sortedApplications[0] || null;
+  // G12-A9 (D-654): the detail below used to show only the newest
+  // application, and the all-applications rows were inert. Each row now
+  // selects its application, so an applicant with two territories can
+  // view either one's interviews, documents, and offer.
+  const [selectedApplicationId, setSelectedApplicationId] = useState(null);
+  const primary = sortedApplications.find((a) => a.id === selectedApplicationId)
+    || sortedApplications[0] || null;
   const labels = STATUS_LABELS(t);
   const projectedAccess = accessProjection?.access || accessProjection;
   const projectionControlsTerritory = Boolean(accessProjection?.flags?.accessProjection);
@@ -285,10 +295,10 @@ export default function FranchiseApplicantDashboard() {
                   {copy('capitalProfile')}
                 </div>
                 <div className="mt-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                  {copy('availableCapital')}: <strong style={{ color: 'var(--color-text)' }}>{formatMoney(primary.available_capital_cents)}</strong>
+                  {copy('availableCapital')}: <strong style={{ color: 'var(--color-text)' }}>{formatMoney(primary.available_capital_cents, primary.currency)}</strong>
                 </div>
                 <div className="mt-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                  {copy('liquidCapital')}: <strong style={{ color: 'var(--color-text)' }}>{formatMoney(primary.liquid_capital_cents)}</strong>
+                  {copy('liquidCapital')}: <strong style={{ color: 'var(--color-text)' }}>{formatMoney(primary.liquid_capital_cents, primary.currency)}</strong>
                 </div>
                 <div className="mt-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
                   {copy('storeGoal')}: <strong style={{ color: 'var(--color-text)' }}>{primary.preferred_store_count || 1}</strong>
@@ -365,7 +375,14 @@ export default function FranchiseApplicantDashboard() {
             </header>
             <div className="divide-y" style={{ borderColor: 'rgba(148,163,184,0.12)' }}>
               {sortedApplications.map((application) => (
-                <div key={application.id} className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+                <button
+                  key={application.id}
+                  type="button"
+                  onClick={() => setSelectedApplicationId(application.id)}
+                  aria-current={application.id === primary.id}
+                  className="w-full px-6 py-4 flex items-center justify-between gap-4 flex-wrap text-left hover:bg-[rgba(148,163,184,0.06)]"
+                  style={application.id === primary.id ? { background: 'var(--color-surface-translucent)' } : undefined} data-track="ui.6f6d4e68c6.1"
+                >
                   <div>
                     <div className="font-semibold">
                       {application.desired_brand_name || application.current_company_name || copy('applicationNumber', { id: application.id })}
@@ -377,7 +394,7 @@ export default function FranchiseApplicantDashboard() {
                   <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
                     {application.desired_country ? ALL_COUNTRIES[application.desired_country] || application.desired_country : '—'}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </section>

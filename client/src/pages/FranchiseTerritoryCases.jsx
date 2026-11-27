@@ -29,6 +29,11 @@ export default function FranchiseTerritoryCases({
   onTypeChange = null,
   onLocationChange = null,
   busy = false,
+  // G12-B6 (D-660): the tracker pages past 100 — total is the true
+  // case count and onLoadMore appends the next cursor page.
+  total = null,
+  onLoadMore = null,
+  loadingMore = false,
 }) {
   const { t } = useTranslation();
   const copy = (key, options) => t(`dashboards.franchise.${key}`, options);
@@ -103,49 +108,56 @@ export default function FranchiseTerritoryCases({
       {cases.length === 0 ? (
         <p className="fr-detail-empty">{copy('casesEmpty')}</p>
       ) : (
-        <ul className="fr-doc-files">
-          {cases.map((row) => (
-            <li key={`${row.kind}-${row.id}`} className="fr-doc-file">
-              <div>
-                <div className="fr-doc-file-name">
-                  {row.ticket_number ? `#${row.ticket_number} — ` : ''}
-                  {row.title}
-                </div>
-                <div className="fr-doc-file-meta">
-                  {copy(`casesType_${row.kind}`)}
-                  {' · '}
-                  {row.status}
-                  {row.priority && (
-                    <>
-                      {' · '}
-                      {row.priority}
-                    </>
+        <>
+          <ul className="fr-doc-files">
+            {cases.map((row) => (
+              <li key={`${row.kind}-${row.id}`} className="fr-doc-file">
+                <div>
+                  <div className="fr-doc-file-name">
+                    {row.ticket_number ? `#${row.ticket_number} — ` : ''}
+                    {row.title}
+                  </div>
+                  <div className="fr-doc-file-meta">
+                    {copy(`casesType_${row.kind}`)}
+                    {' · '}
+                    {row.status}
+                    {row.priority && (
+                      <>
+                        {' · '}
+                        {row.priority}
+                      </>
+                    )}
+                    {' · '}
+                    {row.location_name || copy('exceptionTerritoryWide')}
+                    {row.actor_name && (
+                      <>
+                        {' · '}
+                        {row.actor_name}
+                      </>
+                    )}
+                    {' · '}
+                    {formatDate(row.created_at)}
+                  </div>
+                  {row.summary && row.kind !== 'ticket' && (
+                    <div className="fr-doc-file-meta">{row.summary}</div>
                   )}
-                  {' · '}
-                  {row.location_name || copy('exceptionTerritoryWide')}
-                  {row.actor_name && (
-                    <>
-                      {' · '}
-                      {row.actor_name}
-                    </>
-                  )}
-                  {' · '}
-                  {formatDate(row.created_at)}
                 </div>
-                {row.summary && row.kind !== 'ticket' && (
-                  <div className="fr-doc-file-meta">{row.summary}</div>
-                )}
-              </div>
-              <div>
-                {(row.kind === 'ticket' || row.kind === 'policy_question') && (
-                  <Link to={`/support/my-tickets/${row.id}`} className="fr-btn-ghost">
-                    {copy('exceptionViewTicket')}
-                  </Link>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+                <div>
+                  {(row.kind === 'ticket' || row.kind === 'policy_question') && (
+                    <Link to={`/support/my-tickets/${row.id}`} className="fr-btn-ghost">
+                      {copy('exceptionViewTicket')}
+                    </Link>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+          {typeof total === 'number' && cases.length < total && onLoadMore && (
+            <button type="button" className="fr-btn-ghost" disabled={loadingMore} onClick={onLoadMore} data-track="ui.44c4e76140.1">
+              {copy('casesShowMore', { count: total - cases.length })}
+            </button>
+          )}
+        </>
       )}
     </section>
   );

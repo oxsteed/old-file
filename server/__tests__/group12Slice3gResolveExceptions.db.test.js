@@ -726,6 +726,46 @@ describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
         .set('x-test-user', (await addUser()).id)
         .expect(404);
     });
+
+    test('a remediation-less action can be advanced by its creator, but never verified by them (G12-B8)', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      // A bare ticket carries no remediation, so the action has none either.
+      const ticket = await addTicket(operator, { applicationId });
+      const created = await createAction(operator, applicationId, ticket, { title: 'Sweep the floor' }).expect(201);
+      const actionId = created.body.action.id;
+      expect(created.body.action.remediation_owner_id).toBeNull();
+
+      // A member who is neither creator nor owner cannot move it.
+      const otherMember = await addUser();
+      await db.query(
+        `INSERT INTO helper_profiles (user_id, service_city, service_state, avg_rating, total_reviews, is_available_now)
+         VALUES ($1, 'Austin', 'TX', 4.9, 1, TRUE)`,
+        [otherMember.id],
+      );
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/opening-team`)
+        .set('x-test-user', operator.id)
+        .send({ helper_user_id: otherMember.id, role: 'member' })
+        .expect(201);
+      await moveAction(otherMember, applicationId, actionId, 'in_progress')
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('corrective_action_not_assignee'));
+
+      // The creator walks it open -> in_progress -> resolved.
+      expect((await moveAction(operator, applicationId, actionId, 'in_progress').expect(200)).body.action.status)
+        .toBe('in_progress');
+      expect((await moveAction(operator, applicationId, actionId, 'resolved').expect(200)).body.action.status)
+        .toBe('resolved');
+      // The creator still cannot verify their own work.
+      await moveAction(operator, applicationId, actionId, 'verified')
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('corrective_action_review_hq_only'));
+      // HQ verifies.
+      expect((await moveAction(admin, applicationId, actionId, 'verified', true).expect(200)).body.action.status)
+        .toBe('verified');
+    });
   });
 
   describe('634: evidence submission', () => {

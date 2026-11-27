@@ -592,4 +592,129 @@ describeDb('Group 12 Slice 3a: Enter program (604, 603, 605)', () => {
         .expect(404);
     });
   });
+
+  describe('G12-A10/A11: assignment-history paging and on-click download URLs', () => {
+    test('the detail caps history at 50 with the true total, and /activity pages older events', async () => {
+      const applicant = await addUser();
+      const applicationId = await makeApplication(applicant);
+      // 55 plain events, newest first by created_at.
+      for (let i = 0; i < 55; i += 1) {
+        await db.query(
+          `INSERT INTO franchise_activity_log (application_id, actor_id, event_type, event_summary, created_at)
+           VALUES ($1, NULL, 'status_changed', $2, NOW() - ($3 || ' seconds')::interval)`,
+          [applicationId, `Event ${i}`, String(i)]
+        );
+      }
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      expect(detail.body.activity).toHaveLength(50);
+      // 55 seeded events plus the creation event the intake logs.
+      expect(detail.body.activity_total).toBe(56);
+
+      const first = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/activity`)
+        .set('x-test-user', applicant)
+        .expect(200);
+      expect(first.body.activity).toHaveLength(50);
+      expect(first.body.total).toBe(56);
+      expect(first.body.next_before).toBeTruthy();
+      const lastId = first.body.activity[first.body.activity.length - 1].id;
+
+      const second = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/activity?before=${lastId}`)
+        .set('x-test-user', applicant)
+        .expect(200);
+      expect(second.body.activity).toHaveLength(6);
+      expect(second.body.total).toBe(56);
+      expect(second.body.next_before).toBeNull();
+      // No overlap between the pages.
+      const firstIds = new Set(first.body.activity.map((event) => event.id));
+      expect(second.body.activity.every((event) => !firstIds.has(event.id))).toBe(true);
+
+      // A stranger gets the same 404 as a missing application.
+      const stranger = await addUser();
+      await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/activity`)
+        .set('x-test-user', stranger)
+        .expect(404);
+      // A malformed cursor is a 400; an unknown one is a 404.
+      await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/activity?before=not-an-id`)
+        .set('x-test-user', applicant)
+        .expect(400);
+      await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/activity?before=999999999`)
+        .set('x-test-user', applicant)
+        .expect(404);
+    });
+
+    test('the document download URL is minted on click, fresh each time', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+      const uploaded = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/documents`)
+        .set('x-test-user', applicant)
+        .field('category', 'identity')
+        .attach('file', PDF_BYTES, 'id.pdf')
+        .expect(201);
+      const doc = uploaded.body.documents[0];
+
+      const minted = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/documents/${doc.id}/download-url`)
+        .set('x-test-user', applicant)
+        .expect(200);
+      expect(typeof minted.body.download_url).toBe('string');
+      expect(minted.body.download_url).toContain('/api/storage/files/franchise-documents/');
+      // HQ's admin twin mints the same way.
+      const adminMinted = await request(app)
+        .get(`/api/franchise/applications/${applicationId}/documents/${doc.id}/download-url`)
+        .set('x-test-user', admin)
+        .expect(200);
+      expect(typeof adminMinted.body.download_url).toBe('string');
+
+      const stranger = await addUser();
+      await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/documents/${doc.id}/download-url`)
+        .set('x-test-user', stranger)
+        .expect(404);
+      await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/documents/${randomUUID()}/download-url`)
+        .set('x-test-user', applicant)
+        .expect(404);
+    });
+
+    test('the application list carries the agreement currency (G12-A9)', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      // The agreement row is created at intake with the program's
+      // default currency (USD); the list carries it from the start.
+      const before = await request(app)
+        .get('/api/franchise/my-applications')
+        .set('x-test-user', applicant)
+        .expect(200);
+      expect(before.body.applications.find((row) => row.id === applicationId).currency).toBe('USD');
+
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ status: 'approved' })
+        .expect(200);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/agreement/sign`)
+        .set('x-test-user', applicant)
+        .send({ signed_by_name: 'Franchise Fixture' })
+        .expect(200);
+      await db.query(
+        "UPDATE franchise_agreements SET currency = 'EUR' WHERE application_id = $1",
+        [applicationId],
+      );
+      const after = await request(app)
+        .get('/api/franchise/my-applications')
+        .set('x-test-user', applicant)
+        .expect(200);
+      expect(after.body.applications.find((row) => row.id === applicationId).currency).toBe('EUR');
+    });
+  });
 });

@@ -276,11 +276,11 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
     return request(app).get(`${base}${query}`).set('x-test-user', user.id);
   }
 
-  function supportHistoryAs(user, applicationId, asAdmin = false) {
+  function supportHistoryAs(user, applicationId, asAdmin = false, query = '') {
     const base = asAdmin
       ? `/api/franchise/applications/${applicationId}/support-history`
       : `/api/franchise/my-applications/${applicationId}/support-history`;
-    return request(app).get(base).set('x-test-user', user.id);
+    return request(app).get(`${base}${query}`).set('x-test-user', user.id);
   }
 
   describe('646: policy question intake', () => {
@@ -761,6 +761,34 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
         .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
       await listCasesAs(stranger, applicationId).expect(404);
     });
+
+    test('the tracker pages with a cursor and reports the true total (G12-B6)', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApprovedApplication(operator);
+      await addTicket(operator, { applicationId, subject: 'First' });
+      await addTicket(operator, { applicationId, subject: 'Second' });
+      await addTicket(operator, { applicationId, subject: 'Third' });
+
+      const first = await listCasesAs(operator, applicationId, '?status=all&limit=2').expect(200);
+      expect(first.body.cases).toHaveLength(2);
+      expect(first.body.total).toBe(3);
+      expect(first.body.next_before).toBeTruthy();
+      const lastId = first.body.cases[first.body.cases.length - 1].id;
+
+      const second = await listCasesAs(operator, applicationId, `?status=all&limit=2&before=${lastId}`).expect(200);
+      expect(second.body.cases).toHaveLength(1);
+      expect(second.body.total).toBe(3);
+      expect(second.body.next_before).toBeNull();
+      const firstIds = new Set(first.body.cases.map((c) => c.id));
+      expect(second.body.cases.every((c) => !firstIds.has(c.id))).toBe(true);
+
+      await listCasesAs(operator, applicationId, '?status=all&before=not-a-uuid')
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_case_cursor'));
+      await listCasesAs(operator, applicationId, `?status=all&before=${randomUUID()}`)
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('case_cursor_not_found'));
+    });
   });
 
   describe('650: franchise support history', () => {
@@ -894,6 +922,37 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
         .expect(403)
         .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
       await supportHistoryAs(stranger, applicationId).expect(404);
+    });
+
+    test('the history pages with a cursor and reports the true total (G12-B6)', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApprovedApplication(operator);
+      const firstTicket = await addTicket(operator, { applicationId, subject: 'First' });
+      await addTicket(operator, { applicationId, subject: 'Second' });
+      // Resolving the first ticket adds a second event for it.
+      await db.query(
+        `UPDATE support_tickets SET status = 'resolved', resolved_at = NOW() WHERE id = $1`,
+        [firstTicket.id],
+      );
+
+      const first = await supportHistoryAs(operator, applicationId, false, '?limit=2').expect(200);
+      expect(first.body.history).toHaveLength(2);
+      expect(first.body.total).toBe(3);
+      expect(first.body.summary.total_events).toBe(3);
+      expect(first.body.next_before).toBeTruthy();
+
+      const second = await supportHistoryAs(
+        operator, applicationId, false, `?limit=2&before=${encodeURIComponent(first.body.next_before)}`,
+      ).expect(200);
+      expect(second.body.history).toHaveLength(1);
+      expect(second.body.total).toBe(3);
+      expect(second.body.next_before).toBeNull();
+      const firstKeys = new Set(first.body.history.map((e) => `${e.kind}|${e.ref_id}|${e.at}`));
+      expect(second.body.history.every((e) => !firstKeys.has(`${e.kind}|${e.ref_id}|${e.at}`))).toBe(true);
+
+      await supportHistoryAs(operator, applicationId, false, '?before=not-a-cursor')
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_history_cursor'));
     });
   });
 });

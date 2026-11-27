@@ -26,6 +26,9 @@ const {
   recordFranchiseFeeCollection,
   activateFranchiseStore,
   getMyFranchiseApplication,
+  listApplicationActivity,
+  getDocumentDownloadUrl,
+  getBrandAssetDownloadUrl,
   proposeInterviewSlot,
   updateInterviewSlot,
   bookInterviewSlot,
@@ -197,6 +200,9 @@ router.get('/my-applications',     authenticate, requireFranchiseEnabled, listMy
 // Group 12 Slice 3a: applicant detail + interview booking + document
 // upload + follow-up replies, all scoped to the applicant's own application.
 router.get('/my-applications/:id', authenticate, requireFranchiseEnabled, getMyFranchiseApplication);
+router.get('/my-applications/:id/activity', authenticate, requireFranchiseEnabled, listApplicationActivity);
+router.get('/my-applications/:id/documents/:docId/download-url', authenticate, requireFranchiseEnabled, (req, res) => getDocumentDownloadUrl(req, res));
+router.get('/my-applications/:id/brand-assets/:assetId/download-url', authenticate, requireFranchiseEnabled, (req, res) => getBrandAssetDownloadUrl(req, res));
 router.post('/my-applications/:id/interviews/:slotId/book', authenticate, requireFranchiseEnabled, bookInterviewSlot);
 router.post('/my-applications/:id/interviews/:slotId/cancel', authenticate, requireFranchiseEnabled, cancelInterviewBooking);
 router.post('/my-applications/:id/documents', authenticate, requireFranchiseEnabled, upload.single('file'), validateFileUpload, uploadApplicationDocument);
@@ -358,6 +364,10 @@ router.post('/applications/:id/notes', authenticate, requireAdmin, requirePermis
 router.patch('/applications/:id/checklist/:itemId', authenticate, requireAdmin, requirePermission('manage_operations'), updateChecklistItem);
 // Group 12 Slice 3a: HQ interview slots, document review, follow-up replies.
 router.post('/applications/:id/interviews', authenticate, requireAdmin, requirePermission('manage_operations'), proposeInterviewSlot);
+// G12-A11 (D-656): HQ's on-click document download mint, matching the
+// operator endpoint — the bundle's read-time URL is 600s and stale.
+router.get('/applications/:id/documents/:docId/download-url', authenticate, requireAdmin, requirePermission('manage_operations'), (req, res) => getDocumentDownloadUrl(req, res, { asAdmin: true }));
+router.get('/applications/:id/brand-assets/:assetId/download-url', authenticate, requireAdmin, requirePermission('manage_operations'), (req, res) => getBrandAssetDownloadUrl(req, res, { asAdmin: true }));
 router.patch('/applications/:id/interviews/:slotId', authenticate, requireAdmin, requirePermission('manage_operations'), updateInterviewSlot);
 router.patch('/applications/:id/documents/:docId', authenticate, requireAdmin, requirePermission('manage_operations'), reviewApplicationDocument);
 router.post('/applications/:id/followup', authenticate, requireAdmin, requirePermission('manage_operations'), addAdminFollowupMessage);

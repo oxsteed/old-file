@@ -976,6 +976,99 @@ async function presentFranchiseBrandAsset(asset) {
   }
 }
 
+/**
+ * GET /api/franchise/my-applications/:id/documents/:docId/download-url
+ * G12-A11 (D-656): the download URL is minted on click, not at page
+ * load. The signed URL lives 600s, so a link minted when the page
+ * loaded had expired by the time the operator clicked it after working
+ * a while. The client fetches a fresh URL and opens it immediately.
+ */
+async function getDocumentDownloadUrl(req, res, { asAdmin = false } = {}) {
+  const { id, docId } = req.params;
+  if (!UUID_RE.test(docId)) {
+    return res.status(404).json({ error: 'Document not found.', code: 'document_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      if (!asAdmin) {
+        if (!req.user?.id) return res.status(401).json({ error: 'Authentication required.' });
+        const owned = await loadOwnedApplication(client, id, req.user.id);
+        if (!owned) return res.status(404).json({ error: 'Franchise application not found.' });
+      } else {
+        const { rows } = await client.query(
+          'SELECT id FROM franchise_applications WHERE id = $1', [id]
+        );
+        if (!rows.length) return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows } = await client.query(
+        `SELECT * FROM franchise_application_documents
+          WHERE id = $1 AND application_id = $2`,
+        [docId, id]
+      );
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Document not found.', code: 'document_not_found' });
+      }
+      const presented = await presentFranchiseDocument(rows[0]);
+      if (!presented.download_url) {
+        return res.status(503).json({ error: 'Download is unavailable right now.', code: 'download_unavailable' });
+      }
+      return res.json({ download_url: presented.download_url });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error minting franchise document download URL', { id, docId, err: err.message });
+    return res.status(500).json({ error: 'Failed to prepare the download.' });
+  }
+}
+
+/**
+ * GET /api/franchise/my-applications/:id/brand-assets/:assetId/download-url
+ * G12-A11 (D-656): same on-click minting for brand assets. The asset
+ * must belong to this territory or be franchise-wide (application_id
+ * NULL), mirroring fetchBrandAssets.
+ */
+async function getBrandAssetDownloadUrl(req, res, { asAdmin = false } = {}) {
+  const { id, assetId } = req.params;
+  if (!UUID_RE.test(assetId)) {
+    return res.status(404).json({ error: 'Brand asset not found.', code: 'brand_asset_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      if (!asAdmin) {
+        if (!req.user?.id) return res.status(401).json({ error: 'Authentication required.' });
+        const owned = await loadOwnedApplication(client, id, req.user.id);
+        if (!owned) return res.status(404).json({ error: 'Franchise application not found.' });
+      } else {
+        const { rows } = await client.query(
+          'SELECT id FROM franchise_applications WHERE id = $1', [id]
+        );
+        if (!rows.length) return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows } = await client.query(
+        `SELECT * FROM franchise_brand_assets
+          WHERE id = $1 AND (application_id IS NULL OR application_id = $2)`,
+        [assetId, id]
+      );
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Brand asset not found.', code: 'brand_asset_not_found' });
+      }
+      const presented = await presentFranchiseBrandAsset(rows[0]);
+      if (!presented.download_url) {
+        return res.status(503).json({ error: 'Download is unavailable right now.', code: 'download_unavailable' });
+      }
+      return res.json({ download_url: presented.download_url });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error minting franchise brand asset download URL', { id, assetId, err: err.message });
+    return res.status(500).json({ error: 'Failed to prepare the download.' });
+  }
+}
+
 // Group 12 Slice 3e (623, D-324): the brand assets visible to a
 // territory — the franchise-wide assets plus its own. Passing a null
 // application id returns the franchise-wide assets only (same
@@ -1055,7 +1148,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
 
   if (!applicationResult.rows.length) return null;
 
-  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult, launchPlanResult, activityResult, locations, businessServices, readinessReviews, openingTeam, territoryInvitations, trainingAssignments, announcements] = await Promise.all([
+  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult, launchPlanResult, activityResult, activityCountResult, locations, businessServices, readinessReviews, openingTeam, territoryInvitations, trainingAssignments, announcements] = await Promise.all([
     db.query(
       `SELECT *
          FROM franchise_interview_slots
@@ -1130,6 +1223,15 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
           AND NOT (event_type = 'note_added' AND metadata ->> 'visibility' = 'internal')
         ORDER BY created_at DESC, id DESC
         LIMIT 50`,
+      [applicationId]
+    ),
+    // G12-A10 (D-655): the history total, so the detail page knows
+    // whether older events exist to page to. Same filter as the page.
+    db.query(
+      `SELECT COUNT(*)::int AS total
+         FROM franchise_activity_log
+        WHERE application_id = $1
+          AND NOT (event_type = 'note_added' AND metadata ->> 'visibility' = 'internal')`,
       [applicationId]
     ),
     // Group 12 Slice 3c (611/612/614/615): the open locations with their
@@ -1244,7 +1346,83 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     }),
     readiness_reviews: readinessReviews,
     activity: activityResult.rows,
+    activity_total: activityCountResult.rows[0]?.total ?? activityResult.rows.length,
   };
+}
+
+/**
+ * GET /api/franchise/my-applications/:id/activity
+ * G12-A10 (D-655): older assignment-history pages. The detail bundle
+ * caps the history at the latest 50; this endpoint pages further back
+ * with a keyset cursor (the last shown event's id), same filter and
+ * shape as the bundle page, plus the true total so the client knows
+ * when the history is exhausted.
+ */
+async function listApplicationActivity(req, res) {
+  const { id } = req.params;
+  if (!req.user?.id) return res.status(401).json({ error: 'Authentication required.' });
+  const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 50, 1), 100);
+  const beforeRaw = typeof req.query?.before === 'string' && req.query.before ? req.query.before : null;
+  const before = beforeRaw ? Number.parseInt(beforeRaw, 10) : null;
+  if (beforeRaw && (!Number.isInteger(before) || before <= 0)) {
+    return res.status(400).json({ error: 'before must be an activity event id.', code: 'invalid_activity_cursor' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      const owned = await loadOwnedApplication(client, id, req.user.id);
+      if (!owned) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      let cursorCreatedAt = null;
+      if (before) {
+        const { rows: cursorRows } = await client.query(
+          `SELECT created_at FROM franchise_activity_log
+            WHERE id = $1 AND application_id = $2`,
+          [before, id]
+        );
+        if (!cursorRows.length) {
+          return res.status(404).json({ error: 'Activity event not found.', code: 'activity_cursor_not_found' });
+        }
+        cursorCreatedAt = cursorRows[0].created_at;
+      }
+      const params = [id];
+      let cursorClause = '';
+      if (before) {
+        params.push(cursorCreatedAt, before);
+        cursorClause = `AND (created_at < $${params.length - 1} OR (created_at = $${params.length - 1} AND id < $${params.length}))`;
+      }
+      params.push(limit);
+      const { rows } = await client.query(
+        `SELECT id, event_type, event_summary, created_at
+           FROM franchise_activity_log
+          WHERE application_id = $1
+            AND NOT (event_type = 'note_added' AND metadata ->> 'visibility' = 'internal')
+            ${cursorClause}
+          ORDER BY created_at DESC, id DESC
+          LIMIT $${params.length}`,
+        params
+      );
+      const { rows: [countRow] } = await client.query(
+        `SELECT COUNT(*)::int AS total
+           FROM franchise_activity_log
+          WHERE application_id = $1
+            AND NOT (event_type = 'note_added' AND metadata ->> 'visibility' = 'internal')`,
+        [id]
+      );
+      const total = countRow?.total ?? rows.length;
+      return res.json({
+        activity: rows,
+        total,
+        next_before: rows.length === limit ? String(rows[rows.length - 1].id) : null,
+      });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error listing franchise application activity', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to list application activity.' });
+  }
 }
 
 // Ownership check shared by the applicant-scoped mutation endpoints. A
@@ -1502,10 +1680,12 @@ async function listMyFranchiseApplications(req, res) {
           fa.submitted_at,
           fa.updated_at,
           b.business_name AS linked_business_name,
+          fagr.currency AS currency,
           COALESCE(progress.completed_count, 0)::int AS checklist_completed,
           COALESCE(progress.total_count, 0)::int AS checklist_total
         FROM franchise_applications fa
         LEFT JOIN businesses b ON b.id = fa.linked_business_id
+        LEFT JOIN franchise_agreements fagr ON fagr.application_id = fa.id
         LEFT JOIN (
           SELECT
             application_id,
@@ -2241,6 +2421,7 @@ async function signFranchiseAgreement(req, res) {
       await client.query('BEGIN');
       const { rows: appRows } = await client.query(
         `SELECT fa.id, fa.applicant_user_id, fa.owner_user_id, fa.agreement_status,
+                fa.status,
                 u.first_name, u.last_name, u.email
            FROM franchise_applications fa
            LEFT JOIN users u ON u.id = $2
@@ -2252,6 +2433,17 @@ async function signFranchiseAgreement(req, res) {
       if (!application) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      // G12-A8 (D-653): a rejected or archived application is dead — its
+      // agreement is not a live commitment, so signing it would put a
+      // signed agreement on a record HQ already closed. Activation
+      // already refuses dead applications; signing must too.
+      if (['rejected', 'archived'].includes(application.status)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: `This application is ${application.status}, so its agreement cannot be signed.`,
+          code: 'franchise_agreement_application_closed',
+        });
       }
       // Only the applicant (or the assigned owner) may sign; admins use the
       // countersignature on the admin upsert path.
@@ -2382,6 +2574,40 @@ async function recordFranchiseFeeCollection(req, res) {
         );
         await logActivity(client, id, req.user.id, 'initial_fee_waived', `Initial fee waived: ${reason}`, { reason });
       } else {
+        // G12-A7 (D-652): a collection reference is the wire's identity.
+        // The agreement row keeps only the latest reference, so the
+        // duplicate check reads the activity log, where every collection
+        // is recorded with its reference — a reference recorded twice
+        // (even with another collection in between) is the same wire
+        // entered twice, not two wires.
+        const { rows: dupRows } = await client.query(
+          `SELECT 1 FROM franchise_activity_log
+            WHERE application_id = $1 AND event_type = 'initial_fee_collected'
+              AND metadata->>'collection_reference' = $2
+            LIMIT 1`,
+          [id, reference]
+        );
+        if (dupRows.length) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({
+            error: `Collection reference ${reference} was already recorded for this agreement.`,
+            code: 'collection_reference_duplicate',
+          });
+        }
+        // ... and a collection may not run past the fee without an
+        // explicit over-payment reason on the record. The activation
+        // check only looks at collected >= fee, so an overstatement
+        // would otherwise corrupt the record silently.
+        const feeCents = agreement.initial_fee_cents;
+        const remainingCents = feeCents == null ? null : feeCents - agreement.collected_cents;
+        if (remainingCents != null && amountCents > remainingCents && !reason) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({
+            error: `That collection exceeds the remaining fee by ${amountCents - remainingCents} cents. Supply a reason to record an over-payment.`,
+            code: 'collection_exceeds_fee',
+            remaining_cents: remainingCents,
+          });
+        }
         await client.query(
           `UPDATE franchise_agreements
               SET initial_fee_collected_cents = COALESCE(initial_fee_collected_cents, 0) + $2,
@@ -2393,6 +2619,7 @@ async function recordFranchiseFeeCollection(req, res) {
         );
         await logActivity(client, id, req.user.id, 'initial_fee_collected', `Initial fee collection recorded: ${amountCents}c (ref ${reference})`, {
           amount_cents: amountCents, collection_reference: reference,
+          ...(remainingCents != null && amountCents > remainingCents ? { overpayment_reason: reason } : {}),
         });
       }
       await client.query('COMMIT');
@@ -5908,7 +6135,9 @@ const UUID_RE = /^[0-9a-f-]{36}$/i;
 // 'unassigned' for territory-wide tickets, or null for every location.
 // `limit` caps the rows (the summary takes 5). Callers validate the
 // filters — this helper trusts them.
-async function fetchTerritoryTickets(applicationId, { status = 'all', locationId = null, limit = 100, category = null } = {}) {
+// G12-B6 (D-660): the ticket-queue filter builder, shared by the page
+// and the true-total count so the two can never drift apart.
+function buildTicketConditions(applicationId, { status = 'all', locationId = null, category = null } = {}) {
   const conditions = ['t.franchise_application_id = $1'];
   const params = [applicationId];
   if (status === 'open') {
@@ -5927,6 +6156,28 @@ async function fetchTerritoryTickets(applicationId, { status = 'all', locationId
     params.push(locationId);
     conditions.push(`t.franchise_location_id = $${params.length}`);
   }
+  return { conditions, params };
+}
+
+async function fetchTerritoryTickets(applicationId, { status = 'all', locationId = null, limit = 100, category = null, before = null } = {}) {
+  const { conditions, params } = buildTicketConditions(applicationId, { status, locationId, category });
+  // G12-B6 (D-660): keyset cursor — the last shown ticket's id. The
+  // cursor row's created_at anchors the page; an unknown cursor id is
+  // a 404, not an empty page.
+  if (before) {
+    const { rows: cursorRows } = await db.query(
+      `SELECT created_at FROM support_tickets
+        WHERE id = $1 AND franchise_application_id = $2`,
+      [before, applicationId]
+    );
+    if (!cursorRows.length) {
+      const err = new Error('Ticket cursor not found');
+      err.code = 'ticket_cursor_not_found';
+      throw err;
+    }
+    params.push(cursorRows[0].created_at, before);
+    conditions.push(`(t.created_at < $${params.length - 1} OR (t.created_at = $${params.length - 1} AND t.id < $${params.length}))`);
+  }
   params.push(limit);
   const { rows } = await db.query(
     `SELECT t.id, t.ticket_number, t.subject, t.category, t.priority, t.status,
@@ -5943,6 +6194,19 @@ async function fetchTerritoryTickets(applicationId, { status = 'all', locationId
     params
   );
   return rows;
+}
+
+// G12-B6 (D-660): the true queue total under the same filters — the
+// list endpoint used to report total as the page length, so a queue
+// over 100 silently looked complete.
+async function countTerritoryTickets(applicationId, { status = 'all', locationId = null, category = null } = {}) {
+  const { conditions, params } = buildTicketConditions(applicationId, { status, locationId, category });
+  const { rows } = await db.query(
+    `SELECT COUNT(*)::int AS total FROM support_tickets t
+      WHERE ${conditions.join(' AND ')}`,
+    params
+  );
+  return rows[0]?.total ?? 0;
 }
 
 // 628 (D-327): the exception summary — totals, open/urgent counts, the
@@ -6852,8 +7116,24 @@ async function fetchCorrectiveActions(applicationId, { ticketId = null, status =
     conditions.push(`a.status = $${params.length}`);
   }
   if (ownerId) {
+    // G12-B7 (D-661): a remediation-less action has no remediation
+    // owner, so the plain join never matches it. Its ownership after a
+    // handoff lives in the transfer log: the latest transfer row for
+    // the action names the current owner. (Two transfers of one action
+    // in the same instant cannot happen through the handoff flow — one
+    // approval transaction per handoff, days apart — so the
+    // latest-by-created_at row is unambiguous.)
     params.push(ownerId);
-    conditions.push(`r.owner_user_id = $${params.length}`);
+    conditions.push(`(r.owner_user_id = $${params.length} OR EXISTS (
+      SELECT 1 FROM franchise_handoff_transfers ht
+       WHERE ht.action_id = a.id AND ht.kind = 'corrective_action'
+         AND ht.to_user_id = $${params.length}
+         AND NOT EXISTS (
+           SELECT 1 FROM franchise_handoff_transfers ht2
+            WHERE ht2.action_id = ht.action_id AND ht2.kind = 'corrective_action'
+              AND ht2.created_at > ht.created_at
+         )
+    ))`);
   }
   const { rows } = await db.query(
     `SELECT a.*, t.ticket_number, t.subject AS ticket_subject,
@@ -7074,7 +7354,13 @@ async function updateCorrectiveActionStatusCore(client, { applicationId, actionI
     && String(action.remediation_owner_id) !== String(actorId)) {
     return { error: { status: 403, body: { error: 'Only the assigned remediation owner can update this corrective action.', code: 'corrective_action_not_assignee' } } };
   }
-  if (!asAdmin && !isOperator && !action.remediation_owner_id) {
+  // G12-B8 (D-662): a remediation-less action has no owner — its
+  // creator advances it (open → in_progress → resolved). Anyone else
+  // still gets the 403. Verified and resolved→in_progress stays
+  // HQ-only via the guard above, so the creator cannot verify their
+  // own work or send back a resolved action.
+  if (!asAdmin && !isOperator && !action.remediation_owner_id
+    && String(action.created_by) !== String(actorId)) {
     return { error: { status: 403, body: { error: 'Only the assigned operator can update this corrective action.', code: 'corrective_action_not_assignee' } } };
   }
   const { rows: updated } = await client.query(
@@ -7589,7 +7875,16 @@ function parseTicketListQuery(req) {
   if (locationId && locationId !== 'unassigned' && !UUID_RE.test(locationId)) {
     return { error: { status: 400, body: { error: 'location_id must be a location id or unassigned.', code: 'invalid_location_id' } } };
   }
-  return { status, locationId };
+  // G12-B6 (D-660): cursor pagination — limit 1..100 (default 100, the
+  // old silent cap) and before, the last shown ticket's id.
+  const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 100, 1), 100);
+  const before = typeof req.query?.before === 'string' && req.query.before
+    ? req.query.before
+    : null;
+  if (before && !UUID_RE.test(before)) {
+    return { error: { status: 400, body: { error: 'before must be a ticket id.', code: 'invalid_ticket_cursor' } } };
+  }
+  return { status, locationId, limit, before };
 }
 
 async function listTerritoryTickets(req, res) {
@@ -7621,9 +7916,20 @@ async function listTerritoryTickets(req, res) {
     } finally {
       client.release();
     }
-    const tickets = await fetchTerritoryTickets(id, { status: parsed.status, locationId: parsed.locationId });
-    return res.json({ application_id: id, tickets, total: tickets.length });
+    const [tickets, total] = await Promise.all([
+      fetchTerritoryTickets(id, { status: parsed.status, locationId: parsed.locationId, limit: parsed.limit, before: parsed.before }),
+      countTerritoryTickets(id, { status: parsed.status, locationId: parsed.locationId }),
+    ]);
+    return res.json({
+      application_id: id,
+      tickets,
+      total,
+      next_before: tickets.length === parsed.limit ? String(tickets[tickets.length - 1].id) : null,
+    });
   } catch (err) {
+    if (err.code === 'ticket_cursor_not_found') {
+      return res.status(404).json({ error: 'Ticket not found.', code: 'ticket_cursor_not_found' });
+    }
     logger.error('Error loading franchise territory tickets', { id, err: err.message });
     return res.status(500).json({ error: 'Failed to load territory support requests.' });
   }
@@ -7647,9 +7953,20 @@ async function listTerritoryTicketsAsAdmin(req, res) {
         return res.status(404).json({ error: 'Location not found in this territory.', code: 'location_not_found' });
       }
     }
-    const tickets = await fetchTerritoryTickets(id, { status: parsed.status, locationId: parsed.locationId });
-    return res.json({ application_id: id, tickets, total: tickets.length });
+    const [tickets, total] = await Promise.all([
+      fetchTerritoryTickets(id, { status: parsed.status, locationId: parsed.locationId, limit: parsed.limit, before: parsed.before }),
+      countTerritoryTickets(id, { status: parsed.status, locationId: parsed.locationId }),
+    ]);
+    return res.json({
+      application_id: id,
+      tickets,
+      total,
+      next_before: tickets.length === parsed.limit ? String(tickets[tickets.length - 1].id) : null,
+    });
   } catch (err) {
+    if (err.code === 'ticket_cursor_not_found') {
+      return res.status(404).json({ error: 'Ticket not found.', code: 'ticket_cursor_not_found' });
+    }
     logger.error('Error loading franchise territory tickets as admin', { id, err: err.message });
     return res.status(500).json({ error: 'Failed to load territory support requests.' });
   }
@@ -8588,34 +8905,24 @@ function parseCaseListQuery(req) {
   if (locationId && locationId !== 'unassigned' && !UUID_RE.test(locationId)) {
     return { error: { status: 400, body: { error: 'location_id must be a location id or unassigned.', code: 'invalid_location_id' } } };
   }
-  return { status, type, locationId };
+  // G12-B6 (D-660): cursor pagination — limit 1..100 (default 100, the
+  // old silent cap) and before, the last shown case's id.
+  const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 100, 1), 100);
+  const before = typeof req.query?.before === 'string' && req.query.before
+    ? req.query.before
+    : null;
+  if (before && !UUID_RE.test(before)) {
+    return { error: { status: 400, body: { error: 'before must be a case id.', code: 'invalid_case_cursor' } } };
+  }
+  return { status, type, locationId, limit, before };
 }
 
-async function buildTerritoryCases(applicationId, { status = 'all', type = 'all', locationId = null, limit = 100 } = {}) {
-  const conditions = [];
-  const params = [applicationId];
-  if (type !== 'all') {
-    params.push(type);
-    conditions.push(`kind = $${params.length}`);
-  }
-  if (status === 'open') {
-    conditions.push(`((kind IN ('ticket', 'policy_question') AND status IN ${EXCEPTION_OPEN_SQL})
-      OR (kind = 'training_escalation' AND status IN ('open', 'in_progress'))
-      OR (kind = 'handoff' AND status = 'pending'))`);
-  } else if (status !== 'all') {
-    params.push(status);
-    conditions.push(`status = $${params.length}`);
-  }
-  if (locationId === 'unassigned') {
-    conditions.push('location_id IS NULL');
-  } else if (locationId) {
-    params.push(locationId);
-    conditions.push(`location_id = $${params.length}`);
-  }
-  params.push(limit);
-  const { rows } = await db.query(
-    `SELECT * FROM (
-       SELECT
+// G12-B6 (D-660): the case UNION, shared by the page and the
+// true-total count so the two can never drift apart. $1 is the
+// application id; the outer aliases (kind, status, location_id) are
+// what the filter conditions reference.
+function territoryCasesUnionSql() {
+  return `SELECT
          CASE WHEN t.category = 'policy_question' THEN 'policy_question' ELSE 'ticket' END AS kind,
          t.id AS id,
          t.subject AS title,
@@ -8662,7 +8969,61 @@ async function buildTerritoryCases(applicationId, { status = 'all', type = 'all'
          FROM franchise_handoffs h
          LEFT JOIN users inc ON inc.id = h.incoming_operator_id
          LEFT JOIN users out ON out.id = h.outgoing_operator_id
-        WHERE h.application_id = $1
+        WHERE h.application_id = $1`;
+}
+
+// G12-B6 (D-660): the case filter builder, shared by the page and
+// the true-total count so the two can never drift apart.
+function buildCaseConditions(applicationId, { status = 'all', type = 'all', locationId = null } = {}) {
+  const conditions = [];
+  const params = [applicationId];
+  if (type !== 'all') {
+    params.push(type);
+    conditions.push(`kind = $${params.length}`);
+  }
+  if (status === 'open') {
+    conditions.push(`((kind IN ('ticket', 'policy_question') AND status IN ${EXCEPTION_OPEN_SQL})
+      OR (kind = 'training_escalation' AND status IN ('open', 'in_progress'))
+      OR (kind = 'handoff' AND status = 'pending'))`);
+  } else if (status !== 'all') {
+    params.push(status);
+    conditions.push(`status = $${params.length}`);
+  }
+  if (locationId === 'unassigned') {
+    conditions.push('location_id IS NULL');
+  } else if (locationId) {
+    params.push(locationId);
+    conditions.push(`location_id = $${params.length}`);
+  }
+  return { conditions, params };
+}
+
+async function buildTerritoryCases(applicationId, { status = 'all', type = 'all', locationId = null, limit = 100, before = null } = {}) {
+  const { conditions, params } = buildCaseConditions(applicationId, { status, type, locationId });
+  // G12-B6 (D-660): keyset cursor — the last shown case's id. The id
+  // is unique across the three source tables, so one lookup resolves
+  // its created_at; an unknown cursor id is a 404, not an empty page.
+  if (before) {
+    const { rows: cursorRows } = await db.query(
+      `SELECT created_at FROM (
+         SELECT id, created_at FROM support_tickets WHERE franchise_application_id = $1
+         UNION ALL SELECT id, created_at FROM franchise_training_escalations WHERE application_id = $1
+         UNION ALL SELECT id, created_at FROM franchise_handoffs WHERE application_id = $1
+       ) c WHERE id = $2`,
+      [applicationId, before]
+    );
+    if (!cursorRows.length) {
+      const err = new Error('Case cursor not found');
+      err.code = 'case_cursor_not_found';
+      throw err;
+    }
+    params.push(cursorRows[0].created_at, before);
+    conditions.push(`(created_at < $${params.length - 1} OR (created_at = $${params.length - 1} AND id < $${params.length}))`);
+  }
+  params.push(limit);
+  const { rows } = await db.query(
+    `SELECT * FROM (
+       ${territoryCasesUnionSql()}
      ) cases
      ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
      ORDER BY created_at DESC, id DESC
@@ -8670,6 +9031,20 @@ async function buildTerritoryCases(applicationId, { status = 'all', type = 'all'
     params
   );
   return rows;
+}
+
+// G12-B6 (D-660): the true case total under the same filters — the
+// list endpoint used to report total as the page length.
+async function countTerritoryCases(applicationId, { status = 'all', type = 'all', locationId = null } = {}) {
+  const { conditions, params } = buildCaseConditions(applicationId, { status, type, locationId });
+  const { rows } = await db.query(
+    `SELECT COUNT(*)::int AS total FROM (
+       ${territoryCasesUnionSql()}
+     ) cases
+     ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}`,
+    params
+  );
+  return rows[0]?.total ?? 0;
 }
 
 async function listTerritoryCases(req, res, { asAdmin = false } = {}) {
@@ -8708,16 +9083,26 @@ async function listTerritoryCases(req, res, { asAdmin = false } = {}) {
     } finally {
       client.release();
     }
-    const cases = await buildTerritoryCases(id, {
-      status: parsed.status, type: parsed.type, locationId: parsed.locationId,
-    });
+    const [cases, total] = await Promise.all([
+      buildTerritoryCases(id, {
+        status: parsed.status, type: parsed.type, locationId: parsed.locationId,
+        limit: parsed.limit, before: parsed.before,
+      }),
+      countTerritoryCases(id, {
+        status: parsed.status, type: parsed.type, locationId: parsed.locationId,
+      }),
+    ]);
     return res.json({
       application_id: id,
       cases,
-      total: cases.length,
+      total,
+      next_before: cases.length === parsed.limit ? String(cases[cases.length - 1].id) : null,
       filters: { status: parsed.status, type: parsed.type, location_id: parsed.locationId },
     });
   } catch (err) {
+    if (err.code === 'case_cursor_not_found') {
+      return res.status(404).json({ error: 'Case not found.', code: 'case_cursor_not_found' });
+    }
     logger.error('Error listing franchise territory cases', { id, err: err.message });
     return res.status(500).json({ error: 'Failed to load territory cases.' });
   }
@@ -8738,10 +9123,13 @@ async function listTerritoryCasesAsAdmin(req, res) {
 // escalations and their resolutions (648), and verified corrective
 // actions (635). One derived read, newest first, with an outcome
 // rollup (open vs resolved cases, counts by kind).
-async function buildSupportHistory(applicationId, { limit = 100 } = {}) {
-  const { rows } = await db.query(
-    `SELECT * FROM (
-       SELECT
+// G12-B6 (D-660): the support-history UNION, shared by the page and
+// the true-total count so the two can never drift apart. $1 is the
+// application id. A history row is identified by (at, ref_id, kind):
+// the same ticket produces several events (created, resolved, closed,
+// reply), so ref_id alone is not unique.
+function supportHistoryUnionSql() {
+  return `SELECT
          CASE WHEN t.category = 'policy_question' THEN 'policy_question_asked' ELSE 'ticket_created' END AS kind,
          t.created_at AS at,
          ('#' || t.ticket_number || ' — ' || t.subject) AS title,
@@ -8877,12 +9265,69 @@ async function buildSupportHistory(applicationId, { limit = 100 } = {}) {
          FROM franchise_corrective_actions a
          JOIN support_tickets t ON t.id = a.ticket_id
          LEFT JOIN users u ON u.id = a.reviewed_by
-        WHERE a.application_id = $1 AND a.status = 'verified' AND a.reviewed_at IS NOT NULL
+        WHERE a.application_id = $1 AND a.status = 'verified' AND a.reviewed_at IS NOT NULL`;
+}
+
+const SUPPORT_HISTORY_KINDS = new Set([
+  'ticket_created', 'ticket_resolved', 'ticket_closed', 'ticket_reply',
+  'escalation', 'policy_question_asked', 'training_escalation',
+  'training_escalation_resolved', 'appointment_booked',
+  'appointment_confirmed', 'appointment_cancelled', 'appointment_completed',
+  'corrective_action_verified',
+]);
+
+// G12-B6 (D-660): parse the opaque history cursor —
+// "<at ISO>|<ref_id>|<kind>" — back into its sort key. Returns null
+// for no cursor, or { error } for a malformed one.
+function parseSupportHistoryCursor(before) {
+  if (!before) return { cursor: null };
+  const parts = String(before).split('|');
+  if (parts.length !== 3) {
+    return { error: { status: 400, body: { error: 'before must be a history cursor.', code: 'invalid_history_cursor' } } };
+  }
+  const [atRaw, refId, kind] = parts;
+  const at = new Date(atRaw);
+  if (Number.isNaN(at.getTime()) || !UUID_RE.test(refId) || !SUPPORT_HISTORY_KINDS.has(kind)) {
+    return { error: { status: 400, body: { error: 'before must be a history cursor.', code: 'invalid_history_cursor' } } };
+  }
+  return { cursor: { at: at.toISOString(), refId, kind } };
+}
+
+function supportHistoryCursorFor(row) {
+  return `${new Date(row.at).toISOString()}|${row.ref_id}|${row.kind}`;
+}
+
+async function buildSupportHistory(applicationId, { limit = 100, before = null } = {}) {
+  const parsed = parseSupportHistoryCursor(before);
+  if (parsed.error) {
+    const err = new Error('Invalid history cursor');
+    err.code = 'invalid_history_cursor';
+    throw err;
+  }
+  const cursor = parsed.cursor;
+  const params = [applicationId];
+  let cursorClause = '';
+  if (cursor) {
+    params.push(cursor.at, cursor.refId, cursor.kind);
+    cursorClause = `WHERE (at < $${params.length - 2} OR (at = $${params.length - 2} AND ref_id < $${params.length - 1}) OR (at = $${params.length - 2} AND ref_id = $${params.length - 1} AND kind < $${params.length}))`;
+  }
+  params.push(limit);
+  const { rows } = await db.query(
+    `SELECT * FROM (
+       ${supportHistoryUnionSql()}
      ) history
-     ORDER BY at DESC, ref_id DESC
-     LIMIT $2`,
-    [applicationId, limit]
+     ${cursorClause}
+     ORDER BY at DESC, ref_id DESC, kind DESC
+     LIMIT $${params.length}`,
+    params
   );
+  const { rows: [countRow] } = await db.query(
+    `SELECT COUNT(*)::int AS total FROM (
+       ${supportHistoryUnionSql()}
+     ) history`,
+    [applicationId]
+  );
+  const total = countRow?.total ?? rows.length;
   const byKind = await db.query(
     `SELECT kind, COUNT(*)::int AS count FROM (
        SELECT 'ticket' AS kind FROM support_tickets WHERE franchise_application_id = $1
@@ -8908,9 +9353,10 @@ async function buildSupportHistory(applicationId, { limit = 100 } = {}) {
   return {
     application_id: applicationId,
     history: rows,
-    total: rows.length,
+    total,
+    next_before: rows.length === limit ? supportHistoryCursorFor(rows[rows.length - 1]) : null,
     summary: {
-      total_events: rows.length,
+      total_events: total,
       open_cases: openCases.rows[0]?.open_count || 0,
       resolved_cases: openCases.rows[0]?.resolved_count || 0,
       by_kind: byKind.rows,
@@ -8920,6 +9366,15 @@ async function buildSupportHistory(applicationId, { limit = 100 } = {}) {
 
 async function getSupportHistory(req, res, { asAdmin = false } = {}) {
   const { id } = req.params;
+  // G12-B6 (D-660): cursor pagination — limit 1..100 (default 100, the
+  // old silent cap) and before, the opaque "<at>|<ref_id>|<kind>"
+  // cursor of the last shown event.
+  const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 100, 1), 100);
+  const before = typeof req.query?.before === 'string' && req.query.before
+    ? req.query.before
+    : null;
+  const parsed = parseSupportHistoryCursor(before);
+  if (parsed.error) return res.status(parsed.error.status).json(parsed.error.body);
   try {
     if (!asAdmin) {
       const client = await db.connect();
@@ -8943,8 +9398,11 @@ async function getSupportHistory(req, res, { asAdmin = false } = {}) {
         return res.status(404).json({ error: 'Franchise application not found.' });
       }
     }
-    return res.json(await buildSupportHistory(id));
+    return res.json(await buildSupportHistory(id, { limit, before }));
   } catch (err) {
+    if (err.code === 'invalid_history_cursor') {
+      return res.status(400).json({ error: 'before must be a history cursor.', code: 'invalid_history_cursor' });
+    }
     logger.error('Error loading franchise support history', { id, err: err.message });
     return res.status(500).json({ error: 'Failed to load support history.' });
   }
@@ -9505,20 +9963,6 @@ async function acknowledgeFranchiseStandard(req, res) {
   }
   let signatureKey = null;
   try {
-    signatureKey = await uploadFile(
-      req.file.buffer,
-      `franchise-standards/signatures/${req.user.id}`,
-      `signature-standard${standardId}-v${version}.png`,
-      'image/png',
-    );
-    if (!signatureKey) {
-      return res.status(502).json({ error: 'Signature upload failed.', code: 'upload_failed' });
-    }
-  } catch (err) {
-    logger.error('Error uploading franchise standard signature', { id, standardId, err: err.message });
-    return res.status(502).json({ error: 'Signature upload failed.', code: 'upload_failed' });
-  }
-  try {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
@@ -9572,21 +10016,41 @@ async function acknowledgeFranchiseStandard(req, res) {
           WHERE standard_id = $1 AND user_id = $2 AND version = $3`,
         [standardId, req.user.id, version]
       );
-      let isNew = false;
-      if (!existingRows.length) {
-        await client.query(
-          `INSERT INTO franchise_standard_acknowledgments
-             (standard_id, user_id, version, signature_storage_key)
-           VALUES ($1, $2, $3, $4)`,
-          [standardId, req.user.id, version, signatureKey]
-        );
-        await logActivity(client, id, req.user?.id || null, 'standard_acknowledged',
-          `Acknowledged franchise standard version ${version}.`, { standard_id: standardId, version });
-        isNew = true;
+      if (existingRows.length) {
+        // Already acknowledged: nothing to store, and no new signature
+        // to upload — the old code uploaded one and then dropped it.
+        await client.query('COMMIT');
+        const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
+        return res.status(200).json(detail);
       }
+      // G12-A12 (D-657): the signature uploads only after the
+      // membership and version checks pass. Uploading first left the
+      // PNG in storage with no row whenever the request was then
+      // rejected (403/404/409) or the version was already acknowledged.
+      try {
+        signatureKey = await uploadFile(
+          req.file.buffer,
+          `franchise-standards/signatures/${req.user.id}`,
+          `signature-standard${standardId}-v${version}.png`,
+          'image/png',
+        );
+        if (!signatureKey) throw new Error('empty signature key');
+      } catch (uploadErr) {
+        await client.query('ROLLBACK');
+        logger.error('Error uploading franchise standard signature', { id, standardId, err: uploadErr.message });
+        return res.status(502).json({ error: 'Signature upload failed.', code: 'upload_failed' });
+      }
+      await client.query(
+        `INSERT INTO franchise_standard_acknowledgments
+           (standard_id, user_id, version, signature_storage_key)
+         VALUES ($1, $2, $3, $4)`,
+        [standardId, req.user.id, version, signatureKey]
+      );
+      await logActivity(client, id, req.user?.id || null, 'standard_acknowledged',
+        `Acknowledged franchise standard version ${version}.`, { standard_id: standardId, version });
       await client.query('COMMIT');
       const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
-      return res.status(isNew ? 201 : 200).json(detail);
+      return res.status(201).json(detail);
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -11771,7 +12235,24 @@ async function executeHandoffTransfer(client, { handoffId, applicationId, outgoi
       to_user_id: incomingId,
     });
   }
-  return transfers;
+
+  // G12-B7 (D-661): the outgoing operator's live ops bookings are
+  // territory appointments, not personal ones — the booker moves to the
+  // incoming operator so the appointment survives the handoff and the
+  // incoming operator (now the booker) can cancel it. Before this,
+  // neither operator could cancel it: the outgoing operator was no
+  // longer the owner and the incoming operator was not the booker, so
+  // only HQ could. Proposed slots have no booker; completed and
+  // cancelled slots are terminal.
+  const { rows: movedBookings } = await client.query(
+    `UPDATE franchise_ops_appointment_slots
+        SET booked_by = $2, updated_at = NOW()
+      WHERE application_id = $1 AND booked_by = $3
+        AND status IN ('booked', 'confirmed')
+      RETURNING id`,
+    [applicationId, incomingId, outgoingId]
+  );
+  return { transfers, opsBookingsTransferred: movedBookings.length };
 }
 
 async function fetchHandoffTransfers(applicationId, handoffId) {
@@ -11899,7 +12380,7 @@ async function reviewHandoffAsAdmin(req, res) {
 
       const checklistSnapshot = await buildHandoffChecklist(id);
       const recordsSnapshot = await buildRecordsManifest(client, id);
-      const transfers = await executeHandoffTransfer(client, {
+      const { transfers, opsBookingsTransferred } = await executeHandoffTransfer(client, {
         handoffId,
         applicationId: id,
         outgoingId: handoff.outgoing_operator_id,
@@ -11930,9 +12411,9 @@ async function reviewHandoffAsAdmin(req, res) {
           JSON.stringify(checklistSnapshot), JSON.stringify(recordsSnapshot)]
       );
       await logActivity(client, id, req.user?.id || null, 'handoff_approved',
-        `HQ approved the handoff; the territory moves to the incoming operator with ${transfers.length} open issue(s) transferred.`,
+        `HQ approved the handoff; the territory moves to the incoming operator with ${transfers.length} open issue(s) transferred${opsBookingsTransferred ? ` and ${opsBookingsTransferred} live ops booking(s) moved to the incoming operator` : ''}.`,
         { handoff_id: handoffId, incoming_operator_id: handoff.incoming_operator_id,
-          transfers: transfers.length });
+          transfers: transfers.length, ops_bookings_transferred: opsBookingsTransferred });
       await logActivity(client, id, req.user?.id || null, 'handoff_records_transferred',
         'Territory records (documents, acknowledgments, training, exceptions, notes) now visible to the incoming operator; no files were moved.',
         { handoff_id: handoffId, records: recordsSnapshot });
@@ -12575,6 +13056,9 @@ module.exports = {
   recordFranchiseFeeCollection,
   activateFranchiseStore,
   getMyFranchiseApplication,
+  listApplicationActivity,
+  getDocumentDownloadUrl,
+  getBrandAssetDownloadUrl,
   proposeInterviewSlot,
   updateInterviewSlot,
   bookInterviewSlot,

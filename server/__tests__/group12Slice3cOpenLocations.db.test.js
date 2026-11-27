@@ -1221,4 +1221,89 @@ describeDb('Group 12 Slice 3c: Open locations (611-615)', () => {
       expect(confirmedLocation.launch_complete).toBe(true);
     });
   });
+
+  describe('G12-A7/A8: fee collection guards and signing on closed applications', () => {
+    async function signedApplication(applicant, admin, feeCents = 10000) {
+      const applicationId = await makeApplication(applicant);
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ status: 'approved' })
+        .expect(200);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/agreement/sign`)
+        .set('x-test-user', applicant)
+        .send({ signed_by_name: 'Franchise Fixture' })
+        .expect(200);
+      await db.query(
+        'UPDATE franchise_agreements SET initial_fee_cents = $2 WHERE application_id = $1',
+        [applicationId, feeCents]
+      );
+      return applicationId;
+    }
+
+    function collect(admin, applicationId, body) {
+      return request(app)
+        .post(`/api/franchise/applications/${applicationId}/agreement/collect-fee`)
+        .set('x-test-user', admin)
+        .send(body);
+    }
+
+    test('a duplicate collection reference is a 409; over-collection is capped unless a reason is supplied', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await signedApplication(applicant, admin, 10000);
+
+      // Half the fee with REF-1 lands.
+      await collect(admin, applicationId, { amount_cents: 5000, collection_reference: 'REF-1' }).expect(200);
+      // The same reference again is the same wire entered twice.
+      const dup = await collect(admin, applicationId, { amount_cents: 5000, collection_reference: 'REF-1' });
+      expect(dup.status).toBe(409);
+      expect(dup.body.code).toBe('collection_reference_duplicate');
+      // More than the remaining 5000 with a fresh reference is capped.
+      const over = await collect(admin, applicationId, { amount_cents: 5001, collection_reference: 'REF-2' });
+      expect(over.status).toBe(409);
+      expect(over.body.code).toBe('collection_exceeds_fee');
+      expect(over.body.remaining_cents).toBe(5000);
+      // The same over-collection with an explicit reason is allowed and logged.
+      await collect(admin, applicationId, { amount_cents: 5001, collection_reference: 'REF-3', reason: 'Overpaid one cent, refund pending' }).expect(200);
+      const { rows } = await db.query(
+        `SELECT metadata FROM franchise_activity_log
+          WHERE application_id = $1 AND event_type = 'initial_fee_collected'
+            AND metadata->>'collection_reference' = 'REF-3'`,
+        [applicationId]
+      );
+      expect(rows[0]?.metadata?.overpayment_reason).toBe('Overpaid one cent, refund pending');
+    });
+
+    test('signing a rejected or archived application is a 409', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const rejectedId = await makeApplication(applicant);
+      await request(app)
+        .patch(`/api/franchise/applications/${rejectedId}`)
+        .set('x-test-user', admin)
+        .send({ status: 'rejected' })
+        .expect(200);
+      const rejected = await request(app)
+        .post(`/api/franchise/applications/${rejectedId}/agreement/sign`)
+        .set('x-test-user', applicant)
+        .send({ signed_by_name: 'Franchise Fixture' });
+      expect(rejected.status).toBe(409);
+      expect(rejected.body.code).toBe('franchise_agreement_application_closed');
+
+      const archivedId = await makeApplication(applicant);
+      await request(app)
+        .patch(`/api/franchise/applications/${archivedId}`)
+        .set('x-test-user', admin)
+        .send({ status: 'archived' })
+        .expect(200);
+      const archived = await request(app)
+        .post(`/api/franchise/applications/${archivedId}/agreement/sign`)
+        .set('x-test-user', applicant)
+        .send({ signed_by_name: 'Franchise Fixture' });
+      expect(archived.status).toBe(409);
+      expect(archived.body.code).toBe('franchise_agreement_application_closed');
+    });
+  });
 });

@@ -915,6 +915,25 @@ export default function FranchiseHQPage() {
     }
   }
 
+  // G12-A11 (D-656): mint the document download URL on click — the
+  // bundle's read-time URL is 600s and stale by the time HQ clicks.
+  // The blank window opens in the click handler so the popup blocker
+  // does not swallow the navigation after the fetch.
+  async function downloadDocument(doc) {
+    if (!selectedApplication) return;
+    const win = window.open('', '_blank', 'noopener');
+    try {
+      const res = await axios.get(`/franchise/applications/${selectedApplication.id}/documents/${doc.id}/download-url`);
+      const url = res.data?.download_url;
+      if (!url) throw new Error('no download url');
+      if (win) win.location.href = url;
+      else window.location.href = url;
+    } catch (err) {
+      if (win) win.close();
+      toast.error(err?.response?.data?.error || t('adminFranchiseDocumentDownloadFailed'));
+    }
+  }
+
   async function sendFollowup() {
     if (!selectedApplication || !followupText.trim()) return;
     try {
@@ -1873,10 +1892,10 @@ export default function FranchiseHQPage() {
                               {t(`dashboards.franchise.${{ identity: 'docIdentity', entity: 'docEntity', financials: 'docFinancials', territory_plan: 'docTerritoryPlan' }[doc.category] || 'docIdentity'}`)} · {formatLabel(doc.status, t)} · {new Date(doc.created_at).toLocaleString()}
                             </div>
                             {doc.review_reason && <div className="frhq-row-meta">{doc.review_reason}</div>}
-                            {doc.download_url && (
-                              <a className="frhq-link" href={doc.download_url} target="_blank" rel="noreferrer">
+                            {!doc.download_unavailable && (
+                              <button type="button" className="frhq-link" onClick={() => downloadDocument(doc)}>
                                 {t('adminFranchiseDownloadDocument')}
-                              </a>
+                              </button>
                             )}
                           </div>
                           <div className="frhq-doc-review">
@@ -2537,6 +2556,10 @@ export default function FranchiseHQPage() {
                     canDelete
                     onUpload={uploadBrandAsset}
                     onDelete={deleteBrandAsset}
+                    onDownload={async (asset) => {
+                      const res = await axios.get(`/franchise/applications/${selectedApplication.id}/brand-assets/${asset.id}/download-url`);
+                      return res.data?.download_url;
+                    }}
                     disabled={saving}
                   />
 

@@ -512,6 +512,71 @@ describeDb('Group 12 Slice 3i: Transition (641-645)', () => {
         .expect(200);
       expect(incomingLog.body.total).toBe(3);
     });
+
+    test('approval moves live ops bookings and a transferred remediation-less action shows in the incoming mine list (G12-B7)', async () => {
+      const operator = await addUser();
+      const incoming = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApprovedApplication(operator);
+      // A remediation-less action on a bare ticket: it has no remediation
+      // owner, so only the transfer row can put it in the incoming list.
+      const bareTicket = await addTicket(operator, { applicationId, subject: 'Loose shelf' });
+      const bareAction = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${bareTicket.ticket_number}/corrective-actions`)
+        .set('x-test-user', operator.id)
+        .send({ title: 'Tighten the shelf brackets' })
+        .expect(201);
+      const bareActionId = bareAction.body.action.id;
+      expect(bareAction.body.action.remediation_owner_id).toBeNull();
+      // A live ops booking by the outgoing operator, and a proposed slot
+      // with no booker.
+      const future = (hours) => new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+      const bookedSlot = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/ops-appointments`)
+        .set('x-test-user', admin.id)
+        .send({ title: 'Walkthrough', starts_at: future(48), ends_at: future(49) })
+        .expect(201);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/ops-appointments/${bookedSlot.body.slot.id}/book`)
+        .set('x-test-user', operator.id)
+        .expect(201);
+      const proposedSlot = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/ops-appointments`)
+        .set('x-test-user', admin.id)
+        .send({ title: 'Second walkthrough', starts_at: future(72), ends_at: future(73) })
+        .expect(201);
+
+      const created = await initiateAs(operator, applicationId, { incoming_operator_id: incoming.id }).expect(201);
+      const approved = await reviewAs(admin, applicationId, created.body.handoff.id, { decision: 'approve' }).expect(200);
+      expect(approved.body.handoff.status).toBe('approved');
+
+      // The booked slot now belongs to the incoming operator; the
+      // proposed slot still has no booker.
+      const { rows: [moved] } = await db.query(
+        'SELECT booked_by FROM franchise_ops_appointment_slots WHERE id = $1', [bookedSlot.body.slot.id],
+      );
+      expect(moved.booked_by).toBe(incoming.id);
+      const { rows: [proposed] } = await db.query(
+        'SELECT booked_by FROM franchise_ops_appointment_slots WHERE id = $1', [proposedSlot.body.slot.id],
+      );
+      expect(proposed.booked_by).toBeNull();
+      // The approval log names the moved booking count.
+      const { rows: [log] } = await db.query(
+        `SELECT event_summary, metadata FROM franchise_activity_log
+          WHERE application_id = $1 AND event_type = 'handoff_approved'`,
+        [applicationId],
+      );
+      expect(log.metadata.ops_bookings_transferred).toBe(1);
+      expect(log.event_summary).toContain('1 live ops booking(s) moved');
+      // The transferred remediation-less action is in the incoming
+      // operator's mine list (before the fix it vanished: no remediation
+      // owner and no transfer match).
+      const mine = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/corrective-actions?mine=true`)
+        .set('x-test-user', incoming.id)
+        .expect(200);
+      expect(mine.body.corrective_actions.map((row) => row.id)).toContain(bareActionId);
+    });
   });
 
   describe('643: contact directory update', () => {
