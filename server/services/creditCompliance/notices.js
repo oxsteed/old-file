@@ -18,6 +18,7 @@
  * per language with credit_notice_overrides rows without a deploy.
  */
 
+const crypto = require('crypto');
 const pool = require('../../db');
 const logger = require('../../utils/logger');
 const { formatMoney } = require('../../validation/money');
@@ -147,6 +148,51 @@ function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }
 
+/**
+ * N11 (D-733): the in-app row used to hardcode action_url '/wallet' for
+ * every notice key. Most keys genuinely live in the wallet — the payout
+ * destinations, the cash-out panel, and the wind-down redemption UI all
+ * render in the wallet page (`client/src/pages/food/WalletPage.jsx:209-210`)
+ * — so '/wallet' stays the default. Only the keys whose action lives
+ * somewhere else are listed here: re-verification happens on the identity
+ * page, and every dispute notice belongs to the dispute centre.
+ */
+const NOTICE_ACTION_URL = Object.freeze({
+  reverification_required: '/verify-identity',
+  dispute_provisional_credit: '/disputes',
+  dispute_results: '/disputes',
+  dispute_provisional_reversal: '/disputes',
+  cashout_dispute_received: '/disputes',
+});
+
+function noticeActionUrl(key) {
+  return NOTICE_ACTION_URL[key] || '/wallet';
+}
+
+// N11 (D-733): item 26's fix for sendNotification, applied to this
+// boundary. When a caller passes no idempotencyKey the delivery key
+// used to be NULL, so the partial unique index never fired and every
+// retry inserted a fresh duplicate row. Derive a deterministic key from
+// the notice's content instead, in the same shape as item 26: a
+// content hash plus a 15-minute bucket, so a retry within the bucket
+// dedupes while a genuinely new identical notice later does not
+// collapse into the first. All current callers pass explicit keys, so
+// this is a backstop for future keyless callers; the tradeoff is the
+// same one item 26 accepted (two identical keyless notices inside one
+// bucket dedupe to one row).
+const NOTICE_KEY_BUCKET_MS = 15 * 60 * 1000;
+
+function deriveNoticeDeliveryKey({ userId, key, params = {} }) {
+  const sorted = {};
+  for (const name of Object.keys(params || {}).sort()) sorted[name] = params[name];
+  const hash = crypto.createHash('sha256')
+    .update(JSON.stringify({ userId: String(userId), key, params: sorted }))
+    .digest('hex')
+    .slice(0, 16);
+  const bucket = Math.floor(Date.now() / NOTICE_KEY_BUCKET_MS);
+  return `credit-notice:auto:${key}:${userId}:${hash}:${bucket}`.slice(0, 255);
+}
+
 /** { subject, text, html, lang } for a notice in the given language. */
 function renderNotice(key, language, params = {}, override = null) {
   const lang = normalizeLang(language);
@@ -208,17 +254,20 @@ async function sendUserNotice({ userId, key, params = {}, idempotencyKey, db = p
     const lang = normalizeLang(user.preferred_language);
     const override = await loadOverride(db, key, lang);
     const notice = renderNotice(key, lang, params, override);
-    const deliveryKey = idempotencyKey ? `credit-notice:${String(idempotencyKey).trim().slice(0, 200)}` : null;
+    const actionUrl = noticeActionUrl(key);
+    const deliveryKey = idempotencyKey
+      ? `credit-notice:${String(idempotencyKey).trim().slice(0, 200)}`
+      : deriveNoticeDeliveryKey({ userId, key, params });
     let notificationId = null;
     let inApp = false;
     try {
       const inserted = await db.query(
         `INSERT INTO notifications (user_id, type, title, body, data, action_url, delivery_key)
-         VALUES ($1, 'credit_notice', $2, $3, $4::jsonb, '/wallet', $5)
+         VALUES ($1, 'credit_notice', $2, $3, $4::jsonb, $5, $6)
          ON CONFLICT (delivery_key) WHERE delivery_key IS NOT NULL DO NOTHING
          RETURNING id`,
         [userId, notice.subject.slice(0, 255), notice.text,
-          JSON.stringify({ notice_key: key, action_url: '/wallet', email_sent: null, email_error: null }), deliveryKey]
+          JSON.stringify({ notice_key: key, action_url: actionUrl, email_sent: null, email_error: null }), actionUrl, deliveryKey]
       );
       if (inserted.rows && inserted.rows[0]) {
         notificationId = String(inserted.rows[0].id);
@@ -254,4 +303,4 @@ async function sendUserNotice({ userId, key, params = {}, idempotencyKey, db = p
   }
 }
 
-module.exports = { LANGS, OUTCOMES, NOTICES: T, normalizeLang, renderNotice, sendUserNotice };
+module.exports = { LANGS, OUTCOMES, NOTICES: T, NOTICE_ACTION_URL, normalizeLang, renderNotice, sendUserNotice, noticeActionUrl, deriveNoticeDeliveryKey };

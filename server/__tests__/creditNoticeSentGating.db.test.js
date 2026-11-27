@@ -326,7 +326,9 @@ describeDatabase('credit notice sent-gating (notifications audit items 1, 8, 45,
       expect(rows[0].data.notice_key).toBe('reverification_required');
       expect(rows[0].data.email_sent).toBe(false);
       expect(rows[0].data.email_error).toBe('resend down');
-      expect(rows[0].action_url).toBe('/wallet');
+      // N11 (D-733): re-verification happens on the identity page, not
+      // in the wallet, so this key links there now.
+      expect(rows[0].action_url).toBe('/verify-identity');
       expect(rows[0].is_read).toBe(false);
     });
 
@@ -351,6 +353,59 @@ describeDatabase('credit notice sent-gating (notifications audit items 1, 8, 45,
       expect(second.notificationId).toBe(first.notificationId);
       const { rows } = await pool.query('SELECT count(*)::int AS n FROM notifications WHERE delivery_key = $1', [`credit-notice:${key}`]);
       expect(rows[0].n).toBe(1);
+    });
+
+    // N11 (D-733): a keyless caller used to get delivery_key NULL, so the
+    // partial unique index never fired and every retry inserted a fresh
+    // duplicate row. The boundary now derives a content key (item 26's
+    // shape), so a keyless retry dedupes while different content does not
+    // collapse — and each key links to the page where its action lives.
+    test('a keyless retry does not duplicate the row', async () => {
+      const userId = await createUser('customer');
+      sendEmail.mockResolvedValue({ success: true, id: 'msg-n11-a' });
+      const args = { userId, key: 'destination_verified', params: { last4: '4242', date: '2026-12-01' } };
+      const first = await notices.sendUserNotice(args);
+      const second = await notices.sendUserNotice(args);
+      expect(first.inApp).toBe(true);
+      expect(second.notificationId).toBe(first.notificationId);
+      const { rows } = await pool.query(
+        'SELECT count(*)::int AS n FROM notifications WHERE user_id = $1 AND type = $2 AND data->>\'notice_key\' = $3',
+        [userId, 'credit_notice', 'destination_verified'],
+      );
+      expect(rows[0].n).toBe(1);
+    });
+
+    test('keyless sends with different content insert separate rows', async () => {
+      const userId = await createUser('customer');
+      sendEmail.mockResolvedValue({ success: true, id: 'msg-n11-b' });
+      const first = await notices.sendUserNotice({ userId, key: 'destination_verified', params: { last4: '4242', date: '2026-12-01' } });
+      const second = await notices.sendUserNotice({ userId, key: 'destination_verified', params: { last4: '9876', date: '2026-12-01' } });
+      expect(second.notificationId).not.toBe(first.notificationId);
+      const { rows } = await pool.query(
+        'SELECT count(*)::int AS n FROM notifications WHERE user_id = $1 AND type = $2 AND data->>\'notice_key\' = $3',
+        [userId, 'credit_notice', 'destination_verified'],
+      );
+      expect(rows[0].n).toBe(2);
+    });
+
+    test('each notice key links to the page where its action lives', async () => {
+      const userId = await createUser('customer');
+      sendEmail.mockResolvedValue({ success: true, id: 'msg-n11-c' });
+      const sends = [
+        ['reverification_required', {}, '/verify-identity'],
+        ['dispute_results', { reference: 'D1234567', outcome_key: 'resolved_customer', explanation: 'Found an error.' }, '/disputes'],
+        ['cashout_dispute_received', { reference: 'C99', amount_minor: 25000, currency: 'HTG', deadline: '2026-12-15' }, '/disputes'],
+        ['destination_verified', { last4: '4242', date: '2026-12-01' }, '/wallet'],
+        ['cashout_held_for_review', { amount_minor: 25000, currency: 'HTG' }, '/wallet'],
+        ['dormancy_notice', { amount_minor: 1000, currency: 'USD', deadline: '2027-01-01' }, '/wallet'],
+      ];
+      for (const [key, params, url] of sends) {
+        const result = await notices.sendUserNotice({ userId, key, params, idempotencyKey: `m4ns-n11-${key}-${crypto.randomUUID()}` });
+        expect(result.inApp).toBe(true);
+        const { rows } = await pool.query('SELECT action_url, data FROM notifications WHERE id = $1', [result.notificationId]);
+        expect(rows[0].action_url).toBe(url);
+        expect(rows[0].data.action_url).toBe(url);
+      }
     });
   });
 
