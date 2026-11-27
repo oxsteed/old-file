@@ -355,6 +355,9 @@ const NOTIFICATION_TYPES = [
   // Group 14 Slice 5d (716, D-430): a new audit request reaches the
   // bookkeeper/admin queue.
   { type: 'audit_request_received', group: 'credit' },
+  // G1-B6 (D-673): a customer files a product return request; the
+  // helper who sold the order and the operations admins are notified.
+  { type: 'marketplace_return_requested', group: 'support' },
   { type: 'statement_ready', group: 'credit' },
   { type: 'customer360_attention', group: 'support' },
   { type: 'dispute_opened', group: 'support' },

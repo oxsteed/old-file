@@ -14,6 +14,11 @@ router.post('/', shoppingCartsController.createCart);
 // Get all carts (with optional template filter)
 router.get('/', shoppingCartsController.getCarts);
 
+// G1-B6: the merchant return queue (returns on the caller's own carts'
+// orders only). Static path registered before /:cartId or Express
+// matches it as a cart id and this route is never reached.
+router.get('/returns', shoppingCartsController.listCartReturnRequests);
+
 // Get templates (shortcut - use GET / with templateOnly=true).
 // NOTE: static paths must be registered before /:cartId or Express matches
 // them as cart IDs and this route is never reached.

@@ -161,6 +161,14 @@ export default function ShoppingCartPage() {
                 >
                   {t('common.edit')}
                 </button>
+                {/* G1-B6: the merchant return queue lives where the helper
+                    already works (their carts), not on a page nobody visits. */}
+                <button
+                  onClick={() => navigate('/marketplace/returns')}
+                  className="scp-edit-btn" data-track="ui.21ecd8206a.16"
+                >
+                  {t('marketplace.viewReturnRequests')}
+                </button>
               </>
             )}
           </div>

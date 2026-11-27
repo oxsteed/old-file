@@ -65,6 +65,14 @@ exports.disputeNotifications = {
     title: t('A rental escalation was resolved', 'Se resolvió una escalación de alquiler', 'Une escalade de location a été résolue', 'Yo rezoud yon eskalasyon lokasyon', 'تم حل تصعيد إيجار'),
     body: t('An admin closed a support escalation on a tool rental. Open the booking to accept the resolution or dispute it.', 'Un administrador cerró una escalación de soporte sobre un alquiler de herramientas. Abre la reserva para aceptar la resolución o disputarla.', 'Un administrateur a clôturé une escalade d’assistance sur une location d’outil. Ouvrez la réservation pour accepter la résolution ou la contester.', 'Yon admin fèmen yon eskalasyon sipò sou yon lokasyon zouti. Louvri rezervasyon an pou aksepte rezolisyon an oswa konteste l.', 'أغلق أحد المسؤولين تصعيد دعم بشأن إيجار أداة. افتح الحجز لقبول الحل أو الاعتراض عليه.'),
   },
+  // G1-B6 (D-673): a customer files a product return request. One
+  // type for both recipients; the helper who sold the order and the
+  // operations admins each get the notice with their own queue link.
+  // The machine-readable ids ride in data; the caller appends nothing.
+  marketplace_return_requested: {
+    title: t('A return was requested for a marketplace order', 'Se solicitó una devolución de un pedido del mercado', 'Un retour a été demandé pour une commande de la marketplace', 'Yo mande yon retou pou yon lòd nan mache a', 'تم طلب إرجاع لطلب من السوق'),
+    body: t('A customer asked to return items from a marketplace order. Open the return queue to review the request.', 'Un cliente pidió devolver artículos de un pedido del mercado. Abre la cola de devoluciones para revisar la solicitud.', 'Un client a demandé le retour d’articles d’une commande de la marketplace. Ouvrez la file des retours pour examiner la demande.', 'Yon kliyan mande pou retounen atik nan yon lòd nan mache a. Louvri ke retou yo pou revize demann lan.', 'طلب عميل إرجاع عناصر من طلب في السوق. افتح قائمة الإرجاع لمراجعة الطلب.'),
+  },
   // G11-B13 (D-620): a party accepts or disputes an admin-closed
   // escalation. Two types so the bell never mislabels a dispute as an
   // acceptance; the disputed notice goes to the counterparty and the

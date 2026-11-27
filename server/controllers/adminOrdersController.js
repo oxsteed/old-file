@@ -516,11 +516,129 @@ async function getOrderStats(req, res) {
   }
 }
 
+const RETURN_STATUSES = ['requested', 'approved', 'declined', 'refunded', 'cancelled'];
+
+function parseReturnListPaging(req) {
+  const parsedLimit = Number.parseInt(String(req.query.limit ?? 20), 10);
+  const parsedSkip = Number.parseInt(String(req.query.skip ?? 0), 10);
+  return {
+    limitN: Number.isSafeInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 100) : 20,
+    skipN: Number.isSafeInteger(parsedSkip) && parsedSkip >= 0 ? Math.min(parsedSkip, 1_000_000) : 0,
+  };
+}
+
+// G1-B6 (D-674): the admin return queue. Every return request in the
+// system, newest first, with an optional ?status= filter (one of the
+// five statuses on order_return_requests; anything else is ignored and
+// lists all). Visibility only plus the decide endpoint below; deciding
+// a return never refunds — refunds stay in the money-approvals flow.
+async function listReturnRequests(req, res) {
+  try {
+    const { status } = req.query;
+    const { limitN, skipN } = parseReturnListPaging(req);
+    const statusFilter = RETURN_STATUSES.includes(status) ? status : null;
+
+    const where = statusFilter ? 'WHERE r.status = $1' : '';
+    const params = statusFilter ? [statusFilter] : [];
+    const limitParam = params.length + 1;
+    const skipParam = params.length + 2;
+
+    const { rows } = await pool.query(
+      `SELECT r.*, mo.status AS order_status, mo.total_cents AS order_total_cents,
+              u.email AS customer_email, u.first_name AS customer_first_name,
+              u.last_name AS customer_last_name
+         FROM order_return_requests r
+         JOIN marketplace_orders mo ON mo.id = r.order_id
+         JOIN users u ON u.id = r.user_id
+        ${where}
+        ORDER BY r.created_at DESC
+        LIMIT $${limitParam} OFFSET $${skipParam}`,
+      [...params, limitN, skipN]
+    );
+
+    const countParams = statusFilter ? [statusFilter] : [];
+    const { rows: [countRow] } = await pool.query(
+      `SELECT COUNT(*) AS total FROM order_return_requests r ${where}`,
+      countParams
+    );
+    const total = parseInt(countRow.total, 10);
+
+    res.json({
+      success: true,
+      data: rows.map((r) => ({
+        id: r.id,
+        orderId: r.order_id,
+        customerId: r.user_id,
+        customerName: `${r.customer_first_name || ''} ${r.customer_last_name || ''}`.trim(),
+        customerEmail: r.customer_email,
+        reason: r.reason,
+        status: r.status,
+        adminNote: r.admin_note,
+        decidedBy: r.decided_by,
+        decidedAt: r.decided_at,
+        orderStatus: r.order_status,
+        orderTotalCents: r.order_total_cents,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+      })),
+      pagination: { total, skip: skipN, limit: limitN, hasMore: skipN + limitN < total },
+    });
+  } catch (error) {
+    logger.error('Error fetching return requests', { error });
+    sendError(res, 500, 'Failed to fetch return requests');
+  }
+}
+
+// G1-B6 (D-676): decide a return request. Status-only handling: an
+// admin records approved or declined with an optional note, using the
+// admin_note / decided_by / decided_at columns the return table already
+// carries. Only a request still in 'requested' can be decided (409
+// otherwise), and deciding never moves money: an approved return is
+// not a refund, and the customer sees the decision on their order page.
+async function decideReturnRequest(req, res) {
+  try {
+    const { returnId } = req.params;
+    const adminId = req.user?.id;
+    if (!adminId) return sendError(res, 401, 'Unauthorized');
+
+    const decision = String(req.body?.decision || '').trim();
+    if (!['approved', 'declined'].includes(decision)) {
+      return sendValidationError(res, { decision: 'Decision must be approved or declined' });
+    }
+    const note = req.body?.note == null ? null : String(req.body.note).slice(0, 1000);
+
+    const { rows } = await pool.query(
+      `UPDATE order_return_requests
+          SET status = $1, admin_note = $2, decided_by = $3,
+              decided_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $4 AND status = 'requested'
+        RETURNING *`,
+      [decision, note, adminId, returnId]
+    );
+    if (!rows.length) {
+      const { rows: existing } = await pool.query(
+        'SELECT status FROM order_return_requests WHERE id = $1',
+        [returnId]
+      );
+      if (!existing.length) return sendError(res, 404, 'Return request not found');
+      return sendError(res, 409, `Return request is already ${existing[0].status}`);
+    }
+
+    logger.info('Marketplace return request decided', { returnId, adminId, decision });
+    res.json({ success: true, data: rows[0] });
+  } catch (error) {
+    logger.error('Error deciding return request', { error });
+    sendError(res, 500, 'Failed to decide return request');
+  }
+}
+
 module.exports = {
   getOrders,
   getOrder,
   markShipped,
   processRefund,
   cancelOrder,
-  getOrderStats
+  getOrderStats,
+  listReturnRequests,
+  decideReturnRequest
 };

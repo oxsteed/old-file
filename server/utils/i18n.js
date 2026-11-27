@@ -2043,6 +2043,9 @@ const EMAIL_TEMPLATES = {
     dispute_opened_against: {
       en: 'View Dispute', fr: 'Voir le litige', es: 'Ver disputa', ht: 'Gade dosi diskisyon an', ar: 'عرض النزاع',
     },
+    marketplace_return_requested: {
+      en: 'View Return Requests', fr: 'Voir les retours', es: 'Ver devoluciones', ht: 'Gade retou yo', ar: 'عرض طلبات الإرجاع',
+    },
     dispute_under_review: {
       en: 'View Dispute', fr: 'Voir le litige', es: 'Ver disputa', ht: 'Gade dosi diskisyon an', ar: 'عرض النزاع',
     },

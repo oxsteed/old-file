@@ -225,6 +225,7 @@ const ShoppingCartPage = lazyWithRetry(() => import('./pages/ShoppingCartPage'))
 const SharedCartPage = lazyWithRetry(() => import('./pages/SharedCartPage'));
 const CheckoutPage = lazyWithRetry(() => import('./pages/CheckoutPage'));
 const MarketplaceOrderPage = lazyWithRetry(() => import('./pages/MarketplaceOrderPage'));
+const MarketplaceReturnsPage = lazyWithRetry(() => import('./pages/MarketplaceReturnsPage'));
 const LifeExpensesPage = lazyWithRetry(() => import('./pages/LifeExpensesPage'));
 const LifeGoalsPage = lazyWithRetry(() => import('./pages/LifeGoalsPage'));
 const LifeHomeTasksPage = lazyWithRetry(() => import('./pages/LifeHomeTasksPage'));
@@ -671,6 +672,9 @@ export default function App() {
                         marketplace flip, renders /checkout when
                         productMarketplace is on). */}
                     <Route path="/marketplace/orders/:orderId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><MarketplaceOrderPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* G1-B6: the merchant return queue: returns on orders
+                        checked out from the helper's own carts. */}
+                    <Route path="/marketplace/returns" element={<Guarded><ProtectedRoute><RouteErrorBoundary><MarketplaceReturnsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Life detail pages: private, reached from the Life dashboard
                         only. Deliberately not in the sitemap and noindex in seoMeta. */}
                     <Route path="/life-dashboard/expenses"   element={<Guarded><ProtectedRoute><RouteErrorBoundary><LifeExpensesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
