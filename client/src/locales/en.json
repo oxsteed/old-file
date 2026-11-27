@@ -43115,6 +43115,8 @@
       "pages": "Pages",
       "actions": "Actions",
       "bookings": "Recent bookings",
+      "orders": "Open orders",
+      "deliveries": "Deliveries in transit",
       "conversations": "Recent conversations",
       "admin": "Admin"
     },

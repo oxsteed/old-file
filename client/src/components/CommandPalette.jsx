@@ -215,7 +215,6 @@ function ClientCommandPalette({initialOpen = false}) {
   const [open, setOpen] = useState(initialOpen);
   const [dynamicItems, setDynamicItems] = useState([]);
   const [dynamicLoading, setDynamicLoading] = useState(false);
-  const fetchedRef = useRef(false);
   const itemsModule = usePaletteItemsModule();
 
   const toggle = useCallback(() => setOpen((value) => !value), []);
@@ -230,14 +229,30 @@ function ClientCommandPalette({initialOpen = false}) {
     return [...pages, ...actions];
   }, [itemsModule, t, projection]);
 
+  // Palette item 3 (D-723): live items are fetched fresh on every open,
+  // not once per mount, so an order placed or a booking accepted since
+  // the last open shows up. Recents ride along; live wins on id clashes.
   useEffect(() => {
-    if (open && user && itemsModule && !fetchedRef.current) {
-      fetchedRef.current = true;
+    if (open && user && itemsModule) {
+      let active = true;
       setDynamicLoading(true);
-      itemsModule.fetchDynamicRecents(t)
-        .then((items) => setDynamicItems(items))
-        .finally(() => setDynamicLoading(false));
+      Promise.all([
+        itemsModule.fetchLiveItems(t),
+        itemsModule.fetchDynamicRecents(t),
+      ])
+        .then(([live, recents]) => {
+          if (!active) return;
+          const seen = new Set();
+          setDynamicItems([...live, ...recents].filter((item) => {
+            if (seen.has(item.id)) return false;
+            seen.add(item.id);
+            return true;
+          }));
+        })
+        .finally(() => { if (active) setDynamicLoading(false); });
+      return () => { active = false; };
     }
+    return undefined;
   }, [open, user, t, itemsModule]);
 
   const items = useMemo(() => [...dynamicItems, ...staticItems], [dynamicItems, staticItems]);
