@@ -43144,6 +43144,25 @@
       "orderFood": "Pedir comida",
       "openWallet": "Abrir billetera",
       "getSupport": "Obtener ayuda"
+    },
+    "keywords": {
+      "bookings": "citas reservas agenda",
+      "browseJobs": "buscar trabajo empleos contratación",
+      "calendar": "agenda citas disponibilidad",
+      "food": "pedir entrega comer restaurantes",
+      "toolRentals": "alquilar herramientas equipos préstamo",
+      "direct": "servicios catálogo pedir presupuesto",
+      "discover": "explorar buscar navegar",
+      "invoices": "facturas recibos pagos",
+      "disputes": "arbitraje reclamos resolución",
+      "logistics": "envío carga suministro",
+      "activity": "novedades notificaciones actualizaciones",
+      "newBooking": "reservar contratar ayudante cita agenda",
+      "newJob": "publicar crear trabajo contratar solicitud",
+      "newQuote": "pedir presupuesto estimación precio",
+      "orderFood": "entrega restaurante comer comida",
+      "openWallet": "dinero saldo crédito fondos",
+      "getSupport": "ayuda contacto ticket asistencia"
     }
   },
   "priceGuide": {

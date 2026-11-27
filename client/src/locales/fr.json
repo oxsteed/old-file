@@ -43144,6 +43144,25 @@
       "orderFood": "Commander à manger",
       "openWallet": "Ouvrir le portefeuille",
       "getSupport": "Obtenir de l'aide"
+    },
+    "keywords": {
+      "bookings": "rendez-vous réservations agenda",
+      "browseJobs": "trouver travail emplois embauche",
+      "calendar": "agenda rendez-vous disponibilités",
+      "food": "commander livraison manger restaurants",
+      "toolRentals": "louer outils équipement emprunt",
+      "direct": "services catalogue demander devis",
+      "discover": "explorer rechercher parcourir",
+      "invoices": "factures reçus paiements",
+      "disputes": "arbitrage réclamations résolution",
+      "logistics": "expédition fret fournitures",
+      "activity": "fil notifications mises à jour",
+      "newBooking": "réserver embaucher aide rendez-vous agenda",
+      "newJob": "publier créer mission embaucher demande",
+      "newQuote": "demander devis estimation prix",
+      "orderFood": "livraison restaurant manger repas",
+      "openWallet": "argent solde crédit fonds",
+      "getSupport": "aide contact ticket assistance"
     }
   },
   "priceGuide": {

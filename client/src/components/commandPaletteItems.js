@@ -83,34 +83,34 @@ export function pushRecentId(id) {
 // destinations. labelKey reuses existing `nav.*` keys where they exist;
 // the rest live under `commandPalette.pages.*` in every locale.
 const CLIENT_PAGE_EXTRAS = [
-  { id: 'page:bookings', path: '/my-bookings', labelKey: 'commandPalette.pages.bookings', keywords: 'appointments reservations schedule' },
-  { id: 'page:browse-jobs', path: '/jobs', labelKey: 'nav.browseJobs', keywords: 'find work gigs hiring' },
-  { id: 'page:calendar', path: '/calendar', labelKey: 'nav.calendar', keywords: 'schedule appointments availability' },
-  { id: 'page:food', path: '/food', labelKey: 'commandPalette.pages.food', keywords: 'order delivery eat restaurants' },
-  { id: 'page:tool-rentals', path: '/tool-rentals', labelKey: 'commandPalette.pages.toolRentals', keywords: 'rent tools equipment borrow' },
-  { id: 'page:direct', path: '/direct', labelKey: 'commandPalette.pages.direct', keywords: 'services catalog quote request' },
+  { id: 'page:bookings', path: '/my-bookings', labelKey: 'commandPalette.pages.bookings', keywordsKey: 'commandPalette.keywords.bookings' },
+  { id: 'page:browse-jobs', path: '/jobs', labelKey: 'nav.browseJobs', keywordsKey: 'commandPalette.keywords.browseJobs' },
+  { id: 'page:calendar', path: '/calendar', labelKey: 'nav.calendar', keywordsKey: 'commandPalette.keywords.calendar' },
+  { id: 'page:food', path: '/food', labelKey: 'commandPalette.pages.food', keywordsKey: 'commandPalette.keywords.food' },
+  { id: 'page:tool-rentals', path: '/tool-rentals', labelKey: 'commandPalette.pages.toolRentals', keywordsKey: 'commandPalette.keywords.toolRentals' },
+  { id: 'page:direct', path: '/direct', labelKey: 'commandPalette.pages.direct', keywordsKey: 'commandPalette.keywords.direct' },
   // Universal finder step 1: the Discover entry points at the live /discover
   // route (the homepage submit has since PR #815). While discoverEverything
   // is off, the launch-redirect filter below hides it and /jobs stays
   // reachable through the browse-jobs entry.
-  { id: 'page:discover', path: '/discover', labelKey: 'commandPalette.pages.discover', keywords: 'explore search browse' },
-  { id: 'page:invoices', path: '/invoices', labelKey: 'commandPalette.pages.invoices', keywords: 'bills receipts payments' },
-  { id: 'page:disputes', path: '/disputes', labelKey: 'commandPalette.pages.disputes', keywords: 'arbitration claims resolution' },
+  { id: 'page:discover', path: '/discover', labelKey: 'commandPalette.pages.discover', keywordsKey: 'commandPalette.keywords.discover' },
+  { id: 'page:invoices', path: '/invoices', labelKey: 'commandPalette.pages.invoices', keywordsKey: 'commandPalette.keywords.invoices' },
+  { id: 'page:disputes', path: '/disputes', labelKey: 'commandPalette.pages.disputes', keywordsKey: 'commandPalette.keywords.disputes' },
   // Universal finder step 1: `requires` lists projection-derived
   // destinations; the entry shows only when the projection offers one of
   // them. /logistics itself is not a nav destination (only its buyer and
   // organizer pages are), so it stays a gated extra.
-  { id: 'page:logistics', path: '/logistics', labelKey: 'nav.logistics', keywords: 'shipping freight supply', requires: ['/logistics/buyer', '/logistics/organizer'] },
-  { id: 'page:activity', path: '/activity', labelKey: 'commandPalette.pages.activity', keywords: 'feed notifications updates' },
+  { id: 'page:logistics', path: '/logistics', labelKey: 'nav.logistics', keywordsKey: 'commandPalette.keywords.logistics', requires: ['/logistics/buyer', '/logistics/organizer'] },
+  { id: 'page:activity', path: '/activity', labelKey: 'commandPalette.pages.activity', keywordsKey: 'commandPalette.keywords.activity' },
 ];
 
 const CLIENT_ACTIONS = [
-  { id: 'action:new-booking', path: '/helpers', labelKey: 'commandPalette.actions.newBooking', keywords: 'book hire helper appointment schedule' },
-  { id: 'action:new-job', path: '/post-job', labelKey: 'commandPalette.actions.newJob', keywords: 'post create gig hire request' },
-  { id: 'action:new-quote', path: '/quote-request', labelKey: 'commandPalette.actions.newQuote', keywords: 'request quote estimate price' },
-  { id: 'action:order-food', path: '/food', labelKey: 'commandPalette.actions.orderFood', keywords: 'delivery restaurant eat meal' },
-  { id: 'action:open-wallet', path: '/wallet', labelKey: 'commandPalette.actions.openWallet', keywords: 'money balance credit funds' },
-  { id: 'action:get-support', path: '/support', labelKey: 'commandPalette.actions.getSupport', keywords: 'help contact ticket assistance' },
+  { id: 'action:new-booking', path: '/helpers', labelKey: 'commandPalette.actions.newBooking', keywordsKey: 'commandPalette.keywords.newBooking' },
+  { id: 'action:new-job', path: '/post-job', labelKey: 'commandPalette.actions.newJob', keywordsKey: 'commandPalette.keywords.newJob' },
+  { id: 'action:new-quote', path: '/quote-request', labelKey: 'commandPalette.actions.newQuote', keywordsKey: 'commandPalette.keywords.newQuote' },
+  { id: 'action:order-food', path: '/food', labelKey: 'commandPalette.actions.orderFood', keywordsKey: 'commandPalette.keywords.orderFood' },
+  { id: 'action:open-wallet', path: '/wallet', labelKey: 'commandPalette.actions.openWallet', keywordsKey: 'commandPalette.keywords.openWallet' },
+  { id: 'action:get-support', path: '/support', labelKey: 'commandPalette.actions.getSupport', keywordsKey: 'commandPalette.keywords.getSupport' },
 ];
 
 export function buildClientItems(t, projection) {
@@ -144,8 +144,12 @@ export function buildClientItems(t, projection) {
     if (!isPalettePageVisible(entry, allowed)) continue;
     seen.add(entry.path);
     pages.push({
-      ...entry,
+      id: entry.id,
+      path: entry.path,
       label: t(entry.labelKey),
+      // Palette item 2 (D-722): keywords are localized strings from the
+      // catalog, resolved here; English is the i18n fallback (fallbackLng).
+      keywords: t(entry.keywordsKey),
       group: 'pages',
     });
   }
@@ -153,8 +157,10 @@ export function buildClientItems(t, projection) {
   // support). They stay visible to every account, un-gated, so a user can
   // always find the way in to something they cannot do yet.
   const actions = CLIENT_ACTIONS.map((entry) => ({
-    ...entry,
+    id: entry.id,
+    path: entry.path,
     label: t(entry.labelKey),
+    keywords: t(entry.keywordsKey),
     group: 'actions',
   }));
   return { pages, actions };

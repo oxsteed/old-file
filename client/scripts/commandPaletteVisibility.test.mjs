@@ -128,6 +128,26 @@ test('registry: buildClientItems derives pages from the projection navigation', 
   assert.match(source, /CLIENT_PAGE_EXTRAS/);
 });
 
+// Palette item 2 (D-722): every keywordsKey the registry references must
+// exist as a real string in all five locale catalogs, so no language ever
+// falls back to English-only keywords.
+test('locale parity: every palette keywords key exists in all five locales', async () => {
+  const source = await registrySource();
+  const keys = [...new Set([...source.matchAll(/keywordsKey: '(commandPalette\.keywords\.[a-zA-Z]+)'/g)].map((m) => m[1]))];
+  assert.ok(keys.length >= 17, `expected at least 17 keywords keys, found ${keys.length}`);
+  for (const locale of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const catalog = JSON.parse(await readFile(
+      new URL(`../src/locales/${locale}.json`, import.meta.url),
+      'utf8',
+    ));
+    for (const key of keys) {
+      const value = catalog?.commandPalette?.keywords?.[key.split('.').pop()];
+      assert.equal(typeof value, 'string', `${locale}: missing ${key}`);
+      assert.ok(value.trim().length > 0, `${locale}: empty ${key}`);
+    }
+  }
+});
+
 test('registry: buildClientItems gates pages by the projection and leaves actions un-gated', async () => {
   const source = await registrySource();
   assert.match(source, /export function buildClientItems\(t, projection\)/);
