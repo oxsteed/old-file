@@ -130,16 +130,9 @@ describeDb('Group 12 Slice 3a: Enter program (604, 603, 605)', () => {
       })
       .expect(201);
     const applicationId = created.body.application.id;
-    // The intake is a public lead form (no `authenticate` on POST
-    // /applications), so the row is created ownerless; HQ links the
-    // applicant's account through the admin owner assignment, which is the
-    // production path that makes the application visible to the applicant.
-    const adminId = await addUser('super_admin');
-    await request(app)
-      .patch(`/api/franchise/applications/${applicationId}`)
-      .set('x-test-user', adminId)
-      .send({ owner_user_id: applicantId })
-      .expect(200);
+    // Group 12 Slice A (G12-A2 / S-E4, D-643): intake is authenticated-only,
+    // so the row is created owned by the applicant at creation; no HQ
+    // owner-linking step is needed for the applicant to see it.
     return applicationId;
   }
 
@@ -296,6 +289,36 @@ describeDb('Group 12 Slice 3a: Enter program (604, 603, 605)', () => {
       await applicantDetail(other, applicationId).expect(404);
       await request(app).get(`/api/franchise/my-applications/${randomUUID()}`).set('x-test-user', applicant).expect(404);
       expect(admin).toBeTruthy();
+    });
+  });
+
+  describe('G12-A2 / S-E4: authenticated-only intake', () => {
+    test('a guest POST is refused with 401 and creates no row; an authenticated POST owns the row', async () => {
+      const guestEmail = `g12a2-guest-${randomUUID()}@example.invalid`;
+      await request(app)
+        .post('/api/franchise/applications')
+        .send({
+          first_name: 'Guest',
+          last_name: 'Applicant',
+          email: guestEmail,
+          desired_country: 'US',
+        })
+        .expect(401);
+
+      const orphan = await db.query(
+        'SELECT id FROM franchise_applications WHERE email = $1',
+        [guestEmail],
+      );
+      expect(orphan.rows).toHaveLength(0);
+
+      const applicant = await addUser();
+      const applicationId = await makeApplication(applicant);
+      const owned = await db.query(
+        'SELECT applicant_user_id, owner_user_id FROM franchise_applications WHERE id = $1',
+        [applicationId],
+      );
+      expect(owned.rows[0].applicant_user_id).toBe(applicant);
+      expect(owned.rows[0].owner_user_id).toBe(applicant);
     });
   });
 

@@ -25018,13 +25018,12 @@
     }
   },
   "franchiseIntakePage": {
-    "submitted": {
-      "title": "Demande de franchise reçue",
-      "heading": "Demande reçue",
-      "body": "Nous avons bien reçu votre dossier de franchise, notre équipe le relira sous peu. Conservez cet e-mail car les mises à jour pour la candidature #{{applicationId}} y seront envoyées.",
+    "signInRequired": {
+      "title": "Connectez-vous pour postuler",
+      "body": "Les demandes de franchise sont liées à votre compte OxSteed, pour que vous puissiez suivre l'examen et chaque étape suivante depuis votre page de statut. Connectez-vous pour commencer votre demande, ou créez un compte si vous n'en avez pas encore.",
       "cta": {
-        "signIn": "Se connecter pour suivre l’avancement",
-        "strategyCall": "Planifier un appel stratégique"
+        "signIn": "Se connecter",
+        "createAccount": "Créer un compte"
       }
     },
     "meta": {

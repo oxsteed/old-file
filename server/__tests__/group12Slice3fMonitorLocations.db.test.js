@@ -314,9 +314,8 @@ describeDb('Group 12 Slice 3f: Monitor locations (626-630)', () => {
       const stranger = await addUser();
       const admin = await addUser('super_admin');
       const applicationId = await makeApplication(applicant, operator);
-      // The public lead form leaves applicant_user_id NULL; link the
-      // applicant record directly, as the 3c/3d fixtures do.
-      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+      // Intake is authenticated-only (D-643), so the row is already owned
+      // by the applicant.
       const ticket = await addTicket(applicant, { priority: 'urgent' });
 
       await request(app)

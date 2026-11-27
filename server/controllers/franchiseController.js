@@ -1293,6 +1293,15 @@ function parseInterviewDate(value) {
 }
 
 async function createFranchiseApplication(req, res) {
+  // Group 12 Slice A (G12-A2 / S-E4, D-643): franchise intake is
+  // authenticated-only. A guest row was ownerless (applicant_user_id and
+  // owner_user_id NULL), so it matched no user in listMyFranchiseApplications
+  // and the applicant could never track it; the route's `authenticate`
+  // middleware is the first line of defence and this guard is the second.
+  if (!req.user?.id) {
+    return res.status(401).json({ error: 'Authentication required to file a franchise application.' });
+  }
+
   const firstName = asTrimmed(req.body.first_name);
   const lastName = asTrimmed(req.body.last_name);
   const email = asTrimmed(req.body.email);
@@ -1359,10 +1368,11 @@ async function createFranchiseApplication(req, res) {
          RETURNING id`,
         [
           program.id,
-          req.user?.id || null,
           // owner_user_id is always the authenticated applicant; the client
-          // must not supply it (lead form is public, so null for guests).
-          req.user?.id || null,
+          // must not supply it (intake is authenticated-only since D-643,
+          // so a guest row can no longer be created ownerless).
+          req.user.id,
+          req.user.id,
           linkedConsultingRequestId,
           firstName,
           lastName,
@@ -1429,7 +1439,7 @@ async function createFranchiseApplication(req, res) {
       await logActivity(
         client,
         applicationId,
-        req.user?.id || null,
+        req.user.id,
         'application_created',
         `Franchise application created for ${firstName} ${lastName}.`,
         { desired_country: desiredCountry, desired_region: desiredRegion, desired_city: desiredCity }
@@ -1824,11 +1834,11 @@ async function updateFranchiseApplication(req, res) {
       // (or approving with an owner when no offer exists yet) offers the
       // territory to the new operator; the previous decision is cleared.
       // Linking the applicant's own account is identity linking, not an
-      // assignment, so it never offers: the public lead form creates the
-      // row ownerless (applicant_user_id NULL too), and HQ links the
-      // applicant — identified by applicant_user_id when set, else by the
-      // application email matching the new owner's email. Rejected/archived
-      // applications are never offered.
+      // assignment, so it never offers: rows filed before authenticated-only
+      // intake (D-643) can be ownerless (applicant_user_id NULL too), and HQ
+      // links the applicant — identified by applicant_user_id when set, else
+      // by the application email matching the new owner's email. Rejected/
+      // archived applications are never offered.
       const nextStatus = updateResult.rows[0].status;
       const nextOwnerId = updateResult.rows[0].owner_user_id;
       const isApplicantLink = ownerUserId !== undefined && (

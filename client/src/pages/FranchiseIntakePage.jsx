@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Briefcase, Compass, Flag, Rocket, ShieldCheck, Users } from 'lucide-react';
+import { Briefcase, Compass, Flag, Rocket, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
@@ -59,9 +59,8 @@ const getLocalizedArray = (value, fallback) => {
 export default function FranchiseIntakePage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [submittedId, setSubmittedId] = useState(null);
   const [form, setForm] = useState({
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
@@ -164,14 +163,13 @@ export default function FranchiseIntakePage() {
 
     setLoading(true);
     try {
-      const { data } = await api.post('/franchise/applications', {
+      await api.post('/franchise/applications', {
         ...form,
         first_name: capitalizeWords(form.first_name),
         last_name: capitalizeWords(form.last_name),
         preferred_store_count: parseInt(form.preferred_store_count, 10) || 1,
       });
 
-      setSubmittedId(data?.application?.id || data?.id || null);
       toast.success(t('franchiseIntakePage.messages.success'));
 
       if (user) {
@@ -183,39 +181,6 @@ export default function FranchiseIntakePage() {
       setLoading(false);
     }
   };
-
-  if (submittedId && !user) {
-    return (
-        <PageShell>
-        <PageMeta
-          title={t('franchiseIntakePage.submitted.title')}
-          description={t('franchiseIntakePage.submitted.body')}
-          url={`${window.location.origin}/franchise/apply`}
-        />
-        <div style={{ minHeight: '100vh', background: 'radial-gradient(circle at top, rgba(249,115,22,0.16), transparent 38%), #020617', color: 'var(--app-text)' }}>
-          <main style={{ maxWidth: '760px', margin: '0 auto', padding: '5rem 1.25rem 6rem' }}>
-            <section style={{ border: '1px solid rgba(148,163,184,0.16)', borderRadius: '32px', padding: '2rem', background: 'rgba(15,23,42,0.86)' }}>
-              <div style={{ width: '64px', height: '64px', borderRadius: '20px', display: 'grid', placeItems: 'center', background: 'rgba(16,185,129,0.16)', color: '#34d399', marginBottom: '1rem' }}>
-                <ShieldCheck size={30} />
-              </div>
-              <h1 style={{ fontSize: '2.2rem', lineHeight: 1.05, margin: 0 }}>{t('franchiseIntakePage.submitted.heading')}</h1>
-              <p style={{ color: 'var(--muted-text)', fontSize: '1rem', marginTop: '0.9rem' }}>
-                {t('franchiseIntakePage.submitted.body', { applicationId: submittedId })}
-              </p>
-              <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap', marginTop: '1.4rem' }}>
-                <Link to="/login" style={{ padding: '0.9rem 1.2rem', borderRadius: '999px', background: '#f97316', color: '#fff', textDecoration: 'none', fontWeight: 700 }}>
-                  {t('franchiseIntakePage.submitted.cta.signIn')}
-                </Link>
-                <Link to="/consulting" style={{ padding: '0.9rem 1.2rem', borderRadius: '999px', border: '1px solid rgba(148,163,184,0.16)', color: 'var(--app-text)', textDecoration: 'none', fontWeight: 700 }}>
-                  {t('franchiseIntakePage.submitted.cta.strategyCall')}
-                </Link>
-              </div>
-            </section>
-          </main>
-        </div>
-      </PageShell>
-    );
-  }
 
   return (
     <PageShell>
@@ -266,6 +231,10 @@ export default function FranchiseIntakePage() {
             </aside>
           </section>
 
+          {/* Group 12 Slice A (G12-A2 / S-E4, D-643): franchise intake is
+              authenticated-only, so guests see the sign-in gate here instead
+              of a form whose submission would 401. */}
+          {user ? (
           <form onSubmit={handleSubmit} style={{ marginTop: '1.5rem', border: '1px solid rgba(148,163,184,0.16)', borderRadius: '32px', background: 'rgba(15,23,42,0.88)', padding: '1.5rem' }} data-track="ui.ecc5611e10.1">
             <div style={{ display: 'grid', gap: '1.5rem' }}>
               <section>
@@ -349,6 +318,22 @@ export default function FranchiseIntakePage() {
               </section>
             </div>
           </form>
+          ) : authLoading ? null : (
+          <section style={{ marginTop: '1.5rem', border: '1px solid rgba(148,163,184,0.16)', borderRadius: '32px', background: 'rgba(15,23,42,0.88)', padding: '1.5rem' }}>
+            <h2 style={sectionTitleStyle}>{t('franchiseIntakePage.signInRequired.title')}</h2>
+            <p style={{ color: 'var(--muted-text)', fontSize: '1rem', lineHeight: 1.6, marginTop: '0.7rem' }}>
+              {t('franchiseIntakePage.signInRequired.body')}
+            </p>
+            <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap', marginTop: '1.2rem' }}>
+              <Link to="/login?next=/franchise/apply" style={{ padding: '0.95rem 1.25rem', borderRadius: '999px', background: '#f97316', color: '#fff', textDecoration: 'none', fontWeight: 800 }}>
+                {t('franchiseIntakePage.signInRequired.cta.signIn')}
+              </Link>
+              <Link to="/register" style={{ padding: '0.95rem 1.25rem', borderRadius: '999px', border: '1px solid rgba(148,163,184,0.16)', color: 'var(--app-text)', textDecoration: 'none', fontWeight: 700 }}>
+                {t('franchiseIntakePage.signInRequired.cta.createAccount')}
+              </Link>
+            </div>
+          </section>
+          )}
         </main>
       </div>
     </PageShell>

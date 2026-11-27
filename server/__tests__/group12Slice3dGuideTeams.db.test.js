@@ -224,9 +224,8 @@ describeDb('Group 12 Slice 3d: Guide teams (616-620)', () => {
       const operator = await addUser();
       const stranger = await addUser();
       const applicationId = await makeApplication(applicant, operator);
-      // The public lead form leaves applicant_user_id NULL; link the
-      // applicant record directly, as the 3c fixtures do.
-      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+      // Intake is authenticated-only (D-643), so the row is already owned
+      // by the applicant; the applicant record alone is not the operator.
 
       await request(app)
         .post(`/api/franchise/my-applications/${applicationId}/invitations`)

@@ -25018,13 +25018,12 @@
     }
   },
   "franchiseIntakePage": {
-    "submitted": {
-      "title": "Franchise application received",
-      "heading": "Application received",
-      "body": "We have your franchise intake and our team will review it shortly. Keep this email handy because updates for application #{{applicationId}} will be sent there.",
+    "signInRequired": {
+      "title": "Sign in to apply",
+      "body": "Franchise applications are tied to your OxSteed account, so you can track the review and every step that follows from your status page. Sign in to start your application, or create an account if you do not have one yet.",
       "cta": {
-        "signIn": "Sign in to track progress",
-        "strategyCall": "Book a strategy call"
+        "signIn": "Sign in",
+        "createAccount": "Create an account"
       }
     },
     "meta": {

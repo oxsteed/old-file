@@ -25018,13 +25018,12 @@
     }
   },
   "franchiseIntakePage": {
-    "submitted": {
-      "title": "Aplikasyon frankti rive",
-      "heading": "Aplikasyon resevwa",
-      "body": "Nou resevwa dosye frankti ou epi ekip nou ap revize l kounye a. Kenbe imèl sa a paske mizajou pou aplikasyon #{{applicationId}} ap voye la.",
+    "signInRequired": {
+      "title": "Antre pou aplike",
+      "body": "Aplikasyon frankti yo mare ak kont OxSteed ou, pou ou ka swiv revizyon an ak chak etap apre sa depi nan paj estati ou. Antre pou kòmanse aplikasyon ou, oswa kreye yon kont si ou poko gen youn.",
       "cta": {
-        "signIn": "Antre pou swiv pwogrè a",
-        "strategyCall": "Rezève yon apèl estrateji"
+        "signIn": "Antre",
+        "createAccount": "Kreye yon kont"
       }
     },
     "meta": {

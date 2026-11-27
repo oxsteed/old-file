@@ -25018,13 +25018,12 @@
     }
   },
   "franchiseIntakePage": {
-    "submitted": {
-      "title": "Solicitud de franquicia recibida",
-      "heading": "Solicitud recibida",
-      "body": "Ya tenemos su solicitud y nuestro equipo la revisará pronto. Conserva este correo porque los actualizaciones para la aplicación #{{applicationId}} se enviarán ahí.",
+    "signInRequired": {
+      "title": "Inicia sesión para aplicar",
+      "body": "Las solicitudes de franquicia están vinculadas a tu cuenta de OxSteed, para que puedas seguir la revisión y cada paso siguiente desde tu página de estado. Inicia sesión para comenzar tu solicitud, o crea una cuenta si aún no tienes una.",
       "cta": {
-        "signIn": "Iniciar sesión para ver el progreso",
-        "strategyCall": "Reservar una llamada de estrategia"
+        "signIn": "Iniciar sesión",
+        "createAccount": "Crear una cuenta"
       }
     },
     "meta": {

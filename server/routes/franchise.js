@@ -190,7 +190,7 @@ const {
   getTerritoryHelpers,
 } = require('../controllers/franchiseTerritoryController');
 
-router.post('/applications', generalLimiter, requireFranchiseEnabled, createFranchiseApplication);
+router.post('/applications', authenticate, generalLimiter, requireFranchiseEnabled, createFranchiseApplication);
 router.get('/my-applications',     authenticate, requireFranchiseEnabled, listMyFranchiseApplications);
 // Group 12 Slice 3a: applicant detail + interview booking + document
 // upload + follow-up replies, all scoped to the applicant's own application.

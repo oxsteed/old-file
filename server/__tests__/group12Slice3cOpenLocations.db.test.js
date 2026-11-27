@@ -119,16 +119,8 @@ describeDb('Group 12 Slice 3c: Open locations (611-615)', () => {
       })
       .expect(201);
     const applicationId = created.body.application.id;
-    // The intake is a public lead form (no `authenticate` on POST
-    // /applications), so the row is created ownerless; HQ links the
-    // applicant's account through the admin owner assignment, which is the
-    // production path that makes the application visible to the applicant.
-    const adminId = await addUser('super_admin');
-    await request(app)
-      .patch(`/api/franchise/applications/${applicationId}`)
-      .set('x-test-user', adminId)
-      .send({ owner_user_id: applicantId })
-      .expect(200);
+    // Group 12 Slice A (G12-A2 / S-E4, D-643): intake is authenticated-only,
+    // so the row is created owned by the applicant at creation.
     return applicationId;
   }
 
@@ -552,10 +544,9 @@ describeDb('Group 12 Slice 3c: Open locations (611-615)', () => {
       const applicationId = await makeApplication(applicant, { desired_region: 'TX' });
       const helper = await addHelper();
 
-      // The public lead form leaves applicant_user_id NULL; link the
-      // applicant's account (as 3b does) so the applicant-vs-operator
-      // distinction below is the one the handler enforces.
-      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant, applicationId]);
+      // Intake is authenticated-only (D-643), so the row is already owned
+      // by the applicant; the applicant-vs-operator distinction below is
+      // the one the handler enforces.
       // HQ reassigns the territory to a second operator; the original
       // applicant record alone is no longer the operator.
       await request(app)
