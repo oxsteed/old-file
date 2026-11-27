@@ -47,6 +47,8 @@ describeDb('R05 million-row frozen export capacity',()=>{
     // track the migrated schema or the worker's completion UPDATE fails on
     // the missing expires_at column.
     await db.query(fs.readFileSync(path.join(__dirname,'../migrations/20261125012700_statement_export_job_expiry.sql'),'utf8'));
+    // S-F1 (D-636): the purge-marker migration extends the same table.
+    await db.query(fs.readFileSync(path.join(__dirname,'../migrations/20261127060833_statement_export_purge_marker.sql'),'utf8'));
   },30000);
   afterAll(async()=>{
     await db?.end();

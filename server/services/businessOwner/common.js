@@ -40,13 +40,19 @@ async function activeMember(db, businessId, userId) {
 // Best-effort, post-commit, idempotent notification. Types are registered in
 // utils/notificationTypeCatalog.js and rendered from
 // utils/businessTeamNotificationTemplates.js.
+// Returns whether the send reported delivery. Fire-and-forget callers keep
+// ignoring the return; callers that must not record success before delivery
+// (e.g. alertUnclaimed's retry stamp, D-637) gate on it. A throw inside
+// sendNotification is still swallowed here and reports false.
 async function notify(userId, type, data, key, actionUrl) {
-  if (!userId) return;
+  if (!userId) return false;
   try {
     const { sendNotification } = require('../notificationService');
-    await sendNotification({ userId, type, data: data || {}, action_url: actionUrl || null, idempotencyKey: key });
+    const result = await sendNotification({ userId, type, data: data || {}, action_url: actionUrl || null, idempotencyKey: key });
+    return result?.success === true;
   } catch (error) {
     logger.warn('Business team notification failed', { type, error: error.message });
+    return false;
   }
 }
 module.exports = { UUID, fail, invalid, text, uuid, int, isoDate, ownerOf, activeMember, notify };

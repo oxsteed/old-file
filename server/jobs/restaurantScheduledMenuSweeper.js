@@ -13,9 +13,10 @@
 //  2. Alert unclaimed pickups via ownerService.alertUnclaimed: ready
 //     pickup orders past the location's unclaimed_pickup_minutes get
 //     their store managers notified (type restaurant_pickup_unclaimed,
-//     idempotent per order + manager). The alert marks
-//     unclaimed_alerted_at before notifying, so a repeated tick never
-//     re-alerts the same order.
+//     idempotent per order + manager). The alert stamps
+//     unclaimed_alerted_at only after a successful send (D-637), so a
+//     failed send leaves the order unstamped and the next tick retries
+//     it; a repeated tick never re-alerts an order that was delivered.
 //
 // The alert leg runs as a synthetic owner-scoped system context per
 // restaurant (no user): alertUnclaimed's permission gate is
@@ -29,8 +30,9 @@
 // skips an overlapping tick in this process and withFencedJobLock
 // (TTL matches the 60s cadence) skips a concurrent pass on another
 // replica. applyDueMenuChanges claims with FOR UPDATE SKIP LOCKED and
-// the alert marks before notifying, so a fence breach degrades to a
-// duplicate-safe no-op rather than a double apply or double alert.
+// the alert's per-order+manager delivery key dedupes a re-send, so a
+// fence breach degrades to a duplicate-safe no-op rather than a double
+// apply or double alert.
 // A failure on one restaurant is logged and the sweep continues with
 // the next; one bad restaurant never kills the tick.
 

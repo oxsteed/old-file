@@ -99,10 +99,27 @@ describeDb('Group 8: restaurant persona', () => {
     expect((await pool.query('SELECT price_cents FROM food_menu_items WHERE id=$1', [itemId])).rows[0].price_cents).toBe(1500);
     expect((await pool.query("SELECT status FROM restaurant_scheduled_menu_changes WHERE id=$1", [chId])).rows[0].status).toBe('applied');
     expect((await pool.query('SELECT unclaimed_alerted_at FROM food_orders WHERE id=$1', [o.id])).rows[0].unclaimed_alerted_at).toBeTruthy();
-    // Second tick is a no-op for this order: the alert marks before notifying.
+    // Second tick is a no-op for this order: the first tick stamped it after a successful send (D-637).
     const again = await sweepScheduledMenus();
     expect((await pool.query('SELECT unclaimed_alerted_at FROM food_orders WHERE id=$1', [o.id])).rows[0].unclaimed_alerted_at).toBeTruthy();
     expect(again.applied).toBe(0);
+  });
+
+  test('372 (S-F2): a failed unclaimed alert leaves the order retryable', async () => {
+    const notificationService = require('../services/notificationService');
+    const o = await mkOrder({ status: 'ready', ready_at: new Date(Date.now() - 2 * 36e5).toISOString() });
+    try {
+      notificationService.sendNotification.mockRejectedValue(new Error('synthetic notify failure'));
+      const failed = await request(app).post(`${O()}/unclaimed-pickups/alert`).set(as(owner)).expect(200);
+      expect(failed.body.notified).toBe(0);
+      expect((await pool.query('SELECT unclaimed_alerted_at FROM food_orders WHERE id=$1', [o.id])).rows[0].unclaimed_alerted_at).toBeNull();
+      notificationService.sendNotification.mockResolvedValue({ success: true });
+      const retried = await request(app).post(`${O()}/unclaimed-pickups/alert`).set(as(owner)).expect(200);
+      expect(retried.body.notified).toBeGreaterThanOrEqual(1);
+      expect((await pool.query('SELECT unclaimed_alerted_at FROM food_orders WHERE id=$1', [o.id])).rows[0].unclaimed_alerted_at).toBeTruthy();
+    } finally {
+      notificationService.sendNotification.mockResolvedValue({ success: true });
+    }
   });
 
   test('401-450 team: shift start, readiness, pickup code, issues, stock notice, tickets, end of shift', async () => {

@@ -300,8 +300,21 @@ async function alertUnclaimed(c) {
   const { orders } = await unclaimed(c);
   let notified = 0;
   for (const o of orders.filter(x => !x.unclaimed_alerted_at)) {
-    await pool.query('UPDATE food_orders SET unclaimed_alerted_at=NOW() WHERE id=$1', [o.id]);
-    for (const m of await storeManagers(c, o.location_id)) { await notify(m, 'restaurant_pickup_unclaimed', { queue: String(o.queue_number || o.id) }, `restaurant_pickup_unclaimed:${o.id}:${m}`, url(c.restaurantId, 'orders')); notified++; }
+    // S-F2 (D-637): stamp only after a successful send. The old order
+    // stamped first, so a failed send was never retried. notify() swallows
+    // transport errors and reports delivery, so the stamp gates on its
+    // return, not on the absence of a throw. A failed manager send (or a
+    // storeManagers failure) leaves the order unstamped and the next sweep
+    // retries it; re-sends to already-notified managers are deduped by the
+    // per-order+manager delivery key at the notification layer. With no
+    // managers configured there is nobody to notify, so the order stamps.
+    const managers = await storeManagers(c, o.location_id);
+    let delivered = true;
+    for (const m of managers) {
+      if (await notify(m, 'restaurant_pickup_unclaimed', { queue: String(o.queue_number || o.id) }, `restaurant_pickup_unclaimed:${o.id}:${m}`, url(c.restaurantId, 'orders'))) notified++;
+      else delivered = false;
+    }
+    if (delivered) await pool.query('UPDATE food_orders SET unclaimed_alerted_at=NOW() WHERE id=$1', [o.id]);
   }
   return { orders: orders.length, notified };
 }

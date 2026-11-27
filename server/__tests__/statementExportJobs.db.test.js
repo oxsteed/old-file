@@ -44,6 +44,8 @@ describeDb('R05 isolated durable SQL export pipeline',()=>{
     // track the migrated schema or the worker's completion UPDATE fails on
     // the missing expires_at column.
     await db.query(fs.readFileSync(path.join(__dirname,'../migrations/20261125012700_statement_export_job_expiry.sql'),'utf8'));
+    // S-F1 (D-636): the purge-marker migration extends the same table.
+    await db.query(fs.readFileSync(path.join(__dirname,'../migrations/20261127060833_statement_export_purge_marker.sql'),'utf8'));
   },30000);
   afterAll(async()=>{
     await db?.end();
@@ -53,7 +55,8 @@ describeDb('R05 isolated durable SQL export pipeline',()=>{
   beforeEach(async()=>{
     objects=new Map();pdfCalls=[];copyHook=null;
     storage={assertPrivate:jest.fn().mockReturnValue({bucket:'synthetic-private'}),uploadFile:jest.fn(async({filePath,objectKey})=>objects.set(objectKey,fs.readFileSync(filePath))),
-      getObjectStream:jest.fn(async key=>objects.has(key)?Readable.from(objects.get(key)):null)};
+      getObjectStream:jest.fn(async key=>objects.has(key)?Readable.from(objects.get(key)):null),
+      deleteFile:jest.fn(async key=>{objects.delete(key);})};
     service=createService({db,storage,materialize:async(...args)=>{
       if(copyHook)await copyHook();return materializeExportSource(...args);
     },diskCheck:async()=>2**40,renderPdf:async document=>{
@@ -176,6 +179,43 @@ describeDb('R05 isolated durable SQL export pipeline',()=>{
     await expect(service.process(old)).rejects.toMatchObject({code:'statement_export_lease_lost'});
     expect((await service.process(current)).rowCount).toBe(1);
   });
+  test('S-F1 (D-636): purgeExpired deletes only complete exports past expiry + grace',async()=>{
+    await seed(3);
+    const old=await queue();await service.process(await service.claim());
+    const grace=await queue();await service.process(await service.claim());
+    const fresh=await queue();await service.process(await service.claim());
+    const failed=await queue();
+    const pending=await queue();
+    await db.query(`UPDATE statement_export_jobs SET expires_at=now()-interval '8 days' WHERE id=$1`,[old.id]);
+    await db.query(`UPDATE statement_export_jobs SET expires_at=now()-interval '1 day' WHERE id=$1`,[grace.id]);
+    await db.query(`UPDATE statement_export_jobs SET state='failed',expires_at=now()-interval '8 days' WHERE id=$1`,[failed.id]);
+    const oldKey=(await db.query('SELECT object_key FROM statement_export_files WHERE job_id=$1',[old.id])).rows[0].object_key;
+    expect(objects.has(oldKey)).toBe(true);
+    const result=await service.purgeExpired();
+    expect(result).toEqual({purged:1,filesDeleted:1});
+    expect(storage.deleteFile).toHaveBeenCalledWith(oldKey);
+    expect(objects.has(oldKey)).toBe(false);
+    // The evidence rows are retained by design (migration 693's triggers
+    // make them undeletable); only the object is gone and the purge is stamped.
+    expect((await db.query('SELECT objects_purged_at FROM statement_export_jobs WHERE id=$1',[old.id])).rows[0].objects_purged_at).toBeTruthy();
+    expect((await db.query('SELECT count(*) FROM statement_export_files WHERE job_id=$1',[old.id])).rows[0].count).toBe('1');
+    expect((await db.query('SELECT count(*) FROM statement_export_rows WHERE job_id=$1',[old.id])).rows[0].count).toBe('3');
+    for (const kept of [grace,fresh,failed,pending]) {
+      expect((await db.query('SELECT objects_purged_at FROM statement_export_jobs WHERE id=$1',[kept.id])).rows[0].objects_purged_at).toBeNull();
+    }
+    // Second run is a no-op: the purge is idempotent.
+    expect(await service.purgeExpired()).toEqual({purged:0,filesDeleted:0});
+  },60000);
+  test('S-F1 (D-636): purgeExpired refuses to stamp when storage cannot delete objects',async()=>{
+    await seed(3);
+    const job=await queue();await service.process(await service.claim());
+    await db.query(`UPDATE statement_export_jobs SET expires_at=now()-interval '8 days' WHERE id=$1`,[job.id]);
+    const key=(await db.query('SELECT object_key FROM statement_export_files WHERE job_id=$1',[job.id])).rows[0].object_key;
+    const noDelete=createService({db,storage:{assertPrivate:storage.assertPrivate,uploadFile:storage.uploadFile,getObjectStream:storage.getObjectStream},diskCheck:async()=>2**40});
+    await expect(noDelete.purgeExpired()).rejects.toMatchObject({code:'statement_storage_unconfigured'});
+    expect((await db.query('SELECT objects_purged_at FROM statement_export_jobs WHERE id=$1',[job.id])).rows[0].objects_purged_at).toBeNull();
+    expect(objects.has(key)).toBe(true);
+  },60000);
   test('disk pressure fails before freezing and never marks partial output complete',async()=>{
     const limited=createService({db,storage,diskCheck:async()=>0});const job=await queue();
     await expect(limited.process(await limited.claim())).rejects.toMatchObject({code:'statement_export_disk_budget'});
