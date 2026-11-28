@@ -1159,6 +1159,7 @@
   "todayPeriod": "aujourd’hui",
   "orderNumber": "Commande n° {{id}}",
   "resolution": "Résolution : {{value}}",
+  "resolvedAt": "Résolu le {{date}}",
   "disputeAdjustmentsTitle": "Ajustements de ce dossier",
   "disputeAdjustmentPending": "En attente",
   "disputeAdjustmentApplied": "Appliqué",

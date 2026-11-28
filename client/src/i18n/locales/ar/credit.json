@@ -1158,6 +1158,7 @@
   "todayPeriod": "اليوم",
   "orderNumber": "الطلب رقم {{id}}",
   "resolution": "الحل: {{value}}",
+  "resolvedAt": "تمت المعالجة في {{date}}",
   "disputeAdjustmentsTitle": "تعديلات هذه القضية",
   "disputeAdjustmentPending": "قيد الانتظار",
   "disputeAdjustmentApplied": "تم التطبيق",

@@ -1159,6 +1159,7 @@
   "todayPeriod": "jodi a",
   "orderNumber": "Kòmand #{{id}}",
   "resolution": "Rezolisyon: {{value}}",
+  "resolvedAt": "Rezoud {{date}}",
   "disputeAdjustmentsTitle": "Ajisteman sou ka sa a",
   "disputeAdjustmentPending": "An atant",
   "disputeAdjustmentApplied": "Aplike",

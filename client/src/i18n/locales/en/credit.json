@@ -1158,6 +1158,7 @@
   "todayPeriod": "today",
   "orderNumber": "Order #{{id}}",
   "resolution": "Resolution: {{value}}",
+  "resolvedAt": "Resolved {{date}}",
   "disputeAdjustmentsTitle": "Adjustments on this case",
   "disputeAdjustmentPending": "Pending",
   "disputeAdjustmentApplied": "Applied",
