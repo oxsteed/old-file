@@ -26868,6 +26868,23 @@
         },
         "cancelRequested": "Cancellation requested {{date}}"
       },
+      "accessHistory": {
+        "title": "Reporting access history",
+        "help": "When your reporting audience changed, and what it covered. The full application history is in Settings.",
+        "loading": "Loading access history…",
+        "loadError": "Could not load the access history.",
+        "empty": "No reporting access changes yet.",
+        "viewFull": "View full access history in Settings",
+        "datasets": "Datasets: {{list}}",
+        "entities": "{{count}} entities",
+        "actions": {
+          "granted": "Reporting access granted",
+          "changed": "Reporting access changed",
+          "removed": "Reporting access removed",
+          "suspended": "Reporting access suspended",
+          "reinstated": "Reporting access reinstated"
+        }
+      },
       "contact": {
         "show": "Show contact",
         "hide": "Hide contact",

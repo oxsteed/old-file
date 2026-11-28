@@ -246,6 +246,17 @@ async function decide(user, id, { action, expectedVersion, reasonCode = null, no
         }
         // An identical re-approval sends no notice: the holder's access
         // did not change, and the approval notice already told them.
+        // 739 (D-782): when the audience did change, record the event
+        // in the same transaction, so the holder's access history can
+        // show what changed and when — the upsert above keeps only the
+        // latest snapshot, never the change itself.
+        if (audienceChange) {
+          await client.query(
+            `INSERT INTO investor_reporting_audience_events (user_id, grant_id, kind, datasets, entity_ids, decision_id)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [row.applicant_id, grantId, audienceChange.kind, JSON.stringify(datasets), scope.entityIds, decisionId],
+          );
+        }
       }
     }
     if (['approve', 'decline', 'request_information'].includes(action)) {
@@ -304,6 +315,24 @@ async function changeGrant(user, grantId, { action, expectedVersion, reasonCode 
         `UPDATE tool_rentals SET is_available = FALSE, updated_at = NOW()
           WHERE user_id = $1 AND is_available = TRUE`,
         [g.user_id],
+      );
+    }
+    // 739 (D-782): a suspend / reinstate / revoke of an investor.reporting
+    // grant is an audience change too, so it is recorded in the same
+    // transaction with the audience snapshot as it stands — the grant
+    // table alone keeps only the latest status, never the change.
+    if (g.capability === 'investor.reporting') {
+      const { rows: audienceRows } = await client.query(
+        `SELECT datasets, entity_ids FROM investor_reporting_audiences WHERE grant_id = $1`,
+        [g.id],
+      );
+      const audience = audienceRows[0] || null;
+      await client.query(
+        `INSERT INTO investor_reporting_audience_events (user_id, grant_id, kind, datasets, entity_ids, reason_code)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [g.user_id, g.id, action === 'revoke' ? 'removed' : action === 'suspend' ? 'suspended' : 'reinstated',
+         JSON.stringify(audience ? audience.datasets : []),
+         audience ? audience.entity_ids : [], reasonCode],
       );
     }
     await enqueue(client, {

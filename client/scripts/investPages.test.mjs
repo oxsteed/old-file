@@ -702,3 +702,31 @@ test('Slice 5h (738): the reporting document library shows export cancellation s
     assert.doesNotMatch(catalog.investorDashboard.entityReporting.documents.cancelRequested, /—/, `${lang} em dash`);
   }
 });
+
+test('Slice 5h (739): the dashboard reporting section shows the audience-change history', async () => {
+  const src = await read('src/components/investor/EntityReportingSection.jsx');
+  assert.match(src, /\/me\/access-history/);
+  assert.match(src, /accessHistory\.title/);
+  assert.match(src, /event\.kind === 'audience'/);
+  assert.match(src, /accessHistory\.actions\.\$\{event\.action\}/);
+  assert.match(src, /accessHistory\.datasets/);
+  const appSrc = await read('src/pages/Settings/ApplicationsPage.jsx');
+  assert.match(appSrc, /historyAudience\.\$\{event\.action\}/);
+  assert.match(appSrc, /historyAudienceScope/);
+  const actions = ['granted', 'changed', 'removed', 'suspended', 'reinstated'];
+  for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const catalog = JSON.parse(await read(`src/locales/${lang}.json`));
+    const history = catalog.investorDashboard.entityReporting.accessHistory;
+    assert.equal(typeof history.title, 'string', `${lang} accessHistory.title`);
+    assert.equal(typeof history.datasets, 'string', `${lang} accessHistory.datasets`);
+    assert.equal(typeof history.entities, 'string', `${lang} accessHistory.entities`);
+    for (const action of actions) {
+      assert.equal(typeof history.actions[action], 'string', `${lang} actions.${action}`);
+    }
+    const common = JSON.parse(await read(`src/i18n/locales/${lang}/common.json`));
+    for (const action of actions) {
+      assert.equal(typeof common.progressiveAccess.historyAudience[action], 'string', `${lang} historyAudience.${action}`);
+    }
+    assert.equal(typeof common.progressiveAccess.historyAudienceScope, 'string', `${lang} historyAudienceScope`);
+  }
+});

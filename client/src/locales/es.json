@@ -26868,6 +26868,23 @@
         },
         "cancelRequested": "Cancelación solicitada {{date}}"
       },
+      "accessHistory": {
+        "title": "Historial de acceso a informes",
+        "help": "Cuándo cambió tu audiencia de informes y qué cubría. El historial completo de solicitudes está en Ajustes.",
+        "loading": "Cargando historial de acceso…",
+        "loadError": "No se pudo cargar el historial de acceso.",
+        "empty": "Aún no hay cambios en el acceso a informes.",
+        "viewFull": "Ver el historial completo en Ajustes",
+        "datasets": "Conjuntos de datos: {{list}}",
+        "entities": "{{count}} entidades",
+        "actions": {
+          "granted": "Acceso a informes concedido",
+          "changed": "Acceso a informes cambiado",
+          "removed": "Acceso a informes retirado",
+          "suspended": "Acceso a informes suspendido",
+          "reinstated": "Acceso a informes restablecido"
+        }
+      },
       "contact": {
         "show": "Mostrar contacto",
         "hide": "Ocultar contacto",

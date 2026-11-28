@@ -26868,6 +26868,23 @@
         },
         "cancelRequested": "Yo mande anile {{date}}"
       },
+      "accessHistory": {
+        "title": "Istorik aksè rapò",
+        "help": "Kilè odyans rapò ou te chanje ak sa li te kouvri. Istorik konplè demann yo nan Anviwònman.",
+        "loading": "N ap chaje istorik aksè a…",
+        "loadError": "Pa t ka chaje istorik aksè a.",
+        "empty": "Poko gen chanjman nan aksè rapò.",
+        "viewFull": "Gade istorik konplè a nan Anviwònman",
+        "datasets": "Dataset: {{list}}",
+        "entities": "{{count}} antite",
+        "actions": {
+          "granted": "Aksè rapò bay",
+          "changed": "Aksè rapò chanje",
+          "removed": "Aksè rapò retire",
+          "suspended": "Aksè rapò sispann",
+          "reinstated": "Aksè rapò retabli"
+        }
+      },
       "contact": {
         "show": "Montre kontak",
         "hide": "Kache kontak",

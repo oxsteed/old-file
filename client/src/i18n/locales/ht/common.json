@@ -6913,7 +6913,15 @@
     },
     "accessHistoryTitle": "Istorik aksè",
     "accessHistoryEmpty": "Pa gen chanjman aksè pou kounye a.",
-    "historyGranted": "Akòde"
+    "historyGranted": "Akòde",
+    "historyAudience": {
+      "granted": "Odyans bay",
+      "changed": "Odyans chanje",
+      "removed": "Odyans retire",
+      "suspended": "Odyans sispann",
+      "reinstated": "Odyans retabli"
+    },
+    "historyAudienceScope": "{{datasets}} · {{count}} antite"
   },
   "businessLaunchAttachments": {
     "download": "Telechaje",

@@ -6913,7 +6913,15 @@
     },
     "accessHistoryTitle": "Historial de acceso",
     "accessHistoryEmpty": "Aún no hay cambios de acceso.",
-    "historyGranted": "Concedido"
+    "historyGranted": "Concedido",
+    "historyAudience": {
+      "granted": "Audiencia concedida",
+      "changed": "Audiencia cambiada",
+      "removed": "Audiencia retirada",
+      "suspended": "Audiencia suspendida",
+      "reinstated": "Audiencia restablecida"
+    },
+    "historyAudienceScope": "{{datasets}} · {{count}} entidades"
   },
   "businessLaunchAttachments": {
     "download": "Descargar",

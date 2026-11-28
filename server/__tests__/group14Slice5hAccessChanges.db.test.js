@@ -437,4 +437,75 @@ describeDb('Group 14 Slice 5h: handle access changes (736-740)', () => {
     expect(complete.cancelRequestedAt).toBeNull();
     expect(complete.cancelledAt).toBeNull();
   });
+
+  // 739 helper: flip an investor.reporting grant through the real
+  // reviewer endpoint, the same way the 737 tests do.
+  async function changeInvestorGrant(grantId, action, reasonCode = 'policy_not_met') {
+    const { rows } = await pool.query(`SELECT version FROM access_grants WHERE id = $1`, [grantId]);
+    const res = await postAs(investorReviewer, `/api/admin/access-requests/grants/${grantId}`, { action, expectedVersion: rows[0].version, reasonCode });
+    expect(res.status).toBe(200);
+    return res.body;
+  }
+
+  test('739: approving an investor.reporting request records a granted audience event', async () => {
+    const applicant = await makeUser('customer');
+    const requestId = await seedInvestorRequest(applicant, ['overview', 'revenue']);
+    const body = await approveInvestorRequest(requestId);
+    const audience = (await accessHistory(applicant)).filter((e) => e.kind === 'audience');
+    expect(audience).toHaveLength(1);
+    expect(audience[0].action).toBe('granted');
+    expect(audience[0].capability).toBe('investor.reporting');
+    expect(audience[0].grantId).toBe(String(body.grantId));
+    expect(audience[0].datasets).toEqual(['overview', 'revenue']);
+    expect(audience[0].entityIds).toEqual([]);
+    expect(audience[0].publicReasonCode).toBeNull();
+  });
+
+  test('739: re-approval with different datasets records a changed event with the new snapshot', async () => {
+    const applicant = await makeUser('customer');
+    await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview', 'revenue']));
+    await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview']));
+    const audience = (await accessHistory(applicant)).filter((e) => e.kind === 'audience');
+    expect(audience).toHaveLength(2);
+    // Newest first: the changed event carries the new snapshot, the
+    // granted event keeps the original one.
+    expect(audience[0].action).toBe('changed');
+    expect(audience[0].datasets).toEqual(['overview']);
+    expect(audience[1].action).toBe('granted');
+    expect(audience[1].datasets).toEqual(['overview', 'revenue']);
+  });
+
+  test('739: suspend, reinstate, and revoke each record their audience event with the snapshot and reason', async () => {
+    const applicant = await makeUser('customer');
+    const body = await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview']));
+    await changeInvestorGrant(body.grantId, 'suspend', 'policy_not_met');
+    await changeInvestorGrant(body.grantId, 'reinstate', 'review_complete');
+    await changeInvestorGrant(body.grantId, 'revoke', 'policy_not_met');
+    const audience = (await accessHistory(applicant)).filter((e) => e.kind === 'audience');
+    expect(audience.map((e) => e.action)).toEqual(['removed', 'reinstated', 'suspended', 'granted']);
+    expect(audience[0].publicReasonCode).toBe('policy_not_met');
+    expect(audience[0].datasets).toEqual(['overview']);
+    expect(audience[1].publicReasonCode).toBe('review_complete');
+    expect(audience[1].datasets).toEqual(['overview']);
+  });
+
+  test('739: an identical re-approval records no audience event', async () => {
+    const applicant = await makeUser('customer');
+    await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview']));
+    await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview']));
+    const audience = (await accessHistory(applicant)).filter((e) => e.kind === 'audience');
+    expect(audience).toHaveLength(1);
+    expect(audience[0].action).toBe('granted');
+  });
+
+  test('739: audience events are the holder\u2019s own — another user\u2019s history never shows them', async () => {
+    const applicant = await makeUser('customer');
+    await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview']));
+    const other = await makeUser('customer');
+    const otherAudience = (await accessHistory(other)).filter((e) => e.kind === 'audience');
+    expect(otherAudience).toHaveLength(0);
+    // And the holder's own history does show it.
+    const ownAudience = (await accessHistory(applicant)).filter((e) => e.kind === 'audience');
+    expect(ownAudience).toHaveLength(1);
+  });
 });

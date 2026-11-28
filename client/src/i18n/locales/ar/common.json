@@ -6913,7 +6913,15 @@
     },
     "accessHistoryTitle": "سجل الوصول",
     "accessHistoryEmpty": "لا توجد تغييرات وصول بعد.",
-    "historyGranted": "تم المنح"
+    "historyGranted": "تم المنح",
+    "historyAudience": {
+      "granted": "تم منح الجمهور",
+      "changed": "تم تغيير الجمهور",
+      "removed": "تمت إزالة الجمهور",
+      "suspended": "تم تعليق الجمهور",
+      "reinstated": "تمت إعادة الجمهور"
+    },
+    "historyAudienceScope": "{{datasets}} · {{count}} من الكيانات"
   },
   "businessLaunchAttachments": {
     "download": "تنزيل",

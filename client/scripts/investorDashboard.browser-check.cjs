@@ -43,10 +43,14 @@ test('an approved customer-class investor can open only the projected reporting 
     const page = await browser.newPage();
     page.setDefaultTimeout(5_000);
     const calls = [];
+    const historyCalls = [];
     await page.route('http://investor-dashboard.test/**', async (route) => {
       const { pathname } = new URL(route.request().url());
       if (pathname === '/fixture.js') return route.fulfill({ contentType: 'text/javascript', body: bundle.outputFiles[0].text });
       if (pathname === '/api/me/access') return route.fulfill({ json: { accountId: 'applicant', access: { personal: ['customer', 'investor.reporting'], organizations: [] }, flags: { accessProjection: true } } });
+      // Slice 5h (739, D-782): the reporting section loads the holder's
+      // access history on mount for the audience-change subsection.
+      if (pathname === '/api/me/access-history') { historyCalls.push(pathname); return route.fulfill({ json: { events: [] } }); }
       if (pathname.startsWith('/api/investor/')) {
         calls.push(pathname);
         if (pathname === '/api/investor/kpis') return route.fulfill({ json: { period: '30d', kpis: { revenue_cur_cents: 1200, revenue_prev_cents: 1000, revenue_mtd_cents: 1200, total_users: 2, new_users_cur: 1, new_users_prev: 1, open_jobs: 1, completed_jobs: 1, completion_rate: 100, completion_rate_all_time: 100, active_subscriptions: 0, sub_revenue_cur_cents: 0, verified_helpers: 0, avg_helper_rating: null, refunds_cur_cents: 0, pending_payouts_cents: 0, gmv_cents: 1200, take_rate_pct: 10 } } });
@@ -61,11 +65,12 @@ test('an approved customer-class investor can open only the projected reporting 
     await page.goto('http://investor-dashboard.test/investor/dashboard');
     await page.getByRole('heading', { name: /Investor/i }).waitFor();
     await page.getByText('$12').first().waitFor();
-    assert.equal(await page.getByText('home', { exact: true }).count(), 0);
+    await page.getByText('Reporting access history').waitFor();
     assert.ok(calls.includes('/api/investor/kpis'));
     assert.ok(calls.includes('/api/investor/revenue-chart'));
     assert.ok(!calls.includes('/api/investor/franchise'));
     assert.ok(!calls.includes('/api/investor/supply-demand'));
+    assert.ok(historyCalls.includes('/api/me/access-history'));
   } finally {
     await browser.close();
   }
