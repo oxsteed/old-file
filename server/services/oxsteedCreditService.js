@@ -93,7 +93,7 @@ const POSTABLE_CREDIT_TRANSACTION_TYPES = Object.freeze([
   'media_creator_settlement',
   'settlement_reversal',
   'funding', 'reserve_release', 'conversion_debit', 'conversion_fee', 'conversion_credit',
-  'cash_out',
+  'cash_out', 'cash_out_reversal',
   'sub_bank_load', 'sub_bank_redemption', 'sub_bank_refund', 'sub_bank_opening_balance',
   // Phase 2 restaurant credit refunds: exact reversal of sub_bank_load
   // (debit restaurant_sub_bank, credit platform_treasury).
@@ -1278,6 +1278,18 @@ async function postJournalTransaction(client, input) {
       || (input.agreementId !== null && input.agreementId !== undefined)
     ) {
       throw new AppError('Credit cash-out account direction is invalid', 400, 'credit_cash_out_direction_invalid');
+    }
+  }
+  if (input.transactionType === 'cash_out_reversal') {
+    // G13-B3: exact reversal of a kiosk cash-out whose dispenser failed.
+    // Value returns from platform_treasury to the customer wallet — the
+    // same direction as a 'load'. Mirrors the DB direction guard.
+    const validDirection = debitAccount.account_type === 'platform_treasury'
+      && creditAccount.account_type === 'customer_wallet'
+      && (input.partnerId === null || input.partnerId === undefined)
+      && (input.agreementId === null || input.agreementId === undefined);
+    if (!validDirection) {
+      throw new AppError('Credit cash-out reversal account direction is invalid', 400, 'credit_cash_out_reversal_direction_invalid');
     }
   }
   if (input.transactionType === 'fee') {
@@ -4044,6 +4056,7 @@ const REVERSAL_TRANSACTION_TYPES = Object.freeze([
   'settlement_reversal',
   'sub_bank_load_reversal',
   'sub_bank_payout_reversal',
+  'cash_out_reversal',
 ]);
 const UUID_PATTERN = /^[0-9a-fA-F-]{36}$/;
 
@@ -4062,6 +4075,7 @@ function derivedReversalReasonCode(row) {
   }
   if (row.transaction_type === 'sub_bank_payout_reversal') return 'payout_reversed';
   if (row.transaction_type === 'settlement_reversal') return 'settlement';
+  if (row.transaction_type === 'cash_out_reversal') return 'cash_out_reversal';
   if (row.transaction_type === 'refund') return 'purchase_refund';
   return null;
 }
@@ -4101,10 +4115,18 @@ async function resolveReversalOriginalTransactionId({ row, customerId, currency 
   }
   // Settlement reversals carry the original settlement journal id in
   // metadata; sub-bank payout reversals carry the payout id, whose
-  // original is the sub_bank_payout for that payout. Either way the link
+  // original is the sub_bank_payout for that payout. A cash-out
+  // reversal carries the original cash-out's journal id in its
+  // reference (reference_type 'credit_kiosk_cash_out_reversal'); the
+  // original debits the caller's own wallet, so the ownership check
+  // below passes for that customer and nobody else. Either way the link
   // is exposed only when the original touches the caller's own wallet.
   const metadata = row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
-  if (row.transaction_type === 'settlement_reversal'
+  if (row.transaction_type === 'cash_out_reversal'
+    && row.reference_type === 'credit_kiosk_cash_out_reversal'
+    && UUID_PATTERN.test(referenceId)) {
+    candidateId = referenceId;
+  } else if (row.transaction_type === 'settlement_reversal'
     && typeof metadata.originalTransactionId === 'string'
     && UUID_PATTERN.test(metadata.originalTransactionId)) {
     candidateId = metadata.originalTransactionId;

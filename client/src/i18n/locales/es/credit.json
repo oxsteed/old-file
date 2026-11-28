@@ -52,7 +52,14 @@
     "closeShift": "Cerrar turno",
     "shiftClosed": "Turno cerrado",
     "closeoutFailedNote": "Cierre registrado con {{count}} elemento(s) que necesitan atención. Un responsable debe revisarlo.",
-    "closeoutSummary": "Cierre registrado"
+    "closeoutSummary": "Cierre registrado",
+    "openingCashLabel": "Efectivo en el cajetín al abrir el turno",
+    "openingCashPlaceholder": "0.00",
+    "physicalCashLabel": "Efectivo restante en el cajetín al cerrar",
+    "physicalCashHelp": "Cuente el efectivo físico que queda en el cajetín. Se compara con el conteo inicial más el efectivo confirmado como dispensado.",
+    "dispenseConfirmed": "Dispensado confirmado: {{amount}}",
+    "dispenseReversed": "Devuelto a los clientes: {{amount}}",
+    "dispenseUnconfirmed": "{{count}} retiro(s) aún sin confirmar"
   },
   "reconciliation": {
     "title": "Conciliaci\u00f3n por ubicaci\u00f3n",
@@ -1200,6 +1207,7 @@
   "transactionFunding": "Financiación de reserva",
   "transactionReserveRelease": "Liberación de reserva",
   "transactionCashOut": "Retiro con tarjeta",
+  "transactionCashOutReversal": "Reversión de retiro con tarjeta",
   "transactionUnknown": "Transacción de crédito",
   "transactionSubBankLoad": "Carga de crédito en subbanco",
   "transactionSubBankRedemption": "Canje en subbanco",

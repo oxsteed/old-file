@@ -185,8 +185,10 @@ export const updateCashierShiftLocation = (id, device, locationId) =>
     { ...deviceOptions(device), skipSessionRefresh: true },
   ).then((r) => r.data);
 // 685: close the shift, recording the derived closeout checklist.
-export const closeCashierShift = (id, device, shiftId) =>
-  api.post(`${cashierBase(id, device)}/shifts/${encodeURIComponent(shiftId)}/close`, {},
+// G13-B3: payload may carry physicalCashRemainingCents (physical cash
+// counted in the cassette at close); null when the cashier did not count.
+export const closeCashierShift = (id, device, shiftId, payload) =>
+  api.post(`${cashierBase(id, device)}/shifts/${encodeURIComponent(shiftId)}/close`, payload || {},
     { ...deviceOptions(device), skipSessionRefresh: true },
   ).then((r) => r.data);
 

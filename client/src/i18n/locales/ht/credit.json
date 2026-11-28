@@ -52,7 +52,14 @@
     "closeShift": "Fèmen chanjman an",
     "shiftClosed": "Chanjman fèmen",
     "closeoutFailedNote": "Fèmti anrejistre ak {{count}} eleman ki bezwen atansyon. Yon responsab dwe swiv li.",
-    "closeoutSummary": "Fèmti anrejistre"
+    "closeoutSummary": "Fèmti anrejistre",
+    "openingCashLabel": "Lajan nan kasèt la lè chanjman an louvri",
+    "openingCashPlaceholder": "0.00",
+    "physicalCashLabel": "Lajan ki rete nan kasèt la lè chanjman an fèmen",
+    "physicalCashHelp": "Konte lajan fizik ki rete nan kasèt la. Yo konpare l ak konte ouvèti a plis lajan yo konfime yo te bay.",
+    "dispenseConfirmed": "Lajan yo konfime yo te bay: {{amount}}",
+    "dispenseReversed": "Lajan yo te remèt kliyan yo: {{amount}}",
+    "dispenseUnconfirmed": "{{count}} retrè ki poko konfime"
   },
   "reconciliation": {
     "title": "Rekonsilyasyon pa kote",
@@ -1201,6 +1208,7 @@
   "transactionFunding": "Finansman rezèv",
   "transactionReserveRelease": "Lage rezèv",
   "transactionCashOut": "Retrè pa kat",
+  "transactionCashOutReversal": "Ranvèse retrè pa kat",
   "transactionUnknown": "Tranzaksyon kredi",
   "transactionSubBankLoad": "Ajout kredi nan sou-bank",
   "transactionSubBankRedemption": "Itilizasyon kredi nan sou-bank",

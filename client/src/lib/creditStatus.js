@@ -55,6 +55,7 @@ const TRANSACTION_TYPE_TRANSLATION_KEYS = Object.freeze({
   funding: 'transactionFunding',
   reserve_release: 'transactionReserveRelease',
   cash_out: 'transactionCashOut',
+  cash_out_reversal: 'transactionCashOutReversal',
   conversion_debit: 'transactionConversionDebit',
   conversion_fee: 'transactionConversionFee',
   conversion_credit: 'transactionConversionCredit',

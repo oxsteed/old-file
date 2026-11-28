@@ -220,14 +220,20 @@ function formatShift(row) {
     status: row.status,
     openedAt: row.opened_at,
     closedAt: row.closed_at,
+    // G13-B3: physical cash in the cassette when the shift opened (null
+    // when the cashier did not count it). The closeout's physical leg
+    // compares opening against remaining + confirmed dispensed.
+    openingCashCents: row.opening_cash_cents == null ? null : Number(row.opening_cash_cents),
     closeout: row.closeout || null,
   };
 }
 
 // Open the device's shift, or return the open one (idempotent). The working
 // location defaults to the paired location and is validated against the
-// authorized set when supplied.
-async function openShift(client, { device, locationId = null }) {
+// authorized set when supplied. openingCashCents is the physical cash the
+// cashier counted in the cassette at open (G13-B3); null when uncounted,
+// and the closeout's physical leg is then skipped, never invented.
+async function openShift(client, { device, locationId = null, openingCashCents = null }) {
   let location = null;
   if (locationId != null) {
     location = await assertAuthorizedLocation(client, device, locationId);
@@ -236,6 +242,12 @@ async function openShift(client, { device, locationId = null }) {
     const fallback = defaultLocationId(device, locations);
     location = locations.find((entry) => entry.id === fallback) || null;
   }
+  const opening = openingCashCents == null
+    ? null
+    : Number.parseInt(String(openingCashCents), 10);
+  if (opening !== null && (!Number.isSafeInteger(opening) || opening < 0)) {
+    throw new AppError('Invalid opening cash amount', 400, 'invalid_opening_cash_cents');
+  }
   const { rows: [existing] } = await client.query(
     `SELECT * FROM oxsteed_credit_kiosk_shifts
       WHERE device_id = $1 AND status = 'open' ORDER BY opened_at DESC LIMIT 1`,
@@ -243,9 +255,9 @@ async function openShift(client, { device, locationId = null }) {
   );
   if (existing) return { shift: formatShift(existing), alreadyOpen: true };
   const { rows: [row] } = await client.query(
-    `INSERT INTO oxsteed_credit_kiosk_shifts (device_id, restaurant_id, location_id)
-     VALUES ($1, $2, $3) RETURNING *`,
-    [device.id, Number(device.restaurant_id), location ? location.id : null],
+    `INSERT INTO oxsteed_credit_kiosk_shifts (device_id, restaurant_id, location_id, opening_cash_cents)
+     VALUES ($1, $2, $3, $4) RETURNING *`,
+    [device.id, Number(device.restaurant_id), location ? location.id : null, opening],
   );
   return { shift: formatShift(row), alreadyOpen: false };
 }
@@ -327,6 +339,9 @@ function summarizeEntries(entries) {
   const redemption = byKind.redemption || { count: 0, amountCents: 0, currencyCode: 'USD', byCurrency: {} };
   const cashOut = byKind.cash_out || { count: 0, amountCents: 0, currencyCode: 'USD', byCurrency: {} };
   const refund = byKind.refund || { count: 0, amountCents: 0, currencyCode: 'USD', byCurrency: {} };
+  // G13-B3: reversal legs are their own kind, so the summary can show
+  // the gross cash-out total beside what came back.
+  const cashOutReversal = byKind.cash_out_reversal || { count: 0, amountCents: 0, currencyCode: 'USD', byCurrency: {} };
   return {
     transactionCount,
     postedCount,
@@ -335,6 +350,8 @@ function summarizeEntries(entries) {
     redemptionCents: redemption.amountCents,
     cashOutCount: cashOut.count,
     cashOutCents: cashOut.amountCents,
+    cashOutReversalCount: cashOutReversal.count,
+    cashOutReversalCents: cashOutReversal.amountCents,
     refundCount: refund.count,
     refundCents: refund.amountCents,
     currencyCode: redemption.currencyCode || cashOut.currencyCode || 'USD',
@@ -384,7 +401,18 @@ async function getShiftSummary(client, { deviceId, shift }) {
 // The checklist derives the same facts twice, from two query paths, and
 // compares them: the row-level list read and the SQL aggregate. They agree
 // unless a record changed between the reads or a row is unaccounted for.
-async function buildCloseoutChecklist(client, { deviceId, shift }) {
+//
+// G13-B3: `cash_out_reconciled` no longer compares the ledger against
+// itself. It compares three independent legs: the ledger's net cash-out
+// (posted cash-out legs minus reversal legs), the confirmed dispensed
+// total from the dispense records, and — when the cashier counted both
+// the opening float and the remaining cash — the physical count
+// (opening must equal remaining + dispensed; reversed value never left
+// the cassette, so it stays in the remaining count). Every cash-out in
+// the shift must also have a dispense confirmation; an unconfirmed one
+// fails the item. A failed item never blocks the close; it is recorded
+// in the closeout snapshot for manager follow-up.
+async function buildCloseoutChecklist(client, { deviceId, shift, physicalCashRemainingCents = null }) {
   const closedAt = shift.closedAt || new Date().toISOString();
   const { transactions } = await listKioskTransactions(client, {
     deviceId, openedAt: shift.openedAt, closedAt, limit: null,
@@ -398,6 +426,21 @@ async function buildCloseoutChecklist(client, { deviceId, shift }) {
       WHERE status = 'active' AND metadata ->> 'kioskDeviceId' = $1`,
     [String(deviceId)],
   );
+  const physical = physicalCashRemainingCents == null
+    ? null
+    : Number.parseInt(String(physicalCashRemainingCents), 10);
+  if (physical !== null && (!Number.isSafeInteger(physical) || physical < 0)) {
+    throw new AppError('Invalid physical cash amount', 400, 'invalid_physical_cash_cents');
+  }
+  const { getCashOutDispenseFacts } = require('./creditKioskCashOutDispense');
+  const dispenseFacts = await getCashOutDispenseFacts(client, {
+    deviceId, openedAt: shift.openedAt, closedAt,
+  });
+  const netCashOutCents = aggSummary.cashOutCents - dispenseFacts.reversedCents;
+  const openingCashCents = shift.openingCashCents ?? null;
+  const physicalCheckApplicable = openingCashCents != null && physical !== null;
+  const physicalCheckPassed = !physicalCheckApplicable
+    || openingCashCents === physical + dispenseFacts.confirmedDispensedCents;
   const items = [
     {
       key: 'transactions_accounted',
@@ -416,20 +459,30 @@ async function buildCloseoutChecklist(client, { deviceId, shift }) {
     },
     {
       key: 'cash_out_reconciled',
-      passed: listSummary.cashOutCount === aggSummary.cashOutCount
-        && listSummary.cashOutCents === aggSummary.cashOutCents,
+      passed: dispenseFacts.unconfirmedCount === 0
+        && netCashOutCents === dispenseFacts.confirmedDispensedCents
+        && physicalCheckPassed,
       detail: {
-        cashOutCount: listSummary.cashOutCount,
-        cashOutCents: listSummary.cashOutCents,
-        aggregateCashOutCount: aggSummary.cashOutCount,
-        aggregateCashOutCents: aggSummary.cashOutCents,
+        cashOutCents: aggSummary.cashOutCents,
+        reversedCents: dispenseFacts.reversedCents,
+        netCashOutCents,
+        confirmedDispensedCents: dispenseFacts.confirmedDispensedCents,
+        unconfirmedCount: dispenseFacts.unconfirmedCount,
+        dispensedCount: dispenseFacts.dispensedCount,
+        failedCount: dispenseFacts.failedCount,
+        partialCount: dispenseFacts.partialCount,
+        openingCashCents,
+        physicalCashRemainingCents: physical,
+        physicalCountProvided: physical !== null,
+        physicalCheckApplicable,
+        physicalCheckPassed,
       },
     },
   ];
   return { items, allPassed: items.every((item) => item.passed), summary: aggSummary };
 }
 
-async function closeShift(pool, { device, shiftId }) {
+async function closeShift(pool, { device, shiftId, physicalCashRemainingCents = null }) {
   const { withTransaction } = require('../utils/transaction');
   return withTransaction(pool, async (client) => {
     const { rows: [row] } = await client.query(
@@ -441,12 +494,20 @@ async function closeShift(pool, { device, shiftId }) {
     const shift = formatShift(row);
     const closedAt = new Date().toISOString();
     const checklist = await buildCloseoutChecklist(client, {
-      deviceId: device.id, shift: { ...shift, closedAt },
+      deviceId: device.id, shift: { ...shift, closedAt }, physicalCashRemainingCents,
     });
     const summary = await getShiftSummary(client, {
       deviceId: device.id, shift: { ...shift, closedAt },
     });
-    const closeout = { closedAt, summary, checklist: checklist.items, allPassed: checklist.allPassed };
+    const closeout = {
+      closedAt,
+      summary,
+      checklist: checklist.items,
+      allPassed: checklist.allPassed,
+      physicalCashRemainingCents: physicalCashRemainingCents == null
+        ? null
+        : Number.parseInt(String(physicalCashRemainingCents), 10),
+    };
     const { rows: [closed] } = await client.query(
       `UPDATE oxsteed_credit_kiosk_shifts
           SET status = 'closed', closed_at = $2::timestamptz, closeout = $3::jsonb, updated_at = NOW()

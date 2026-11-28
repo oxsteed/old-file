@@ -52,7 +52,14 @@
     "closeShift": "Close shift",
     "shiftClosed": "Shift closed",
     "closeoutFailedNote": "Closeout recorded with {{count}} item(s) needing attention. A manager should follow up.",
-    "closeoutSummary": "Closeout recorded"
+    "closeoutSummary": "Closeout recorded",
+    "openingCashLabel": "Cash in the cassette when the shift opens",
+    "openingCashPlaceholder": "0.00",
+    "physicalCashLabel": "Cash left in the cassette at close",
+    "physicalCashHelp": "Count the physical cash left in the cassette. It is compared against the opening count plus the cash confirmed as dispensed.",
+    "dispenseConfirmed": "Confirmed dispensed: {{amount}}",
+    "dispenseReversed": "Returned to customers: {{amount}}",
+    "dispenseUnconfirmed": "{{count}} cash-out(s) still unconfirmed"
   },
   "reconciliation": {
     "title": "Location reconciliation",
@@ -1200,6 +1207,7 @@
   "transactionFunding": "Reserve funding",
   "transactionReserveRelease": "Reserve release",
   "transactionCashOut": "Card cash-out",
+  "transactionCashOutReversal": "Cash-out reversal",
   "transactionUnknown": "Credit transaction",
   "transactionSubBankLoad": "Sub-bank credit load",
   "transactionSubBankRedemption": "Sub-bank redemption",

@@ -52,7 +52,14 @@
     "closeShift": "إغلاق الوردية",
     "shiftClosed": "تم إغلاق الوردية",
     "closeoutFailedNote": "تم تسجيل الإغلاق مع {{count}} عنصر يحتاج إلى انتباه. يجب أن يتابع مدير الأمر.",
-    "closeoutSummary": "تم تسجيل الإغلاق"
+    "closeoutSummary": "تم تسجيل الإغلاق",
+    "openingCashLabel": "النقد في الدرج عند فتح الوردية",
+    "openingCashPlaceholder": "0.00",
+    "physicalCashLabel": "النقد المتبقي في الدرج عند الإغلاق",
+    "physicalCashHelp": "احسب النقد الفعلي المتبقي في الدرج. تتم مقارنته بعدّ الافتتاح مضافًا إليه النقد المؤكد صرفه.",
+    "dispenseConfirmed": "المصروف المؤكد: {{amount}}",
+    "dispenseReversed": "المُعاد إلى العملاء: {{amount}}",
+    "dispenseUnconfirmed": "{{count}} عملية سحب لم تُؤكَّد بعد"
   },
   "reconciliation": {
     "title": "\u0645\u0637\u0627\u0628\u0642\u0629 \u0627\u0644\u062d\u0633\u0627\u0628\u0627\u062a \u062d\u0633\u0628 \u0627\u0644\u0645\u0648\u0642\u0639",
@@ -1200,6 +1207,7 @@
   "transactionFunding": "تمويل الاحتياطي",
   "transactionReserveRelease": "تحرير الاحتياطي",
   "transactionCashOut": "سحب بالبطاقة",
+  "transactionCashOutReversal": "عكس السحب بالبطاقة",
   "transactionUnknown": "معاملة ائتمان",
   "transactionSubBankLoad": "إضافة رصيد في البنك الفرعي",
   "transactionSubBankRedemption": "استخدام رصيد البنك الفرعي",

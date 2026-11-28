@@ -52,7 +52,14 @@
     "closeShift": "Clôturer le quart",
     "shiftClosed": "Quart clôturé",
     "closeoutFailedNote": "Clôture enregistrée avec {{count}} élément(s) nécessitant une attention. Un responsable doit assurer le suivi.",
-    "closeoutSummary": "Clôture enregistrée"
+    "closeoutSummary": "Clôture enregistrée",
+    "openingCashLabel": "Espèces dans la cassette à l’ouverture du poste",
+    "openingCashPlaceholder": "0.00",
+    "physicalCashLabel": "Espèces restantes dans la cassette à la fermeture",
+    "physicalCashHelp": "Comptez les espèces physiques restantes dans la cassette. Le total est comparé au comptage d’ouverture plus les espèces confirmées comme distribuées.",
+    "dispenseConfirmed": "Distribué confirmé : {{amount}}",
+    "dispenseReversed": "Remboursé aux clients : {{amount}}",
+    "dispenseUnconfirmed": "{{count}} retrait(s) toujours non confirmé(s)"
   },
   "reconciliation": {
     "title": "Rapprochement par emplacement",
@@ -1201,6 +1208,7 @@
   "transactionFunding": "Financement de la réserve",
   "transactionReserveRelease": "Libération de la réserve",
   "transactionCashOut": "Retrait par carte",
+  "transactionCashOutReversal": "Contrepassation du retrait par carte",
   "transactionUnknown": "Transaction de crédit",
   "transactionSubBankLoad": "Chargement de crédit en sous-banque",
   "transactionSubBankRedemption": "Utilisation en sous-banque",

@@ -393,6 +393,24 @@ async function kioskCashOut(req, res, next) {
   }
 }
 
+// G13-B3: the kiosk reports what the dispenser actually did for a
+// cash-out it took. The confirming device must be the device that took
+// the cash-out; another device's cash-out is 404, never 403.
+async function confirmCashOutDispense(req, res, next) {
+  try {
+    const { confirmCashOutDispense: confirm } = require('../services/creditKioskCashOutDispense');
+    const result = await confirm({
+      deviceId: req.creditKioskDevice.id,
+      transactionId: parseUuid(req.params.transactionId, 'transactionId'),
+      status: req.body?.status,
+      dispensedCents: req.body?.dispensedCents ?? req.body?.dispensed_cents,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   issueMyCardSecurityChallenge, myCardHistory, markMyCardFound, requestMyReplacement,
   adminCardHistory, retryAdminReplacement,
@@ -413,4 +431,5 @@ module.exports = {
   authenticateCreditKiosk,
   kioskRedeemCard,
   kioskCashOut,
+  confirmCashOutDispense,
 };

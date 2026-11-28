@@ -111,6 +111,9 @@ async function openShift(req, res, next) {
     const result = await cashier.openShift(pool, {
       device: req.cashierKioskDevice,
       locationId: req.body?.locationId ?? req.body?.location_id ?? null,
+      // G13-B3: physical cash counted in the cassette at open; null
+      // when the cashier did not count it.
+      openingCashCents: req.body?.openingCashCents ?? req.body?.opening_cash_cents ?? null,
     });
     res.status(result.alreadyOpen ? 200 : 201).json(result);
   } catch (error) {
@@ -162,11 +165,16 @@ async function getShift(req, res, next) {
 }
 
 // 685: close the shift, recording the derived closeout checklist.
+// G13-B3: the cashier may count the physical cash remaining in the
+// cassette at close; the checklist compares it against the opening
+// count plus confirmed dispensed cash.
 async function closeShift(req, res, next) {
   try {
     const shiftId = parseUuid(req.params.shiftId, 'shiftId');
     const result = await cashier.closeShift(pool, {
       device: req.cashierKioskDevice, shiftId,
+      physicalCashRemainingCents: req.body?.physicalCashRemainingCents
+        ?? req.body?.physical_cash_remaining_cents ?? null,
     });
     res.json(result);
   } catch (error) {
