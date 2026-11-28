@@ -356,4 +356,53 @@ describeDb('Group 14 Slice 5i: coordinate review (741-745)', () => {
     const afterClose = await getAs(auditor, `/api/audit-requests/${created.id}/scope-review`).expect(200);
     expect(afterClose.body.scopeReviews).toHaveLength(2);
   });
+
+  // 743: record correction request.
+  test('743: the auditor asks for a correction; the owner resolves it', async () => {
+    const created = await createRequest();
+    const proposed = await postAs(owner, `/api/audit-requests/${created.id}/evidence`, { documentId }).expect(201);
+    // No grant yet: the auditor cannot even see the request.
+    await postAs(auditor, `/api/audit-requests/${created.id}/corrections`, { evidenceId: proposed.body.evidence.id, detail: 'Fix this.' }).expect(404);
+    await grantShare(created.id, auditor.id);
+    // A proposed (not yet approved) document cannot be corrected: the
+    // auditor cannot see it, so it answers 404, same as the archive.
+    await postAs(auditor, `/api/audit-requests/${created.id}/corrections`, { evidenceId: proposed.body.evidence.id, detail: 'Fix this.' }).expect(404);
+    await postAs(admin, `/api/audit-requests/${created.id}/evidence/${proposed.body.evidence.id}/approve`).expect(200);
+    // Validation: no target, no detail, detail too long.
+    await postAs(auditor, `/api/audit-requests/${created.id}/corrections`, { detail: 'Fix this.' }).expect(400);
+    await postAs(auditor, `/api/audit-requests/${created.id}/corrections`, { evidenceId: proposed.body.evidence.id }).expect(400);
+    await postAs(auditor, `/api/audit-requests/${created.id}/corrections`, { evidenceId: proposed.body.evidence.id, detail: 'x'.repeat(2001) }).expect(400);
+    await postAs(auditor, `/api/audit-requests/${created.id}/corrections`, { evidenceId: crypto.randomUUID(), detail: 'Fix this.' }).expect(404);
+    const asked = await postAs(auditor, `/api/audit-requests/${created.id}/corrections`,
+      { evidenceId: proposed.body.evidence.id, detail: 'The September total is off by one cent; please re-issue.' }).expect(201);
+    expect(asked.body.correction.status).toBe('requested');
+    expect(asked.body.correction.evidenceId).toBe(proposed.body.evidence.id);
+    expect(asked.body.correction.requestedBy).toBe(auditor.id);
+    // A free-text reference works when no evidence row applies.
+    const byRef = await postAs(auditor, `/api/audit-requests/${created.id}/corrections`,
+      { recordRef: 'September statement, line 12', detail: 'The merchant name is misspelled.' }).expect(201);
+    expect(byRef.body.correction.recordRef).toBe('September statement, line 12');
+    expect(byRef.body.correction.evidenceId).toBeNull();
+    // The owner and the admin cannot ask for a correction; only the
+    // reviewer can. The stranger sees nothing.
+    await postAs(owner, `/api/audit-requests/${created.id}/corrections`, { recordRef: 'x', detail: 'y' }).expect(403);
+    await postAs(admin, `/api/audit-requests/${created.id}/corrections`, { recordRef: 'x', detail: 'y' }).expect(403);
+    await postAs(stranger, `/api/audit-requests/${created.id}/corrections`, { recordRef: 'x', detail: 'y' }).expect(404);
+    // Resolution: the auditor cannot resolve; bad status is refused;
+    // only a requested correction resolves, once.
+    await postAs(auditor, `/api/audit-requests/${created.id}/corrections/${asked.body.correction.id}/resolve`, { status: 'addressed' }).expect(403);
+    await postAs(owner, `/api/audit-requests/${created.id}/corrections/${asked.body.correction.id}/resolve`, { status: 'maybe' }).expect(400);
+    await postAs(owner, `/api/audit-requests/${created.id}/corrections/${crypto.randomUUID()}/resolve`, { status: 'addressed' }).expect(404);
+    const resolved = await postAs(admin, `/api/audit-requests/${created.id}/corrections/${asked.body.correction.id}/resolve`,
+      { status: 'addressed', resolutionNote: 'Re-issued; the corrected statement is in the archive.' }).expect(200);
+    expect(resolved.body.correction.status).toBe('addressed');
+    expect(resolved.body.correction.resolvedBy).toBe(admin.id);
+    expect(resolved.body.correction.resolutionNote).toBe('Re-issued; the corrected statement is in the archive.');
+    await postAs(owner, `/api/audit-requests/${created.id}/corrections/${asked.body.correction.id}/resolve`, { status: 'declined' }).expect(409);
+    const queue = await getAs(owner, `/api/audit-requests/${created.id}/corrections`).expect(200);
+    expect(queue.body.corrections.map((item) => item.status)).toEqual(['addressed', 'requested']);
+    // A closed request refuses new corrections.
+    await patchAs(owner, `/api/audit-requests/${created.id}/status`, { status: 'closed' }).expect(200);
+    await postAs(auditor, `/api/audit-requests/${created.id}/corrections`, { recordRef: 'x', detail: 'y' }).expect(409);
+  });
 });

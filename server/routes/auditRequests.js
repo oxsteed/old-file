@@ -236,6 +236,22 @@ function scopeReviewView(row) {
   };
 }
 
+function correctionView(row) {
+  return {
+    id: row.id,
+    auditRequestId: row.audit_request_id,
+    requestedBy: row.requested_by,
+    evidenceId: row.evidence_id,
+    recordRef: row.record_ref,
+    detail: row.detail,
+    status: row.status,
+    resolutionNote: row.resolution_note,
+    resolvedBy: row.resolved_by,
+    resolvedAt: row.resolved_at,
+    createdAt: row.created_at,
+  };
+}
+
 const REQUEST_COUNTS = `
   (SELECT COUNT(*)::int FROM audit_request_evidence e WHERE e.audit_request_id = r.id) AS evidence_count,
   (SELECT COUNT(*)::int FROM audit_request_evidence e WHERE e.audit_request_id = r.id AND e.status = 'approved') AS approved_count,
@@ -1067,6 +1083,126 @@ function createAuditRequestsRouter({ storage = defaultStorage, notifyStaff = not
         [request.id],
       );
       res.json({ scopeReviews: rows.map(scopeReviewView) });
+    } catch (error) { next(error); }
+  });
+
+  // ── 743: record correction request ───────────────────────────────
+  // POST /:id/corrections — the reviewing auditor asks for a correction
+  // to a record: either an approved evidence document on the request, or
+  // a free-text reference when no evidence row applies. Auditor with an
+  // active grant ONLY. A closed request refuses new corrections.
+  router.post('/:id/corrections', creditMutationLimiter, async (req, res, next) => {
+    try {
+      const { request, access } = await loadRequestForViewer(req.params.id, req.user);
+      if (access !== 'auditor') {
+        throw new AppError('Only the reviewing auditor can request a correction', 403, 'audit_correction_forbidden');
+      }
+      if (request.status === 'closed') {
+        throw new AppError('A closed audit request cannot take a correction request', 409, 'audit_request_closed');
+      }
+      const rawDetail = req.body?.detail;
+      if (typeof rawDetail !== 'string' || !rawDetail.trim()) {
+        throw new AppError('A correction detail is required', 400, 'audit_correction_detail_required');
+      }
+      if (rawDetail.length > 2000) {
+        throw new AppError('The correction detail is too long', 400, 'audit_correction_detail_too_long');
+      }
+      const detail = sanitizeText(rawDetail, 2000);
+      if (!detail) throw new AppError('A correction detail is required', 400, 'audit_correction_detail_required');
+      const rawEvidenceId = req.body?.evidenceId ?? req.body?.evidence_id;
+      const rawRecordRef = req.body?.recordRef ?? req.body?.record_ref;
+      let evidenceId = null;
+      let recordRef = null;
+      if (rawEvidenceId !== undefined && rawEvidenceId !== null && String(rawEvidenceId).trim() !== '') {
+        if (!UUID_RE.test(String(rawEvidenceId))) {
+          throw new AppError('Evidence not found', 404, 'audit_evidence_not_found');
+        }
+        // The auditor can only correct what they can see: approved
+        // evidence. A proposed or rejected row answers 404, same as the
+        // archive.
+        const { rows: [evidence] } = await pool.query(
+          `SELECT id FROM audit_request_evidence
+            WHERE id = $1 AND audit_request_id = $2 AND status = 'approved'`,
+          [String(rawEvidenceId).toLowerCase(), request.id],
+        );
+        if (!evidence) throw new AppError('Evidence not found', 404, 'audit_evidence_not_found');
+        evidenceId = evidence.id;
+      } else if (rawRecordRef !== undefined && rawRecordRef !== null && String(rawRecordRef).trim() !== '') {
+        if (typeof rawRecordRef !== 'string') {
+          throw new AppError('Invalid record reference', 400, 'audit_correction_record_ref_invalid');
+        }
+        if (rawRecordRef.length > 200) {
+          throw new AppError('The record reference is too long', 400, 'audit_correction_record_ref_too_long');
+        }
+        recordRef = sanitizeText(rawRecordRef, 200) || null;
+        if (!recordRef) throw new AppError('A record reference is required', 400, 'audit_correction_record_ref_invalid');
+      } else {
+        throw new AppError('A correction needs an evidence document or a record reference', 400, 'audit_correction_target_required');
+      }
+      const { rows: [row] } = await pool.query(
+        `INSERT INTO audit_request_corrections
+           (audit_request_id, requested_by, evidence_id, record_ref, detail)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [request.id, req.user.id, evidenceId, recordRef, detail],
+      );
+      res.status(201).json({ correction: correctionView(row) });
+    } catch (error) { next(error); }
+  });
+
+  // GET /:id/corrections — any viewer of the request reads the
+  // correction queue, oldest first.
+  router.get('/:id/corrections', async (req, res, next) => {
+    try {
+      const { request } = await loadRequestForViewer(req.params.id, req.user);
+      const { rows } = await pool.query(
+        `SELECT * FROM audit_request_corrections
+          WHERE audit_request_id = $1 ORDER BY created_at ASC, id ASC`,
+        [request.id],
+      );
+      res.json({ corrections: rows.map(correctionView) });
+    } catch (error) { next(error); }
+  });
+
+  // POST /:id/corrections/:correctionId/resolve — the owner/admin marks
+  // a requested correction addressed or declined, with an optional
+  // resolution note. Only a requested correction can be resolved.
+  router.post('/:id/corrections/:correctionId/resolve', creditMutationLimiter, async (req, res, next) => {
+    try {
+      const request = await loadRequestForOwnerOrAdmin(req.params.id, req.user);
+      if (!UUID_RE.test(String(req.params.correctionId || ''))) {
+        throw new AppError('Correction not found', 404, 'audit_correction_not_found');
+      }
+      const status = String(req.body?.status || '');
+      if (status !== 'addressed' && status !== 'declined') {
+        throw new AppError('Unsupported resolution', 400, 'audit_correction_resolution_invalid');
+      }
+      let resolutionNote = null;
+      const rawNote = req.body?.resolutionNote ?? req.body?.resolution_note;
+      if (rawNote !== undefined && rawNote !== null && String(rawNote).trim() !== '') {
+        if (typeof rawNote !== 'string') {
+          throw new AppError('Invalid resolution note', 400, 'audit_correction_resolution_note_invalid');
+        }
+        if (rawNote.length > NOTE_MAX_LENGTH) {
+          throw new AppError('The resolution note is too long', 400, 'audit_correction_resolution_note_too_long');
+        }
+        resolutionNote = sanitizeText(rawNote, NOTE_MAX_LENGTH) || null;
+      }
+      const { rows: [row] } = await pool.query(
+        `UPDATE audit_request_corrections
+            SET status = $3, resolution_note = $4, resolved_by = $5, resolved_at = NOW()
+          WHERE id = $1 AND audit_request_id = $2 AND status = 'requested'
+          RETURNING *`,
+        [String(req.params.correctionId).toLowerCase(), request.id, status, resolutionNote, req.user.id],
+      );
+      if (!row) {
+        const { rows: [existing] } = await pool.query(
+          'SELECT id FROM audit_request_corrections WHERE id = $1 AND audit_request_id = $2',
+          [String(req.params.correctionId).toLowerCase(), request.id],
+        );
+        if (!existing) throw new AppError('Correction not found', 404, 'audit_correction_not_found');
+        throw new AppError('Correction is already resolved', 409, 'audit_correction_already_resolved');
+      }
+      res.json({ correction: correctionView(row) });
     } catch (error) { next(error); }
   });
 
