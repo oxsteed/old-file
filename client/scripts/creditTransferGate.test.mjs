@@ -53,6 +53,19 @@ test('transfer form renders only when the limits summary enables transfers', () 
   );
 });
 
+test('the transfer panel lives in the Send drawer, not on the page body', () => {
+  // Credit redesign (D-806): the panel moved into the Send drawer. The
+  // gate above still applies at the render site; this pins the move so
+  // the panel cannot silently drift back onto the page body.
+  const sendDrawerStart = src.indexOf(`open={activeDrawer === 'send'}`);
+  assert.ok(sendDrawerStart >= 0, 'Send drawer not found');
+  const nextDrawer = src.indexOf('<CreditDrawer', sendDrawerStart + 1);
+  const sendDrawer = src.slice(sendDrawerStart, nextDrawer === -1 ? undefined : nextDrawer);
+  assert.match(sendDrawer, /ox-credit-transfer-panel/, 'transfer panel must render inside the Send drawer');
+  const pageBody = src.slice(0, src.indexOf(`open={activeDrawer === 'topup'}`));
+  assert.doesNotMatch(pageBody, /ox-credit-transfer-panel/, 'transfer panel must not render in the page body');
+});
+
 test('transfer gate is null-safe while the limits summary loads', () => {
   // limitSummary starts null; a bare limitSummary.transfers.enabled read
   // would throw on first render. Optional chaining keeps the form hidden

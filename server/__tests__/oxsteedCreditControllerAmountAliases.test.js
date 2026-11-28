@@ -19,6 +19,7 @@ jest.mock('../services/oxsteedCreditPendingActionService', () => ({
 }));
 jest.mock('../services/oxsteedCreditCurrencyConversionService', () => ({
   calculateQuotedTargetAmount: jest.fn(({ sourceAmountMinorUnits }) => sourceAmountMinorUnits),
+  createLiveRateCurrencyQuote: jest.fn(),
   getCurrencyQuote: jest.fn(),
   convertCustomerCredit: jest.fn(),
 }));
@@ -28,6 +29,7 @@ const controller = require('../controllers/oxsteedCreditController');
 const { issueStepupChallenge, verifyStepupChallenge } = require('../services/stepupChallengeService');
 const { requestPendingAction } = require('../services/oxsteedCreditPendingActionService');
 const { convertCustomerCredit } = require('../services/oxsteedCreditCurrencyConversionService');
+const { createLiveRateCurrencyQuote } = require('../services/oxsteedCreditCurrencyConversionService');
 
 function makeReq(body = {}, headers = {}) {
   return {
@@ -52,6 +54,7 @@ beforeEach(() => {
   verifyStepupChallenge.mockClear();
   issueStepupChallenge.mockClear();
   requestPendingAction.mockClear();
+  createLiveRateCurrencyQuote.mockClear();
   convertCustomerCredit.mockClear();
   verifyStepupChallenge.mockResolvedValue({ verified: true });
   issueStepupChallenge.mockResolvedValue({
@@ -194,4 +197,50 @@ test('step-up issuance preserves explicit zero over the snake_case alias', async
   );
 
   expect(issueStepupChallenge).toHaveBeenCalledWith(expect.objectContaining({ amountCents: 0 }));
+});
+
+// Credit redesign (D-794): the customer creates their own conversion quote
+// from the live feed; the quote binds only the caller's own balance.
+test('customer self-serve quote binds the caller as actor and customer', async () => {
+  createLiveRateCurrencyQuote.mockResolvedValue({
+    replayed: false,
+    quote: { id: '11', status: 'open', sourceCurrencyCode: 'USD', targetCurrencyCode: 'EUR' },
+  });
+  const req = makeReq(
+    { sourceCurrencyCode: 'USD', targetCurrencyCode: 'EUR', sourceAmountMinorUnits: 100 },
+    { 'Idempotency-Key': 'quote-self-serve-ctrl-1' },
+  );
+  req.user = { id: '11111111-1111-4111-8111-111111111111', role: 'customer', email: 'customer@example.test' };
+  const res = makeRes();
+
+  await controller.createMyCurrencyQuote(req, res, jest.fn());
+
+  expect(createLiveRateCurrencyQuote).toHaveBeenCalledWith(expect.objectContaining({
+    sourceCurrency: 'USD',
+    targetCurrency: 'EUR',
+    sourceAmountCents: 100,
+    customerId: '11111111-1111-4111-8111-111111111111',
+    actorUserId: '11111111-1111-4111-8111-111111111111',
+    reason: 'customer self-serve conversion quote',
+    idempotencyKey: 'quote-self-serve-ctrl-1',
+  }));
+  expect(res.status).toHaveBeenCalledWith(201);
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+    replayed: false,
+    quote: expect.objectContaining({ id: '11', status: 'open' }),
+  }));
+});
+
+test('a non-customer cannot create a self-serve conversion quote', async () => {
+  const next = jest.fn();
+  const req = makeReq(
+    { sourceCurrencyCode: 'USD', targetCurrencyCode: 'EUR', sourceAmountMinorUnits: 100 },
+    { 'Idempotency-Key': 'quote-self-serve-ctrl-2' },
+  );
+  req.user = { id: 'admin-1', role: 'admin', email: 'admin@example.test' };
+
+  await controller.createMyCurrencyQuote(req, makeRes(), next);
+
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'credit_conversion_customer_only' }));
+  expect(createLiveRateCurrencyQuote).not.toHaveBeenCalled();
 });

@@ -14,6 +14,9 @@ const {
   getCustomerCreditStatement,
   getCustomerCreditStatementPeriods,
   getCustomerCreditAccountDetails,
+  issueAccountLetter,
+  resolveTransferRecipientByAccountNumber,
+  resolveTransferRecipientByCardNumber,
   customerCreditStatementCsv,
   MAX_STATEMENT_EXPORT_ROWS,
   MAX_TRANSACTION_CENTS,
@@ -94,6 +97,7 @@ const {
 } = require('../services/oxsteedCreditPartnerLedgerService');
 const {
   calculateQuotedTargetAmount,
+  createLiveRateCurrencyQuote,
   getCurrencyQuote,
   convertCustomerCredit,
 } = require('../services/oxsteedCreditCurrencyConversionService');
@@ -518,6 +522,34 @@ async function getMyAccountDetails(req, res, next) {
   }
 }
 
+// Credit redesign (D-797/D-803): the downloadable account letter. The
+// caller proves a fresh 'account_letter' step-up challenge first (issued
+// by POST /money-out/stepup-challenges); the service verifies it, writes
+// the audit row, and returns the letter text. The download moves no money.
+async function downloadMyAccountLetter(req, res, next) {
+  try {
+    if (req.user.role !== 'customer') {
+      throw new AppError('Only customer accounts can download an account letter', 403, 'credit_account_letter_customer_only');
+    }
+    const { filename, text } = await issueAccountLetter({
+      customerId: req.user.id,
+      currencyCode: req.body?.currencyCode || req.body?.currency_code || req.query.currencyCode || 'USD',
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      code: req.body?.stepupCode || req.body?.stepup_code,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      requestIp: req.ip || null,
+    });
+    res.set({
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(text);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function downloadMyStatement(req, res, next) {
   try {
     const statement = await getCustomerCreditStatement(req.user.id, {
@@ -697,6 +729,30 @@ async function lookupTransferRecipient(req, res, next) {
         displayName: displayName || null,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Credit redesign (D-798): resolve a transfer recipient by account number
+// or by card number (a scanned card or QR code carries the same 16-digit
+// number), so the Send drawer accepts more than a pasted customer UUID.
+// Exactly one identifier is accepted; an unresolvable identifier is a
+// 404 with the same code as the UUID lookup, never a guessed recipient.
+async function resolveMyTransferRecipient(req, res, next) {
+  try {
+    const accountNumber = req.body?.accountNumber || req.body?.account_number || null;
+    const cardNumber = req.body?.cardNumber || req.body?.card_number || null;
+    if (Boolean(accountNumber) === Boolean(cardNumber)) {
+      throw new AppError('Provide exactly one of accountNumber or cardNumber', 400, 'credit_recipient_identifier_required');
+    }
+    const recipient = accountNumber
+      ? await resolveTransferRecipientByAccountNumber(accountNumber)
+      : await resolveTransferRecipientByCardNumber(cardNumber);
+    if (!recipient) {
+      throw new AppError('Recipient customer was not found', 404, 'credit_recipient_not_found');
+    }
+    res.json({ recipient });
   } catch (error) {
     next(error);
   }
@@ -2823,6 +2879,40 @@ async function getMyCurrencyQuote(req, res, next) {
   }
 }
 
+// Credit redesign (D-794): a customer creates their own conversion quote
+// from the live FX feed — rate, fee, expiry, and destination amount are
+// priced at request time, so the drawer can show the terms and confirm
+// against this quote instead of asking the customer to paste an
+// admin-issued Quote ID. Admin-issued quotes stay available as an
+// override; this path never goes through the dual-approval pending-action
+// flow, because the quote binds only the caller's own balance. The rail
+// gate runs inside createCurrencyQuote, so a paused rail refuses here
+// before any quote row exists.
+async function createMyCurrencyQuote(req, res, next) {
+  try {
+    if (req.user.role !== 'customer') {
+      throw new AppError('Only customer accounts can create a conversion quote', 403, 'credit_conversion_customer_only');
+    }
+    const result = await createLiveRateCurrencyQuote({
+      sourceCurrency: req.body?.sourceCurrencyCode || req.body?.source_currency_code,
+      targetCurrency: req.body?.targetCurrencyCode || req.body?.target_currency_code,
+      sourceAmountCents: req.body?.sourceAmountMinorUnits ?? req.body?.source_amount_minor_units,
+      customerId: req.user.id,
+      reason: 'customer self-serve conversion quote',
+      actor: req.user.id,
+      actorUserId: req.user.id,
+      idempotencyKey: getIdempotencyKey(req),
+      expiresAt: req.body?.expiresAt || req.body?.expires_at,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      metadata: { ...(req.body?.metadata || {}), selfServe: true },
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getAdminCurrencyQuote(req, res, next) {
   try {
     res.json(await getCurrencyQuote({ quoteId: req.params.quoteId }));
@@ -2914,6 +3004,7 @@ module.exports = {
   getMyStatement,
   getMyStatementPeriods,
   getMyAccountDetails,
+  downloadMyAccountLetter,
   downloadMyStatement,
   downloadAdminCustomerStatement,
   getMyTransaction,
@@ -2923,6 +3014,7 @@ module.exports = {
   reauthorizeMyHold,
   transferMyCredit,
   lookupTransferRecipient,
+  resolveMyTransferRecipient,
   openMyDispute,
   listMyDisputes,
   listMyDisputeEvidence,
@@ -2985,6 +3077,7 @@ module.exports = {
   getAdminPartnerLedger,
   recordAdminPartnerFunding,
   createAdminCurrencyQuote,
+  createMyCurrencyQuote,
   getMyCurrencyQuote,
   getAdminCurrencyQuote,
   listAdminCreditReconciliationRuns,

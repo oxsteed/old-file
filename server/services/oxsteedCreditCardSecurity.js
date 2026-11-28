@@ -9,7 +9,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 
-const ACTIONS = Object.freeze(['unfreeze', 'activate', 'pin_set']);
+const ACTIONS = Object.freeze(['unfreeze', 'activate', 'pin_set', 'reveal', 'security_code_reset', 'limits_set']);
 const failure = (code, status = 403) => ({ failure: { code, status } });
 function reject(result) {
   if (result.failure) throw new AppError('Card security verification could not be completed.', result.failure.status, result.failure.code);
@@ -23,7 +23,10 @@ function hash(value) {
 function payloadHash(action, args) {
   return hash([action, args.cardId, action === 'activate' ? String(args.activationCode || '').trim().toUpperCase() : null,
     action === 'pin_set' ? String(args.pin || '').trim() : null,
-    action === 'pin_set' ? String(args.currentPin || '').trim() : null, action === 'pin_set' && args.resetPin === true]);
+    action === 'pin_set' ? String(args.currentPin || '').trim() : null, action === 'pin_set' && args.resetPin === true,
+    // Credit redesign (D-800): the limits ride the hash, so a replay with
+    // different limits is an idempotency conflict, not a silent overwrite.
+    action === 'limits_set' ? JSON.stringify(args.limits || null) : null]);
 }
 function bindingHash(action, args, user) {
   return hash([args.customerId, args.cardId, action, payloadHash(action, args), args.sessionBinding,
@@ -53,6 +56,7 @@ function eligible(card, action) {
   if (card.account_status !== 'active' || (card.expires_at && new Date(card.expires_at) <= new Date())) return false;
   if (action === 'unfreeze') return card.status === 'frozen' && card.freeze_origin === 'customer';
   if (action === 'activate') return card.status === 'pending';
+  if (action === 'reveal' || action === 'security_code_reset' || action === 'limits_set') return card.status === 'active';
   return action === 'pin_set' && card.status === 'active';
 }
 async function failedAttempt(client, args, code) {
@@ -157,6 +161,12 @@ async function runVerified(args, action, operation) {
     await audit(client, args, 'verification_succeeded', { action, method: user.totp_enabled ? 'password_mfa_email' : 'password_email' });
     const persisted = JSON.parse(JSON.stringify(value));
     if (persisted.card) { delete persisted.card.credential; delete persisted.card.activationCode; }
+    // Credit redesign (D-800): a revealed number or a fresh security code
+    // is one-time per challenge; the replay store must never hold it, so
+    // a retried reveal reports replayed without the number and the client
+    // starts a fresh reveal instead.
+    delete persisted.cardNumber;
+    delete persisted.securityCode;
     await client.query(`INSERT INTO oxsteed_credit_card_security_operations
       (customer_id, request_key, card_id, action, payload_hash, result) VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
     [args.customerId, args.idempotencyKey, args.cardId, action, fingerprint, JSON.stringify(persisted)]);

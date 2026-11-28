@@ -57,6 +57,9 @@ const STEPUP_ACTION_TYPES = Object.freeze([
   'agent_job_cancel',
   'customer_transfer',
   'restaurant_conversion',
+  // Credit redesign (D-797/D-803): the account-letter download proves a
+  // fresh step-up with a nominal 1-cent binding; the letter moves no money.
+  'account_letter',
   'pending_action_approve',
   // ADM-079: maker step-up for the generic pending-actions endpoint.
   'pending_action_request',

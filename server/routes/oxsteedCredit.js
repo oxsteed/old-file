@@ -29,6 +29,7 @@ router.get('/account', controller.getMyAccount);
 // Review P2-7-F07: money-initiating credit mutations honor admin checkout
 // restrictions, like the other checkout surfaces.
 router.post('/conversions', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.convertMyCredit);
+router.post('/conversion-quotes', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.createMyCurrencyQuote);
 router.get('/conversion-quotes/:quoteId', controller.getMyCurrencyQuote);
 router.get('/limits', controller.getMyCreditLimits);
 router.get('/accounts', controller.getMyAccounts);
@@ -46,6 +47,7 @@ router.get('/documents', creditExportLimiter, statementController.handler('oxste
 router.get('/documents.pdf', creditExportLimiter, statementController.handler('oxsteed', 'pdf'));
 router.get('/documents.csv', creditExportLimiter, statementController.handler('oxsteed', 'csv'));
 router.get('/account-details', controller.getMyAccountDetails);
+router.post('/account-details/letter', creditMutationLimiter, rejectImpersonated, controller.downloadMyAccountLetter);
 router.get('/transactions', controller.getMyTransactions);
 router.get('/transactions/:transactionId', controller.getMyTransaction);
 router.post('/holds', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.createMyHold);
@@ -57,6 +59,7 @@ router.post('/transfers', creditMutationLimiter, rejectImpersonated, checkRestri
 // Recipient name lookup for the transfer review panel. Read-only; the
 // router-level authenticate + requireRole('customer') gate applies.
 router.get('/transfer-recipients/:customerId', controller.lookupTransferRecipient);
+router.post('/transfer-recipients/resolve', creditMutationLimiter, rejectImpersonated, controller.resolveMyTransferRecipient);
 router.get('/disputes', controller.listMyDisputes);
 router.post('/disputes', creditMutationLimiter, rejectImpersonated, controller.openMyDispute);
 // Group 13, item 674 (D-371/D-372/D-373): customer evidence on their own
@@ -125,5 +128,8 @@ router.post('/cards/:cardId/freeze', creditMutationLimiter, rejectImpersonated, 
 router.post('/cards/:cardId/unfreeze', creditMutationLimiter, rejectImpersonated, cardController.unfreezeMyCard);
 router.post('/cards/:cardId/report-lost', creditMutationLimiter, rejectImpersonated, cardController.reportMyCardLost);
 router.post('/cards/:cardId/pin', creditMutationLimiter, rejectImpersonated, cardController.setMyCardPin);
+router.post('/cards/:cardId/reveal', creditMutationLimiter, rejectImpersonated, cardController.revealMyCard);
+router.post('/cards/:cardId/security-code/reset', creditMutationLimiter, rejectImpersonated, cardController.resetMyCardSecurityCode);
+router.post('/cards/:cardId/limits', creditMutationLimiter, rejectImpersonated, cardController.setMyCardLimits);
 
 module.exports = router;

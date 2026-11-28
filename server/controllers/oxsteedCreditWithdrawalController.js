@@ -200,9 +200,10 @@ module.exports = {
 
 /**
  * Issue a step-up challenge for customer money-out actions (withdrawal,
- * customer_transfer, restaurant_conversion). The code is emailed; the
- * response carries only the challenge id and expiry. The client then
- * submits the money-out request with { stepupChallengeId, stepupCode }.
+ * customer_transfer, restaurant_conversion) and for the account-letter
+ * download. The code is emailed; the response carries only the challenge
+ * id and expiry. The client then submits the money-out request (or the
+ * letter download) with { stepupChallengeId, stepupCode }.
  */
 async function issueMoneyOutStepupChallenge(req, res, next) {
   try {
@@ -210,11 +211,15 @@ async function issueMoneyOutStepupChallenge(req, res, next) {
       throw new AppError('Only customer accounts can use money-out step-up', 403, 'credit_stepup_customer_only');
     }
     const actionType = String(req.body?.actionType || req.body?.action_type || '').trim();
-    if (!['withdrawal', 'customer_transfer', 'restaurant_conversion'].includes(actionType)) {
+    if (!['withdrawal', 'customer_transfer', 'restaurant_conversion', 'account_letter'].includes(actionType)) {
       throw new AppError('Unsupported money-out step-up action', 400, 'credit_stepup_action_invalid');
     }
-    const amountCents = parseAmountCents(req.body?.amountCents ?? req.body?.amount_cents);
-    if (!amountRequiresStepup(amountCents)) {
+    // Credit redesign (D-797/D-803): the account letter moves no money,
+    // so it skips the amount gate and binds a nominal 1 cent instead.
+    const amountCents = actionType === 'account_letter'
+      ? 1
+      : parseAmountCents(req.body?.amountCents ?? req.body?.amount_cents);
+    if (actionType !== 'account_letter' && !amountRequiresStepup(amountCents)) {
       throw new AppError('A step-up challenge is not required for this amount', 400, 'credit_stepup_not_required');
     }
     const { challenge, delivery } = await issueStepupChallenge({

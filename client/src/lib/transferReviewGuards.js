@@ -14,7 +14,14 @@ function recipientMatches(recipient, recipientId) {
   // A resolved row with no display name is not human-checkable: it must
   // not unlock review either.
   if (!recipient.displayName) return false;
-  return String(recipient.customerId) === String(recipientId || '').trim();
+  const entered = String(recipientId || '').trim();
+  if (String(recipient.customerId) === entered) return true;
+  // Credit redesign (D-798): the recipient may have been resolved by
+  // account number or card number instead of a pasted UUID. The resolve
+  // call stamps the exact input it resolved (resolvedFor), and the gate
+  // accepts only that input, so a resolved name for one identifier never
+  // unlocks a different, edited one.
+  return Boolean(recipient.resolvedFor) && String(recipient.resolvedFor) === entered;
 }
 
 // The transfer review panel may open, and its confirm button may enable,

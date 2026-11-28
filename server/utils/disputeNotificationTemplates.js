@@ -40,6 +40,20 @@ exports.disputeNotifications = {
     title: t('Your OxSteed Credit card was revoked', 'Tu tarjeta OxSteed Credit fue revocada', 'Votre carte OxSteed Credit a été révoquée', 'Kat OxSteed Credit ou a anile', 'تم إلغاء بطاقة OxSteed Credit الخاصة بك'),
     body: t('OxSteed revoked your Credit card. It can no longer be used. You can request a replacement from your cards page.', 'OxSteed revocó tu tarjeta de Crédito. Ya no se puede usar. Puedes solicitar un reemplazo desde tu página de tarjetas.', 'OxSteed a révoqué votre carte Crédit. Elle ne peut plus être utilisée. Vous pouvez demander un remplacement depuis votre page de cartes.', 'OxSteed anile kat Kredi ou. Ou pa ka itilize l ankò. Ou ka mande yon ranplasman sou paj kat ou.', 'ألغت OxSteed بطاقة الرصيد الخاصة بك. لم يعد بالإمكان استخدامها. يمكنك طلب بطاقة بديلة من صفحة بطاقاتك.'),
   },
+  // Credit redesign (D-800): the owner is told on every reveal and card
+  // action, so a use of the card the owner did not make is visible.
+  credit_card_revealed: {
+    title: t('Your OxSteed Credit card number was viewed', 'Se vio el número de tu tarjeta OxSteed Credit', 'Le numéro de votre carte OxSteed Credit a été affiché', 'Yo te wè nimewo kat OxSteed Credit ou a', 'تم عرض رقم بطاقة OxSteed Credit الخاصة بك'),
+    body: t('Your Credit card number was revealed after verification. If that was not you, freeze the card from your cards page.', 'Tu número de tarjeta de Crédito se reveló después de la verificación. Si no fuiste tú, congela la tarjeta desde tu página de tarjetas.', 'Le numéro de votre carte Crédit a été affiché après vérification. Si ce n’était pas vous, gelez la carte depuis votre page de cartes.', 'Yo te montre nimewo kat Kredi ou apre verifikasyon. Si se pa t ou, jele kat la nan paj kat ou.', 'تم الكشف عن رقم بطاقة الرصيد الخاصة بك بعد التحقق. إذا لم تكن أنت، فجمّد البطاقة من صفحة بطاقاتك.'),
+  },
+  credit_card_security_code_reset: {
+    title: t('Your OxSteed Credit security code was reset', 'Se restableció el código de seguridad de tu tarjeta OxSteed Credit', 'Le code de sécurité de votre carte OxSteed Credit a été réinitialisé', 'Yo te reset kòd sekirite kat OxSteed Credit ou a', 'تمت إعادة تعيين رمز أمان بطاقة OxSteed Credit الخاصة بك'),
+    body: t('A new security code was set on your Credit card after verification. Your old code no longer works.', 'Se estableció un nuevo código de seguridad en tu tarjeta de Crédito después de la verificación. Tu código anterior ya no funciona.', 'Un nouveau code de sécurité a été défini sur votre carte Crédit après vérification. Votre ancien code ne fonctionne plus.', 'Yo te mete yon nouvo kòd sekirite sou kat Kredi ou apre verifikasyon. Ansyen kòd ou a pa mache ankò.', 'تم تعيين رمز أمان جديد على بطاقة الرصيد الخاصة بك بعد التحقق. لم يعد رمزك القديم يعمل.'),
+  },
+  credit_card_limits_updated: {
+    title: t('Your OxSteed Credit card limits changed', 'Cambiaron los límites de tu tarjeta OxSteed Credit', 'Les limites de votre carte OxSteed Credit ont changé', 'Limit kat OxSteed Credit ou yo chanje', 'تغيّرت حدود بطاقة OxSteed Credit الخاصة بك'),
+    body: t('The spend limits on your Credit card changed after verification. You can review them on your cards page.', 'Los límites de gasto de tu tarjeta de Crédito cambiaron después de la verificación. Puedes revisarlos en tu página de tarjetas.', 'Les limites de dépense de votre carte Crédit ont changé après vérification. Vous pouvez les consulter sur votre page de cartes.', 'Limit depans kat Kredi ou yo chanje apre verifikasyon. Ou ka revize yo sou paj kat ou.', 'تغيّرت حدود الإنفاق على بطاقة الرصيد الخاصة بك بعد التحقق. يمكنك مراجعتها على صفحة بطاقاتك.'),
+  },
   // Group 13 (694, D-401/D-402): one type for every participant
   // eligibility/status change. The caller appends the new state and what
   // it means in English after this localized body, the same shape as the
