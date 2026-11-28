@@ -330,6 +330,28 @@ async function confirmCloseout(req, res) {
       if (effectiveStatus(session) !== 'completed') {
         return { status: 409, body: { error: 'The engagement must be completed before closeout', code: 'engagement_not_completed' } };
       }
+      // S-D3 (D-765): a closeout confirmation is an agreement that the
+      // work is done — it cannot be given while required milestones are
+      // undelivered or unaccepted, or change requests are open. The
+      // archive path already refuses on the same checklist; confirm
+      // uses the same gate minus the two confirmation items themselves
+      // (which this call is about to satisfy), with the same 409 shape
+      // so the client names what is still missing.
+      const checklist = await computeChecklist(client, session);
+      const blocking = checklist.items.filter(
+        (item) => item.required && !item.met
+          && item.key !== 'consultant_confirmed' && item.key !== 'client_confirmed',
+      );
+      if (blocking.length > 0) {
+        return {
+          status: 409,
+          body: {
+            error: 'The closeout checklist is not complete',
+            code: 'checklist_incomplete',
+            unmet: blocking.map((item) => item.key),
+          },
+        };
+      }
       // The side confirming: consultant confirms for themselves; the
       // client confirms for themselves; an admin confirms for the
       // client only.
