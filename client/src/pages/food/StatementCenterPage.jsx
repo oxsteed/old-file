@@ -9,6 +9,8 @@ import StatementSearch from '../../components/statements/StatementSearch';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
 import { buildStatementAccounts, statementAccountPath, statementScopeAccountId } from '../../lib/statementAccounts';
+import { formatPeriodMonth } from '../../lib/statementFreshness';
+import { REPORT_DEFINITIONS } from '../../lib/reportDefinitions';
 import './StatementCenterPage.css';
 
 const CreditStatementsPage = lazy(() => import('./CreditStatementsPage'));
@@ -18,6 +20,7 @@ export default function StatementCenterPage() {
   const { t, i18n } = useTranslation('credit');
   const { user } = useAuth();
   const userId = user?.id ? String(user.id) : '';
+  const language = (i18n.resolvedLanguage || i18n.language || 'en').split(/[-_]/)[0];
   const [params, setParams] = useSearchParams();
   const text = (key, options = {}) => t(`statements.center.${key}`, options);
   const [center, setCenter] = useState({ owner: null, status: 'loading', products: null });
@@ -49,6 +52,19 @@ export default function StatementCenterPage() {
   const archive = !record?.personal || params.get('statementView') === 'archive';
   const failures = Object.values(current.products || {}).some(item => item?.loadError);
   const accountLabel = item => item.labelKey ? text(item.labelKey) : item.label;
+  // D-746/D-747: one freshness line per record whose dataset has issued
+  // documents. 'none' (no documents yet) shows nothing; the empty states
+  // already say that. The month shown is the latest issued document, and
+  // for pending/stale the expected month that has not arrived yet.
+  const freshnessText = (freshness) => {
+    if (!freshness || freshness.state === 'none') return '';
+    const latest = formatPeriodMonth(freshness.latestPeriod, language);
+    const expected = formatPeriodMonth(freshness.expectedPeriod, language);
+    if (freshness.state === 'current') return text('freshnessCurrent', { latest });
+    if (freshness.state === 'pending') return text('freshnessPending', { latest, expected });
+    if (freshness.state === 'stale') return text('freshnessStale', { latest, expected });
+    return '';
+  };
 
   useEffect(() => {
     if (account) heading.current?.focus();
@@ -114,11 +130,27 @@ export default function StatementCenterPage() {
                 <Icon size={24} aria-hidden="true" /><span><strong><bdi>{accountLabel(item)}</bdi></strong>
                   <span>{item.records.map(value => text(`record_${value.product}`)).join(' · ')}</span>
                   <span><bdi>{[...new Set(item.records.flatMap(value => value.scopes.map(value => value.currency)).filter(Boolean))].join(' · ')}</bdi></span>
+                  {item.records.filter(value => value.freshness && value.freshness.state !== 'none').map(value => (
+                    <span key={value.key}>{freshnessText(value.freshness)}</span>
+                  ))}
                 </span><ArrowRight size={20} aria-hidden="true" />
               </button>)}</div>
             </section>;
           })}
         </div>
+        <details className="statement-center-definitions"><summary>{text('definitionsHeading')}</summary>
+          <p>{text('definitionsDescription')}</p>
+          <ul className="statement-center-definitions-list">{REPORT_DEFINITIONS.map(definition => <li key={definition.id}>
+            <h3>{definition.route.includes(':')
+              ? t(definition.titleKey)
+              : <Link to={definition.route}>{t(definition.titleKey)}</Link>}</h3>
+            <dl>
+              <dt>{t('statements.definitions.containsLabel')}</dt><dd>{t(definition.containsKey)}</dd>
+              <dt>{t('statements.definitions.sourceLabel')}</dt><dd>{t(definition.sourceKey)}</dd>
+              <dt>{t('statements.definitions.columnsLabel')}</dt><dd>{t(definition.columnsKey)}</dd>
+            </dl>
+          </li>)}</ul>
+        </details>
         <details className="statement-center-search"><summary>{text('searchAllRecords')}</summary><StatementSearch key={userId} /></details>
       </>}
       {current.status === 'ready' && account && record && scope && <section className="statement-center-selected" aria-labelledby="statement-account-heading">

@@ -13,6 +13,7 @@ import {
   listStatementScopes,
 } from '../../api/creditStatements';
 import { formatStatementMoney } from '../../lib/creditStatementFormat';
+import { formatPeriodMonth } from '../../lib/statementFreshness';
 import { STATEMENT_PRODUCTS, statementAccessiblePath, statementCorrectionNotice } from '../../lib/statementProducts';
 import StatementExportPanel from './StatementExportPanel';
 import StatementReport from '../../components/statements/StatementReport';
@@ -50,6 +51,16 @@ export const ARCHIVE_STRINGS = Object.freeze({
   retry: 'Try again',
   empty: 'No statements yet',
   emptyBody: 'Issued monthly statements will appear here. Closed calendar months create immutable documents.',
+  // D-746: freshness banner copy. The month is the expected month (the one
+  // that has not arrived yet), formatted with formatPeriodMonth.
+  freshnessPending: 'The {{month}} statement is still being prepared.',
+  freshnessStale: 'The {{month}} statement has not been issued yet.',
+  // D-748: the gap banner names the missing months (at most three, then a
+  // count); the filtered empty is a distinct, non-alarming message.
+  missingMonths: 'No statement was issued for {{months}}.',
+  missingMonthsMore: 'No statement was issued for {{months}} and {{count}} more months.',
+  emptyFiltered: 'No statement matches these filters.',
+  emptyFilteredBody: 'Try a different month, account, or currency. Statements for other periods are still in the archive.',
   original: 'Original',
   corrected: 'Corrected',
   superseded: 'Superseded',
@@ -161,6 +172,9 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed',
     page: Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1),
     perPage: PAGE_SIZE,
   };
+  // D-748: a filter counts as active when the scope was narrowed beyond the
+  // product default (product always defaults to oxsteed, so it never counts).
+  const hasActiveFilters = Boolean(filters.year || filters.month || filters.accountId || filters.currency);
 
   const [accounts, setAccounts] = useState([]);
   // Inconsistency #3: an account-list failure must surface as an error, never
@@ -263,6 +277,12 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed',
         perPage: Number(result?.perPage) || PAGE_SIZE,
         totalPages: Math.max(1, Number(result?.totalPages) || 1),
         total: Number(result?.total) || 0,
+        // D-746: freshness describes the filtered scope's dataset, not the
+        // page; the banner below renders it.
+        freshness: result?.freshness || null,
+        // D-748: months with no document inside the issued range.
+        missingMonths: Array.isArray(result?.missingMonths) ? result.missingMonths : [],
+        missingMonthsTotal: Number(result?.missingMonthsTotal) || 0,
       });
     } catch (failure) {
       if (controller.signal.aborted) return;
@@ -497,10 +517,18 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed',
         </button>
       </form>
 
+      {archive.status === 'ready' && archive.freshness?.state === 'stale' && <p className="sa-freshness sa-freshness-stale" role="alert">{text('freshnessStale', { month: formatPeriodMonth(archive.freshness.expectedPeriod, language) })}</p>}
+      {archive.status === 'ready' && archive.freshness?.state === 'pending' && <p className="sa-freshness" role="status">{text('freshnessPending', { month: formatPeriodMonth(archive.freshness.expectedPeriod, language) })}</p>}
+      {archive.status === 'ready' && (archive.missingMonthsTotal || 0) > 0 && <p className="sa-freshness sa-freshness-stale" role="alert">{
+        archive.missingMonthsTotal > 3
+          ? text('missingMonthsMore', { months: (archive.missingMonths || []).slice(0, 3).map(value => formatPeriodMonth(value, language)).join(', '), count: archive.missingMonthsTotal - 3 })
+          : text('missingMonths', { months: (archive.missingMonths || []).map(value => formatPeriodMonth(value, language)).join(', ') })
+      }</p>}
+
       {archive.status === 'loading' ? <div className="sa-state" role="status">{text('loading')}</div>
         : archive.status === 'error' ? <div className="sa-state" role="alert"><p>{text('loadError')}</p>
           <button type="button" onClick={() => setRefreshTick(tick => tick + 1)}>{text('retry')}</button></div>
-          : !archive.items.length ? <div className="sa-state" role="status"><h2>{text('empty')}</h2><p>{text('emptyBody')}</p></div>
+          : !archive.items.length ? <div className="sa-state" role="status"><h2>{text(hasActiveFilters ? 'emptyFiltered' : 'empty')}</h2><p>{text(hasActiveFilters ? 'emptyFilteredBody' : 'emptyBody')}</p></div>
             : <>
               <ul className="sa-list">
                 {archive.items.map(item => <li key={item.id} className="sa-item">

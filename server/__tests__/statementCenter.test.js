@@ -57,6 +57,12 @@ describe('getStatementCenter service', () => {
       expect(product.summary).toBeNull();
       expect(product.scopes).toEqual([]);
       expect(product.loadError).toBeUndefined();
+      // D-746: no documents yet is freshness 'none', never a stale warning.
+      expect(product.freshness).toEqual({
+        state: 'none',
+        latestPeriod: null,
+        expectedPeriod: expect.stringMatching(/^\d{4}-\d{2}$/),
+      });
     }
   });
 
@@ -85,6 +91,12 @@ describe('getStatementCenter service', () => {
     expect(credit.setupState).toBe('ready');
     expect(credit.latestPeriod).toBe('2026-09');
     expect(credit.statementStatus).toBe('ready');
+    // D-746: freshness rides the same latestPeriod. The exact state is
+    // pinned by the pure statementFreshness suite (it depends on the real
+    // clock); here the shape and the latest month are asserted.
+    expect(credit.freshness.latestPeriod).toBe('2026-09');
+    expect(credit.freshness.expectedPeriod).toMatch(/^\d{4}-\d{2}$/);
+    expect(['current', 'pending', 'stale']).toContain(credit.freshness.state);
     expect(credit.summary.balance).toEqual({ currency: 'USD', amountCents: 5000 });
     expect(credit.summary.lastPeriodCredits).toEqual({ currency: 'USD', amountCents: 2000 });
     expect(credit.summary.lastPeriodDebits).toEqual({ currency: 'USD', amountCents: 500 });

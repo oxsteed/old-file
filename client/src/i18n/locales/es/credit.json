@@ -240,6 +240,7 @@
     "reference": "Referencia de cuenta",
     "documentId": "ID del estado",
     "generated": "Generado {{date}}",
+    "dataAsOf": "Datos al {{date}}",
     "opening": "Saldo inicial",
     "credits": "Créditos totales",
     "debits": "Débitos totales",
@@ -330,6 +331,9 @@
       "description": "Tus estados de cuenta, personalizados. Cada tarjeta muestra el período más reciente, el estado de preparación y un resumen de las cuentas que tienes.",
       "earned": "Ganado",
       "eyebrow": "Registros financieros",
+      "freshnessCurrent": "Estados de cuenta al día ({{latest}})",
+      "freshnessPending": "El estado de cuenta de {{expected}} se está preparando (último {{latest}})",
+      "freshnessStale": "El estado de cuenta de {{expected}} está atrasado (último {{latest}})",
       "helperEarnings": "Estados de ganancias de ayudante",
       "helperEarningsDescription": "Tus ganancias de ayudante registradas y el historial de liquidación.",
       "invoiced": "Facturado",
@@ -367,7 +371,74 @@
       "unavailable": "No disponible"
     ,
       "auditRequestsLink": "Solicitudes de auditoría",
-      "auditRequestsDescription": "Solicita una auditoría de tus estados de cuenta y comparte la evidencia aprobada con tu auditor por tiempo limitado."
+      "auditRequestsDescription": "Solicita una auditoría de tus estados de cuenta y comparte la evidencia aprobada con tu auditor por tiempo limitado.",
+      "definitionsDescription": "Qué contiene cada informe, de dónde vienen sus datos y qué columnas tiene.",
+      "definitionsHeading": "Definiciones de informes"
+    },
+    "definitions": {
+      "containsLabel": "Contenido",
+      "sourceLabel": "Origen",
+      "columnsLabel": "Columnas",
+      "monthly-statement": {
+        "title": "Estado de cuenta mensual",
+        "contains": "Un documento inmutable por cada mes calendario cerrado: saldo inicial, créditos, débitos, saldo final y cada transacción registrada.",
+        "source": "Se emite automáticamente una vez transcurrido el período de gracia de 72 horas tras el fin de mes; también disponible bajo demanda.",
+        "columns": "Fecha, transacción, débito, crédito, saldo posterior"
+      },
+      "interim-report": {
+        "title": "Informe provisional",
+        "contains": "Saldos y actividad registrada del mes actual o de un período personalizado que elijas. Provisional: cambia a medida que se registra nueva actividad.",
+        "source": "Se calcula en vivo a partir de la actividad de Crédito registrada cuando aplicas un período.",
+        "columns": "Fecha, transacción, débito, crédito, saldo posterior"
+      },
+      "statement-archive": {
+        "title": "Archivo de estados de cuenta",
+        "contains": "Cada original mensual emitido con su revisión, fecha de emisión, estado de preparación y archivos; las versiones corregidas quedan adjuntas al original.",
+        "source": "Originales mensuales emitidos, de solo adición.",
+        "columns": "Período, fecha de emisión, revisión, moneda, idiomas, preparación"
+      },
+      "period-comparison": {
+        "title": "Comparación de períodos",
+        "contains": "Este mes calendario frente al anterior: totales, cambio neto y los cinco impulsores más grandes, separados por créditos y débitos.",
+        "source": "Derivado de la actividad de Crédito registrada de los dos meses.",
+        "columns": "Créditos totales, débitos totales, neto, cantidad de transacciones, principales impulsores"
+      },
+      "report-export": {
+        "title": "Exportación de informes",
+        "contains": "Los mismos datos del estado de cuenta en CSV, PDF, OFX, QFX o QBO. Los archivos vencen 30 días después de que la exportación se completa y se pueden volver a emitir.",
+        "source": "Generado bajo demanda a partir de los datos del estado de cuenta.",
+        "columns": "Formato, período, cuenta, moneda"
+      },
+      "export-history": {
+        "title": "Historial de exportaciones",
+        "contains": "Cada trabajo de exportación con su estado, formato y vencimiento, incluidos los trabajos fallidos y su error.",
+        "source": "Trabajos de exportación registrados cuando se solicita una exportación.",
+        "columns": "Trabajo, formato, estado, creado, vence"
+      },
+      "reconciliation-checklist": {
+        "title": "Lista de conciliación",
+        "contains": "Cinco pasos derivados para cerrar el período de una ubicación: revisar el resumen, revisar las diferencias, conciliar los ajustes, anotar las diferencias, registrar el cierre del período. La lista nunca aprueba una liquidación.",
+        "source": "Derivado en vivo de los datos de conciliación de la ubicación; nunca se almacena.",
+        "columns": "Paso, estado (hecho o pendiente)"
+      },
+      "audit-evidence": {
+        "title": "Evidencia de auditoría",
+        "contains": "Solicitudes de auditoría, evidencia aprobada, accesos con límite de tiempo y recibos de lo compartido.",
+        "source": "Solicitudes de auditoría y evidencia aprobada, limitadas al alcance de la solicitud.",
+        "columns": "Solicitud, evidencia, vencimiento del acceso, recibo"
+      },
+      "document-search": {
+        "title": "Búsqueda de documentos",
+        "contains": "Busca en los estados de cuenta por texto, filtra por tipo y monto, y guarda la vista para más tarde.",
+        "source": "El índice de búsqueda de estados de cuenta, limitado a tus cuentas.",
+        "columns": "Fecha, transacción, tipo, monto"
+      },
+      "investor-reporting": {
+        "title": "Informes para inversionistas",
+        "contains": "Los conjuntos de datos que otorga tu audiencia: resumen, indicadores, ingresos, franquicias y oferta y demanda, además de evidencia.",
+        "source": "Conjuntos de datos de informes para inversionistas, limitados a tu audiencia asignada.",
+        "columns": "Conjunto de datos, período, alcance"
+      }
     },
     "preview": {
       "adjusted": "Ajustado",
@@ -732,6 +803,12 @@
     "retry": "Intentar de nuevo",
     "empty": "Aún no hay estados de cuenta",
     "emptyBody": "Los estados de cuenta mensuales emitidos aparecerán aquí. Los meses calendario cerrados crean documentos inmutables.",
+    "freshnessPending": "El estado de cuenta de {{month}} aún se está preparando.",
+    "freshnessStale": "El estado de cuenta de {{month}} aún no se ha emitido.",
+    "missingMonths": "No se emitió ningún estado de cuenta para {{months}}.",
+    "missingMonthsMore": "No se emitió ningún estado de cuenta para {{months}} y {{count}} meses más.",
+    "emptyFiltered": "Ningún estado de cuenta coincide con estos filtros.",
+    "emptyFilteredBody": "Prueba otro mes, cuenta o moneda. Los estados de cuenta de otros períodos siguen en el archivo.",
     "original": "Original",
     "corrected": "Corregido",
     "superseded": "Reemplazado",

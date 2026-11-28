@@ -35,6 +35,7 @@ const { creditExportLimiter } = require('../middleware/rateLimiter');
 const { getDownloadStream, createSignedUrl } = require('../services/statementArtifactService');
 const { assertScopeStanding } = require('./settlementStatementArchive');
 const { hashDocument } = require('../services/creditStatementService');
+const { assessDatasetFreshness, findMissingMonths } = require('../services/statementFreshness');
 const { memberFinanceReadStanding } = require('../services/access/financeStanding');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -652,6 +653,12 @@ function createStatementArchiveRouter({ storage } = {}) {
           if (!CURRENCY_PATTERN.test(code)) throw new AppError('Invalid currency', 400, 'statement_archive_invalid_currency');
           params.push(code); conditions.push(`d.currency_code = $${params.length}`);
         }
+        // D-746: freshness describes the dataset (the scope), not the page:
+        // capture the scope-only conditions before the year/month filters
+        // are appended, so a year/month filter never makes the dataset look
+        // stale for a month the filter itself excluded.
+        const scopeConditions = conditions.slice();
+        const scopeParams = params.slice();
         if (year !== undefined || month !== undefined) {
           const y = parsePositiveInt(year, null); const m = month === undefined ? null : parsePositiveInt(month, null);
           if (!y || y < 2000 || y > 2100 || (month !== undefined && (!m || m > 12))) {
@@ -674,7 +681,16 @@ function createStatementArchiveRouter({ storage } = {}) {
           const item = await nestedArchiveItem(document, await listDocumentArtifacts(document.id), amendments);
           items.push({ ...item, readOnly: readOnlyScopes.has(String(document.account_id)) });
         }
-        return res.json({ items, page, perPage, total, totalPages: Math.max(1, Math.ceil(total / perPage)), paginationUnit: 'originals' });
+        const { rows: [{ latest }] } = await pool.query(
+          `SELECT MAX(d.period_to) AS latest FROM settlement_statement_documents d WHERE ${scopeConditions.join(' AND ')}`,
+          scopeParams);
+        // D-748: months with no document inside the issued range, over the
+        // same scope conditions (never the year/month page filters).
+        const { rows: monthRows } = await pool.query(
+          `SELECT DISTINCT DATE_TRUNC('month', d.period_from) AS month FROM settlement_statement_documents d WHERE ${scopeConditions.join(' AND ')}`,
+          scopeParams);
+        const missingMonths = findMissingMonths(monthRows.map((row) => row.month));
+        return res.json({ items, page, perPage, total, totalPages: Math.max(1, Math.ceil(total / perPage)), paginationUnit: 'originals', freshness: assessDatasetFreshness(latest), missingMonths: missingMonths.slice(0, 12), missingMonthsTotal: missingMonths.length });
       }
       // G-8: a live statements.view override also admits the auditor to the
       // restaurant wallet statements of exactly the businesses the override
@@ -710,6 +726,12 @@ function createStatementArchiveRouter({ storage } = {}) {
         params.push(code);
         filters.push(`d.currency_code = $${params.length}`);
       }
+      // D-746: freshness describes the dataset (the scope), not the page:
+      // capture the scope-only filters before the year/month filters are
+      // appended, so a year/month filter never makes the dataset look stale
+      // for a month the filter itself excluded.
+      const scopeFilters = filters.slice();
+      const scopeParams = params.slice();
       if (year !== undefined || month !== undefined) {
         const parsedYear = parsePositiveInt(year, null);
         const parsedMonth = month === undefined ? null : parsePositiveInt(month, null);
@@ -728,7 +750,9 @@ function createStatementArchiveRouter({ storage } = {}) {
       // membership; the customer_id predicate below already scopes to the
       // requester's own wallet rows. Parenthesized: AND binds tighter than
       // OR, so without the parens the EXISTS clause would leak rows.
-      filters.push(`(d.product <> 'restaurant' OR EXISTS (
+      // The same standing filter scopes the freshness query, so freshness
+      // never reflects documents the requester cannot see.
+      const standingFilter = `(d.product <> 'restaurant' OR EXISTS (
         SELECT 1 FROM food_customer_wallet_accounts a
         JOIN food_restaurants fr ON fr.id = a.restaurant_id
         JOIN businesses b ON b.id = fr.business_id
@@ -737,7 +761,8 @@ function createStatementArchiveRouter({ storage } = {}) {
         WHERE a.id = d.account_id
           AND (a.customer_id = d.customer_id OR b.user_id = d.customer_id
                OR fr.owner_user_id = d.customer_id OR bm.member_id IS NOT NULL)
-      )${delegatedParam ? ` OR d.account_id = ANY(${delegatedParam}::bigint[])` : ''})`);
+      )${delegatedParam ? ` OR d.account_id = ANY(${delegatedParam}::bigint[])` : ''})`;
+      filters.push(standingFilter);
 
       const perPage = Math.min(MAX_PER_PAGE, Math.max(1, parsePositiveInt(req.query.per_page, DEFAULT_PER_PAGE)));
       const page = Math.max(1, parsePositiveInt(req.query.page, 1));
@@ -746,6 +771,20 @@ function createStatementArchiveRouter({ storage } = {}) {
         ? `WHERE (d.customer_id = $1 OR (d.product = 'restaurant' AND d.account_id = ANY(${delegatedParam}::bigint[])))${filters.length ? ` AND ${filters.join(' AND ')}` : ''}`
         : `WHERE d.customer_id = $1${filters.length ? ` AND ${filters.join(' AND ')}` : ''}`;
       const order = 'ORDER BY d.period_to DESC, d.period_from DESC, d.generated_at DESC, d.id DESC';
+
+      // D-746: the dataset's latest issued month, over the scope filters
+      // plus the standing filter, ignoring the year/month page filters.
+      const scopeWhere = delegatedParam
+        ? `WHERE (d.customer_id = $1 OR (d.product = 'restaurant' AND d.account_id = ANY(${delegatedParam}::bigint[]))) AND ${[...scopeFilters, standingFilter].join(' AND ')}`
+        : `WHERE d.customer_id = $1${scopeFilters.length ? ` AND ${[...scopeFilters, standingFilter].join(' AND ')}` : ` AND ${standingFilter}`}`;
+      const { rows: [{ latest }] } = await pool.query(
+        `SELECT MAX(d.period_to) AS latest FROM credit_statement_documents d ${scopeWhere}`, scopeParams);
+      const freshness = assessDatasetFreshness(latest);
+      // D-748: months with no document inside the issued range, over the
+      // same scope filters (never the year/month page filters).
+      const { rows: monthRows } = await pool.query(
+        `SELECT DISTINCT DATE_TRUNC('month', d.period_from) AS month FROM credit_statement_documents d ${scopeWhere}`, scopeParams);
+      const missingMonths = findMissingMonths(monthRows.map((row) => row.month));
 
       const { rows: [{ total }] } = await pool.query(
         `SELECT COUNT(*)::int AS total FROM credit_statement_documents d ${where}`, params);
@@ -793,6 +832,9 @@ function createStatementArchiveRouter({ storage } = {}) {
         total,
         totalPages: Math.max(1, Math.ceil(total / perPage)),
         paginationUnit: 'originals',
+        freshness,
+        missingMonths: missingMonths.slice(0, 12),
+        missingMonthsTotal: missingMonths.length,
       });
     } catch (error) { next(error); }
   });

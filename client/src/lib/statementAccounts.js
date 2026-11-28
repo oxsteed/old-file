@@ -32,7 +32,9 @@ export function buildStatementAccounts(products = {}) {
       if (recordKey === 'business') account.label = scope.label;
       let record = account.records.find(item => item.key === recordKey);
       if (!record) {
-        record = { key: recordKey, ...config, scopes: [] };
+        // D-746: the product-level dataset freshness rides the record so the
+        // center account card can show it; scopes share the product's data.
+        record = { key: recordKey, ...config, scopes: [], freshness: entry.freshness || null };
         account.records.push(record);
       }
       if (!record.scopes.some(item => item.scopeKey === scope.scopeKey)) record.scopes.push(scope);

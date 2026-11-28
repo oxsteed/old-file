@@ -240,6 +240,7 @@
     "reference": "Référence du compte",
     "documentId": "ID du relevé",
     "generated": "Généré le {{date}}",
+    "dataAsOf": "Données au {{date}}",
     "opening": "Solde initial",
     "credits": "Total des crédits",
     "debits": "Total des débits",
@@ -330,6 +331,9 @@
       "description": "Vos relevés, personnalisés. Chaque carte affiche la période la plus récente, l’état de préparation et un résumé des comptes que vous détenez.",
       "earned": "Gagné",
       "eyebrow": "Documents financiers",
+      "freshnessCurrent": "Relevés à jour ({{latest}})",
+      "freshnessPending": "Le relevé de {{expected}} est en cours de préparation (dernier {{latest}})",
+      "freshnessStale": "Le relevé de {{expected}} est en retard (dernier {{latest}})",
       "helperEarnings": "Relevés de gains d’assistant",
       "helperEarningsDescription": "Vos gains d’assistant enregistrés et l’historique des règlements.",
       "invoiced": "Facturé",
@@ -367,7 +371,74 @@
       "unavailable": "Indisponible"
     ,
       "auditRequestsLink": "Demandes d’audit",
-      "auditRequestsDescription": "Demandez un audit de vos relevés et partagez les pièces approuvées avec votre auditeur pour une durée limitée."
+      "auditRequestsDescription": "Demandez un audit de vos relevés et partagez les pièces approuvées avec votre auditeur pour une durée limitée.",
+      "definitionsDescription": "Ce que chaque relevé contient, d'où viennent ses données et quelles colonnes il a.",
+      "definitionsHeading": "Définitions des relevés"
+    },
+    "definitions": {
+      "containsLabel": "Contenu",
+      "sourceLabel": "Source",
+      "columnsLabel": "Colonnes",
+      "monthly-statement": {
+        "title": "Relevé mensuel",
+        "contains": "Un document immuable par mois civil clôturé : solde initial, crédits, débits, solde final et chaque transaction enregistrée.",
+        "source": "Émis automatiquement une fois le délai de grâce de 72 heures après la fin du mois écoulé ; aussi disponible sur demande.",
+        "columns": "Date, transaction, débit, crédit, solde après"
+      },
+      "interim-report": {
+        "title": "Relevé provisoire",
+        "contains": "Soldes et activité enregistrée du mois en cours ou d'une période personnalisée de votre choix. Provisoire : il évolue à mesure que de nouvelles activités sont enregistrées.",
+        "source": "Calculé en direct à partir de l'activité Crédit enregistrée lorsque vous appliquez une période.",
+        "columns": "Date, transaction, débit, crédit, solde après"
+      },
+      "statement-archive": {
+        "title": "Archive des relevés",
+        "contains": "Chaque original mensuel émis avec sa révision, sa date d'émission, son état de préparation et ses fichiers ; les versions corrigées restent jointes à l'original.",
+        "source": "Originaux mensuels émis, en ajout seulement.",
+        "columns": "Période, date d'émission, révision, devise, langues, préparation"
+      },
+      "period-comparison": {
+        "title": "Comparaison de périodes",
+        "contains": "Ce mois civil par rapport au précédent : totaux, variation nette et les cinq principaux facteurs, séparés par crédits et débits.",
+        "source": "Dérivé de l'activité Crédit enregistrée des deux mois.",
+        "columns": "Crédits totaux, débits totaux, net, nombre de transactions, principaux facteurs"
+      },
+      "report-export": {
+        "title": "Export de relevé",
+        "contains": "Les mêmes données du relevé en CSV, PDF, OFX, QFX ou QBO. Les fichiers expirent 30 jours après la fin de l'export et peuvent être réémis.",
+        "source": "Généré sur demande à partir des données du relevé.",
+        "columns": "Format, période, compte, devise"
+      },
+      "export-history": {
+        "title": "Historique des exports",
+        "contains": "Chaque tâche d'export avec son état, son format et son expiration, y compris les tâches échouées et leur erreur.",
+        "source": "Tâches d'export enregistrées lorsqu'un export est demandé.",
+        "columns": "Tâche, format, état, créé, expire"
+      },
+      "reconciliation-checklist": {
+        "title": "Liste de rapprochement",
+        "contains": "Cinq étapes dérivées pour clôturer la période d'un établissement : examiner le résumé, examiner les écarts, rapprocher les ajustements, annoter les écarts, enregistrer la clôture de la période. La liste n'approuve jamais un règlement.",
+        "source": "Dérivé en direct des données de rapprochement de l'établissement ; jamais stocké.",
+        "columns": "Étape, état (fait ou en attente)"
+      },
+      "audit-evidence": {
+        "title": "Preuves d'audit",
+        "contains": "Demandes d'audit, preuves approuvées, partages à durée limitée et reçus de ce qui a été partagé.",
+        "source": "Demandes d'audit et preuves approuvées, limitées à la portée de la demande.",
+        "columns": "Demande, preuve, expiration du partage, reçu"
+      },
+      "document-search": {
+        "title": "Recherche de documents",
+        "contains": "Recherchez dans les relevés par texte, filtrez par type et montant, et enregistrez la vue pour plus tard.",
+        "source": "L'index de recherche des relevés, limité à vos comptes.",
+        "columns": "Date, transaction, type, montant"
+      },
+      "investor-reporting": {
+        "title": "Rapports aux investisseurs",
+        "contains": "Les jeux de données accordés par votre audience : aperçu, indicateurs, revenus, franchises et offre et demande, plus les preuves.",
+        "source": "Jeux de données des rapports aux investisseurs, limités à votre audience assignée.",
+        "columns": "Jeu de données, période, portée"
+      }
     },
     "preview": {
       "adjusted": "Ajusté",
@@ -732,6 +803,12 @@
     "retry": "Réessayer",
     "empty": "Aucun relevé pour le moment",
     "emptyBody": "Les relevés mensuels émis apparaîtront ici. Les mois civils clôturés créent des documents immuables.",
+    "freshnessPending": "Le relevé de {{month}} est encore en cours de préparation.",
+    "freshnessStale": "Le relevé de {{month}} n'a pas encore été émis.",
+    "missingMonths": "Aucun relevé n'a été émis pour {{months}}.",
+    "missingMonthsMore": "Aucun relevé n'a été émis pour {{months}} et {{count}} mois supplémentaires.",
+    "emptyFiltered": "Aucun relevé ne correspond à ces filtres.",
+    "emptyFilteredBody": "Essayez un autre mois, compte ou devise. Les relevés des autres périodes sont toujours dans l'archive.",
     "original": "Original",
     "corrected": "Corrigé",
     "superseded": "Remplacé",

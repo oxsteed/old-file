@@ -308,6 +308,44 @@ ddescribe('PR #804 Track E', () => {
       expect(projection.investorAudience.opportunityIds).toEqual([String(opportunityId)]);
     });
 
+    test('two live audience rows still yield exactly one audience: the latest (D-750)', async () => {
+      const userId = await makeUser();
+      const businessId = await makeBusiness(userId);
+      const opportunityId = await makeOpportunity(businessId, userId);
+      // One audience row per grant (grant_unique), and one grant per
+      // (user, capability, subject_key) (entitlement_unique), so two live
+      // audiences need two grants with different subjects: the usual
+      // self-scoped grant plus a business-scoped one. created_at is set
+      // explicitly: both rows would otherwise share one NOW() and the id
+      // tiebreak is a UUID, so the winner would be random.
+      const grantOlder = await grant(userId, 'investor.reporting');
+      const { rows: [grantNewerRow] } = await pool.query(
+        `INSERT INTO access_grants (user_id, capability, subject_type, subject_id, subject_key, status, provenance, policy_version)
+         VALUES ($1, 'investor.reporting', 'business', $2, $3, 'active', 'admin', 'test-policy-1') RETURNING id`,
+        [userId, String(businessId), `business:${businessId}`],
+      );
+      const grantNewer = grantNewerRow.id;
+      await pool.query(
+        `INSERT INTO investor_reporting_audiences (user_id, grant_id, audience_key, datasets, entity_ids, opportunity_ids, created_at)
+         VALUES ($1, $2, 'track-e-older', ARRAY['overview'], $3, $4, '2026-01-01T00:00:00.000Z')`,
+        [userId, grantOlder, [businessId], [opportunityId]],
+      );
+      await pool.query(
+        `INSERT INTO investor_reporting_audiences (user_id, grant_id, audience_key, datasets, entity_ids, opportunity_ids, created_at)
+         VALUES ($1, $2, 'track-e-newer', ARRAY['overview', 'franchise'], $3, $4, '2026-02-01T00:00:00.000Z')`,
+        [userId, grantNewer, [businessId], [opportunityId]],
+      );
+      // D-750 (724): the audience is assigned, not chosen. getInvestorAudience
+      // takes the latest active row (ORDER BY created_at DESC, id DESC LIMIT 1),
+      // so a holder never has two live audiences for a selector to switch between.
+      const audience = await accessService.getInvestorAudience(userId, pool);
+      expect(audience.audience_key).toBe('track-e-newer');
+      expect(audience.datasets).toEqual(['overview', 'franchise']);
+      const projection = await accessService.getProjection(userId, pool);
+      expect(projection.investorAudience.audienceKey).toBe('track-e-newer');
+      expect(projection.investorAudience.datasets).toEqual(['overview', 'franchise']);
+    });
+
     test('franchise pipeline filters to the caller positions; empty scope sees nothing', async () => {
       const investorController = require('../controllers/investorController');
       const userId = await makeUser();

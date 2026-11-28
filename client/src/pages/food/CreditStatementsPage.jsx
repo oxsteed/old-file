@@ -13,6 +13,8 @@ import {
 } from '../../api/creditStatements';
 import { formatStatementMoney } from '../../lib/creditStatementFormat';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
+import { dataAsOfDate } from '../../lib/statementFreshness';
+import { trendPeriodForStatement } from '../../lib/statementTrends';
 import { localizeCreditTransactionType } from '../../lib/creditStatus';
 import SavedViews from '../../components/statements/SavedViews';
 import PeriodTrends from '../../components/statements/PeriodTrends';
@@ -61,6 +63,10 @@ export const STATEMENT_STRINGS = Object.freeze({
   reference: 'Account reference',
   documentId: 'Statement ID',
   generated: 'Generated {{date}}',
+  // D-747: interim reports are live activity, so the line names the latest
+  // posted date (or the period end when nothing posted). Monthly documents
+  // are frozen at period end and show no as-of line.
+  dataAsOf: 'Data as of {{date}}',
   opening: 'Opening balance',
   credits: 'Total credits',
   debits: 'Total debits',
@@ -482,6 +488,7 @@ export default function CreditStatementsPage({ product = 'oxsteed', embedded = f
                         <p>{text(statement.kind === 'monthly' ? 'monthlyNote' : 'interimNote')}</p>
                         <dl className="cs-identifiers"><div><dt>{text('owner')}</dt><dd><bdi>{statement.ownerName || text('notAvailable')}</bdi></dd></div><div><dt>{text('reference')}</dt><dd><bdi>{statement.accountReference || text('notAvailable')}</bdi></dd></div><div><dt>{text('documentId')}</dt><dd><bdi>{statement.id}</bdi></dd></div></dl>
                         <p className="cs-meta">{text('generated', { date: timestamp(statement.generatedAt) })}</p>
+                        {statement.kind === 'interim' && <p className="cs-meta">{text('dataAsOf', { date: date(dataAsOfDate(statement)) })}</p>}
                         <dl className="cs-balances">{[['opening', statement.openingBalanceCents], ['credits', statement.totalCreditsCents], ['debits', statement.totalDebitsCents], ['closing', statement.closingBalanceCents]].map(([key, amount]) => <div key={key}><dt>{text(key)}</dt><dd><bdi>{money(amount)}</bdi></dd></div>)}</dl>
                         {downloadState && <p role={downloadState === 'error' ? 'alert' : 'status'}>{text(downloadState === 'busy' ? 'downloading' : downloadState === 'error' ? 'downloadError' : 'downloaded')}</p>}
                         {statement.contentHash && <details className="cs-hash"><summary>{text('contentHash')}</summary><code dir="ltr">{statement.contentHash}</code></details>}
@@ -538,7 +545,7 @@ export default function CreditStatementsPage({ product = 'oxsteed', embedded = f
                           <nav className="cs-pagination" aria-label={text('pagination')}><button type="button" disabled={page === 0} onClick={() => setPage(value => value - 1)}>{text('previous')}</button><span aria-live="polite" aria-atomic="true">{text('page', { page: page + 1, pages: pageCount })}</span><button type="button" disabled={page >= pageCount - 1} onClick={() => setPage(value => value + 1)}>{text('next')}</button></nav>
                         </>}
                       </section>
-                      <PeriodTrends product={product} accountId={accountKey(selected, product)} />
+                      <PeriodTrends product={product} accountId={accountKey(selected, product)} period={trendPeriodForStatement(statement?.period)} />
                       {statement.holdsAsOf && <section className="cs-holds" aria-labelledby="statement-holds-heading"><h2 id="statement-holds-heading">{text('holds')}</h2><p>{text('holdsNote')}</p><p>{text('holdsAsOf', { date: timestamp(statement.holdsAsOf) })}</p><dl><dt>{text('heldTotal')}</dt><dd><bdi>{money(statement.totalHeldCents)}</bdi></dd></dl>
                         {!statement.holds.length ? <p>{text('noHolds')}</p> : <ul>{statement.holds.map(hold => <li key={hold.id}><bdi>{money(hold.amountCents)}</bdi><span>{text('expires', { date: timestamp(hold.expiresAt) })}</span></li>)}</ul>}
                       </section>}
