@@ -191,6 +191,15 @@ describe('createLiveRateCurrencyQuote', () => {
 
   test('provider failure propagates and no quote row is created', async () => {
     global.fetch.mockRejectedValue(new Error('network down'));
+    // The fail-fast rail check (checkpoint 2) runs before the FX call, so
+    // the mock must answer it enabled; the rail check is then the only DB
+    // traffic and no quote row is written.
+    mockQuery.mockImplementation(async (text) => {
+      const sql = String(text);
+      if (sql.includes('pg_advisory_xact_lock')) return { rows: [] };
+      if (sql.includes("FROM feature_flags WHERE key = 'oxsteed_credit_enabled'")) return { rows: [{ is_enabled: true }] };
+      return { rows: [], rowCount: 0 };
+    });
     await expect(createLiveRateCurrencyQuote({
       sourceCurrency: 'USD',
       targetCurrency: 'EUR',
@@ -200,7 +209,7 @@ describe('createLiveRateCurrencyQuote', () => {
       actor: ADMIN_ID,
       idempotencyKey: 'live-quote-fail',
     })).rejects.toMatchObject({ code: 'fx_rate_unavailable', status: 502 });
-    expect(mockQuery).not.toHaveBeenCalled();
+    expect(mockQuery.mock.calls.filter(([sql]) => String(sql).includes('INSERT INTO oxsteed_credit_currency_quotes'))).toHaveLength(0);
   });
 
   test('an expired live-rate quote cannot be executed (fail closed, flips to expired)', async () => {

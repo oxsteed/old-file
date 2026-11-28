@@ -3662,6 +3662,19 @@ test('account details report last statement, deposits, and pending withdrawals',
     if (/FROM oxsteed_credit_withdrawals/.test(sql)) {
       return { rows: [{ total_cents: '0', withdrawal_count: 0 }] };
     }
+    // Credit redesign (D-795/D-796): the details call now also mints the
+    // account number and member code and reads the holder name. The mock
+    // answers them as already minted so the mint path is not exercised
+    // here (it has its own db test in creditRedesign.db.test.js).
+    if (/SELECT account_number FROM oxsteed_credit_accounts/.test(sql)) {
+      return { rows: [{ account_number: '8123456789' }] };
+    }
+    if (/SELECT member_code FROM oxsteed_credit_member_codes/.test(sql)) {
+      return { rows: [{ member_code: '12345678' }] };
+    }
+    if (/SELECT first_name, last_name FROM users/.test(sql)) {
+      return { rows: [{ first_name: 'Test', last_name: 'Customer' }] };
+    }
     return { rows: [], rowCount: 0 };
   });
 
@@ -3673,6 +3686,9 @@ test('account details report last statement, deposits, and pending withdrawals',
   expect(res.body.details.pendingDeposits).toMatchObject({ totalCents: 1500, count: 1 });
   expect(res.body.details.lastDeposit).toMatchObject({ amountCents: 1000 });
   expect(res.body.details.pendingWithdrawals).toMatchObject({ totalCents: 0, count: 0 });
+  expect(res.body.details.accountNumber).toBe('8123456789');
+  expect(res.body.details.memberCode).toBe('12345678');
+  expect(res.body.details.accountHolderName).toBe('Test Customer');
 });
 
 test('statement transactions carry the running balance after each entry', async () => {

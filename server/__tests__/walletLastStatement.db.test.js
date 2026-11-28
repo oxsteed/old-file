@@ -38,8 +38,10 @@ describeDatabase('wallet last statement prefers the issued document', () => {
     await pool.query(`CREATE SCHEMA ${schema}`);
     // Minimal local tables (the full 001/421 chain needs PostGIS, which the
     // local test postgres does not provide). Column sets mirror exactly the
-    // columns getCustomerCreditAccountDetails reads.
-    await pool.query(`CREATE TABLE IF NOT EXISTS users (id UUID PRIMARY KEY, email TEXT)`);
+    // columns getCustomerCreditAccountDetails reads, including the
+    // redesign account identity (account_number, member code, holder
+    // name) it mints/reads on every call.
+    await pool.query(`CREATE TABLE IF NOT EXISTS users (id UUID PRIMARY KEY, email TEXT, first_name TEXT, last_name TEXT)`);
     await applyMigration('682_credit_statement_documents.sql');
     await applyMigration('684_statement_artifacts.sql');
     await applyMigration('686_statement_amendment_proposals.sql');
@@ -50,7 +52,10 @@ describeDatabase('wallet last statement prefers the issued document', () => {
     await pool.query('DROP TRIGGER IF EXISTS statement_amendment_versions_immutable ON statement_amendment_versions');
     await pool.query(`CREATE TABLE IF NOT EXISTS oxsteed_credit_accounts (
       id BIGSERIAL PRIMARY KEY, account_type VARCHAR(32) NOT NULL,
-      customer_id UUID, currency_code CHAR(3) NOT NULL DEFAULT 'USD')`);
+      customer_id UUID, currency_code CHAR(3) NOT NULL DEFAULT 'USD', account_number VARCHAR(16))`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS oxsteed_credit_member_codes (
+      customer_id UUID PRIMARY KEY, member_code VARCHAR(8) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await pool.query(`CREATE TABLE IF NOT EXISTS oxsteed_credit_transactions (
       id UUID PRIMARY KEY, debit_account_id BIGINT NOT NULL, credit_account_id BIGINT NOT NULL,
       amount_cents BIGINT NOT NULL, status VARCHAR(20) NOT NULL DEFAULT 'posted',
@@ -75,9 +80,10 @@ describeDatabase('wallet last statement prefers the issued document', () => {
     await pool.query('DELETE FROM oxsteed_credit_transaction_entries');
     await pool.query('DELETE FROM oxsteed_credit_transactions');
     await pool.query('DELETE FROM oxsteed_credit_accounts');
+    await pool.query('DELETE FROM oxsteed_credit_member_codes');
     await pool.query('DELETE FROM users');
     customerId = crypto.randomUUID();
-    await pool.query('INSERT INTO users (id, email) VALUES ($1, $2)', [customerId, `${customerId}@example.invalid`]);
+    await pool.query('INSERT INTO users (id, email, first_name, last_name) VALUES ($1, $2, $3, $4)', [customerId, `${customerId}@example.invalid`, 'Test', 'Customer']);
     walletId = (await pool.query(
       `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, currency_code)
        VALUES ('customer_wallet', $1, 'USD') RETURNING id`, [customerId])).rows[0].id;

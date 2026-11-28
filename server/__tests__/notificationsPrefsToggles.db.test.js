@@ -609,6 +609,10 @@ ddescribe('Track C preference toggles (DB)', () => {
         // type (analytics/regionGeoSourceSwitch.js notifyAdmins).
         { file: 'services/notificationService.js', name: 'type', expansions: [] },
         { file: 'services/oxsteedCreditDisputeService.js', name: 'type', expansions: ['credit_dispute_resolved', 'credit_dispute_updated', 'credit_dispute_provisional_credit'] },
+        // Credit redesign checkpoint 3 (D-800): notifyCardActionCustomer
+        // fan-out in the card service; the three types are the only ones
+        // its callers pass (reveal, security-code reset, limits set).
+        { file: 'services/oxsteedCreditCardService.js', name: 'type', expansions: ['credit_card_revealed', 'credit_card_security_code_reset', 'credit_card_limits_updated'] },
         { file: 'services/paymentRefundService.js', name: 'type', expansions: ['refund', 'refund_failed'] },
         { file: 'services/pooledOrderService.js', name: 'type', expansions: ['logistics_campaign_approved', 'logistics_campaign_revisions_requested', 'logistics_campaign_rejected'] },
         // G7-13: the notifyPayoutOwner fan-out also sends
