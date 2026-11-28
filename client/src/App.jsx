@@ -131,6 +131,7 @@ const StatementCenterPage = lazyWithRetry(() => import('./pages/food/StatementCe
 const StatementArchivePage = lazyWithRetry(() => import('./pages/food/StatementArchivePage'));
 const StatementExportPage = lazyWithRetry(() => import('./pages/food/StatementExportPage'));
 const AuditRequestsPage = lazyWithRetry(() => import('./pages/food/AuditRequestsPage'));
+const AcceptAuditInvitationPage = lazyWithRetry(() => import('./pages/food/AcceptAuditInvitationPage'));
 const StatementTransactionView = lazyWithRetry(() => import('./pages/food/StatementTransactionView'));
 const StatementAccessibleView = lazyWithRetry(() => import('./pages/food/StatementAccessibleView'));
 const WalletPage = lazyWithRetry(() => import('./pages/food/WalletPage'));
@@ -850,6 +851,7 @@ export default function App() {
                     <Route path="/statements/:documentId/accessible" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementAccessibleView /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/statements/exports/:jobId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementExportPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/statements/audit-requests" element={<Guarded><ProtectedRoute><RouteErrorBoundary><AuditRequestsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/statements/audit-requests/invite" element={<Guarded><AcceptAuditInvitationPage /></Guarded>} />
                     <Route path="/oxsteed-credit/transactions/:transactionId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><OxsteedCreditTransactionPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/oxsteed-credit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><OxsteedCreditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/wallet" element={<Guarded><ProtectedRoute><RouteErrorBoundary><WalletPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

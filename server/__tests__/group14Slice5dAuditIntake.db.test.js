@@ -26,6 +26,7 @@ jest.mock('../middleware/rateLimiter', () => ({
   creditMutationLimiter: (_req, _res, next) => next(),
   creditExportLimiter: (_req, _res, next) => next(),
   authenticatedLimiter: (_req, _res, next) => next(),
+  strictLimiter: (_req, _res, next) => next(),
 }));
 // The real send path is observed, never sent: Expo + email mocked exactly
 // like notificationsPrefsToggles.db.test.js.

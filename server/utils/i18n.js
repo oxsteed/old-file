@@ -688,6 +688,24 @@ const T = {
       ar: 'تم تقديم طلب تدقيق جديد. افتح قائمة التدقيق لمراجعته.',
     },
   },
+  // Group 14 Slice 5i (745, D-788): the audit review is complete. The
+  // body stays generic; the request title rides in data.
+  audit_review_completed: {
+    title: {
+      en: 'Review complete',
+      fr: 'Examen terminé',
+      es: 'Revisión completada',
+      ht: 'Revizyon an fini',
+      ar: 'اكتملت المراجعة',
+    },
+    body: {
+      en: 'The audit review is complete. Open the request to see the receipt and the final evidence package.',
+      fr: 'L’examen d’audit est terminé. Ouvrez la demande pour voir le reçu et le dossier final de preuves.',
+      es: 'La revisión de auditoría está completa. Abre la solicitud para ver el recibo y el paquete final de evidencia.',
+      ht: 'Revizyon odit la fini. Louvri demann lan pou wè resi a ak pake final prèv yo.',
+      ar: 'اكتملت مراجعة التدقيق. افتح الطلب لعرض الإيصال وحزمة الأدلة النهائية.',
+    },
+  },
   food_order_accepted: {
     title: {
       en: 'Order confirmed',
@@ -3443,6 +3461,13 @@ const EMAIL_TEMPLATES = {
       es: 'Ver cola de auditoría',
       ht: 'Gade ke odit la',
       ar: 'عرض قائمة التدقيق',
+    },
+    audit_review_completed: {
+      en: 'View Audit Request',
+      fr: 'Voir la demande d’audit',
+      es: 'Ver solicitud de auditoría',
+      ht: 'Gade demann odit la',
+      ar: 'عرض طلب التدقيق',
     },
     appointment_requested: {
       title: {
