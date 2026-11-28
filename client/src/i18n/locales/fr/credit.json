@@ -1229,6 +1229,8 @@
   "capturedAt": "Capturée {{date}}",
   "releasedAt": "{{status}} {{date}}",
   "expiresAt": "Expire {{date}}",
+  "reservedAt": "Réservé {{date}}",
+  "plannedNeedReservation": "Réservation pour besoin planifié",
   "statementDownloaded": "Relevé téléchargé.",
   "chooseEligibleAmount": "Choisissez un restaurant éligible et saisissez un montant valide.",
   "authorizationCreated": "Autorisation créée. Donnez l'ID de réservation au caissier.",

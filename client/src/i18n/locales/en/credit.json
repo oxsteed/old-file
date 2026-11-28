@@ -1228,6 +1228,8 @@
   "capturedAt": "Captured {{date}}",
   "releasedAt": "{{status}} {{date}}",
   "expiresAt": "Expires {{date}}",
+  "reservedAt": "Reserved {{date}}",
+  "plannedNeedReservation": "Planned need reservation",
   "statementDownloaded": "Statement downloaded.",
   "chooseEligibleAmount": "Choose an eligible restaurant and enter a valid amount.",
   "authorizationCreated": "Authorization created. Give the hold ID to the cashier.",

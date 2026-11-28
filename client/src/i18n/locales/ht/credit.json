@@ -1229,6 +1229,8 @@
   "capturedAt": "Kaptire {{date}}",
   "releasedAt": "{{status}} {{date}}",
   "expiresAt": "Ekspire {{date}}",
+  "reservedAt": "Rezève {{date}}",
+  "plannedNeedReservation": "Rezèv pou bezwen planifye",
   "statementDownloaded": "Eta kont telechaje.",
   "chooseEligibleAmount": "Chwazi yon restoran elijib epi antre yon kantite ki valab.",
   "authorizationCreated": "Otorizasyon kreye. Bay kesye a ID rezèv la.",

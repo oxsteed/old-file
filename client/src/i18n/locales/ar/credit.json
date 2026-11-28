@@ -1228,6 +1228,8 @@
   "capturedAt": "مسجل {{date}}",
   "releasedAt": "{{status}} {{date}}",
   "expiresAt": "ينتهي في {{date}}",
+  "reservedAt": "تم الحجز {{date}}",
+  "plannedNeedReservation": "حجز لاحتياج مخطط",
   "statementDownloaded": "تم تنزيل كشف الحساب.",
   "chooseEligibleAmount": "اختر مطعمًا مؤهلًا وأدخل مبلغًا صحيحًا.",
   "authorizationCreated": "تم إنشاء التفويض. أعطِ الصراف معرّف الحجز.",

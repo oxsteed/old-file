@@ -1228,6 +1228,8 @@
   "capturedAt": "Capturado {{date}}",
   "releasedAt": "{{status}} {{date}}",
   "expiresAt": "Vence {{date}}",
+  "reservedAt": "Reservado {{date}}",
+  "plannedNeedReservation": "Reserva para necesidad planificada",
   "statementDownloaded": "Estado de cuenta descargado.",
   "chooseEligibleAmount": "Elige un restaurante elegible e introduce un importe válido.",
   "authorizationCreated": "Autorización creada. Entrega el ID de reserva al cajero.",

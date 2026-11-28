@@ -3140,6 +3140,30 @@ function formatCustomerHold(row) {
   return safeHold;
 }
 
+function formatCustomerReservation(row) {
+  return {
+    id: String(row.id),
+    kind: 'reservation',
+    customerId: row.customer_id,
+    partnerId: null,
+    agreementId: null,
+    restaurantName: null,
+    amountCents: Number(row.amount_cents),
+    currencyCode: normalizeCurrency(row.currency_code),
+    status: row.status,
+    purpose: row.planned_need_title || null,
+    referenceType: row.reference_type || null,
+    referenceId: row.reference_id || null,
+    reservationType: row.reservation_type || null,
+    plannedNeedId: row.planned_need_id == null ? null : Number(row.planned_need_id),
+    plannedNeedTitle: row.planned_need_title || null,
+    expiresAt: null,
+    releaseReason: row.release_reason || null,
+    createdAt: row.created_at,
+    releasedAt: row.released_at || null,
+  };
+}
+
 async function listCustomerCreditHolds(customerId, { currencyCode = CREDIT_CURRENCY, status = 'active', limit = 25, offset = 0, includePagination = false } = {}) {
   const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedStatus = status === 'all' ? null : normalizeString(status, 20);
@@ -3148,26 +3172,65 @@ async function listCustomerCreditHolds(customerId, { currencyCode = CREDIT_CURRE
   }
   const pageSize = parsePageSize(limit);
   const pageOffset = parseOffset(offset);
+  // G13-A2: the wallet's held money is holds AND reservations — migration
+  // 755's guard proves reserved_cents = SUM(active holds) + SUM(active
+  // reservations) — but this list read only oxsteed_credit_holds, so a
+  // funded planned need (a reservation, no partner, no agreement) was
+  // invisible here while its money was unspendable. The list is now the
+  // union of both, newest first, paginated over the union so a page never
+  // straddles the two sources. Reservations have no partner, agreement,
+  // restaurant, or expiry; a planned-need reservation carries the need's
+  // title for the row label. `kind` tells the client which rows are
+  // releasable holds and which are reservations (released only by need
+  // cancel/delete/hire, never from this list).
   const { rows } = await pool.query(
-    `SELECT h.*, fr.display_name AS restaurant_name
-       FROM oxsteed_credit_holds h
-       JOIN oxsteed_credit_accounts a
-         ON a.id = h.account_id
-        AND a.account_type = 'customer_wallet'
-        AND a.customer_id = $1
-        AND a.currency_code = $4
-       JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE AND owner.deleted_at IS NULL
-       LEFT JOIN oxsteed_credit_partners p ON p.id = h.partner_id
-       LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
-      WHERE h.customer_id = $1
-        AND h.currency_code = $4
-        AND ($5::text IS NULL OR h.status = $5)
-      ORDER BY h.created_at DESC, h.id DESC
-      LIMIT $2 OFFSET $3`,
+    `SELECT * FROM (
+       SELECT h.id::text AS id, 'hold' AS kind, h.customer_id, h.partner_id, h.agreement_id,
+              fr.display_name AS restaurant_name, h.amount_cents, h.currency_code, h.status,
+              h.purpose, h.reference_type, h.reference_id, NULL::text AS reservation_type,
+              NULL::bigint AS planned_need_id, NULL::text AS planned_need_title,
+              h.idempotency_key, h.expires_at, h.release_reason, h.created_at, h.released_at
+         FROM oxsteed_credit_holds h
+         JOIN oxsteed_credit_accounts a
+           ON a.id = h.account_id
+          AND a.account_type = 'customer_wallet'
+          AND a.customer_id = $1
+          AND a.currency_code = $4
+         JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE AND owner.deleted_at IS NULL
+         LEFT JOIN oxsteed_credit_partners p ON p.id = h.partner_id
+         LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE h.customer_id = $1
+          AND h.currency_code = $4
+          AND ($5::text IS NULL OR h.status = $5)
+       UNION ALL
+       SELECT r.id::text AS id, 'reservation' AS kind, a.customer_id, NULL::bigint AS partner_id,
+              NULL::uuid AS agreement_id, NULL::text AS restaurant_name, r.amount_cents,
+              a.currency_code, r.status, NULL::text AS purpose, r.reference_type, r.reference_id,
+              r.reservation_type, pn.id AS planned_need_id, pn.title AS planned_need_title,
+              NULL::text AS idempotency_key, NULL::timestamptz AS expires_at, r.released_reason,
+              r.created_at, r.released_at
+         FROM oxsteed_credit_reservations r
+         JOIN oxsteed_credit_accounts a
+           ON a.id = r.account_id
+          AND a.account_type = 'customer_wallet'
+          AND a.customer_id = $1
+          AND a.currency_code = $4
+         JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE AND owner.deleted_at IS NULL
+         LEFT JOIN planned_needs pn
+           ON r.reference_type = 'planned_need_fund'
+          AND pn.id = NULLIF(split_part(r.reference_id, ':', 2), '')::bigint
+        WHERE ($5::text IS NULL OR r.status = $5)
+     ) AS combined
+     ORDER BY created_at DESC, id DESC
+     LIMIT $2 OFFSET $3`,
     [customerId, pageSize + (includePagination ? 1 : 0), pageOffset, currency, normalizedStatus]
   );
   const hasMore = includePagination && rows.length > pageSize;
-  const holds = rows.slice(0, pageSize).map(formatCustomerHold);
+  const holds = rows.slice(0, pageSize).map((row) => (
+    row.kind === 'reservation'
+      ? formatCustomerReservation(row)
+      : { ...formatCustomerHold(row), kind: 'hold' }
+  ));
   if (!includePagination) return holds;
   return {
     holds,
