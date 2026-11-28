@@ -61,6 +61,7 @@ describeDb('Group 14 Slice 5h: handle access changes (736-740)', () => {
   let bizA;
   let bizB;
   let bizC;
+  let cancelledExport;
 
   const tokenFor = (user) => require('../middleware/auth').generateTokens(user).accessToken;
   const authAs = (user, req) => req.set('Authorization', `Bearer ${tokenFor(user)}`);
@@ -298,7 +299,7 @@ describeDb('Group 14 Slice 5h: handle access changes (736-740)', () => {
 
     // 738 fixtures: the holder's export jobs (a complete one is covered
     // by the 5f suite; here the cancelled and cancel-requested cases).
-    await makeCancelledExportJob(holder.id, { product: 'oxsteed', format: 'csv', state: 'cancelled' });
+    cancelledExport = await makeCancelledExportJob(holder.id, { product: 'oxsteed', format: 'csv', state: 'cancelled' });
     await makeRenderingExportJobWithCancelRequest(holder.id);
     await makeExportJob(holder.id, { product: 'business', format: 'pdf', state: 'complete' });
 
@@ -401,5 +402,39 @@ describeDb('Group 14 Slice 5h: handle access changes (736-740)', () => {
     expect(i18nSrc).toContain('invest_reporting_audience_removed: {\n      en: \'Request Access\'');
     const serviceSrc = fs.readFileSync(path.join(__dirname, '../services/notificationService.js'), 'utf8');
     expect(serviceSrc).toContain('invest_reporting_audience_removed');
+  });
+
+  test('738: a cancelled export shows the cancellation status with the cancelled date', async () => {
+    const res = await getAs(holder, '/api/investor/reporting/documents').expect(200);
+    const exports = res.body.documents.filter((d) => d.kind === 'export');
+    const cancelled = exports.find((e) => e.state === 'cancelled');
+    expect(cancelled).toBeDefined();
+    expect(cancelled.product).toBe('oxsteed');
+    // The cancelled date is the cancellation date, not the creation date.
+    expect(cancelled.cancelledAt).toBe(new Date(cancelledExport.cancelledAt).toISOString());
+    expect(new Date(cancelled.cancelledAt).getTime()).toBeLessThan(new Date(cancelled.createdAt).getTime());
+    expect(cancelled.cancelRequested).toBe(true);
+    expect(cancelled.cancelRequestedAt).toBe(new Date(cancelledExport.cancelledAt).toISOString());
+  });
+
+  test('738: an in-flight export with a cancellation request keeps its state and reports the request', async () => {
+    const res = await getAs(holder, '/api/investor/reporting/documents').expect(200);
+    const exports = res.body.documents.filter((d) => d.kind === 'export');
+    const rendering = exports.find((e) => e.state === 'rendering');
+    expect(rendering).toBeDefined();
+    expect(rendering.cancelRequested).toBe(true);
+    expect(rendering.cancelRequestedAt).not.toBeNull();
+    // Not cancelled yet: no cancelled date, and the state stays rendering.
+    expect(rendering.cancelledAt).toBeNull();
+  });
+
+  test('738: a complete export reports no cancellation', async () => {
+    const res = await getAs(holder, '/api/investor/reporting/documents').expect(200);
+    const exports = res.body.documents.filter((d) => d.kind === 'export');
+    const complete = exports.find((e) => e.state === 'complete');
+    expect(complete).toBeDefined();
+    expect(complete.cancelRequested).toBe(false);
+    expect(complete.cancelRequestedAt).toBeNull();
+    expect(complete.cancelledAt).toBeNull();
   });
 });

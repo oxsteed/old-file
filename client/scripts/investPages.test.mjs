@@ -686,3 +686,19 @@ test('Slice 5h (736): a missing-scope load failure renders a recovery panel, not
     assert.doesNotMatch(JSON.stringify(catalog.investorDashboard.scopeRecovery), /—/, `${lang} em dash`);
   }
 });
+
+test('Slice 5h (738): the reporting document library shows export cancellation status', async () => {
+  const src = await read('src/components/investor/EntityReportingSection.jsx');
+  // A cancelled export's date is the cancellation date, not its creation.
+  assert.match(src, /doc\.cancelledAt/);
+  assert.match(src, /doc\.state === 'cancelled' \? \(doc\.cancelledAt/);
+  // An in-flight export with a cancellation request says so instead of
+  // looking merely slow.
+  assert.match(src, /doc\.cancelRequested/);
+  assert.match(src, /investorDashboard\.entityReporting\.documents\.cancelRequested/);
+  for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const catalog = JSON.parse(await read(`src/locales/${lang}.json`));
+    assert.equal(typeof catalog.investorDashboard.entityReporting.documents.cancelRequested, 'string', `${lang} cancelRequested`);
+    assert.doesNotMatch(catalog.investorDashboard.entityReporting.documents.cancelRequested, /—/, `${lang} em dash`);
+  }
+});

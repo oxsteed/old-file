@@ -26865,7 +26865,8 @@
           "complete": "Completed {{date}}",
           "failed": "Failed {{date}}",
           "cancelled": "Cancelled {{date}}"
-        }
+        },
+        "cancelRequested": "Cancellation requested {{date}}"
       },
       "contact": {
         "show": "Show contact",

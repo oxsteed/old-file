@@ -223,8 +223,16 @@ export default function EntityReportingSection() {
               <p className="text-xs text-gray-500 mt-0.5">
                 {doc.kind === 'evidence_share'
                   ? t('investorDashboard.entityReporting.documents.shareExpires', { date: date(doc.expiresAt) })
-                  : t(`investorDashboard.entityReporting.documents.exportStates.${doc.state}`, { date: date(doc.completedAt || doc.createdAt) })}
+                  : t(`investorDashboard.entityReporting.documents.exportStates.${doc.state}`, { date: date(doc.state === 'cancelled' ? (doc.cancelledAt || doc.completedAt || doc.createdAt) : (doc.completedAt || doc.createdAt)) })}
               </p>
+              {/* 738 (D-781): an in-flight export with a cancellation
+                  request says so; a cancelled job's date above is the
+                  cancellation date, not its creation date. */}
+              {doc.kind === 'export' && doc.cancelRequested && doc.state !== 'cancelled' && (
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {t('investorDashboard.entityReporting.documents.cancelRequested', { date: date(doc.cancelRequestedAt) })}
+                </p>
+              )}
             </li>
           ))}
         </ul>

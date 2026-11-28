@@ -26865,7 +26865,8 @@
           "complete": "Konplete {{date}}",
           "failed": "Echwe {{date}}",
           "cancelled": "Anile {{date}}"
-        }
+        },
+        "cancelRequested": "Yo mande anile {{date}}"
       },
       "contact": {
         "show": "Montre kontak",

@@ -26876,7 +26876,8 @@
           "complete": "اكتمل {{date}}",
           "failed": "فشل {{date}}",
           "cancelled": "أُلغي {{date}}"
-        }
+        },
+        "cancelRequested": "تم طلب الإلغاء {{date}}"
       },
       "contact": {
         "show": "عرض جهة الاتصال",
