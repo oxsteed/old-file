@@ -855,13 +855,91 @@ exports.listPurchases = async (req, res) => {
 // Review P3-1070: admins reconcile off-platform payments by marking an
 // invoice paid. Linked purchases and scheduled sessions are settled in the
 // same transaction so bookings (P3-1069) see the payment.
+// G10-7 (D-768): a mark-paid conjures a completed consulting_payments row
+// that satisfies the booking payment gate, so it is no longer a single
+// admin's act. Two distinct admins must approve it first (maker-checker,
+// mirroring the referral-commission approvals), the payment reference is
+// required, and the audit write rides inside the transaction so a failed
+// audit rolls the mark-paid back instead of being warned away.
 const INVOICE_PAID_METHODS = new Set(['bank_transfer', 'check', 'cash', 'card_terminal', 'other']);
+
+/**
+ * Record one admin's approval of a mark-paid. The first call records the
+ * first approver; the second must be a different admin and completes the
+ * approval. A repeat call once both approvals exist replays the state.
+ * POST /api/consulting/admin/invoices/:invoiceId/approve-mark-paid
+ */
+exports.approveMarkPaid = async (req, res) => {
+  const invoiceId = Number(req.params.invoiceId);
+  const adminId = req.user?.id || null;
+  if (!Number.isInteger(invoiceId) || invoiceId <= 0) return res.status(400).json({ error: 'Invalid invoice id' });
+  if (!adminId) return res.status(401).json({ error: 'Authentication required' });
+  let client;
+  try {
+    client = await db.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT id, status, mark_paid_first_approver, mark_paid_second_approver
+       FROM consulting_invoices WHERE id = $1 FOR UPDATE`,
+      [invoiceId]
+    );
+    if (!rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    const invoice = rows[0];
+    if (!['sent', 'overdue'].includes(invoice.status)) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: `Invoice is ${invoice.status}`, code: 'invalid_invoice_status', status: invoice.status });
+    }
+    if (invoice.mark_paid_first_approver && invoice.mark_paid_second_approver) {
+      await client.query('ROLLBACK');
+      return res.json({ invoiceId, approvals: 2, status: invoice.status });
+    }
+    if (!invoice.mark_paid_first_approver) {
+      await client.query(
+        `UPDATE consulting_invoices SET mark_paid_first_approver = $2, mark_paid_first_approved_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        [invoiceId, adminId]
+      );
+      await logAdminAction({
+        adminId, action: 'consulting_invoice_mark_paid_approved', targetType: 'consulting_invoice',
+        targetId: String(invoiceId), req, client,
+        before: { approvals: 0 }, after: { approvals: 1 },
+      });
+      await client.query('COMMIT');
+      return res.json({ invoiceId, approvals: 1, status: invoice.status });
+    }
+    if (invoice.mark_paid_first_approver === adminId) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'A second, different admin must approve this mark-paid', code: 'second_approver_required', approvals: 1 });
+    }
+    await client.query(
+      `UPDATE consulting_invoices SET mark_paid_second_approver = $2, mark_paid_second_approved_at = NOW(), updated_at = NOW() WHERE id = $1`,
+      [invoiceId, adminId]
+    );
+    await logAdminAction({
+      adminId, action: 'consulting_invoice_mark_paid_approved', targetType: 'consulting_invoice',
+      targetId: String(invoiceId), req, client,
+      before: { approvals: 1 }, after: { approvals: 2 },
+    });
+    await client.query('COMMIT');
+    return res.json({ invoiceId, approvals: 2, status: invoice.status });
+  } catch (err) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    logger.error('approveMarkPaid error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to approve mark-paid' });
+  } finally {
+    if (client) client.release();
+  }
+};
+
 exports.markInvoicePaid = async (req, res) => {
   const invoiceId = Number(req.params.invoiceId);
   const method = String(req.body?.method || '');
   const reference = req.body?.reference ? String(req.body.reference).trim().slice(0, 200) : null;
   if (!Number.isInteger(invoiceId) || invoiceId <= 0) return res.status(400).json({ error: 'Invalid invoice id' });
   if (!INVOICE_PAID_METHODS.has(method)) return res.status(400).json({ error: 'Invalid payment method', code: 'invalid_method' });
+  if (!reference) return res.status(400).json({ error: 'Payment reference is required', code: 'reference_required' });
   let client;
   try {
     client = await db.connect();
@@ -870,13 +948,20 @@ exports.markInvoicePaid = async (req, res) => {
       `UPDATE consulting_invoices
        SET status = 'paid', paid_at = NOW(), paid_method = $2, paid_reference = $3, paid_by = $4, updated_at = NOW()
        WHERE id = $1 AND status IN ('sent', 'overdue')
+         AND mark_paid_first_approver IS NOT NULL
+         AND mark_paid_second_approver IS NOT NULL
+         AND mark_paid_first_approver <> mark_paid_second_approver
        RETURNING *`,
       [invoiceId, method, reference, req.user?.id || null]
     );
     if (!rows.length) {
       await client.query('ROLLBACK');
-      const { rows: cur } = await db.query('SELECT status FROM consulting_invoices WHERE id = $1', [invoiceId]);
+      const { rows: cur } = await db.query('SELECT status, mark_paid_first_approver, mark_paid_second_approver FROM consulting_invoices WHERE id = $1', [invoiceId]);
       if (!cur.length) return res.status(404).json({ error: 'Invoice not found' });
+      if (['sent', 'overdue'].includes(cur[0].status)) {
+        const approvals = (cur[0].mark_paid_first_approver ? 1 : 0) + (cur[0].mark_paid_second_approver ? 1 : 0);
+        return res.status(409).json({ error: 'Two distinct admins must approve this mark-paid first', code: 'mark_paid_not_approved', approvals });
+      }
       return res.status(409).json({ error: `Invoice is ${cur[0].status}`, code: 'invalid_invoice_status', status: cur[0].status });
     }
     const invoice = rows[0];
@@ -897,19 +982,16 @@ exports.markInvoicePaid = async (req, res) => {
       await client.query('UPDATE consulting_invoices SET consulting_payment_id = $2 WHERE id = $1', [invoice.id, pay[0].id]);
       invoice.consulting_payment_id = pay[0].id;
     }
+    await logAdminAction({
+      adminId: req.user?.id,
+      action: 'consulting_invoice_marked_paid',
+      targetType: 'consulting_invoice',
+      targetId: String(invoice.id),
+      req, client,
+      before: { status: 'sent' },
+      after: { status: 'paid', method, reference },
+    });
     await client.query('COMMIT');
-    try {
-      await logAdminAction({
-        adminId: req.user?.id,
-        action: 'consulting_invoice_marked_paid',
-        targetType: 'consulting_invoice',
-        targetId: String(invoice.id),
-        before: { status: 'sent' },
-        after: { status: 'paid', method, reference },
-      });
-    } catch (auditErr) {
-      logger.warn('markInvoicePaid audit failed', { error: auditErr.message });
-    }
     return res.json(invoice);
   } catch (err) {
     if (client) await client.query('ROLLBACK').catch(() => {});
