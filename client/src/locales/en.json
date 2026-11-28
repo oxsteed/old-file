@@ -26819,6 +26819,30 @@
           "evidence": "Evidence drill-through",
           "exports": "Exports"
         }
+      },
+      "documents": {
+        "title": "Reporting documents",
+        "help": "The reporting documents you can open: your active evidence shares and your export jobs.",
+        "loading": "Loading documents…",
+        "loadError": "Could not load the reporting documents.",
+        "empty": "No reporting documents yet.",
+        "exportTitle": "{{product}} export ({{format}})",
+        "shareExpires": "Evidence share · expires {{date}}",
+        "products": {
+          "oxsteed": "OxSteed Credit",
+          "restaurant": "Restaurant credit",
+          "restaurant_settlement": "Restaurant settlement",
+          "helper_earnings": "Helper earnings",
+          "business": "Business"
+        },
+        "exportStates": {
+          "pending": "Pending since {{date}}",
+          "freezing": "Preparing since {{date}}",
+          "rendering": "Rendering since {{date}}",
+          "complete": "Completed {{date}}",
+          "failed": "Failed {{date}}",
+          "cancelled": "Cancelled {{date}}"
+        }
       }
     }
   },

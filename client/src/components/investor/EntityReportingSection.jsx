@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { Building2 } from 'lucide-react';
 import api from '../../api/axios';
 
@@ -20,6 +21,7 @@ export default function EntityReportingSection() {
   const { t, i18n } = useTranslation();
   const [state, setState] = useState({ status: 'loading', data: null });
   const [datasetsState, setDatasetsState] = useState({ status: 'loading', data: null });
+  const [documentsState, setDocumentsState] = useState({ status: 'loading', data: null });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -39,6 +41,17 @@ export default function EntityReportingSection() {
       .catch((err) => {
         if (controller.signal.aborted || err?.name === 'CanceledError') return;
         setDatasetsState({ status: 'error', data: null });
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api.get('/investor/reporting/documents', { signal: controller.signal })
+      .then(({ data }) => setDocumentsState({ status: 'ready', data }))
+      .catch((err) => {
+        if (controller.signal.aborted || err?.name === 'CanceledError') return;
+        setDocumentsState({ status: 'error', data: null });
       });
     return () => controller.abort();
   }, []);
@@ -129,6 +142,36 @@ export default function EntityReportingSection() {
                   ? t('investorDashboard.entityReporting.datasets.granted')
                   : t('investorDashboard.entityReporting.datasets.withheld')}
               </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* ── 728: reporting document library ──────────────────────── */}
+      <h3 className="font-semibold text-sm text-gray-200 mt-5 mb-2">{t('investorDashboard.entityReporting.documents.title')}</h3>
+      <p className="text-xs text-gray-500 mb-3">{t('investorDashboard.entityReporting.documents.help')}</p>
+      {documentsState.status === 'loading' && <p role="status" className="text-xs text-gray-500">{t('investorDashboard.entityReporting.documents.loading')}</p>}
+      {documentsState.status === 'error' && <p role="alert" className="text-xs text-red-400">{t('investorDashboard.entityReporting.documents.loadError')}</p>}
+      {documentsState.status === 'ready' && (documentsState.data?.documents ?? []).length === 0 && (
+        <p className="text-xs text-gray-500">{t('investorDashboard.entityReporting.documents.empty')}</p>
+      )}
+      {documentsState.status === 'ready' && (documentsState.data?.documents ?? []).length > 0 && (
+        <ul className="space-y-2">
+          {(documentsState.data.documents).map((doc) => (
+            <li key={`${doc.kind}:${doc.id}`} className="rounded-xl bg-gray-800/50 border border-gray-800 px-3 py-2">
+              <Link to={doc.url} className="text-sm text-emerald-300 hover:text-emerald-200">
+                {doc.kind === 'evidence_share'
+                  ? doc.title
+                  : t('investorDashboard.entityReporting.documents.exportTitle', {
+                      product: t(`investorDashboard.entityReporting.documents.products.${doc.product}`),
+                      format: doc.format,
+                    })}
+              </Link>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {doc.kind === 'evidence_share'
+                  ? t('investorDashboard.entityReporting.documents.shareExpires', { date: date(doc.expiresAt) })
+                  : t(`investorDashboard.entityReporting.documents.exportStates.${doc.state}`, { date: date(doc.completedAt || doc.createdAt) })}
+              </p>
             </li>
           ))}
         </ul>

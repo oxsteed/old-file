@@ -26830,6 +26830,30 @@
           "evidence": "تفصيل الأدلة",
           "exports": "التصدير"
         }
+      },
+      "documents": {
+        "title": "مستندات التقارير",
+        "help": "مستندات التقارير التي يمكنك فتحها: مشاركات الأدلة النشطة ومهام التصدير الخاصة بك.",
+        "loading": "جارٍ تحميل المستندات…",
+        "loadError": "تعذّر تحميل مستندات التقارير.",
+        "empty": "لا توجد مستندات تقارير بعد.",
+        "exportTitle": "تصدير {{product}} ({{format}})",
+        "shareExpires": "مشاركة أدلة · تنتهي {{date}}",
+        "products": {
+          "oxsteed": "OxSteed Credit",
+          "restaurant": "رصيد المطعم",
+          "restaurant_settlement": "تسوية المطعم",
+          "helper_earnings": "أرباح المساعد",
+          "business": "الأعمال"
+        },
+        "exportStates": {
+          "pending": "قيد الانتظار منذ {{date}}",
+          "freezing": "جارٍ التجهيز منذ {{date}}",
+          "rendering": "جارٍ الإنشاء منذ {{date}}",
+          "complete": "اكتمل {{date}}",
+          "failed": "فشل {{date}}",
+          "cancelled": "أُلغي {{date}}"
+        }
       }
     }
   },

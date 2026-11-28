@@ -26819,6 +26819,30 @@
           "evidence": "Desglose de evidencia",
           "exports": "Exportaciones"
         }
+      },
+      "documents": {
+        "title": "Documentos de informes",
+        "help": "Los documentos de informes que puede abrir: sus recursos de evidencia activos y sus trabajos de exportación.",
+        "loading": "Cargando documentos…",
+        "loadError": "No se pudieron cargar los documentos de informes.",
+        "empty": "Aún no hay documentos de informes.",
+        "exportTitle": "Exportación de {{product}} ({{format}})",
+        "shareExpires": "Recurso de evidencia · vence {{date}}",
+        "products": {
+          "oxsteed": "OxSteed Credit",
+          "restaurant": "Crédito de restaurante",
+          "restaurant_settlement": "Liquidación de restaurante",
+          "helper_earnings": "Ganancias del ayudante",
+          "business": "Negocio"
+        },
+        "exportStates": {
+          "pending": "Pendiente desde {{date}}",
+          "freezing": "Preparando desde {{date}}",
+          "rendering": "Generando desde {{date}}",
+          "complete": "Completado {{date}}",
+          "failed": "Fallido {{date}}",
+          "cancelled": "Cancelado {{date}}"
+        }
       }
     }
   },

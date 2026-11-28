@@ -26819,6 +26819,30 @@
           "evidence": "Detay prèv",
           "exports": "Ekspò"
         }
+      },
+      "documents": {
+        "title": "Dokiman rapò yo",
+        "help": "Dokiman rapò ou ka louvri yo: pataj prèv aktif ou yo ak travay ekspò ou yo.",
+        "loading": "Ap chaje dokiman yo…",
+        "loadError": "Yo pa t kapab chaje dokiman rapò yo.",
+        "empty": "Pa gen dokiman rapò pou kounye a.",
+        "exportTitle": "Ekspò {{product}} ({{format}})",
+        "shareExpires": "Pataj prèv · ekspire {{date}}",
+        "products": {
+          "oxsteed": "OxSteed Credit",
+          "restaurant": "Kredi restoran",
+          "restaurant_settlement": "Règleman restoran",
+          "helper_earnings": "Salè edè",
+          "business": "Biznis"
+        },
+        "exportStates": {
+          "pending": "An atant depi {{date}}",
+          "freezing": "Ap prepare depi {{date}}",
+          "rendering": "Ap jenere depi {{date}}",
+          "complete": "Konplete {{date}}",
+          "failed": "Echwe {{date}}",
+          "cancelled": "Anile {{date}}"
+        }
       }
     }
   },

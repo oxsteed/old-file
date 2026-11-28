@@ -213,3 +213,84 @@ exports.getEntities = async (req, res) => {
     res.status(500).json({ error: 'Failed to load entity summary' });
   }
 };
+
+// ── GET /api/investor/reporting/documents — 728 document library ─────
+// One list of the reporting documents the viewer can open, most recent
+// first, capped at 50. Two kinds, both viewer-scoped by construction:
+//   evidence_share — the viewer's active audit evidence shares
+//     (auditor = viewer, unrevoked, unexpired; 716-720), with the audit
+//     title and expiry; the link opens the audit requests list.
+//   export — the viewer's own statement export jobs (711-715), with
+//     product/format/state; the link opens that product's archive page.
+// No audience filter is needed: a share names its auditor and a job
+// names its requester, so another user's documents can never appear —
+// including for admins, who see only their own. Nothing here invents
+// a document: every entry links to a surface that already exists.
+const EXPORT_ARCHIVE_URL = Object.freeze({
+  oxsteed: '/oxsteed-credit/statements/archive',
+  restaurant: '/restaurant-credit/statements/archive',
+  restaurant_settlement: '/restaurant-settlement/statements',
+  helper_earnings: '/helper-earnings/statements',
+  business: '/business/statements',
+});
+
+exports.getDocuments = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const [hasShares, hasRequests, hasExports] = await Promise.all([
+      tableExists('audit_request_shares'),
+      tableExists('audit_requests'),
+      tableExists('statement_export_jobs'),
+    ]);
+    const documents = [];
+    if (hasShares && hasRequests) {
+      const shares = await safeQuery(`
+        SELECT s.id, s.audit_request_id, s.expires_at, s.created_at,
+               r.title AS audit_title, r.status AS audit_status
+          FROM audit_request_shares s
+          JOIN audit_requests r ON r.id = s.audit_request_id
+         WHERE s.auditor_user_id = $1::uuid
+           AND s.revoked_at IS NULL
+           AND s.expires_at > NOW()
+         ORDER BY s.created_at DESC
+         LIMIT 25`, [userId]);
+      for (const row of shares) {
+        documents.push({
+          kind: 'evidence_share',
+          id: row.id,
+          title: row.audit_title,
+          auditRequestId: row.audit_request_id,
+          auditStatus: row.audit_status,
+          expiresAt: row.expires_at,
+          createdAt: row.created_at,
+          url: '/statements/audit-requests',
+        });
+      }
+    }
+    if (hasExports) {
+      const jobs = await safeQuery(`
+        SELECT id, product, format, state, created_at, completed_at
+          FROM statement_export_jobs
+         WHERE requested_by = $1::uuid
+         ORDER BY created_at DESC
+         LIMIT 25`, [userId]);
+      for (const row of jobs) {
+        documents.push({
+          kind: 'export',
+          id: row.id,
+          product: row.product,
+          format: String(row.format || '').toUpperCase(),
+          state: row.state,
+          createdAt: row.created_at,
+          completedAt: row.completed_at,
+          url: EXPORT_ARCHIVE_URL[row.product] || '/statements',
+        });
+      }
+    }
+    documents.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    res.json({ documents: documents.slice(0, 50), scope: reportingScope(req), audience: audienceView(req) });
+  } catch (err) {
+    logger.error('[investor-reporting] getDocuments error', { err: err.message });
+    res.status(500).json({ error: 'Failed to load reporting documents' });
+  }
+};

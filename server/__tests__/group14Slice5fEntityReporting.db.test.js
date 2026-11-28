@@ -151,6 +151,46 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
     );
   }
 
+  async function makeAuditRequest(requestedBy, title) {
+    const { rows } = await pool.query(
+      `INSERT INTO audit_requests (requested_by, title, audit_type, scope)
+       VALUES ($1, $2, 'financial', 'Slice 5f fixture scope') RETURNING id`,
+      [requestedBy, title],
+    );
+    return rows[0].id;
+  }
+
+  async function makeShare(auditRequestId, auditorId, createdBy, { expiresAt, revokedAt = null } = {}) {
+    const { rows } = await pool.query(
+      `INSERT INTO audit_request_shares (audit_request_id, auditor_user_id, created_by, expires_at, revoked_at)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [auditRequestId, auditorId, createdBy, expiresAt, revokedAt],
+    );
+    return rows[0].id;
+  }
+
+  async function makeExportJob(userId, { product = 'oxsteed', format = 'csv', state = 'complete' } = {}) {
+    const now = new Date().toISOString();
+    const id = crypto.randomUUID();
+    const complete = state === 'complete';
+    await pool.query(
+      `INSERT INTO statement_export_jobs
+         (id, requested_by, product, account_id, scope_id, currency_code, period_from, period_to,
+          format, language, idempotency_key, request_hash, state, error_code,
+          frozen_header, frozen_at, row_count, rows_rendered, manifest, source_hash, completed_at)
+       VALUES ($1, $2, $3, 'acct-test', 'scope-test', 'USD', '2026-01-01', '2026-01-31',
+          $4, 'en', $5, $6, $7, $8,
+          $9, $10, $11, $12, $13, $14, $15)`,
+      [id, userId, product, format,
+        `slice-5f-exp-${runId}-${crypto.randomUUID()}`, 'b'.repeat(64), state,
+        complete ? null : 'test_failed',
+        complete ? '{}' : null, complete ? now : null, complete ? 10 : null,
+        complete ? 10 : 0, complete ? '{}' : null, complete ? 'a'.repeat(64) : null,
+        complete ? now : null],
+    );
+    return id;
+  }
+
   beforeAll(async () => {
     pool = require('../db');
     app = express();
@@ -224,6 +264,19 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
     // A granted holder with no audience row at all (separate user).
     noAudienceUser = await makeUser('customer');
     await grantReportingNoAudience(noAudienceUser.id);
+
+    // 728 fixtures: audit shares and export jobs for the holder.
+    const auditReq1 = await makeAuditRequest(admin.id, `Audit ${runId} A`);
+    const auditReq2 = await makeAuditRequest(admin.id, `Audit ${runId} B`);
+    const future = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+    const past = new Date(Date.now() - 3600 * 1000).toISOString();
+    await makeShare(auditReq1, holder.id, admin.id, { expiresAt: future });
+    await makeShare(auditReq2, holder.id, admin.id, { expiresAt: past });
+    await makeShare(auditReq1, holder.id, admin.id, { expiresAt: future, revokedAt: past });
+    await makeShare(auditReq1, stranger.id, admin.id, { expiresAt: future });
+    await makeExportJob(holder.id, { product: 'oxsteed', format: 'csv', state: 'complete' });
+    await makeExportJob(holder.id, { product: 'business', format: 'pdf', state: 'failed' });
+    await makeExportJob(stranger.id, { product: 'oxsteed', format: 'csv', state: 'complete' });
   });
 
   afterAll(async () => { if (pool) await pool.end(); });
@@ -320,5 +373,37 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
 
   test('727: a user without the grant is refused', async () => {
     await getAs(stranger, '/api/investor/reporting/datasets').expect(403);
+  });
+
+  test('728: the holder sees exactly their own active shares and export jobs', async () => {
+    const res = await getAs(holder, '/api/investor/reporting/documents').expect(200);
+    const docs = res.body.documents;
+    const shares = docs.filter((d) => d.kind === 'evidence_share');
+    const exports = docs.filter((d) => d.kind === 'export');
+    expect(shares.length).toBe(1);
+    expect(shares[0].title).toBe(`Audit ${runId} A`);
+    expect(shares[0].url).toBe('/statements/audit-requests');
+    expect(new Date(shares[0].expiresAt).getTime()).toBeGreaterThan(Date.now());
+    // The expired share, the revoked share, and the stranger's share are absent.
+    expect(exports.length).toBe(2);
+    const byProduct = Object.fromEntries(exports.map((e) => [e.product, e]));
+    expect(byProduct.oxsteed.state).toBe('complete');
+    expect(byProduct.oxsteed.format).toBe('CSV');
+    expect(byProduct.oxsteed.url).toBe('/oxsteed-credit/statements/archive');
+    expect(byProduct.business.state).toBe('failed');
+    expect(byProduct.business.url).toBe('/business/statements');
+    // Most recent first.
+    for (let i = 1; i < docs.length; i++) {
+      expect(new Date(docs[i - 1].createdAt).getTime()).toBeGreaterThanOrEqual(new Date(docs[i].createdAt).getTime());
+    }
+  });
+
+  test('728: an admin sees only their own documents, never the platform', async () => {
+    const res = await getAs(admin, '/api/investor/reporting/documents').expect(200);
+    expect(res.body.documents).toEqual([]);
+  });
+
+  test('728: a user without the grant is refused', async () => {
+    await getAs(stranger, '/api/investor/reporting/documents').expect(403);
   });
 });
