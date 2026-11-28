@@ -589,3 +589,18 @@ test('Slice 5g (732): directory explains planned participation, with a gate-cond
     assert.doesNotMatch(JSON.stringify(catalog.invest.directory.participation), /—/, `${lang} em dash`);
   }
 });
+
+test('Slice 5g (733): issuer identity display renders the entity on the opportunity and the directory card', async () => {
+  const detail = await read('src/pages/invest/InvestOpportunityPage.jsx');
+  assert.match(detail, /opportunity\.entityName/);
+  assert.match(detail, /opportunity\.entityActivity/);
+  assert.match(detail, /opportunity\.entityLocation/);
+  const directory = await read('src/pages/invest/InvestDirectoryPage.jsx');
+  assert.match(directory, /opportunity\.entityName/);
+  // The server detail already pins the issuer fields (investRoutes.db.test.js
+  // asserts the listed opportunity carries entityName); a missing business
+  // row falls back to a labelled unknown-entity string, never a blank.
+  assert.match(directory, /invest\.directory\.entityUnknown/);
+  const en = JSON.parse(await read('src/locales/en.json'));
+  assert.equal(typeof en.invest.directory.entityUnknown, 'string');
+});
