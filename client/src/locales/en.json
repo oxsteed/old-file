@@ -26777,6 +26777,82 @@
       "platformWide": "Platform-wide totals. These figures cover the whole platform, not just your positions.",
       "position_one": "Scoped to your positions ({{count}} entity).",
       "position_other": "Scoped to your positions ({{count}} entities)."
+    },
+    "entityReporting": {
+      "title": "Entity reporting",
+      "help": "The entities your reporting audience covers, and your live stakes in each.",
+      "audienceKey": "Reporting audience: {{key}}",
+      "audienceExpires": "Access expires {{date}}",
+      "audienceNoExpiry": "Access does not expire",
+      "loading": "Loading entities…",
+      "loadError": "Could not load the entity summary.",
+      "empty": "No entities in your reporting audience yet.",
+      "opportunities": "{{live}} live of {{total}} raises",
+      "stakesPositions_one": "{{count}} position",
+      "stakesPositions_other": "{{count}} positions",
+      "stakesCommitments_one": "{{count}} commitment",
+      "stakesCommitments_other": "{{count}} commitments",
+      "stakesApplications_one": "{{count}} application",
+      "stakesApplications_other": "{{count}} applications",
+      "active": "Active",
+      "inactive": "Inactive",
+      "types": {
+        "llc": "LLC",
+        "sole_prop": "Sole proprietorship",
+        "corp": "Corporation",
+        "partnership": "Partnership",
+        "unknown": "Business"
+      },
+      "datasets": {
+        "title": "Authorized datasets",
+        "help": "The reporting datasets your audience grants, and the data source behind each. Withheld datasets stay hidden on this dashboard.",
+        "granted": "Granted",
+        "withheld": "Not granted",
+        "noRoute": "No export route serves this dataset yet.",
+        "loading": "Loading datasets…",
+        "loadError": "Could not load the authorized datasets.",
+        "labels": {
+          "overview": "Overview KPIs",
+          "revenue": "Revenue",
+          "franchise": "Franchise pipeline",
+          "supply_demand": "Supply and demand",
+          "evidence": "Evidence drill-through",
+          "exports": "Exports"
+        }
+      },
+      "documents": {
+        "title": "Reporting documents",
+        "help": "The reporting documents you can open: your active evidence shares and your export jobs.",
+        "loading": "Loading documents…",
+        "loadError": "Could not load the reporting documents.",
+        "empty": "No reporting documents yet.",
+        "exportTitle": "{{product}} export ({{format}})",
+        "shareExpires": "Evidence share · expires {{date}}",
+        "products": {
+          "oxsteed": "OxSteed Credit",
+          "restaurant": "Restaurant credit",
+          "restaurant_settlement": "Restaurant settlement",
+          "helper_earnings": "Helper earnings",
+          "business": "Business"
+        },
+        "exportStates": {
+          "pending": "Pending since {{date}}",
+          "freezing": "Preparing since {{date}}",
+          "rendering": "Rendering since {{date}}",
+          "complete": "Completed {{date}}",
+          "failed": "Failed {{date}}",
+          "cancelled": "Cancelled {{date}}"
+        }
+      },
+      "contact": {
+        "show": "Show contact",
+        "hide": "Hide contact",
+        "loading": "Loading contact…",
+        "loadError": "Could not load the reporting contact.",
+        "ownerRole": "Entity owner — questions about the entity and its raises",
+        "adminRole": "Reporting access — questions about your audience and datasets",
+        "openMessages": "Open messages"
+      }
     }
   },
   "healthAlertsDashboard": {

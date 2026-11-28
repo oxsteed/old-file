@@ -510,6 +510,8 @@ exports.sendNotification = async ({
       // (non-transactional: respects the email toggle).
       'invest_distribution_paid', 'invest_proceeds_released', 'invest_raise_closed',
       'invest_commitment_excluded', 'invest_amendment_reconfirmation_requested',
+      // 729 (D-772): Invest reporting-audience changes email the same way.
+      'invest_reporting_audience_granted', 'invest_reporting_audience_changed',
       'credit_identity_verification_requested', 'credit_identity_verification_approved',
       'credit_identity_verification_rejected', 'credit_sanctions_review_required',
       'credit_sanctions_cleared', 'credit_sanctions_confirmed',

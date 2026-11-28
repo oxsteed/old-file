@@ -335,6 +335,9 @@ const NOTIFICATION_TYPES = [
   { type: 'invest_raise_closed', group: 'credit' },
   { type: 'invest_commitment_excluded', group: 'credit' },
   { type: 'invest_amendment_reconfirmation_requested', group: 'credit' },
+  // 729 (D-772): Invest reporting-audience notices.
+  { type: 'invest_reporting_audience_granted', group: 'credit' },
+  { type: 'invest_reporting_audience_changed', group: 'credit' },
   { type: 'credit_card_frozen', group: 'credit' },
   { type: 'credit_card_revoked', group: 'credit' },
   // Group 13 (694, D-401/D-402): participant eligibility/status change.

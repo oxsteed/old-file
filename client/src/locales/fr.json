@@ -26777,6 +26777,82 @@
       "platformWide": "Totaux de toute la plateforme. Ces chiffres couvrent toute la plateforme, pas seulement vos positions.",
       "position_one": "Limité à vos positions ({{count}} entité).",
       "position_other": "Limité à vos positions ({{count}} entités)."
+    },
+    "entityReporting": {
+      "title": "Rapports des entités",
+      "help": "Les entités couvertes par votre audience de rapports et vos participations actives dans chacune.",
+      "audienceKey": "Audience de rapports : {{key}}",
+      "audienceExpires": "Accès expire le {{date}}",
+      "audienceNoExpiry": "Accès sans expiration",
+      "loading": "Chargement des entités…",
+      "loadError": "Impossible de charger le résumé des entités.",
+      "empty": "Aucune entité dans votre audience de rapports pour le moment.",
+      "opportunities": "{{live}} actives sur {{total}} levées",
+      "stakesPositions_one": "{{count}} position",
+      "stakesPositions_other": "{{count}} positions",
+      "stakesCommitments_one": "{{count}} engagement",
+      "stakesCommitments_other": "{{count}} engagements",
+      "stakesApplications_one": "{{count}} demande",
+      "stakesApplications_other": "{{count}} demandes",
+      "active": "Active",
+      "inactive": "Inactive",
+      "types": {
+        "llc": "SARL",
+        "sole_prop": "Entreprise individuelle",
+        "corp": "Société",
+        "partnership": "Société de personnes",
+        "unknown": "Entreprise"
+      },
+      "datasets": {
+        "title": "Jeux de données autorisés",
+        "help": "Les jeux de données accordés par votre audience et la source de chaque donnée. Les jeux non accordés restent masqués sur ce tableau de bord.",
+        "granted": "Accordé",
+        "withheld": "Non accordé",
+        "noRoute": "Aucune route d’exportation ne sert encore ce jeu de données.",
+        "loading": "Chargement des jeux de données…",
+        "loadError": "Impossible de charger les jeux de données autorisés.",
+        "labels": {
+          "overview": "Indicateurs généraux",
+          "revenue": "Revenus",
+          "franchise": "Pipeline des franchises",
+          "supply_demand": "Offre et demande",
+          "evidence": "Détail des preuves",
+          "exports": "Exportations"
+        }
+      },
+      "documents": {
+        "title": "Documents de rapports",
+        "help": "Les documents de rapports que vous pouvez ouvrir : vos partages de preuves actifs et vos exportations.",
+        "loading": "Chargement des documents…",
+        "loadError": "Impossible de charger les documents de rapports.",
+        "empty": "Aucun document de rapport pour le moment.",
+        "exportTitle": "Export {{product}} ({{format}})",
+        "shareExpires": "Partage de preuves · expire le {{date}}",
+        "products": {
+          "oxsteed": "OxSteed Credit",
+          "restaurant": "Crédit restaurant",
+          "restaurant_settlement": "Règlement restaurant",
+          "helper_earnings": "Gains de l’assistant",
+          "business": "Entreprise"
+        },
+        "exportStates": {
+          "pending": "En attente depuis {{date}}",
+          "freezing": "Préparation depuis {{date}}",
+          "rendering": "Génération depuis {{date}}",
+          "complete": "Terminé {{date}}",
+          "failed": "Échoué {{date}}",
+          "cancelled": "Annulé {{date}}"
+        }
+      },
+      "contact": {
+        "show": "Afficher le contact",
+        "hide": "Masquer le contact",
+        "loading": "Chargement du contact…",
+        "loadError": "Impossible de charger le contact.",
+        "ownerRole": "Propriétaire de l’entité — questions sur l’entité et ses levées",
+        "adminRole": "Accès aux rapports — questions sur votre audience et vos jeux de données",
+        "openMessages": "Ouvrir les messages"
+      }
     }
   },
   "healthAlertsDashboard": {

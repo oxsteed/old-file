@@ -26788,6 +26788,82 @@
       "platformWide": "إجماليات على مستوى المنصة بالكامل. هذه الأرقام تغطي المنصة كلها، وليس مراكزك فقط.",
       "position_one": "مقتصر على مراكزك ({{count}} كيان).",
       "position_other": "مقتصر على مراكزك ({{count}} كيانات)."
+    },
+    "entityReporting": {
+      "title": "تقارير الكيانات",
+      "help": "الكيانات التي يغطيها جمهور تقاريرك، ومراكزك النشطة في كل منها.",
+      "audienceKey": "جمهور التقارير: {{key}}",
+      "audienceExpires": "ينتهي الوصول في {{date}}",
+      "audienceNoExpiry": "الوصول لا ينتهي",
+      "loading": "جارٍ تحميل الكيانات…",
+      "loadError": "تعذّر تحميل ملخص الكيانات.",
+      "empty": "لا توجد كيانات في جمهور تقاريرك بعد.",
+      "opportunities": "{{live}} نشطة من أصل {{total}} جولة",
+      "stakesPositions_one": "{{count}} مركز",
+      "stakesPositions_other": "{{count}} مركزًا",
+      "stakesCommitments_one": "{{count}} التزام",
+      "stakesCommitments_other": "{{count}} التزامًا",
+      "stakesApplications_one": "{{count}} طلب",
+      "stakesApplications_other": "{{count}} طلبًا",
+      "active": "نشط",
+      "inactive": "غير نشط",
+      "types": {
+        "llc": "شركة ذات مسؤولية محدودة",
+        "sole_prop": "مؤسسة فردية",
+        "corp": "شركة مساهمة",
+        "partnership": "شراكة",
+        "unknown": "نشاط تجاري"
+      },
+      "datasets": {
+        "title": "مجموعات البيانات المصرّح بها",
+        "help": "مجموعات البيانات التي يمنحها جمهورك ومصدر بيانات كل منها. تبقى مجموعات البيانات غير الممنوحة مخفية في لوحة المعلومات هذه.",
+        "granted": "ممنوح",
+        "withheld": "غير ممنوح",
+        "noRoute": "لا يوجد مسار تصدير يخدم مجموعة البيانات هذه بعد.",
+        "loading": "جارٍ تحميل مجموعات البيانات…",
+        "loadError": "تعذّر تحميل مجموعات البيانات المصرّح بها.",
+        "labels": {
+          "overview": "مؤشرات الأداء العامة",
+          "revenue": "الإيرادات",
+          "franchise": "مسار الامتياز",
+          "supply_demand": "العرض والطلب",
+          "evidence": "تفصيل الأدلة",
+          "exports": "التصدير"
+        }
+      },
+      "documents": {
+        "title": "مستندات التقارير",
+        "help": "مستندات التقارير التي يمكنك فتحها: مشاركات الأدلة النشطة ومهام التصدير الخاصة بك.",
+        "loading": "جارٍ تحميل المستندات…",
+        "loadError": "تعذّر تحميل مستندات التقارير.",
+        "empty": "لا توجد مستندات تقارير بعد.",
+        "exportTitle": "تصدير {{product}} ({{format}})",
+        "shareExpires": "مشاركة أدلة · تنتهي {{date}}",
+        "products": {
+          "oxsteed": "OxSteed Credit",
+          "restaurant": "رصيد المطعم",
+          "restaurant_settlement": "تسوية المطعم",
+          "helper_earnings": "أرباح المساعد",
+          "business": "الأعمال"
+        },
+        "exportStates": {
+          "pending": "قيد الانتظار منذ {{date}}",
+          "freezing": "جارٍ التجهيز منذ {{date}}",
+          "rendering": "جارٍ الإنشاء منذ {{date}}",
+          "complete": "اكتمل {{date}}",
+          "failed": "فشل {{date}}",
+          "cancelled": "أُلغي {{date}}"
+        }
+      },
+      "contact": {
+        "show": "عرض جهة الاتصال",
+        "hide": "إخفاء جهة الاتصال",
+        "loading": "جارٍ تحميل جهة الاتصال…",
+        "loadError": "تعذّر تحميل جهة اتصال التقارير.",
+        "ownerRole": "مالك الكيان — أسئلة حول الكيان وجمعياته",
+        "adminRole": "الوصول إلى التقارير — أسئلة حول جمهورك ومجموعات البيانات",
+        "openMessages": "فتح الرسائل"
+      }
     }
   },
   "healthAlertsDashboard": {

@@ -33,6 +33,7 @@ import useAccessProjection from '../hooks/useAccessProjection';
 import PageShell from '../components/PageShell';
 import api from '../api/axios';
 import InvestorEvidencePanel from '../components/investor/InvestorEvidencePanel';
+import EntityReportingSection from '../components/investor/EntityReportingSection';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n) => (n ?? 0).toLocaleString();
@@ -526,6 +527,9 @@ export default function InvestorDashboardPage() {
               )
             }
           </div>
+
+          {/* ── Slice 5f, 726: entity reporting (entity summary) ───── */}
+          <EntityReportingSection />
 
         </div>
       </div>
