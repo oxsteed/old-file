@@ -274,7 +274,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
     event.currentTarget.reset();
     const attemptId = crypto.randomUUID();
     try { sessionStorage.setItem(creditStorageKey, attemptId); }
-    catch { setCreditError("creditStorageUnavailable"); return; }
+    catch { setCreditError({ key: "creditStorageUnavailable" }); return; }
     creditBusy.current = true;
     setPlacing(true);
     setCreditAttempt(attemptId);
@@ -298,8 +298,23 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
         if (code === "screen_price_conflict") {
           setQuoted(null);
           setStep("menu");
+          setCreditError({ key: "priceConflict" });
+        } else if (code === "credit_insufficient_funds" || code === "insufficient_credit_balance") {
+          // G13-A4 (D-759): name the shortfall instead of blaming card/PIN.
+          // The server reports requested/available in the error fields on
+          // the reservation path; the journal path omits them, so fall back
+          // to the amount-less message rather than inventing a number.
+          const fields = error.response?.data?.fields || {};
+          const requested = Number(fields.requestedCents);
+          const available = Number(fields.availableBalanceCents);
+          const shortfallCents = Number.isSafeInteger(requested) && Number.isSafeInteger(available)
+            && requested > available ? requested - available : null;
+          setCreditError(shortfallCents === null
+            ? { key: "creditInsufficientFundsUnknown" }
+            : { key: "creditInsufficientFunds", args: { shortfall: formatFoodMoney(shortfallCents, currency) } });
+        } else {
+          setCreditError({ key: "creditDeclined" });
         }
-        setCreditError(code === "screen_price_conflict" ? "priceConflict" : "creditDeclined");
       }
     } finally {
       creditBusy.current = false;
@@ -315,7 +330,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
     try {
       showCreditReceipt(await getDeviceCreditReceipt(restaurantId, managed.device, creditAttempt));
     } catch {
-      setCreditError("creditReceiptPending");
+      setCreditError({ key: "creditReceiptPending" });
     } finally {
       creditBusy.current = false;
       setPlacing(false);
@@ -441,7 +456,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
               <button className="fd-btn" type="button" disabled={placing} onClick={recoverCreditReceipt}>
                 {f("creditCheckReceipt")}
               </button>
-              {creditError && <p role="status">{f(creditError)}</p>}
+              {creditError && <p role="status">{f(creditError.key, creditError.args)}</p>}
             </>
           )}
         </section>
@@ -631,7 +646,7 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
       </div>
 
       <div className="fd-kiosk-body">
-        {creditError && <p role="alert">{f(creditError)}</p>}
+        {creditError && <p role="alert">{f(creditError.key, creditError.args)}</p>}
         {step === "menu" && (
           <>
             {sections.map((section) => (
@@ -788,12 +803,13 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
                 <label htmlFor="fd-kiosk-credit-pin">{f("creditPin")}</label>
                 <input id="fd-kiosk-credit-pin" name="pin" type="password" inputMode="numeric"
                   pattern="[0-9]{4,8}" maxLength={8} required autoComplete="off" />
-                {/* Group 13, item 667 (D-365): remainder before confirming.
-                    Credit pays the full quoted total or declines, so the
-                    planned remainder is $0.00; the kiosk has no balance read
-                    to compute a shortfall remainder. */}
-                <p className="fd-kiosk-remainder">{f("creditRemainder", { credit: formatFoodMoney(quoted.totalCents, currency), remainder: formatFoodMoney(0, currency) })}</p>
-                <p className="fd-pay-note">{f("creditRemainderCovered")}</p>
+                {/* Group 13, item 667 (D-365, D-759): the kiosk has no
+                    balance read, so it must not assert coverage. The old
+                    $0.00 remainder and "covers the full order" copy claimed
+                    a certainty the kiosk could not know (G13-A4). The
+                    balance is checked at payment; a shortfall is named in
+                    the decline message instead. */}
+                <p className="fd-pay-note">{f("creditBalanceCheckedAtPayment")}</p>
                 <button className="fd-btn" type="submit" disabled={placing || orderingPaused}>
                   {f("creditPay")}
                 </button>

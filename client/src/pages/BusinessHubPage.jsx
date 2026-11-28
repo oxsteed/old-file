@@ -174,7 +174,7 @@ function BusinessCreditFundingTab({ businessId, members, currency }) {
                   <td>{memberName(row)}</td>
                   <td>{formatMoney(row.amountCents / 100, { currency: row.currencyCode || 'USD' })}</td>
                   <td>{ct(`walletTopup.status.${row.status}`, { defaultValue: row.status })}</td>
-                  <td>{row.fundingApprovalState ? ct(`walletTopup.fundingApprovalState_${row.fundingApprovalState}`, { defaultValue: row.fundingApprovalState }) : '-'}</td>
+                  <td>{row.fundingState ? ct(`walletTopup.fundingState_${row.fundingState}`, { defaultValue: row.fundingState }) : '-'}</td>
                   <td>{row.fundingReason || '-'}</td>
                 </tr>
               ))}

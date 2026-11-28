@@ -318,6 +318,96 @@ describeDb('Group 10 Slice F: handle changes', () => {
     expect(invoice.user_id).toBe(client);
   });
 
+  test('S-C1 (D-767): invoice numbers come from a sequence, so two invoices minted in the same millisecond cannot collide', async () => {
+    const { nextConsultingInvoiceNumber } = require('../utils/consultingInvoiceNumber');
+    const [first, second] = await Promise.all([nextConsultingInvoiceNumber(db), nextConsultingInvoiceNumber(db)]);
+    expect(first).toMatch(/^CONS-\d{6}$/);
+    expect(second).toMatch(/^CONS-\d{6}$/);
+    expect(first).not.toBe(second);
+    // End to end through the draft-invoice site: two approved
+    // additional fees in a row get distinct numbers.
+    const { client, consultant, sessionId } = await setup();
+    const numbers = [];
+    for (const amountCents of [15000, 20000]) {
+      const fee = await fileRequest(sessionId, consultant, {
+        requested_by_consultant: true,
+        request_type: 'additional_fee',
+        reason: 'An extra fee.',
+        amount_cents: amountCents,
+      });
+      const approved = await request(app)
+        .post(`/api/consulting/business-launch/sessions/${sessionId}/change-requests/${fee.body.changeRequest.id}/approve`)
+        .set(clientAuth(client))
+        .send();
+      expect(approved.status).toBe(200);
+      const { rows: [invoice] } = await db.query(
+        'SELECT invoice_number FROM consulting_invoices WHERE id = $1', [approved.body.changeRequest.invoiceId],
+      );
+      numbers.push(invoice.invoice_number);
+    }
+    expect(numbers).toHaveLength(2);
+    expect(new Set(numbers).size).toBe(2);
+    for (const number of numbers) expect(number).toMatch(/^CONS-\d{6}$/);
+  });
+
+  test('G10-7 (D-768): mark-paid needs two distinct admins plus a reference', async () => {
+    const { client, consultant, sessionId, admin } = await setup();
+    const adminB = await addUser('super_admin');
+    // A sent invoice: approve an additional fee, then move the draft to sent.
+    const fee = await fileRequest(sessionId, consultant, {
+      requested_by_consultant: true,
+      request_type: 'additional_fee',
+      reason: 'An extra fee.',
+      amount_cents: 15000,
+    });
+    const approved = await request(app)
+      .post(`/api/consulting/business-launch/sessions/${sessionId}/change-requests/${fee.body.changeRequest.id}/approve`)
+      .set(clientAuth(client))
+      .send();
+    expect(approved.status).toBe(200);
+    const invoiceId = approved.body.changeRequest.invoiceId;
+    await db.query(`UPDATE consulting_invoices SET status = 'sent' WHERE id = $1`, [invoiceId]);
+
+    const base = `/api/consulting/admin/invoices/${invoiceId}`;
+    // No approvals yet: mark-paid refuses, even with a reference.
+    const tooSoon = await request(app).patch(`${base}/mark-paid`).set(auth(admin)).send({ method: 'bank_transfer', reference: 'WIRE-1' });
+    expect(tooSoon.status).toBe(409);
+    expect(tooSoon.body.code).toBe('mark_paid_not_approved');
+    expect(tooSoon.body.approvals).toBe(0);
+    // First approval records; the same admin cannot be the second.
+    const first = await request(app).post(`${base}/approve-mark-paid`).set(auth(admin)).send();
+    expect(first.status).toBe(200);
+    expect(first.body.approvals).toBe(1);
+    const sameAdmin = await request(app).post(`${base}/approve-mark-paid`).set(auth(admin)).send();
+    expect(sameAdmin.status).toBe(409);
+    expect(sameAdmin.body.code).toBe('second_approver_required');
+    const second = await request(app).post(`${base}/approve-mark-paid`).set(auth(adminB)).send();
+    expect(second.status).toBe(200);
+    expect(second.body.approvals).toBe(2);
+    // Two approvals but no reference: still refuses.
+    const noRef = await request(app).patch(`${base}/mark-paid`).set(auth(admin)).send({ method: 'bank_transfer' });
+    expect(noRef.status).toBe(400);
+    expect(noRef.body.code).toBe('reference_required');
+    // With both, the mark-paid completes.
+    const paid = await request(app).patch(`${base}/mark-paid`).set(auth(admin)).send({ method: 'bank_transfer', reference: 'WIRE-1' });
+    expect(paid.status).toBe(200);
+    expect(paid.body.status).toBe('paid');
+    expect(paid.body.paid_reference).toBe('WIRE-1');
+    const { rows: [row] } = await db.query(
+      'SELECT mark_paid_first_approver, mark_paid_second_approver FROM consulting_invoices WHERE id = $1', [invoiceId]);
+    expect(row.mark_paid_first_approver).toBe(admin);
+    expect(row.mark_paid_second_approver).toBe(adminB);
+    // The audit trail recorded both approvals and the mark-paid itself.
+    const { rows: audits } = await db.query(
+      `SELECT action FROM admin_audit_log WHERE target_key = $1 AND action IN ('consulting_invoice_mark_paid_approved', 'consulting_invoice_marked_paid') ORDER BY id`,
+      [String(invoiceId)]);
+    expect(audits.map((a) => a.action)).toEqual([
+      'consulting_invoice_mark_paid_approved',
+      'consulting_invoice_mark_paid_approved',
+      'consulting_invoice_marked_paid',
+    ]);
+  });
+
   test('531: approving a scope change re-opens an accepted milestone', async () => {
     const { client, consultant, sessionId, deliverable } = await setup();
     await db.query(

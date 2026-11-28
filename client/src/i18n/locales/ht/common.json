@@ -1319,8 +1319,6 @@
   },
   "screens": {
     "creditPay": "Peye ak OxSteed Credit",
-    "creditRemainder": "Credit kouvri {{credit}} · Rès pou peye {{remainder}}",
-    "creditRemainderCovered": "Credit kouvri lòd la nèt. Anyen pa rete pou peye.",
     "creditScanCard": "Eskane kat Credit ou",
     "creditPin": "Kòd PIN kat la",
     "creditReceipt": "Resi Credit",
@@ -1331,6 +1329,9 @@
     "creditCheckReceipt": "Tcheke resi a",
     "creditReceiptPending": "Rezilta a poko klè. Tcheke resi a anvan ou peye ankò. Si li toujou pa disponib, montre anplwaye yo referans lan.",
     "creditDeclined": "Peman Credit la pa pase. Verifye kat ou ak kòd PIN ou, oswa chwazi yon lòt fason pou peye.",
+    "creditBalanceCheckedAtPayment": "Balans Credit ou ap tcheke lè ou peye.",
+    "creditInsufficientFunds": "Balans Credit ou manke {{shortfall}} pou lòd sa a. Ajoute Credit oswa chwazi yon lòt mwayen pou peye.",
+    "creditInsufficientFundsUnknown": "Balans Credit ou pa kouvri lòd sa a. Ajoute Credit oswa chwazi yon lòt mwayen pou peye.",
     "creditStorageUnavailable": "Kyòs la pa t ka anrejistre referans pou rekipere peman an. Peman Credit la pa t kòmanse.",
     "dataFreshness": "Frekans done yo",
     "fresh": "Ajou",

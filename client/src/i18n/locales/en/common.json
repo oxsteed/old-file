@@ -1319,8 +1319,6 @@
   },
   "screens": {
     "creditPay": "Pay with OxSteed Credit",
-    "creditRemainder": "Credit covers {{credit}} · Remainder due {{remainder}}",
-    "creditRemainderCovered": "Credit covers the full order. Nothing remains due.",
     "creditScanCard": "Scan your Credit card",
     "creditPin": "Card PIN",
     "creditReceipt": "Credit receipt",
@@ -1331,6 +1329,9 @@
     "creditCheckReceipt": "Check receipt",
     "creditReceiptPending": "The result is uncertain. Check the receipt before paying again. If it stays unavailable, show the reference to staff.",
     "creditDeclined": "Credit payment was declined. Check your card and PIN or choose another payment method.",
+    "creditBalanceCheckedAtPayment": "Your Credit balance will be checked when you pay.",
+    "creditInsufficientFunds": "Your Credit balance is short by {{shortfall}} for this order. Add Credit or choose another payment method.",
+    "creditInsufficientFundsUnknown": "Your Credit balance does not cover this order. Add Credit or choose another payment method.",
     "creditStorageUnavailable": "This kiosk could not save a recovery reference. Credit payment was not started.",
     "dataFreshness": "Data freshness",
     "fresh": "Caught up",

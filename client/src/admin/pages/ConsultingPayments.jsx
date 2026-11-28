@@ -5,6 +5,7 @@ import axios from '../../api/axios';
 import toast from 'react-hot-toast';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
+import './ConsultingPayments.css';
 
 // P3-12-F10: fallback used only when the /consulting/packages rows are not
 // available. Prices match the seed values in migration 109
@@ -22,18 +23,37 @@ const NS = 'adminConsultingPayments';
 
 // Review P3-1070: reconcile an off-platform payment against an invoice.
 const MARK_PAID_METHODS = ['bank_transfer', 'check', 'cash', 'card_terminal', 'other'];
+// G10-7 (D-768): a mark-paid needs two distinct admins to approve it
+// first. The approval count rides on the invoice row (listInvoices selects
+// ci.*); the approve button records this admin's approval, and the mark-paid
+// form only opens once both approvals are recorded. The payment reference
+// is required: the server refuses a mark-paid without one.
 function MarkInvoicePaid({ invoice, onDone }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [method, setMethod] = useState('bank_transfer');
   const [reference, setReference] = useState('');
   const [saving, setSaving] = useState(false);
+  const [approving, setApproving] = useState(false);
   if (!['sent', 'overdue'].includes(invoice.status)) return null;
+  const approvals = (invoice.mark_paid_first_approver ? 1 : 0) + (invoice.mark_paid_second_approver ? 1 : 0);
+  const approve = async () => {
+    setApproving(true);
+    try {
+      await axios.post(`/consulting/admin/invoices/${invoice.id}/approve-mark-paid`, {});
+      toast.success(t(`${NS}.markPaidApproved`));
+      onDone?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t(`${NS}.markPaidApprovalFailed`));
+    } finally {
+      setApproving(false);
+    }
+  };
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await axios.patch(`/consulting/admin/invoices/${invoice.id}/mark-paid`, { method, reference: reference || undefined });
+      await axios.patch(`/consulting/admin/invoices/${invoice.id}/mark-paid`, { method, reference: reference.trim() });
       toast.success(t(`${NS}.markPaidDone`));
       setOpen(false);
       onDone?.();
@@ -43,25 +63,33 @@ function MarkInvoicePaid({ invoice, onDone }) {
       setSaving(false);
     }
   };
-  if (!open) {
-    return (
-      <button type="button" onClick={() => setOpen(true)} style={{ marginInlineStart: '0.4rem', padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid #10B981', background: 'none', color: '#10B981', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 600 }}>
-        {t(`${NS}.markPaid`)}
-      </button>
-    );
-  }
   return (
-    <form onSubmit={submit} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.4rem' }}>
-      <label style={{ fontSize: '0.78rem' }}>
-        {t(`${NS}.markPaidMethod`)}{' '}
-        <select value={method} onChange={(e) => setMethod(e.target.value)}>
-          {MARK_PAID_METHODS.map((m) => <option key={m} value={m}>{t(`${NS}.method_${m}`)}</option>)}
-        </select>
-      </label>
-      <input aria-label={t(`${NS}.markPaidReference`)} placeholder={t(`${NS}.markPaidReference`)} value={reference} maxLength={200} onChange={(e) => setReference(e.target.value)} style={{ fontSize: '0.78rem' }} />
-      <button type="submit" disabled={saving} style={{ fontSize: '0.78rem' }}>{t(`${NS}.markPaidConfirm`)}</button>
-      <button type="button" onClick={() => setOpen(false)} style={{ fontSize: '0.78rem' }}>{t(`${NS}.cancel`)}</button>
-    </form>
+    <>
+      <span className={`consulting-mark-paid-approvals${approvals === 2 ? ' is-complete' : ''}`}>
+        {t(`${NS}.markPaidApprovals`, { count: approvals })}
+      </span>
+      {approvals < 2 ? (
+        <button type="button" onClick={approve} disabled={approving} className="consulting-approve-mark-paid">
+          {t(`${NS}.approveMarkPaid`)}
+        </button>
+      ) : !open ? (
+        <button type="button" onClick={() => setOpen(true)} style={{ marginInlineStart: '0.4rem', padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid #10B981', background: 'none', color: '#10B981', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 600 }}>
+          {t(`${NS}.markPaid`)}
+        </button>
+      ) : (
+        <form onSubmit={submit} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.4rem' }}>
+          <label style={{ fontSize: '0.78rem' }}>
+            {t(`${NS}.markPaidMethod`)}{' '}
+            <select value={method} onChange={(e) => setMethod(e.target.value)}>
+              {MARK_PAID_METHODS.map((m) => <option key={m} value={m}>{t(`${NS}.method_${m}`)}</option>)}
+            </select>
+          </label>
+          <input aria-label={t(`${NS}.markPaidReference`)} placeholder={t(`${NS}.markPaidReference`)} value={reference} maxLength={200} onChange={(e) => setReference(e.target.value)} required style={{ fontSize: '0.78rem' }} />
+          <button type="submit" disabled={saving} style={{ fontSize: '0.78rem' }}>{t(`${NS}.markPaidConfirm`)}</button>
+          <button type="button" onClick={() => setOpen(false)} style={{ fontSize: '0.78rem' }}>{t(`${NS}.cancel`)}</button>
+        </form>
+      )}
+    </>
   );
 }
 

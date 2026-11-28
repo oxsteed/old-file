@@ -395,25 +395,33 @@ describe('R-5 amendment reconfirmation fail-closed', () => {
     expect(rows[0].status).toBe('reserved');
     expect(await walletBalance(walletBId)).toBe(20000);
 
-    // B's stale reservation also blocks new money (the overfill guard
-    // counts all reserved commitments), so B cancels it through the
-    // existing cancel path, freeing the headroom for a new investor.
-    await cancelCommitment({ commitmentId: commitmentBId, userId: investorBId });
+    // D-764 (N15): B's stale reservation no longer blocks new money —
+    // the overfill guard counts only current-version reserved
+    // commitments — so C fills the 4000 headroom without B cancelling
+    // first. The close then captures A + C (10000) and excludes B's
+    // stale 4000, which stays reserved for admin cancel/release and is
+    // reported to the excluded investor by the notice leg.
     await investOnVersion2(investorCId, 4000);
     const closed = await closeOpportunity({ opportunityId, executorUserId: executorId });
     expect(closed.status).toBe('closed');
     expect(closed.completedTotalCents).toBe(10000);
     expect(closed.positions).toHaveLength(2);
     expect(closed.positions.map((p) => String(p.userId)).sort()).toEqual([investorAId, investorCId].sort());
-    // Nothing stale remains reserved at a successful close: the
-    // overfill guard caps all reserved commitments at the target while
-    // the close requires the captured total to reach it, so the
-    // excluded set is necessarily empty here. The exclusion itself was
-    // proven by the target-unmet refusal above.
-    expect(closed.excludedCommitmentIds).toEqual([]);
-    expect(closed.excludedCents).toBe(0);
+    expect(closed.excludedCommitmentIds).toEqual([String(commitmentBId)]);
+    expect(closed.excludedCents).toBe(4000);
+    ({ rows } = await pool.query(
+      `SELECT status FROM investment_commitments WHERE id = $1`, [commitmentBId]
+    ));
+    expect(rows[0].status).toBe('reserved');
     expect(await walletBalance(walletAId)).toBe(14000);
     expect(await walletBalance(walletBId)).toBe(20000);
     expect(await walletBalance(walletCId)).toBe(16000);
+    const { rows: notes } = await pool.query(
+      `SELECT data FROM notifications WHERE user_id = $1 AND type = 'invest_commitment_excluded'`,
+      [investorBId],
+    );
+    expect(notes).toHaveLength(1);
+    expect(notes[0].data.commitmentId).toBe(String(commitmentBId));
+    expect(notes[0].data.amountCents).toBe(4000);
   });
 });

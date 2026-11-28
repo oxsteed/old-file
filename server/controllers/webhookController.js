@@ -2423,6 +2423,52 @@ exports.diditWebhook = async (req, res, next) => {
           await diditEntityLink.linkVerificationToEntity(u.id, { sessionId: session_id, status: 'failed' });
         }
       }
+    } else if (['expired', 'abandoned', 'canceled', 'cancelled'].includes(normalizedStatus)) {
+      // G13-A3: a session that died at the provider is a terminal state, not
+      // an "unhandled" status to log and forget. While didit_status stays
+      // 'pending', diditReusablePayload keeps handing the dead verification
+      // URL back on every re-attempt (it only refuses terminal statuses) and
+      // the user can never open a fresh session. Record the terminal status
+      // — 'cancelled' normalizes to 'canceled', the value DIDIT_TERMINAL_
+      // STATUSES lists — clear the dead payload so reuse can never return
+      // the URL even if the status row is ever read stale, and fail the
+      // verification row like a decline so the enrollment state is honest.
+      const terminalStatus = normalizedStatus === 'cancelled' ? 'canceled' : normalizedStatus;
+      const reason = body.reason || `Verification session ${terminalStatus}`;
+      await db.query(
+        `UPDATE identity_verifications
+         SET status = 'failed', last_error = $1, updated_at = NOW()
+         WHERE didit_session_id = $2`,
+        [reason, session_id]
+      );
+      const { rows } = await db.query(
+        `SELECT user_id FROM identity_verifications WHERE didit_session_id = $1`,
+        [session_id]
+      );
+      const userIds = rows.length
+        ? rows.map((row) => row.user_id)
+        : (await db.query(
+          `UPDATE users
+              SET didit_status = $2, didit_session_payload_ciphertext = NULL,
+                  identity_verified = FALSE, id_verified = FALSE, identity_verified_at = NULL
+            WHERE didit_session_id = $1 RETURNING id`,
+          [session_id, terminalStatus]
+        )).rows.map((row) => row.id);
+      for (const userId of userIds) {
+        await db.query(
+          `UPDATE users
+              SET didit_status = $2, didit_session_payload_ciphertext = NULL,
+                  identity_verified = FALSE, id_verified = FALSE, identity_verified_at = NULL
+            WHERE id = $1 AND didit_session_id = $3`,
+          [userId, terminalStatus, session_id]
+        );
+        await diditEntityLink.linkVerificationToEntity(userId, { sessionId: session_id, status: 'failed' });
+      }
+      logger.info('[Didit] Verification session ended without approval', {
+        status: terminalStatus,
+        eventType: body.webhook_type || body.type,
+        providerRefId: session_id,
+      });
     } else {
       // Unknown statuses (including future Didit event types) are logged and
       // acknowledged, never thrown: a throw here would fail every new event

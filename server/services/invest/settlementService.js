@@ -186,12 +186,25 @@ async function createCommitment(input, dbPool = pool) {
       fail('Agreement version not found for this opportunity', 'invest_agreement_not_found', 404);
     }
 
-    // Overfill guard, serialized by the opportunity row lock.
+    // Overfill guard, serialized by the opportunity row lock. It counts
+    // only reserved commitments on the opportunity's CURRENT agreement
+    // version (D-764, N15): new commitments are always on the current
+    // version (a stale version is refused above), so the guard's job is
+    // to cap what the raise can capture. Stale-version reservations can
+    // never be captured — counting them let one unresponsive investor
+    // veto the whole raise, since the close requires current-version
+    // reserved to reach the target. With the guard scoped this way, new
+    // money can fill the target past a stale reservation, and the close
+    // excludes the stale commitments, reports them, and notifies each
+    // excluded investor (the invest_commitment_excluded leg, previously
+    // unreachable). IS NOT DISTINCT FROM matches NULL versions too, so
+    // unversioned raises behave as before.
     const { rows: reservedRows } = await client.query(
       `SELECT COALESCE(SUM(amount_cents), 0)::bigint AS reserved_total
          FROM investment_commitments
-        WHERE opportunity_id = $1 AND status = 'reserved'`,
-      [opportunityId],
+        WHERE opportunity_id = $1 AND status = 'reserved'
+          AND agreement_version_id IS NOT DISTINCT FROM $2`,
+      [opportunityId, opportunity.current_agreement_version_id],
     );
     const reservedTotal = Number(reservedRows[0].reserved_total || 0);
     if (reservedTotal + amount > Number(opportunity.target_cents)) {

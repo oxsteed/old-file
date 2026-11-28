@@ -642,7 +642,14 @@ function EngagementCloseout({ sessionId, sessionStatus, onChanged }) {
   const record = closeout?.closeout || null;
   const items = closeout?.checklist?.items || [];
   const myConfirmed = Boolean(record?.consultantConfirmedAt);
-  const canConfirm = completed && !archived && !myConfirmed;
+  // S-D3 (D-765): the confirm button stays disabled until the work
+  // items are met — the server refuses the confirm otherwise, and the
+  // checklist above already names what is still missing. The two
+  // confirmation items are excluded: this button is what satisfies them.
+  const closeoutReady = items
+    .filter((item) => item.required && item.key !== 'consultant_confirmed' && item.key !== 'client_confirmed')
+    .every((item) => item.met);
+  const canConfirm = completed && !archived && !myConfirmed && closeoutReady;
   const feedbackRequest = closeout?.feedbackRequest || null;
   const feedbackReceived = Boolean(closeout?.checklist?.items?.find((item) => item.key === 'feedback_received')?.met);
   const scheduledFollowUps = (closeout?.followUps || []).filter((item) => item.status === 'scheduled');

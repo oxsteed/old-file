@@ -76,7 +76,7 @@ jest.mock('../controllers/adminConsultingController', () => {
   const h = {};
   ['getEnhancedDashboardStats','getConsultingRequests','createSessionManually',
    'updateRequestStatusById','assignConsultantToRequest','getAvailableConsultants',
-   'generateInvoice','generateManualInvoice','markInvoicePaid','downloadInvoice',
+   'generateInvoice','generateManualInvoice','markInvoicePaid','approveMarkPaid','downloadInvoice',
    'listInvoices','listPurchases','updatePackage','listSessions','getSessionDetail',
    'updateSessionDetails','completeSession','markNoShow','sendSessionReminder',
    'sendSessionFollowUp'].forEach((n) => { h[n] = (req, res) => res.json({ ok: n }); });

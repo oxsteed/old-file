@@ -939,6 +939,18 @@ async function cashOutWithCardInTransaction(client, { credential, pin, kioskDevi
     [card.customer_id, String(card.id), normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ amountCents: amount, currencyCode: currency, kioskDeviceId: String(kioskDeviceId) })]
   );
 
+  // G13-B3: the cash-out is not done when the leg posts — the cash still
+  // has to leave the machine. Record the dispense as pending in the
+  // same transaction; the kiosk confirms the outcome through
+  // confirmCashOutDispense, which reverses whatever was not dispensed.
+  const { recordCashOutDispense } = require('./creditKioskCashOutDispense');
+  await recordCashOutDispense(client, {
+    transactionId: result.transaction.id,
+    kioskDeviceId,
+    customerId: card.customer_id,
+    amountCents: amount,
+  });
+
   return { ...result, card: formatCard({ ...card, last_used_at: new Date() }) };
 }
 

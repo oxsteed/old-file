@@ -167,6 +167,12 @@ describeDb('G1-B1: planned-needs funding places a real Credit hold', () => {
       .send({});
   }
 
+  function remove(needId, user) {
+    return request(app)
+      .delete(`/api/planned-needs/${needId}`)
+      .set('x-test-user', user.id);
+  }
+
   async function cleanup(user) {
     // Test-only teardown: delete the fixture reservations and restore the
     // wallet in the SAME transaction, because the migration-755 deferred
@@ -363,6 +369,45 @@ describeDb('G1-B1: planned-needs funding places a real Credit hold', () => {
     try {
       const res = await fund(needId, user, { amount: 10, key: randomUUID() }).expect(200);
       expect(Number(res.body.reserved_amount)).toBe(100);
+      expect(await holds(needId)).toHaveLength(0);
+      expect((await wallet(user)).reservedCents).toBe(0);
+    } finally {
+      await cleanup(user);
+    }
+  });
+
+  test('G13-A1: deleting a funded need releases the hold back to the spendable balance', async () => {
+    const user = await addUser();
+    await seedCredit(user);
+    const needId = await makeNeed(user);
+    try {
+      await fund(needId, user, { amount: 25, key: randomUUID() }).expect(200);
+      expect((await wallet(user)).reservedCents).toBe(2500);
+
+      const deleted = await remove(needId, user).expect(200);
+      expect(deleted.body.message).toBe('Planned need deleted.');
+
+      const { rows: needRows } = await db.query('SELECT id FROM planned_needs WHERE id = $1', [needId]);
+      expect(needRows).toHaveLength(0);
+      const rows = await holds(needId);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].status).toBe('released');
+      expect(rows[0].released_reason).toBe('need_deleted');
+      expect((await wallet(user)).reservedCents).toBe(0);
+      expect(await auditEvents('credit.planned_need_hold.released', rows[0].id)).toHaveLength(1);
+    } finally {
+      await cleanup(user);
+    }
+  });
+
+  test('G13-A1: deleting an unfunded need is a plain delete', async () => {
+    const user = await addUser();
+    await seedCredit(user);
+    const needId = await makeNeed(user);
+    try {
+      await remove(needId, user).expect(200);
+      const { rows: needRows } = await db.query('SELECT id FROM planned_needs WHERE id = $1', [needId]);
+      expect(needRows).toHaveLength(0);
       expect(await holds(needId)).toHaveLength(0);
       expect((await wallet(user)).reservedCents).toBe(0);
     } finally {

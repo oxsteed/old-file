@@ -47,8 +47,8 @@ function formatTopup(topup) {
     // Group 13 Slice 4f (680): the failed top-up this attempt retries, if
     // any — so the record view can link the chain both ways.
     retriedFromTopupId: topup.retried_from_topup_id ? String(topup.retried_from_topup_id) : null,
-    // Group 13 Slice 4j (699): the unified approval record. The recipient's
-    // read carries the same funder and approval info as the funder-side
+    // Group 13 Slice 4j (699): the unified funding record. The recipient's
+    // read carries the same funder and funding info as the funder-side
     // record — funder, business, reason — joined from the same row, never
     // a duplicated record. Display names ride the service join; a
     // self-service top-up has no funder, so all five come back null.
@@ -57,12 +57,14 @@ function formatTopup(topup) {
     fundingReason: topup.funding_reason || null,
     fundedByName: topup.funded_by_name || null,
     fundedByBusinessName: topup.funded_by_business_name || null,
-    // Derived, not stored: a business-funded top-up's funding approval is
-    // the funder's creation act — no approval step exists (677 stays
-    // HELD), so the approval moment is the creation time. Self-service
-    // top-ups have no funder approval at all.
-    fundingApprovalState: topup.funded_by_business_id ? 'approved' : 'not_applicable',
-    fundingApprovedAt: topup.funded_by_business_id ? topup.created_at : null,
+    // Derived, not stored (D-760, 677 decided): there is no second-person
+    // approval step for business-funded top-ups. The funding authorization
+    // IS the funder's creation act — owner/manager gate, step-up auth,
+    // reason, compliance gate, audit event — so the record says funded /
+    // authorized-at, never "approved". Self-service top-ups have no funder
+    // authorization at all.
+    fundingState: topup.funded_by_business_id ? 'funded' : 'not_applicable',
+    fundingAuthorizedAt: topup.funded_by_business_id ? topup.created_at : null,
   };
 }
 

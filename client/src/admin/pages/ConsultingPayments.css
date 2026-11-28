@@ -1,0 +1,29 @@
+/* G10-7 (D-768): mark-paid approval controls. These styles live here, not
+   inline: the no-new-inline-styles gate (CSP migration) fails the build on
+   any new style={} occurrence, so new controls use classes. */
+.consulting-mark-paid-approvals {
+  margin-inline-start: 0.4rem;
+  font-size: 0.78rem;
+  color: #6B7280;
+}
+
+.consulting-mark-paid-approvals.is-complete {
+  color: #10B981;
+}
+
+.consulting-approve-mark-paid {
+  margin-inline-start: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 5px;
+  border: 1px solid #0EA5E9;
+  background: none;
+  color: #0EA5E9;
+  font-size: 0.78rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.consulting-approve-mark-paid:disabled {
+  cursor: default;
+  opacity: 0.6;
+}

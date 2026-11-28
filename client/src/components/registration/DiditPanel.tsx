@@ -14,7 +14,11 @@ interface Props {
   onBack: () => void;
 }
 
-type DiditStatus = 'idle' | 'launching' | 'pending' | 'verified' | 'failed' | 'duplicate' | 'unavailable';
+type DiditStatus = 'idle' | 'launching' | 'pending' | 'verified' | 'failed' | 'duplicate' | 'unavailable' | 'expired';
+
+// G13-A3: the provider's terminal non-approved statuses all mean the same
+// thing to enrollment — the session is dead and only a fresh mint helps.
+const DIDIT_EXPIRED_STATUSES = ['expired', 'abandoned', 'canceled', 'cancelled'];
 
 export default function DiditPanel({ onVerified, onBack }: Props) {
   const [status, setStatus] = useState<DiditStatus>('idle');
@@ -44,6 +48,11 @@ export default function DiditPanel({ onVerified, onBack }: Props) {
         } else if (data?.status === 'duplicate') {
           setStatus('duplicate');
           setDuplicateHint(data?.existing_email_hint ?? '');
+        } else if (DIDIT_EXPIRED_STATUSES.includes(data.status)) {
+          // G13-A3: the session died at the provider; the webhook has
+          // already marked it terminal server-side, so starting again
+          // mints a fresh session instead of reusing the dead URL.
+          setStatus('expired');
         } else if (data.status === 'pending' && data.hasSession) {
           setStatus('pending');
           startPolling();
@@ -110,6 +119,9 @@ export default function DiditPanel({ onVerified, onBack }: Props) {
           clearInterval(pollRef.current!);
           setStatus('duplicate');
           setDuplicateHint(data?.existing_email_hint ?? '');
+        } else if (DIDIT_EXPIRED_STATUSES.includes(data.status)) {
+          clearInterval(pollRef.current!);
+          setStatus('expired');
         }
       } catch {
         // Network hiccup - keep polling
@@ -152,6 +164,24 @@ export default function DiditPanel({ onVerified, onBack }: Props) {
           </Link>
           <button type="button" onClick={handleRetry} className="text-xs text-gray-400 hover:text-white transition-colors underline">
             {t('didit.differentId')}
+          </button>
+        </div>
+      )}
+
+      {status === 'expired' && (
+        <div className="flex flex-col items-center gap-4 py-4">
+          <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center">
+            <AlertTriangle size={32} className="text-amber-500" />
+          </div>
+          <h2 className="text-xl font-bold text-white">{t('didit.expiredTitle')}</h2>
+          <p className="text-sm text-gray-400 max-w-[32ch] leading-relaxed">
+            {t('didit.expiredSubtitle')}
+          </p>
+          <button type="button" onClick={handleStart} className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors">
+            {t('didit.startFreshButton')}
+          </button>
+          <button type="button" onClick={handleRetry} className="text-xs text-gray-400 hover:text-white transition-colors underline">
+            {t('didit.tryAgain')}
           </button>
         </div>
       )}

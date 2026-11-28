@@ -172,4 +172,9 @@ router.post('/redeem', kioskDeviceLimiter, cardController.kioskRedeemCard);
 // kiosk (the private, closed-loop "cash-out" flow).
 router.post('/cash-out', kioskDeviceLimiter, cardController.kioskCashOut);
 
+// G13-B3: the kiosk reports what the dispenser actually did for a
+// cash-out. A failed or partial dispense auto-reverses the undispensed
+// value; an unconfirmed cash-out fails the shift closeout check.
+router.post('/cash-out/:transactionId/confirm-dispense', kioskDeviceLimiter, cardController.confirmCashOutDispense);
+
 module.exports = router;

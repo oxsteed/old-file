@@ -203,6 +203,30 @@ describeDb('Group 10 Slice H: close the engagement', () => {
     expect(denied.status).toBe(403);
   });
 
+  test('S-D3 (D-765): closeout cannot be confirmed while milestones are unaccepted', async () => {
+    const { client, consultant, sessionId } = await setup({ status: 'completed' });
+    await addDeliverable(sessionId, { name: 'Done work', status: 'accepted', accepted_by: client, accepted_at: new Date() });
+    const open = await addDeliverable(sessionId, { name: 'Open work', status: 'draft_delivered' });
+
+    const early = await request(app)
+      .post(`/api/consulting/contractor/sessions/${sessionId}/closeout/confirm`)
+      .set(auth(consultant)).send({});
+    expect(early.status).toBe(409);
+    expect(early.body.code).toBe('checklist_incomplete');
+    expect(early.body.unmet).toEqual(['all_milestones_accepted']);
+    // The refused confirm wrote nothing: no closeout row exists yet.
+    const { rows } = await db.query(`SELECT COUNT(*)::int AS n FROM consulting_closeouts WHERE session_id = $1`, [sessionId]);
+    expect(rows[0].n).toBe(0);
+
+    // Accepting the milestone unblocks the confirmation.
+    await db.query(`UPDATE consulting_deliverables SET status = 'accepted', accepted_by = $1, accepted_at = NOW() WHERE id = $2`, [client, open.id]);
+    const first = await request(app)
+      .post(`/api/consulting/contractor/sessions/${sessionId}/closeout/confirm`)
+      .set(auth(consultant)).send({});
+    expect(first.status).toBe(200);
+    expect(first.body.closeout.consultantConfirmedAt).toBeTruthy();
+  });
+
   test('542: closeout needs a completed engagement; each party confirms once; both confirmations close it', async () => {
     const { client, consultant, sessionId } = await setup({ status: 'in_progress' });
     const early = await request(app)

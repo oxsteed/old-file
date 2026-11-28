@@ -200,6 +200,15 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
       metadata: { kioskDeviceId: String(kioskDevice.id), cardId, cardLast4: '4242' },
       createdAt: new Date(Date.now() - 2 * 60 * 1000),
     });
+    // G13-B3: the fixture cash-out was confirmed as dispensed, so the
+    // closeout's dispense leg can pass for it. A cash-out with no
+    // dispense row counts as unconfirmed (see getCashOutDispenseFacts).
+    await pool.query(
+      `INSERT INTO oxsteed_credit_cash_out_dispenses
+         (transaction_id, kiosk_device_id, customer_id, amount_cents, status, dispensed_cents, confirmed_at)
+       VALUES ($1, $2, $3, 1000, 'dispensed', 1000, NOW())`,
+      [cashOutTxId, kioskDevice.id, customer.id],
+    );
     // A kiosk credit order: the ledger purchase plus the food order that
     // carries the attempt id, queue number, and transaction link.
     orderAttemptId = crypto.randomUUID();
@@ -686,7 +695,9 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
     expect(byKey.no_open_holds.passed).toBe(false);
     expect(byKey.no_open_holds.detail).toMatchObject({ openHoldCount: 1 });
     expect(byKey.cash_out_reconciled.passed).toBe(true);
-    expect(byKey.cash_out_reconciled.detail).toMatchObject({ cashOutCount: 1, cashOutCents: 1000 });
+    expect(byKey.cash_out_reconciled.detail).toMatchObject({
+      cashOutCents: 1000, netCashOutCents: 1000, confirmedDispensedCents: 1000, unconfirmedCount: 0,
+    });
     // The snapshot is stored on the shift row.
     const { rows: [row] } = await pool.query(
       `SELECT status, closeout FROM oxsteed_credit_kiosk_shifts WHERE id = $1`, [shiftId],
@@ -759,6 +770,313 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
     expect(closed.body.checklist.every((item) => item.passed)).toBe(true);
     expect(closed.body.summary).toMatchObject({
       transactionCount: 5, redemptionCount: 4, redemptionCents: 5500, cashOutCount: 1, cashOutCents: 1000,
+    });
+  });
+
+  // G13-B3: confirm-or-reverse dispense confirmation. Appended last on
+  // purpose: these tests post real cash-outs, and the 682/685 summary
+  // assertions above pin exact window counts that a cash-out would move.
+  describe('G13-B3: kiosk cash-out dispense confirmation', () => {
+    const creditService = require('../services/oxsteedCreditService');
+    const cardService = require('../services/oxsteedCreditCardService');
+    let railWasEnabled = null;
+
+    const walletBalance = async (accountId) => {
+      const { rows: [row] } = await pool.query(
+        `SELECT balance_cents FROM oxsteed_credit_accounts WHERE id = $1`, [accountId],
+      );
+      return Number(row.balance_cents);
+    };
+    const dispenseRow = async (txId) => {
+      const { rows: [row] } = await pool.query(
+        `SELECT * FROM oxsteed_credit_cash_out_dispenses WHERE transaction_id = $1`, [txId],
+      );
+      return row || null;
+    };
+    const reversalRows = async (txId) => {
+      const { rows } = await pool.query(
+        `SELECT * FROM oxsteed_credit_transactions
+          WHERE transaction_type = 'cash_out_reversal'
+            AND metadata ->> 'originalTransactionId' = $1`,
+        [String(txId)],
+      );
+      return rows;
+    };
+    const kioskPost = (device, token, path, body, idempotencyKey) => {
+      let req = request(app)
+        .post(`/api/restaurants/${restaurantId}/credit-kiosks/${device.id}${path}`)
+        .set('X-Device-Token', token);
+      if (idempotencyKey) req = req.set('Idempotency-Key', idempotencyKey);
+      return req.send(body || {});
+    };
+    const doCashOut = (customer, amountCents, key) => kioskPost(
+      kioskDevice, kioskToken, '/cash-out',
+      { credential: customer.credential, pin: '1234', amountCents }, key,
+    );
+    const doConfirm = (txId, body, device = kioskDevice, token = kioskToken) => kioskPost(
+      device, token, `/cash-out/${txId}/confirm-dispense`, body,
+    );
+
+    async function ensureWallet(customerId) {
+      // ensureCreditAccount lives inside the file's beforeAll; same shape here.
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const account = await creditService.ensureAccount(client, {
+          accountType: 'customer_wallet', customerId, currencyCode: 'USD',
+        });
+        await client.query('COMMIT');
+        return account.id;
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
+
+    // A fresh funded customer per cash-out: the daily cash-out caps
+    // (3 per day, 20,000 cents per day) are per customer, so sharing
+    // one customer across these tests would trip them.
+    async function makeCashOutCustomer() {
+      const user = await makeUser();
+      const wallet = await ensureWallet(user.id);
+      const fundClient = await pool.connect();
+      try {
+        await fundClient.query('BEGIN');
+        await creditService.postJournalTransaction(fundClient, {
+          currencyCode: 'USD',
+          idempotencyKey: `b3-fund-${user.id}`,
+          transactionType: 'load',
+          debitAccountId: treasuryId,
+          creditAccountId: wallet,
+          amountCents: 100000,
+          actorType: 'admin', actorUserId: adminId,
+          reason: 'G13-B3 fixture load',
+          status: 'posted',
+          referenceType: 'credit_funding', referenceId: `b3-fund-${user.id}`,
+          description: 'G13-B3 fixture load',
+          metadata: { source: 'g13-b3-fixture' },
+        });
+        await fundClient.query('COMMIT');
+      } catch (error) {
+        await fundClient.query('ROLLBACK');
+        throw error;
+      } finally {
+        fundClient.release();
+      }
+      const rawCredential = `b3-card-${user.id}`;
+      const salt = crypto.randomBytes(16).toString('hex');
+      const pinHash = await cardService.hashCardPinScrypt('1234', salt);
+      const { rows: [card] } = await pool.query(
+        `INSERT INTO oxsteed_credit_cards
+           (customer_id, account_id, card_type, status, credential_hash, credential_last4,
+            pin_hash, pin_salt, idempotency_key)
+         VALUES ($1, $2, 'virtual', 'active', $3, '4242', $4, $5, $6) RETURNING id`,
+        [user.id, wallet, crypto.createHash('sha256').update(rawCredential).digest('hex'),
+         pinHash, salt, `b3-card-${user.id}`],
+      );
+      return { user, walletId: wallet, cardId: card.id, credential: rawCredential };
+    }
+
+    async function openShiftWithCash(openingCashCents) {
+      await resetKioskLimiter(kioskDevice.id);
+      const opened = await cashierPost(kioskDevice, kioskToken, '/cashier/shifts', { openingCashCents });
+      expect(opened.status).toBe(201);
+      expect(opened.body.shift.openingCashCents).toBe(openingCashCents);
+      return opened.body.shift;
+    }
+    async function closeShift(shiftId, physicalCashRemainingCents) {
+      await resetKioskLimiter(kioskDevice.id);
+      const closed = await cashierPost(
+        kioskDevice, kioskToken, `/cashier/shifts/${shiftId}/close`,
+        physicalCashRemainingCents == null ? {} : { physicalCashRemainingCents },
+      );
+      expect(closed.status).toBe(200);
+      return closed.body;
+    }
+    const reconciledItem = (body) => body.checklist.find((item) => item.key === 'cash_out_reconciled');
+
+    beforeAll(async () => {
+      await resetKioskLimiter(kioskDevice.id);
+      const { rows: [flag] } = await pool.query(
+        `SELECT is_enabled FROM feature_flags WHERE key = 'oxsteed_credit_enabled'`,
+      );
+      railWasEnabled = flag?.is_enabled ?? null;
+      await pool.query(
+        `INSERT INTO feature_flags (key, is_enabled, description) VALUES ('oxsteed_credit_enabled', true, 'G13-B3 test')
+         ON CONFLICT (key) DO UPDATE SET is_enabled = true`,
+      );
+    });
+    afterAll(async () => {
+      if (railWasEnabled == null) {
+        await pool.query(`DELETE FROM feature_flags WHERE key = 'oxsteed_credit_enabled'`);
+      } else {
+        await pool.query(
+          `UPDATE feature_flags SET is_enabled = $1 WHERE key = 'oxsteed_credit_enabled'`,
+          [railWasEnabled],
+        );
+      }
+    });
+
+    test('a real cash-out creates a pending dispense row', async () => {
+      const customer = await makeCashOutCustomer();
+      const res = await doCashOut(customer, 2000, `b3-co-pending-${customer.user.id}`);
+      expect(res.status).toBe(201);
+      const txId = res.body.transaction.id;
+      const row = await dispenseRow(txId);
+      expect(row).toMatchObject({
+        kiosk_device_id: kioskDevice.id, customer_id: customer.user.id,
+        amount_cents: 2000, status: 'pending', dispensed_cents: 0,
+      });
+      expect(await walletBalance(customer.walletId)).toBe(98000);
+    });
+
+    test('confirming dispensed closes the row with no reversal', async () => {
+      const customer = await makeCashOutCustomer();
+      const res = await doCashOut(customer, 2000, `b3-co-dispensed-${customer.user.id}`);
+      const txId = res.body.transaction.id;
+      const confirmed = await doConfirm(txId, { status: 'dispensed', dispensedCents: 2000 });
+      expect(confirmed.status).toBe(201);
+      expect(confirmed.body).toMatchObject({ status: 'dispensed', dispensedCents: 2000, reversedCents: 0 });
+      expect(confirmed.body.replayed).toBe(false);
+      expect(await dispenseRow(txId)).toMatchObject({ status: 'dispensed', dispensed_cents: 2000 });
+      expect(await reversalRows(txId)).toHaveLength(0);
+      expect(await walletBalance(customer.walletId)).toBe(98000);
+    });
+
+    test('confirming failed reverses the full amount and records a critical incident', async () => {
+      const customer = await makeCashOutCustomer();
+      const res = await doCashOut(customer, 2000, `b3-co-failed-${customer.user.id}`);
+      const txId = res.body.transaction.id;
+      const confirmed = await doConfirm(txId, { status: 'failed', dispensedCents: 0 });
+      expect(confirmed.status).toBe(201);
+      expect(confirmed.body).toMatchObject({ status: 'failed', reversedCents: 2000 });
+      const reversals = await reversalRows(txId);
+      expect(reversals).toHaveLength(1);
+      expect(reversals[0]).toMatchObject({ transaction_type: 'cash_out_reversal', status: 'posted' });
+      expect(Number(reversals[0].amount_cents)).toBe(2000);
+      expect(await walletBalance(customer.walletId)).toBe(100000);
+      const { rows: [incident] } = await pool.query(
+        `SELECT * FROM incident_log WHERE dedupe_key = $1`, [`credit-cash-out-dispense-failed:${txId}`],
+      );
+      expect(incident).toBeTruthy();
+      expect(incident.severity).toBe('critical');
+    });
+
+    test('confirming partial reverses only the undispensed remainder', async () => {
+      const customer = await makeCashOutCustomer();
+      const res = await doCashOut(customer, 2000, `b3-co-partial-${customer.user.id}`);
+      const txId = res.body.transaction.id;
+      const confirmed = await doConfirm(txId, { status: 'partial', dispensedCents: 800 });
+      expect(confirmed.status).toBe(201);
+      expect(confirmed.body).toMatchObject({ status: 'partial', dispensedCents: 800, reversedCents: 1200 });
+      const reversals = await reversalRows(txId);
+      expect(reversals).toHaveLength(1);
+      expect(Number(reversals[0].amount_cents)).toBe(1200);
+      expect(await walletBalance(customer.walletId)).toBe(99200);
+    });
+
+    test('a second confirm replays without a second reversal', async () => {
+      const customer = await makeCashOutCustomer();
+      const res = await doCashOut(customer, 2000, `b3-co-replay-${customer.user.id}`);
+      const txId = res.body.transaction.id;
+      await doConfirm(txId, { status: 'failed', dispensedCents: 0 });
+      const replay = await doConfirm(txId, { status: 'failed', dispensedCents: 0 });
+      expect(replay.status).toBe(200);
+      expect(replay.body.replayed).toBe(true);
+      expect(replay.body).toMatchObject({ status: 'failed', reversedCents: 2000 });
+      expect(await reversalRows(txId)).toHaveLength(1);
+      expect(await walletBalance(customer.walletId)).toBe(100000);
+    });
+
+    test('another device cannot confirm a cash-out (404, never 403)', async () => {
+      const customer = await makeCashOutCustomer();
+      const res = await doCashOut(customer, 2000, `b3-co-wrongdev-${customer.user.id}`);
+      const txId = res.body.transaction.id;
+      const wrong = await doConfirm(txId, { status: 'dispensed', dispensedCents: 2000 }, otherDevice, otherToken);
+      expect(wrong.status).toBe(404);
+      expect(wrong.body.code).toBe('credit_kiosk_cash_out_not_found');
+      expect(await dispenseRow(txId)).toMatchObject({ status: 'pending' });
+    });
+
+    test('a status/amount mismatch is 400', async () => {
+      const customer = await makeCashOutCustomer();
+      const res = await doCashOut(customer, 2000, `b3-co-bad-${customer.user.id}`);
+      const txId = res.body.transaction.id;
+      const bad = await doConfirm(txId, { status: 'failed', dispensedCents: 500 });
+      expect(bad.status).toBe(400);
+      expect(bad.body.code).toBe('credit_cash_out_dispense_invalid');
+      expect(await dispenseRow(txId)).toMatchObject({ status: 'pending' });
+      expect(await walletBalance(customer.walletId)).toBe(98000);
+    });
+
+    test('a pre-change cash-out with no dispense row is confirmable (lazy create)', async () => {
+      const legacy = await seedLedgerTx({
+        type: 'cash_out', status: 'posted', amountCents: 1500,
+        debitAccountId: walletId, creditAccountId: treasuryId,
+        referenceType: 'credit_kiosk_cash_out', referenceId: String(kioskDevice.id),
+        metadata: { kioskDeviceId: String(kioskDevice.id), cardId, cardLast4: '4242' },
+      });
+      expect(await dispenseRow(legacy)).toBeNull();
+      const confirmed = await doConfirm(legacy, { status: 'dispensed', dispensedCents: 1500 });
+      expect(confirmed.status).toBe(201);
+      expect(await dispenseRow(legacy)).toMatchObject({ status: 'dispensed', dispensed_cents: 1500 });
+    });
+
+    test('closeout: confirmed dispensed cash-out reconciles with the physical count', async () => {
+      const customer = await makeCashOutCustomer();
+      const shift = await openShiftWithCash(10000);
+      const res = await doCashOut(customer, 2000, `b3-cl-pass-${customer.user.id}`);
+      await doConfirm(res.body.transaction.id, { status: 'dispensed', dispensedCents: 2000 });
+      const closed = await closeShift(shift.id, 8000);
+      const item = reconciledItem(closed);
+      expect(item.passed).toBe(true);
+      expect(item.detail).toMatchObject({
+        cashOutCents: 2000, netCashOutCents: 2000, confirmedDispensedCents: 2000,
+        unconfirmedCount: 0, physicalCheckApplicable: true, physicalCheckPassed: true,
+      });
+    });
+
+    test('closeout: an unconfirmed cash-out fails the dispense leg', async () => {
+      const customer = await makeCashOutCustomer();
+      const shift = await openShiftWithCash(10000);
+      await doCashOut(customer, 1000, `b3-cl-unconf-${customer.user.id}`);
+      const closed = await closeShift(shift.id, null);
+      const item = reconciledItem(closed);
+      expect(item.passed).toBe(false);
+      expect(item.detail).toMatchObject({
+        cashOutCents: 1000, netCashOutCents: 1000, confirmedDispensedCents: 0, unconfirmedCount: 1,
+      });
+      expect(closed.allPassed).toBe(false);
+    });
+
+    test('closeout: a physical-count mismatch fails even when the dispense leg agrees', async () => {
+      const customer = await makeCashOutCustomer();
+      const shift = await openShiftWithCash(10000);
+      const res = await doCashOut(customer, 2000, `b3-cl-phys-${customer.user.id}`);
+      await doConfirm(res.body.transaction.id, { status: 'dispensed', dispensedCents: 2000 });
+      const closed = await closeShift(shift.id, 7000);
+      const item = reconciledItem(closed);
+      expect(item.passed).toBe(false);
+      expect(item.detail).toMatchObject({
+        unconfirmedCount: 0, confirmedDispensedCents: 2000,
+        physicalCheckApplicable: true, physicalCheckPassed: false,
+      });
+    });
+
+    test('closeout: a failed cash-out that was reversed keeps the physical math whole', async () => {
+      const customer = await makeCashOutCustomer();
+      const shift = await openShiftWithCash(10000);
+      const res = await doCashOut(customer, 2000, `b3-cl-rev-${customer.user.id}`);
+      await doConfirm(res.body.transaction.id, { status: 'failed', dispensedCents: 0 });
+      const closed = await closeShift(shift.id, 10000);
+      const item = reconciledItem(closed);
+      expect(item.passed).toBe(true);
+      expect(item.detail).toMatchObject({
+        cashOutCents: 2000, reversedCents: 2000, netCashOutCents: 0,
+        confirmedDispensedCents: 0, unconfirmedCount: 0, physicalCheckPassed: true,
+      });
     });
   });
 });

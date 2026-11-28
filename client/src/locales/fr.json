@@ -3376,7 +3376,10 @@
     "goBack": "Retour",
     "skipToast": "Continuation sans vérification",
     "errorSkip": "Impossible d'ignorer la vérification",
-    "errorStart": "Impossible de démarrer la vérification"
+    "errorStart": "Impossible de démarrer la vérification",
+    "expiredTitle": "La session de vérification a expiré",
+    "expiredSubtitle": "Votre session de vérification s’est terminée avant d’être complétée. Lancez une nouvelle vérification pour continuer.",
+    "startFreshButton": "Lancer une nouvelle vérification"
   },
   "footer": {
     "explore": "Explorer",
@@ -39577,10 +39580,14 @@
   "adminConsultingPayments": {
     "markPaid": "Marquer payée",
     "markPaidMethod": "Méthode",
-    "markPaidReference": "Référence (facultatif)",
+    "markPaidReference": "Référence",
     "markPaidConfirm": "Confirmer le paiement",
     "markPaidDone": "Facture marquée payée",
     "markPaidFailed": "Impossible de marquer la facture payée",
+    "approveMarkPaid": "Approuver le paiement",
+    "markPaidApprovals": "Approbations de paiement : {{count}} sur 2",
+    "markPaidApproved": "Approbation enregistrée.",
+    "markPaidApprovalFailed": "Impossible d'enregistrer l'approbation.",
     "method_bank_transfer": "Virement bancaire",
     "method_check": "Chèque",
     "method_cash": "Espèces",

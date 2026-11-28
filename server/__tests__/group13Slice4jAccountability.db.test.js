@@ -10,9 +10,11 @@
 // 699 builds the unified top-up approval record: the recipient's top-up
 // read carries the same funder/business/reason/approval info as the
 // funder-side record, joined from the same row.
-// 700 stays PARTIAL and HELD (no suspend/revoke transition exists in the
-// participant service — pinned here, not built). The display-only piece
-// built is the wallet-account removal reason + date, from the status-change
+// 700 is BUILT (D-763): the participant service has suspend/revoke
+// transitions with audit + notice, and transitionPartner cascades a
+// partner suspension (participants suspended) and termination
+// (participants revoked) in the same transaction. The display-only piece
+// is the wallet-account removal reason + date, from the status-change
 // audit event that already records them.
 // Runs against a dedicated fresh database (credit_statement_test_g13j) so
 // slice-local fixtures never pollute the shared credit_statement_test DB.
@@ -334,25 +336,25 @@ describeDb('Group 13 Slice 4j: track accountability (696-700)', () => {
       fundedByBusinessId: String(business.id),
       fundingReason: 'Fixture shift bonus',
       fundedByBusinessName: 'Fixture Business',
-      fundingApprovalState: 'approved',
+      fundingState: 'funded',
     });
     expect(recipientRead.body.topup.fundedByName).toBe('Test Fixture');
-    expect(recipientRead.body.topup.fundingApprovedAt).toBeTruthy();
+    expect(recipientRead.body.topup.fundingAuthorizedAt).toBeTruthy();
 
     const funderRead = await getAs(funder, `/api/businesses/${business.id}/credit-topups/${topupId}`);
     expect(funderRead.status).toBe(200);
-    for (const field of ['fundedByUserId', 'fundedByBusinessId', 'fundingReason', 'fundedByName', 'fundedByBusinessName', 'fundingApprovalState', 'fundingApprovedAt']) {
+    for (const field of ['fundedByUserId', 'fundedByBusinessId', 'fundingReason', 'fundedByName', 'fundedByBusinessName', 'fundingState', 'fundingAuthorizedAt']) {
       expect(funderRead.body.topup[field]).toEqual(recipientRead.body.topup[field]);
     }
 
-    // The recipient's list carries the same approval info.
+    // The recipient's list carries the same funding info.
     const list = await getAs(member, '/api/oxsteed-credit/topups');
     expect(list.status).toBe(200);
     const listed = list.body.topups.find((row) => String(row.id) === String(topupId));
     expect(listed).toMatchObject({
       fundedByBusinessId: String(business.id),
       fundingReason: 'Fixture shift bonus',
-      fundingApprovalState: 'approved',
+      fundingState: 'funded',
     });
 
     // Isolation: another customer cannot read the recipient's record.
@@ -360,7 +362,7 @@ describeDb('Group 13 Slice 4j: track accountability (696-700)', () => {
     expect(outsiderRead.status).toBe(404);
   });
 
-  test('699: a self-service top-up carries no funder approval', async () => {
+  test('699: a self-service top-up carries no funding authorization', async () => {
     const user = await makeUser();
     await verifyCustomer(user);
     const created = await postAs(user, '/api/oxsteed-credit/topups')
@@ -375,8 +377,8 @@ describeDb('Group 13 Slice 4j: track accountability (696-700)', () => {
       fundingReason: null,
       fundedByName: null,
       fundedByBusinessName: null,
-      fundingApprovalState: 'not_applicable',
-      fundingApprovedAt: null,
+      fundingState: 'not_applicable',
+      fundingAuthorizedAt: null,
     });
   });
 
@@ -410,55 +412,162 @@ describeDb('Group 13 Slice 4j: track accountability (696-700)', () => {
     expect(strangerRes.body.account.statusReason).toBeNull();
   });
 
-  // 700 (display-only, D-576): a suspended partner's removal reason +
-  // date come from the partner transition audit event; the participant
-  // row itself is untouched (no suspend/revoke transition is built).
-  test('700: a suspended partner read carries its removal reason and date; the participant row stays active', async () => {
+  // 700 (D-763): suspending a partner suspends its participants in the
+  // same transaction and notifies them; the removal reason + date read
+  // still comes from the partner transition audit event.
+  test('700: a suspended partner suspends its participants and notifies them; the reason/date read still works', async () => {
+    const funder = await makeUser();
+    const member = await makeUser();
+    const business = await makeBusiness({ owner: funder, member });
+    const { rows: [restaurant] } = await pool.query(
+      `INSERT INTO food_restaurants (business_id, owner_user_id, display_name, status)
+       VALUES ($1, $2, 'Fixture Kitchen', 'active') RETURNING id`,
+      [business.id, funder.id],
+    );
+    const { rows: [partnerRow] } = await pool.query(
+      `INSERT INTO oxsteed_credit_partners (restaurant_id, business_id, settlement_currency_code, notes, created_by, status)
+       VALUES ($1, $2, 'USD', NULL, $3, 'active') RETURNING id`,
+      [restaurant.id, business.id, admin.id],
+    );
+    const { rows: [participantRow] } = await pool.query(
+      `INSERT INTO credit_participants
+         (partner_id, participant_type, restaurant_id, business_id, user_id, status, didit_verified, allowed_surfaces, notes)
+       VALUES ($1, 'business', NULL, $2, NULL, 'active', FALSE, $3::text[], 'Fixture enrolment') RETURNING id`,
+      [partnerRow.id, business.id, ['food_online']],
+    );
+    const participantId = String(participantRow.id);
+    const { transitionPartner } = require('../services/oxsteedCreditAdminService');
+    const result = await transitionPartner({
+      partnerId: String(partnerRow.id),
+      targetStatus: 'suspended',
+      reason: 'Fixture partner suspension',
+      actorUserId: admin.id,
+    });
+    expect(result.partner.status).toBe('suspended');
+    expect(result.participantsChanged).toHaveLength(1);
+    expect(result.participantsChanged[0]).toEqual({
+      participantId,
+      status: 'suspended',
+      previousStatus: 'active',
+    });
+    const { rows: [after] } = await pool.query(
+      `SELECT status FROM credit_participants WHERE id = $1`, [participantRow.id],
+    );
+    expect(after.status).toBe('suspended');
+    const { rows: [audit] } = await pool.query(
+      `SELECT reason FROM oxsteed_credit_audit_events
+        WHERE action_type = 'credit.participant.suspended' AND resource_id = $1`,
+      [participantId],
+    );
+    expect(audit.reason).toContain('Fixture partner suspension');
+    const res = await getAs(funder, '/api/oxsteed-credit/participants/me');
+    expect(res.status).toBe(200);
+    const mine = res.body.participants.find((row) => String(row.participantId) === participantId);
+    expect(mine).toBeTruthy();
+    expect(mine.status).toBe('suspended');
+    expect(mine.partnerStatus).toBe('suspended');
+    expect(mine.partnerStatusReason).toBe('Fixture partner suspension');
+    expect(mine.partnerStatusChangedAt).toBeTruthy();
+    const { rows: notes } = await pool.query(
+      `SELECT data FROM notifications WHERE user_id = $1 AND type = 'credit_participant_status_changed' ORDER BY created_at`,
+      [funder.id],
+    );
+    expect(notes).toHaveLength(1);
+    expect(notes[0].data.status).toBe('suspended');
+    expect(notes[0].data.participant_id).toBe(participantId);
+    // Isolation: another customer's read carries no such participant.
+    const stranger = await makeUser();
+    const strangerRes = await getAs(stranger, '/api/oxsteed-credit/participants/me');
+    expect(strangerRes.status).toBe(200);
+    expect(strangerRes.body.participants.map((row) => String(row.participantId))).not.toContain(participantId);
+  });
+
+  // 700 (D-763): the participant service suspends and revokes directly,
+  // with audit + notice; a replay notifies nothing; revoked is terminal.
+  test('700: suspend/revoke transitions audit, notify, replay silently, and refuse suspend from revoked', async () => {
     const funder = await makeUser();
     const member = await makeUser();
     const business = await makeBusiness({ owner: funder, member });
     const participantService = require('../services/oxsteedCreditParticipantService');
-    const { participant, partnerId } = await participantService.enrollParticipant({
+    const { participant } = await participantService.enrollParticipant({
       actorUserId: admin.id,
       participantType: 'business',
       businessId: business.id,
       notes: 'Fixture enrolment',
       allowedSurfaces: ['food_online'],
     });
-    // The partner is suspended partner-side (row flip + the transition
-    // audit event, the way transitionPartner records it); the
-    // participant row is left active on purpose.
-    await pool.query(`UPDATE credit_participants SET status = 'active' WHERE id = $1`, [participant.participantId]);
-    await pool.query(`UPDATE oxsteed_credit_partners SET status = 'suspended' WHERE id = $1`, [partnerId]);
-    await pool.query(
-      `INSERT INTO oxsteed_credit_audit_events
-         (action_type, actor_user_id, partner_id, resource_type, resource_id, reason)
-       VALUES ('credit.partner.transitioned', $1, $2, 'credit_partner', $3, 'Fixture partner suspension')`,
-      [admin.id, partnerId, String(partnerId)],
+    const participantId = String(participant.participantId);
+    const suspended = await participantService.suspendParticipant({
+      participantId, actorUserId: admin.id, reason: 'Fixture review',
+    });
+    expect(suspended.participant.status).toBe('suspended');
+    expect(suspended.replayed).toBe(false);
+    const again = await participantService.suspendParticipant({
+      participantId, actorUserId: admin.id, reason: 'Fixture review',
+    });
+    expect(again.replayed).toBe(true);
+    const revoked = await participantService.revokeParticipant({
+      participantId, actorUserId: admin.id, reason: 'Fixture removal',
+    });
+    expect(revoked.participant.status).toBe('revoked');
+    expect(revoked.replayed).toBe(false);
+    await expect(participantService.suspendParticipant({
+      participantId, actorUserId: admin.id, reason: 'Fixture review',
+    })).rejects.toMatchObject({ code: 'credit_participant_transition_invalid' });
+    const { rows: notes } = await pool.query(
+      `SELECT data FROM notifications WHERE user_id = $1 AND type = 'credit_participant_status_changed' ORDER BY created_at`,
+      [funder.id],
     );
-    const res = await getAs(funder, '/api/oxsteed-credit/participants/me');
-    expect(res.status).toBe(200);
-    const mine = res.body.participants.find((row) => String(row.participantId) === String(participant.participantId));
-    expect(mine).toBeTruthy();
-    expect(mine.status).toBe('active');
-    expect(mine.partnerStatus).toBe('suspended');
-    expect(mine.partnerStatusReason).toBe('Fixture partner suspension');
-    expect(mine.partnerStatusChangedAt).toBeTruthy();
-    // Isolation: another customer's read carries no such participant.
-    const stranger = await makeUser();
-    const strangerRes = await getAs(stranger, '/api/oxsteed-credit/participants/me');
-    expect(strangerRes.status).toBe(200);
-    expect(strangerRes.body.participants.map((row) => String(row.participantId))).not.toContain(String(participant.participantId));
+    // pending (enroll) + suspended + revoked; the replay sent nothing.
+    expect(notes.map((row) => row.data.status)).toEqual(['pending', 'suspended', 'revoked']);
+    const { rows: audits } = await pool.query(
+      `SELECT action_type FROM oxsteed_credit_audit_events
+        WHERE resource_type = 'credit_participant' AND resource_id = $1 AND action_type IN ('credit.participant.suspended', 'credit.participant.revoked') ORDER BY created_at`,
+      [participantId],
+    );
+    expect(audits.map((row) => row.action_type)).toEqual(['credit.participant.suspended', 'credit.participant.revoked']);
   });
 
-  test('700 HELD: the participant service has no suspend/revoke transition', async () => {
-    const participantService = require('../services/oxsteedCreditParticipantService');
-    expect(typeof participantService.suspendParticipant).toBe('undefined');
-    expect(typeof participantService.revokeParticipant).toBe('undefined');
-    expect(typeof participantService.transitionParticipant).toBe('undefined');
-    // The only lifecycle transitions are the ones that exist today.
-    expect(typeof participantService.applyForCreditParticipation).toBe('function');
-    expect(typeof participantService.enrollParticipant).toBe('function');
-    expect(typeof participantService.activateParticipant).toBe('function');
+  // 700 (D-763): terminating a partner revokes its participants.
+  test('700: a terminated partner revokes its participants', async () => {
+    const funder = await makeUser();
+    const member = await makeUser();
+    const business = await makeBusiness({ owner: funder, member });
+    const { rows: [restaurant] } = await pool.query(
+      `INSERT INTO food_restaurants (business_id, owner_user_id, display_name, status)
+       VALUES ($1, $2, 'Fixture Kitchen', 'active') RETURNING id`,
+      [business.id, funder.id],
+    );
+    const { rows: [partnerRow] } = await pool.query(
+      `INSERT INTO oxsteed_credit_partners (restaurant_id, business_id, settlement_currency_code, notes, created_by, status)
+       VALUES ($1, $2, 'USD', NULL, $3, 'active') RETURNING id`,
+      [restaurant.id, business.id, admin.id],
+    );
+    const { rows: [participantRow] } = await pool.query(
+      `INSERT INTO credit_participants
+         (partner_id, participant_type, restaurant_id, business_id, user_id, status, didit_verified, allowed_surfaces, notes)
+       VALUES ($1, 'business', NULL, $2, NULL, 'active', FALSE, $3::text[], 'Fixture enrolment') RETURNING id`,
+      [partnerRow.id, business.id, ['food_online']],
+    );
+    const { transitionPartner } = require('../services/oxsteedCreditAdminService');
+    const result = await transitionPartner({
+      partnerId: String(partnerRow.id),
+      targetStatus: 'terminated',
+      reason: 'Fixture partner termination',
+      actorUserId: admin.id,
+    });
+    expect(result.participantsChanged).toHaveLength(1);
+    expect(result.participantsChanged[0].status).toBe('revoked');
+    expect(result.participantsChanged[0].previousStatus).toBe('active');
+    const { rows: [after] } = await pool.query(
+      `SELECT status FROM credit_participants WHERE id = $1`, [participantRow.id],
+    );
+    expect(after.status).toBe('revoked');
+    const { rows: notes } = await pool.query(
+      `SELECT data FROM notifications WHERE user_id = $1 AND type = 'credit_participant_status_changed' ORDER BY created_at`,
+      [funder.id],
+    );
+    expect(notes).toHaveLength(1);
+    expect(notes[0].data.status).toBe('revoked');
   });
 });

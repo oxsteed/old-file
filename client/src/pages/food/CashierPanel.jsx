@@ -58,10 +58,23 @@ export default function CashierPanel({
   const [shiftLoading, setShiftLoading] = useState(true);
   const [shiftError, setShiftError] = useState(null);
   const [openingShift, setOpeningShift] = useState(false);
+  // G13-B3: physical cash counted in the cassette at open and at close.
+  // Both are optional; the server skips the physical leg when either is
+  // missing instead of inventing a count. Dollars in, cents to the API.
+  const [openingCash, setOpeningCash] = useState("");
+  const [physicalCash, setPhysicalCash] = useState("");
   // 685: the closeout of the shift just closed (the live checklist rides
   // on shiftData.checklist while the shift is open).
   const [closedShift, setClosedShift] = useState(null);
   const [closingShift, setClosingShift] = useState(false);
+
+  const parseCashToCents = (value) => {
+    const trimmed = String(value ?? "").trim();
+    if (!trimmed) return null;
+    const parsed = Number.parseFloat(trimmed);
+    if (!Number.isFinite(parsed) || parsed < 0) return null;
+    return Math.round(parsed * 100);
+  };
 
   const handleCloseShift = async () => {
     const shift = shiftData?.shift;
@@ -69,9 +82,12 @@ export default function CashierPanel({
     setClosingShift(true);
     setShiftError(null);
     try {
-      const result = await closeCashierShift(restaurantId, device, shift.id);
+      const result = await closeCashierShift(restaurantId, device, shift.id, {
+        physicalCashRemainingCents: parseCashToCents(physicalCash),
+      });
       if (!mountedRef.current) return;
       setClosedShift(result);
+      setPhysicalCash("");
       await loadCurrentShift();
     } catch {
       if (mountedRef.current) setShiftError("error");
@@ -112,9 +128,11 @@ export default function CashierPanel({
     try {
       const data = await openCashierShift(restaurantId, device, {
         locationId: pickedLocationId ?? defaultLocationId,
+        openingCashCents: parseCashToCents(openingCash),
       });
       if (mountedRef.current) {
         setShiftData({ shift: data.shift, summary: null });
+        setOpeningCash("");
         await loadCurrentShift();
       }
     } catch {
@@ -267,6 +285,19 @@ export default function CashierPanel({
           {!shiftLoading && !shiftData?.shift && (
             <>
               <p className="fd-cashier-note">{t("cashier.noShift")}</p>
+              <div className="fd-field">
+                <label htmlFor="fd-cashier-opening-cash">{t("cashier.openingCashLabel")}</label>
+                <input
+                  id="fd-cashier-opening-cash"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={openingCash}
+                  onChange={(event) => setOpeningCash(event.target.value)}
+                  placeholder={t("cashier.openingCashPlaceholder")}
+                />
+              </div>
               <button
                 type="button"
                 className="fd-btn"
@@ -331,9 +362,32 @@ export default function CashierPanel({
                   <li key={item.key} className={item.passed ? "fd-cashier-check-pass" : "fd-cashier-check-fail"}>
                     <span>{t(`cashier.checklist${item.key === "transactions_accounted" ? "TransactionsAccounted" : item.key === "no_open_holds" ? "NoOpenHolds" : "CashOutReconciled"}`)}</span>
                     <strong>{item.passed ? t("cashier.checkPassed") : t("cashier.checkFailed")}</strong>
+                    {item.key === "cash_out_reconciled" && item.detail && (
+                      <div className="fd-cashier-note">
+                        {t("cashier.dispenseConfirmed", { amount: formatFoodMoney(item.detail.confirmedDispensedCents ?? 0, shiftData.summary?.currencyCode || "USD") })}
+                        {` · ${t("cashier.dispenseReversed", { amount: formatFoodMoney(item.detail.reversedCents ?? 0, shiftData.summary?.currencyCode || "USD") })}`}
+                        {(item.detail.unconfirmedCount ?? 0) > 0
+                          ? ` · ${t("cashier.dispenseUnconfirmed", { count: item.detail.unconfirmedCount })}`
+                          : ""}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
+              <div className="fd-field">
+                <label htmlFor="fd-cashier-physical-cash">{t("cashier.physicalCashLabel")}</label>
+                <input
+                  id="fd-cashier-physical-cash"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={physicalCash}
+                  onChange={(event) => setPhysicalCash(event.target.value)}
+                  placeholder={t("cashier.openingCashPlaceholder")}
+                />
+                <p className="fd-cashier-note">{t("cashier.physicalCashHelp")}</p>
+              </div>
               <div className="fd-cashier-row">
                 <button
                   type="button"

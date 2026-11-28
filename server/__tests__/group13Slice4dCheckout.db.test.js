@@ -571,4 +571,56 @@ describeDb('Group 13 Slice 4d: checkout reads and expired-hold re-authorization 
       );
     }
   });
+
+  // G13-A2: the wallet's held money is holds AND reservations, but the
+  // holds list read only oxsteed_credit_holds — a funded planned need was
+  // invisible while its money was unspendable.
+  test('G13-A2: a funded planned need shows as a reservation line item, and the active rows sum to the reserved balance', async () => {
+    const user = await makeUser();
+    const walletId = await makeWallet(user);
+    await fundWallet(user, walletId, 100000);
+    const { rows: [need] } = await pool.query(
+      `INSERT INTO planned_needs (user_id, title, category, status, due_date, estimated_cost, reserved_amount)
+       VALUES ($1, 'Boiler service', 'other', 'planned', '2027-06-01', 100, 0) RETURNING id`,
+      [user.id],
+    );
+    const { withTransaction } = require('../utils/transaction');
+    const { placePlannedNeedCreditHold, releasePlannedNeedCreditHolds } = require('../services/plannedNeedCreditHoldService');
+    await withTransaction(pool, async (client) => {
+      await placePlannedNeedCreditHold(client, {
+        needId: need.id, customerId: user.id, amountCents: 2500, currencyCode: 'USD',
+        idempotencyKey: `g13-a2-${need.id}`, actorUserId: user.id,
+      });
+    }, 'g13-a2-fixture-hold');
+    expect((await walletState(walletId)).reserved).toBe(2500);
+
+    const all = await getAs(user, '/api/oxsteed-credit/holds?status=all&limit=50');
+    expect(all.status).toBe(200);
+    const row = all.body.holds.find((hold) => hold.kind === 'reservation');
+    expect(row).toMatchObject({
+      kind: 'reservation', amountCents: 2500, currencyCode: 'USD', status: 'active',
+      plannedNeedId: Number(need.id), plannedNeedTitle: 'Boiler service',
+      reservationType: 'planned_need_fund',
+    });
+    expect(row.partnerId).toBeNull();
+    expect(row.idempotencyKey).toBeUndefined();
+
+    // The active line items sum to the wallet's reserved balance: the list
+    // now accounts for every held cent (migration-755 guard, read side).
+    const active = await getAs(user, '/api/oxsteed-credit/holds?status=active&limit=50');
+    expect(active.status).toBe(200);
+    const activeSum = active.body.holds
+      .filter((hold) => hold.status === 'active')
+      .reduce((sum, hold) => sum + hold.amountCents, 0);
+    expect(activeSum).toBe((await walletState(walletId)).reserved);
+
+    // A released reservation reads back under status=released with its reason.
+    await withTransaction(pool, async (client) => {
+      await releasePlannedNeedCreditHolds(client, { needId: need.id, reason: 'need_cancelled', actorUserId: user.id });
+    }, 'g13-a2-fixture-release');
+    const released = await getAs(user, '/api/oxsteed-credit/holds?status=released&limit=50');
+    const releasedRow = released.body.holds.find((hold) => hold.kind === 'reservation');
+    expect(releasedRow).toMatchObject({ status: 'released', releaseReason: 'need_cancelled' });
+    expect((await walletState(walletId)).reserved).toBe(0);
+  });
 });

@@ -52,3 +52,32 @@ test('Didit payload validation requires an HTTPS URL and session token', () => {
   expect(() => requireDiditPayload({ session_id: 's1', session_token: 't1', url: 'http://verify.example.test/s1' })).toThrow();
   expect(() => requireDiditPayload({ session_id: 's1', url: 'https://verify.example.test/s1' })).toThrow();
 });
+
+// G13-A3: once the webhook marks a session expired, the stored payload
+// must never be reused — the next create mints a fresh session even
+// though the dead URL is still saved on the row.
+test('an expired session with a saved payload mints a fresh session instead of reusing the dead URL', async () => {
+  const prevKey = process.env.DIDIT_API_KEY;
+  process.env.DIDIT_API_KEY = 'synthetic-test-key';
+  const { encrypt } = require('../utils/encryption');
+  const deadPayload = encrypt(JSON.stringify({
+    verificationUrl: 'https://verify.example.test/dead', verification_url: 'https://verify.example.test/dead',
+    sessionToken: 'dead-t', session_token: 'dead-t',
+  }));
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ didit_status: 'expired', didit_session_id: 'dead-1', didit_session_payload_ciphertext: deadPayload, identity_verified: false, id_verified: false }] })
+    .mockResolvedValue({ rows: [], rowCount: 1 });
+  const original = global.fetch;
+  const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ session_id: 'fresh-a3', session_token: 't', url: 'https://verify.example.test/fresh' }) });
+  global.fetch = fetchMock;
+  const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+  try {
+    await createSession({ user: { id: 'user-a3' } }, res);
+  } finally {
+    global.fetch = original;
+    if (prevKey === undefined) delete process.env.DIDIT_API_KEY; else process.env.DIDIT_API_KEY = prevKey;
+  }
+  expect(fetchMock).toHaveBeenCalled();
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'fresh-a3', verificationUrl: 'https://verify.example.test/fresh' }));
+  expect(res.json.mock.calls[0][0].reused).toBeUndefined();
+});
