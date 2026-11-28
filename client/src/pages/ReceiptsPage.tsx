@@ -38,6 +38,7 @@ interface ReceiptRow {
   id: string;
   bookingId?: string | null;
   jobId?: string | null;
+  paymentId?: string | null;
   title: string;
   amount: number;
   currency: string;
@@ -46,6 +47,24 @@ interface ReceiptRow {
   startDate?: string;
   endDate?: string;
   invoiceNumber?: string | null;
+}
+
+interface RefundAttempt {
+  id: string;
+  amount_cents: number;
+  reason: string | null;
+  status: string;
+  stripe_refund_id: string | null;
+  last_error: string | null;
+  actor: string | null;
+  created_at: string;
+  updated_at: string;
+  settled_at: string | null;
+}
+
+interface RefundHistory {
+  payment: { id: string; amount: number; currency: string; status: string; refunded_amount: number };
+  attempts: RefundAttempt[];
 }
 
 export default function ReceiptsPage() {
@@ -102,6 +121,29 @@ export default function ReceiptsPage() {
   const resetPage = () => setOffset(0);
   const pageCount = total === 0 ? 0 : Math.ceil(total / limit);
   const pageNumber = total === 0 ? 0 : Math.floor(offset / limit) + 1;
+  // Group 14 Slice 5j (748, D-791): refund status history per helper-job
+  // receipt. The history loads on demand and is cached per payment; the
+  // row is the receipt the bookkeeper is already reading.
+  const [expandedPaymentId, setExpandedPaymentId] = useState<string | null>(null);
+  const [refundHistories, setRefundHistories] = useState<Record<string, RefundHistory>>({});
+  const [refundFailed, setRefundFailed] = useState<Record<string, boolean>>({});
+  const [refundLoadingId, setRefundLoadingId] = useState<string | null>(null);
+
+  const toggleRefundHistory = (paymentId: string) => {
+    if (expandedPaymentId === paymentId) {
+      setExpandedPaymentId(null);
+      return;
+    }
+    setExpandedPaymentId(paymentId);
+    if (refundHistories[paymentId] || refundLoadingId === paymentId) return;
+    setRefundLoadingId(paymentId);
+    receiptsApi.getPaymentRefundHistory(paymentId)
+      .then((data) => setRefundHistories((prev) => ({ ...prev, [paymentId]: data })))
+      .catch(() => setRefundFailed((prev) => ({ ...prev, [paymentId]: true })))
+      .finally(() => setRefundLoadingId(null));
+  };
+
+  const refundStatusLabel = (value: string) => t(`receipts.refundStatus${value[0].toUpperCase()}${value.slice(1)}`);
 
   return (
     <PageShell>
@@ -208,7 +250,52 @@ export default function ReceiptsPage() {
                   {r.jobId && (
                     <Link to={`/jobs/${r.jobId}`}>{t('receipts.viewJob')}</Link>
                   )}
+                  {r.kind === 'helper_job' && r.paymentId && (
+                    <button
+                      type="button"
+                      className="receipts-refund-toggle"
+                      onClick={() => toggleRefundHistory(r.paymentId as string)}
+                      aria-expanded={expandedPaymentId === r.paymentId}
+                    >
+                      {expandedPaymentId === r.paymentId ? t('receipts.refundHistoryHide') : t('receipts.refundHistoryShow')}
+                    </button>
+                  )}
                 </div>
+                {r.kind === 'helper_job' && r.paymentId && expandedPaymentId === r.paymentId && (
+                  <div className="receipts-refund-history">
+                    <h3>{t('receipts.refundHistory')}</h3>
+                    {refundLoadingId === r.paymentId && <p>{t('common.loading')}</p>}
+                    {refundFailed[r.paymentId] && <p role="alert">{t('receipts.refundHistoryLoadFailed')}</p>}
+                    {refundHistories[r.paymentId] && refundHistories[r.paymentId].attempts.length === 0 && (
+                      <p>{t('receipts.refundHistoryEmpty')}</p>
+                    )}
+                    {refundHistories[r.paymentId] && refundHistories[r.paymentId].attempts.length > 0 && (
+                      <>
+                        <p className="receipts-refund-total">
+                          {t('receipts.refundHistoryRefunded', { amount: fmtMoney(refundHistories[r.paymentId].payment.refunded_amount, refundHistories[r.paymentId].payment.currency) })}
+                        </p>
+                        <ul>
+                          {refundHistories[r.paymentId].attempts.map((attempt) => (
+                            <li key={attempt.id} className="receipts-refund-attempt">
+                              <span className="receipts-refund-amount">{fmtMoney(attempt.amount_cents / 100, refundHistories[r.paymentId].payment.currency)}</span>
+                              {' · '}
+                              <span>{refundStatusLabel(attempt.status)}</span>
+                              {attempt.reason ? ` · ${attempt.reason}` : ''}
+                              {attempt.actor ? ` · ${t('receipts.refundHistoryBy', { name: attempt.actor })}` : ''}
+                              <span className="receipts-row-meta">
+                                {' · '}
+                                {fmtDate(attempt.created_at, locale)}
+                                {attempt.settled_at ? ` · ${t('receipts.refundHistorySettled', { date: fmtDate(attempt.settled_at, locale) })}` : ''}
+                                {attempt.stripe_refund_id ? ` · ${attempt.stripe_refund_id}` : ''}
+                                {attempt.last_error ? ` · ${t('receipts.refundHistoryError', { error: attempt.last_error })}` : ''}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                )}
               </li>
             ))}
           </ul>

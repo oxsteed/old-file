@@ -51,7 +51,20 @@
     "nextPage": "Suivant",
     "pageOf": "Page {{page}} sur {{pages}}",
     "noMatchesTitle": "Aucun reçu ne correspond à ces filtres",
-    "noMatchesBody": "Essayez une autre année, un autre mois, un autre type ou une autre recherche."
+    "noMatchesBody": "Essayez une autre année, un autre mois, un autre type ou une autre recherche.",
+    "refundHistory": "Historique des remboursements",
+    "refundHistoryShow": "Voir l'historique des remboursements",
+    "refundHistoryHide": "Masquer l'historique des remboursements",
+    "refundHistoryEmpty": "Aucun remboursement pour ce paiement.",
+    "refundHistoryLoadFailed": "Impossible de charger l'historique des remboursements.",
+    "refundHistoryRefunded": "{{amount}} remboursés au total.",
+    "refundHistoryBy": "par {{name}}",
+    "refundHistorySettled": "Réglé le {{date}}",
+    "refundHistoryError": "Erreur : {{error}}",
+    "refundStatusPending": "En attente",
+    "refundStatusSucceeded": "Réussi",
+    "refundStatusFailed": "Échoué",
+    "refundStatusCanceled": "Annulé"
   },
   "adminOpsAudit": {
     "bulkFailed": "Identifiants en échec : {{ids}}. Ces utilisateurs restent sélectionnés pour réessayer.",

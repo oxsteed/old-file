@@ -51,7 +51,20 @@
     "nextPage": "Next",
     "pageOf": "Page {{page}} of {{pages}}",
     "noMatchesTitle": "No receipts match these filters",
-    "noMatchesBody": "Try a different year, month, type, or search."
+    "noMatchesBody": "Try a different year, month, type, or search.",
+    "refundHistory": "Refund history",
+    "refundHistoryShow": "View refund history",
+    "refundHistoryHide": "Hide refund history",
+    "refundHistoryEmpty": "No refunds on this payment.",
+    "refundHistoryLoadFailed": "Could not load the refund history.",
+    "refundHistoryRefunded": "Refunded {{amount}} in total.",
+    "refundHistoryBy": "by {{name}}",
+    "refundHistorySettled": "Settled {{date}}",
+    "refundHistoryError": "Error: {{error}}",
+    "refundStatusPending": "Pending",
+    "refundStatusSucceeded": "Succeeded",
+    "refundStatusFailed": "Failed",
+    "refundStatusCanceled": "Canceled"
   },
   "adminOpsAudit": {
     "bulkFailed": "Failed user IDs: {{ids}}. These users remain selected for retry.",

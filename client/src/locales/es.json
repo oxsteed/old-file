@@ -51,7 +51,20 @@
     "nextPage": "Siguiente",
     "pageOf": "Página {{page}} de {{pages}}",
     "noMatchesTitle": "Ningún recibo coincide con estos filtros",
-    "noMatchesBody": "Prueba otro año, mes, tipo o búsqueda."
+    "noMatchesBody": "Prueba otro año, mes, tipo o búsqueda.",
+    "refundHistory": "Historial de reembolsos",
+    "refundHistoryShow": "Ver historial de reembolsos",
+    "refundHistoryHide": "Ocultar historial de reembolsos",
+    "refundHistoryEmpty": "No hay reembolsos en este pago.",
+    "refundHistoryLoadFailed": "No se pudo cargar el historial de reembolsos.",
+    "refundHistoryRefunded": "Reembolsado {{amount}} en total.",
+    "refundHistoryBy": "por {{name}}",
+    "refundHistorySettled": "Liquidado {{date}}",
+    "refundHistoryError": "Error: {{error}}",
+    "refundStatusPending": "Pendiente",
+    "refundStatusSucceeded": "Completado",
+    "refundStatusFailed": "Fallido",
+    "refundStatusCanceled": "Cancelado"
   },
   "adminOpsAudit": {
     "bulkFailed": "IDs de usuarios con errores: {{ids}}. Siguen seleccionados para reintentar.",

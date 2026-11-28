@@ -1189,9 +1189,81 @@ exports.getJobPayment = async (req, res, next) => {
   }
 };
 
-// Get my payments (paginated)
-exports.getMyPayments = async (req, res, next) => {
+// Group 14 Slice 5j (748, D-791): refund status history for one payment.
+// Refund attempts are the auditable record (migration 597 keeps each
+// provider attempt separate from the payment's cumulative refunded amount
+// so partial refunds and retries stay auditable), but no endpoint ever
+// exposed them: the bookkeeper could see a payment's refunded total and
+// nothing about how it got there. The history is the attempts in
+// chronological order — each one a status event with its amount, reason,
+// actor, Stripe id, error, and settled timestamp. Read-only: nothing
+// here moves money, so no feature flag and no rail gate apply. Scoping
+// mirrors getJobPayment: the payment's payer or payee, or an admin;
+// a stranger gets 403 on an existing payment, 404 when it does not exist.
+exports.getPaymentRefundHistory = async (req, res, next) => {
   try {
+    const paymentId = Number(req.params.paymentId);
+    if (!Number.isSafeInteger(paymentId) || paymentId <= 0) {
+      throw new AppError('Payment not found', 404, 'payment_not_found');
+    }
+    const { rows: [payment] } = await pool.query(
+      `SELECT p.*, j.title AS job_title
+         FROM payments p
+         LEFT JOIN jobs j ON j.id = p.job_id
+        WHERE p.id = $1`,
+      [paymentId],
+    );
+    if (!payment) throw new AppError('Payment not found', 404, 'payment_not_found');
+    if (payment.payer_id !== req.user.id && payment.payee_id !== req.user.id
+      && !['admin', 'super_admin'].includes(req.user.role)) {
+      throw new AppError('Not authorized', 403, 'forbidden');
+    }
+    const { rows: attempts } = await pool.query(
+      `SELECT a.*, u.email AS actor_email, u.first_name, u.last_name
+         FROM payment_refund_attempts a
+         LEFT JOIN users u ON u.id = a.actor_user_id
+        WHERE a.payment_id = $1
+        ORDER BY a.created_at ASC, a.id ASC`,
+      [paymentId],
+    );
+    res.json({
+      success: true,
+      payment: {
+        id: String(payment.id),
+        job_id: payment.job_id,
+        job_title: payment.job_title || null,
+        amount: Number(payment.amount || 0),
+        currency: payment.currency || 'usd',
+        status: payment.status,
+        refunded_amount: Number(payment.refunded_amount || 0),
+      },
+      attempts: attempts.map((a) => ({
+        id: String(a.id),
+        amount_cents: Number(a.amount_cents),
+        reason: a.reason || null,
+        status: a.status,
+        stripe_refund_id: a.stripe_refund_id || null,
+        reconciliation_attempts: Number(a.reconciliation_attempts || 0),
+        last_error: a.last_error || null,
+        actor: [a.first_name, a.last_name].filter(Boolean).join(' ') || a.actor_email || null,
+        created_at: a.created_at,
+        updated_at: a.updated_at,
+        settled_at: a.settled_at || null,
+      })),
+    });
+  } catch (err) {
+    if (err instanceof AppError) return next(err);
+    logger.error('Get payment refund history error', {
+      paymentId: req.params?.paymentId,
+      userId: req.user?.id,
+      error: err.message,
+    });
+    next(new AppError('Failed to fetch refund history', 500, 'fetch_refund_history_failed'));
+  }
+};
+
+// Get my payments (paginated)
+exports.getMyPayments = async (req, res, next) => {  try {
     const {
       role = 'payer'
     } = req.query;

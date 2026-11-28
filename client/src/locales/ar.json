@@ -51,7 +51,20 @@
     "nextPage": "التالي",
     "pageOf": "الصفحة {{page}} من {{pages}}",
     "noMatchesTitle": "لا توجد إيصالات تطابق عوامل التصفية هذه",
-    "noMatchesBody": "جرّب سنة أو شهرًا أو نوعًا أو بحثًا مختلفًا."
+    "noMatchesBody": "جرّب سنة أو شهرًا أو نوعًا أو بحثًا مختلفًا.",
+    "refundHistory": "سجل المبالغ المستردة",
+    "refundHistoryShow": "عرض سجل المبالغ المستردة",
+    "refundHistoryHide": "إخفاء سجل المبالغ المستردة",
+    "refundHistoryEmpty": "لا توجد مبالغ مستردة على هذا الدفع.",
+    "refundHistoryLoadFailed": "تعذّر تحميل سجل المبالغ المستردة.",
+    "refundHistoryRefunded": "تم استرداد {{amount}} في المجموع.",
+    "refundHistoryBy": "بواسطة {{name}}",
+    "refundHistorySettled": "تمت التسوية {{date}}",
+    "refundHistoryError": "خطأ: {{error}}",
+    "refundStatusPending": "قيد الانتظار",
+    "refundStatusSucceeded": "نجح",
+    "refundStatusFailed": "فشل",
+    "refundStatusCanceled": "أُلغي"
   },
   "adminOpsAudit": {
     "bulkFailed": "معرّفات المستخدمين التي فشلت: {{ids}}. تظل محددة لإعادة المحاولة.",

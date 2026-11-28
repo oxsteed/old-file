@@ -116,10 +116,12 @@ describeDb('Group 14 Slice 5j: read financial detail (746-750)', () => {
     await makeDriverProfile(driver2.id);
     const receiptsRouter = require('../routes/receipts');
     const localDeliveryRouter = require('../routes/localDelivery');
+    const paymentsRouter = require('../routes/payments');
     app = express();
     app.use(express.json());
     app.use('/receipts', receiptsRouter);
     app.use('/delivery', localDeliveryRouter);
+    app.use('/api/payments', paymentsRouter);
   });
 
   afterAll(async () => { if (pool) await pool.end(); });
@@ -328,5 +330,70 @@ describeDb('Group 14 Slice 5j: read financial detail (746-750)', () => {
     expect(res.body.payout.driver.email).toBe(driver.email);
     await getAs(customer, `/delivery/internal/driver-payouts/${payout.id}`).expect(403);
     await getAs(admin, '/delivery/internal/driver-payouts/999999999').expect(404);
+  });
+
+  // 748: refund status history.
+  async function makeRefundAttempt(paymentId, overrides = {}) {
+    const {
+      status = 'pending', amountCents = 5000, reason = 'Customer asked',
+      stripeRefundId = null, actor = null, createdAt = null, settledAt = null, lastError = null,
+    } = overrides;
+    const at = createdAt ? new Date(createdAt) : new Date();
+    const { rows: [row] } = await pool.query(
+      `INSERT INTO payment_refund_attempts
+         (payment_id, amount_cents, reason, idempotency_key, stripe_refund_id, status,
+          actor_user_id, created_at, updated_at, settled_at, last_error)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, $9, $10)
+       RETURNING *`,
+      [paymentId, amountCents, reason, `g14j-ref-${crypto.randomUUID()}`, stripeRefundId,
+        status, actor, at, settledAt ? new Date(settledAt) : null, lastError],
+    );
+    return row;
+  }
+
+  test('748: payer and payee read the refund history in chronological order', async () => {
+    const job = await makeJob(customer.id, helper.id, 'Fix the sink');
+    const paymentId = await makePayment(job, customer.id, helper.id, {
+      amount: 120.00, status: 'released', capturedAt: '2026-03-09T10:00:00Z', releasedAt: '2026-03-10T10:00:00Z',
+    });
+    await makeRefundAttempt(paymentId, {
+      status: 'failed', amountCents: 5000, reason: 'Partial refund',
+      actor: admin.id, createdAt: '2026-03-12T10:00:00Z', lastError: 'card_declined',
+    });
+    await makeRefundAttempt(paymentId, {
+      status: 'succeeded', amountCents: 5000, reason: 'Partial refund, retried',
+      stripeRefundId: 're_test123', actor: admin.id,
+      createdAt: '2026-03-13T10:00:00Z', settledAt: '2026-03-13T10:05:00Z',
+    });
+    await pool.query('UPDATE payments SET refunded_amount = 50.00 WHERE id = $1', [paymentId]);
+
+    const asPayer = await getAs(customer, `/api/payments/${paymentId}/refund-history`).expect(200);
+    expect(asPayer.body.success).toBe(true);
+    expect(asPayer.body.payment.id).toBe(String(paymentId));
+    expect(asPayer.body.payment.refunded_amount).toBe(50);
+    expect(asPayer.body.payment.currency).toBe('usd');
+    expect(asPayer.body.attempts).toHaveLength(2);
+    expect(asPayer.body.attempts.map((a) => a.status)).toEqual(['failed', 'succeeded']);
+    expect(asPayer.body.attempts[0].last_error).toBe('card_declined');
+    expect(asPayer.body.attempts[0].amount_cents).toBe(5000);
+    expect(asPayer.body.attempts[1].stripe_refund_id).toBe('re_test123');
+    expect(asPayer.body.attempts[1].settled_at).toBeTruthy();
+    expect(asPayer.body.attempts[1].actor).toBe('Test super_admin');
+
+    const asPayee = await getAs(helper, `/api/payments/${paymentId}/refund-history`).expect(200);
+    expect(asPayee.body.attempts).toHaveLength(2);
+  });
+
+  test('748: stranger gets 403, admin reads, missing payment 404, no attempts is empty', async () => {
+    const job = await makeJob(customer.id, helper.id, 'Fix the sink');
+    const paymentId = await makePayment(job, customer.id, helper.id, {
+      amount: 120.00, status: 'released', capturedAt: '2026-03-09T10:00:00Z', releasedAt: '2026-03-10T10:00:00Z',
+    });
+    await getAs(stranger, `/api/payments/${paymentId}/refund-history`).expect(403);
+    const asAdmin = await getAs(admin, `/api/payments/${paymentId}/refund-history`).expect(200);
+    expect(asAdmin.body.attempts).toEqual([]);
+    expect(asAdmin.body.payment.refunded_amount).toBe(0);
+    await getAs(customer, '/api/payments/999999999/refund-history').expect(404);
+    await getAs(customer, '/api/payments/not-an-id/refund-history').expect(404);
   });
 });

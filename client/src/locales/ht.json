@@ -51,7 +51,20 @@
     "nextPage": "Apre",
     "pageOf": "Paj {{page}} sou {{pages}}",
     "noMatchesTitle": "Okenn resi pa koresponn ak filtè sa yo",
-    "noMatchesBody": "Eseye yon lòt ane, mwa, kalite, oswa rechèch."
+    "noMatchesBody": "Eseye yon lòt ane, mwa, kalite, oswa rechèch.",
+    "refundHistory": "Istwa ranbousman",
+    "refundHistoryShow": "Wè istwa ranbousman",
+    "refundHistoryHide": "Kache istwa ranbousman",
+    "refundHistoryEmpty": "Pa gen ranbousman sou peman sa a.",
+    "refundHistoryLoadFailed": "Pa t ka chaje istwa ranbousman an.",
+    "refundHistoryRefunded": "Te ranbouse {{amount}} an total.",
+    "refundHistoryBy": "pa {{name}}",
+    "refundHistorySettled": "Te regle {{date}}",
+    "refundHistoryError": "Erè: {{error}}",
+    "refundStatusPending": "Ap tann",
+    "refundStatusSucceeded": "Te reyisi",
+    "refundStatusFailed": "Te echwe",
+    "refundStatusCanceled": "Te anile"
   },
   "adminOpsAudit": {
     "bulkFailed": "ID itilizatè ki echwe: {{ids}}. Yo rete chwazi pou eseye ankò.",

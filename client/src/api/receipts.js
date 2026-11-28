@@ -29,4 +29,12 @@ export const receiptsApi = {
     const response = await api.get(`/receipts/helper-bookings/${bookingId}`);
     return response.data?.data;
   },
+
+  // Group 14 Slice 5j (748, D-791): refund status history for one payment.
+  // The endpoint lives on the payments router (/api/payments); the UI lives
+  // here because the receipt row is where the bookkeeper meets the payment.
+  getPaymentRefundHistory: async (paymentId) => {
+    const response = await api.get(`/payments/${paymentId}/refund-history`);
+    return response.data;
+  },
 };
