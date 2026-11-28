@@ -294,3 +294,70 @@ exports.getDocuments = async (req, res) => {
     res.status(500).json({ error: 'Failed to load reporting documents' });
   }
 };
+
+// ── GET /api/investor/reporting/entities/:entityId/contact — 730 entity reporting contact ──
+// Who to contact about an entity's reporting. Two contacts, each labeled
+// by what they are for, and no email is ever exposed:
+//   business_owner — the entity's business owner (businesses.user_id):
+//     questions about the entity and its raises.
+//   reporting_admin — the admin who granted the viewer's audience
+//     (access_grants.granted_by on the holder's investor.reporting
+//     grant): questions about the audience and datasets. Admin callers
+//     get no reporting admin: they are the admin.
+// Scope is the same as 726: a holder sees only entities on their audience
+// (entity_ids); an admin sees any entity with a non-dead raise. Anything
+// else is a 404 that does not say whether the entity exists. There is no
+// message deep link: Messages has no ?to= route, so the card links to the
+// inbox (/messages) and says so plainly instead of promising a thread
+// with this person.
+const displayNameOf = (user) => {
+  if (!user) return null;
+  const name = [user.first_name, user.last_name].map((v) => String(v || '').trim()).filter(Boolean).join(' ');
+  return name || null;
+};
+
+exports.getEntityContact = async (req, res) => {
+  try {
+    const entityId = Number(req.params.entityId);
+    if (!Number.isFinite(entityId) || entityId <= 0) return res.status(404).json({ error: 'Entity not found' });
+    const scope = reportingScope(req);
+    const businesses = await safeQuery(
+      `SELECT id, business_name, business_type, user_id FROM businesses WHERE id = $1`,
+      [entityId],
+    );
+    const business = businesses[0];
+    if (!business) return res.status(404).json({ error: 'Entity not found' });
+    if (scope.type === 'position') {
+      if (!scope.entityIds.includes(entityId)) return res.status(404).json({ error: 'Entity not found' });
+    } else {
+      const raises = await safeQuery(
+        `SELECT 1 FROM investment_opportunities WHERE business_id = $1 AND status NOT IN ('cancelled', 'withdrawn') LIMIT 1`,
+        [entityId],
+      );
+      if (!raises.length) return res.status(404).json({ error: 'Entity not found' });
+    }
+    const contacts = [];
+    const owners = await safeQuery(`SELECT first_name, last_name FROM users WHERE id = $1`, [business.user_id]);
+    contacts.push({ kind: 'business_owner', displayName: displayNameOf(owners[0]) });
+    if (scope.type === 'position') {
+      const grants = await safeQuery(
+        `SELECT granted_by FROM access_grants WHERE user_id = $1 AND capability = 'investor.reporting' AND status = 'active' ORDER BY granted_at DESC LIMIT 1`,
+        [req.user.id],
+      );
+      const grantedBy = grants[0] && grants[0].granted_by;
+      if (grantedBy) {
+        const admins = await safeQuery(`SELECT first_name, last_name FROM users WHERE id = $1`, [grantedBy]);
+        contacts.push({ kind: 'reporting_admin', displayName: displayNameOf(admins[0]) });
+      }
+    }
+    res.json({
+      entity: { id: Number(business.id), businessName: business.business_name, businessType: business.business_type },
+      contacts,
+      scope,
+      audience: audienceView(req),
+    });
+  } catch (err) {
+    logger.error('[investor-reporting] getEntityContact error', { err: err.message });
+    res.status(500).json({ error: 'Failed to load reporting contact' });
+  }
+};

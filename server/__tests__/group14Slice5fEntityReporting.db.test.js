@@ -57,6 +57,8 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
   let bizA;
   let bizB;
   let bizC;
+  let bizD;
+  let bizE;
 
   const tokenFor = (user) => require('../middleware/auth').generateTokens(user).accessToken;
   const authAs = (user, req) => req.set('Authorization', `Bearer ${tokenFor(user)}`);
@@ -234,8 +236,8 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
     bizA = await makeBusiness(holder.id, `Biz A ${runId}`, 'llc');
     bizB = await makeBusiness(holder.id, `Biz B ${runId}`, 'corp');
     bizC = await makeBusiness(holder.id, `Biz C ${runId}`, 'partnership');
-    const bizD = await makeBusiness(holder.id, `Biz D ${runId}`, 'llc');
-    const bizE = await makeBusiness(holder.id, `Biz E ${runId}`, 'llc');
+    bizD = await makeBusiness(holder.id, `Biz D ${runId}`, 'llc');
+    bizE = await makeBusiness(holder.id, `Biz E ${runId}`, 'llc');
 
     const oppA1 = await makeOpportunity(bizA, holder.id, 'published');
     const oppA2 = await makeOpportunity(bizA, holder.id, 'draft');
@@ -261,6 +263,17 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
 
     await grantReporting(holder.id, { entityIds: [bizA, bizB] });
     await grantReporting(holderNoScope.id, { entityIds: [] });
+    // 730 fixture: the holder's investor.reporting grant row (created by
+    // grantReporting above) was granted by the admin, so the
+    // reporting-admin contact resolves.
+    await pool.query(
+      `UPDATE access_grants SET granted_by = $2 WHERE user_id = $1 AND capability = 'investor.reporting'`,
+      [holder.id, admin.id],
+    );
+    // Distinct display names for the 730 contact tests (no other test
+    // asserts user names).
+    await pool.query(`UPDATE users SET first_name = 'Olivia', last_name = 'Owner' WHERE id = $1`, [holder.id]);
+    await pool.query(`UPDATE users SET first_name = 'Adam', last_name = 'Admin' WHERE id = $1`, [admin.id]);
     await grantReporting(holderExpired.id, {
       entityIds: [bizA],
       expiresAt: new Date(Date.now() - 3600 * 1000).toISOString(),
@@ -506,5 +519,32 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
     expect(changed).toHaveLength(1);
     expect(changed[0].data.changeAction).toBe('revoke');
     expect(changed[0].data.reasonCode).toBe('policy_not_met');
+  });
+
+  test('730: the holder in scope sees the owner and the granting admin, and no email', async () => {
+    const res = await getAs(holder, `/api/investor/reporting/entities/${bizA}/contact`).expect(200);
+    expect(res.body.entity).toMatchObject({ id: bizA, businessName: `Biz A ${runId}` });
+    expect(res.body.contacts).toEqual([
+      { kind: 'business_owner', displayName: 'Olivia Owner' },
+      { kind: 'reporting_admin', displayName: 'Adam Admin' },
+    ]);
+    expect(JSON.stringify(res.body)).not.toContain('@');
+    expect(JSON.stringify(res.body)).not.toContain('email');
+  });
+
+  test('730: the holder 404s for an entity outside the audience, even with a position in it', async () => {
+    await getAs(holder, `/api/investor/reporting/entities/${bizC}/contact`).expect(404);
+  });
+
+  test('730: an admin sees the owner contact only, and 404s for a dead-only entity', async () => {
+    const res = await getAs(admin, `/api/investor/reporting/entities/${bizA}/contact`).expect(200);
+    expect(res.body.contacts).toEqual([{ kind: 'business_owner', displayName: 'Olivia Owner' }]);
+    await getAs(admin, `/api/investor/reporting/entities/${bizD}/contact`).expect(404);
+    await getAs(admin, `/api/investor/reporting/entities/${bizE}/contact`).expect(404);
+  });
+
+  test('730: a user without the grant is refused, and a missing entity 404s', async () => {
+    await getAs(stranger, `/api/investor/reporting/entities/${bizA}/contact`).expect(403);
+    await getAs(holder, '/api/investor/reporting/entities/999999999/contact').expect(404);
   });
 });

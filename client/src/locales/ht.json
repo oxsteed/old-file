@@ -26843,6 +26843,15 @@
           "failed": "Echwe {{date}}",
           "cancelled": "Anile {{date}}"
         }
+      },
+      "contact": {
+        "show": "Montre kontak",
+        "hide": "Kache kontak",
+        "loading": "Ap chaje kontak la…",
+        "loadError": "Yo pa t kapab chaje kontak la.",
+        "ownerRole": "Pwopriyetè antite a — kesyon sou antite a ak lev li yo",
+        "adminRole": "Aksè rapò — kesyon sou odyans ou ak dataset ou yo",
+        "openMessages": "Louvri mesaj yo"
       }
     }
   },

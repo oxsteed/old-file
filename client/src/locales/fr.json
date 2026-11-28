@@ -26843,6 +26843,15 @@
           "failed": "Échoué {{date}}",
           "cancelled": "Annulé {{date}}"
         }
+      },
+      "contact": {
+        "show": "Afficher le contact",
+        "hide": "Masquer le contact",
+        "loading": "Chargement du contact…",
+        "loadError": "Impossible de charger le contact.",
+        "ownerRole": "Propriétaire de l’entité — questions sur l’entité et ses levées",
+        "adminRole": "Accès aux rapports — questions sur votre audience et vos jeux de données",
+        "openMessages": "Ouvrir les messages"
       }
     }
   },

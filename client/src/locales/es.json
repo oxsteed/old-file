@@ -26843,6 +26843,15 @@
           "failed": "Fallido {{date}}",
           "cancelled": "Cancelado {{date}}"
         }
+      },
+      "contact": {
+        "show": "Mostrar contacto",
+        "hide": "Ocultar contacto",
+        "loading": "Cargando contacto…",
+        "loadError": "No se pudo cargar el contacto de informes.",
+        "ownerRole": "Propietario de la entidad — preguntas sobre la entidad y sus recaudaciones",
+        "adminRole": "Acceso a informes — preguntas sobre su audiencia y conjuntos de datos",
+        "openMessages": "Abrir mensajes"
       }
     }
   },

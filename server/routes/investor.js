@@ -47,5 +47,6 @@ router.get('/evidence/:metric', authenticate, requireInvestorCapability, allowIn
 router.get('/reporting/entities', authenticate, requireInvestorCapability, allowInvestor, investorReportingController.getEntities);
 router.get('/reporting/datasets', authenticate, requireInvestorCapability, allowInvestor, investorReportingController.getDatasets);
 router.get('/reporting/documents', authenticate, requireInvestorCapability, allowInvestor, investorReportingController.getDocuments);
+router.get('/reporting/entities/:entityId/contact', authenticate, requireInvestorCapability, allowInvestor, investorReportingController.getEntityContact);
 
 module.exports = router;

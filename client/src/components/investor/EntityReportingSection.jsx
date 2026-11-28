@@ -17,6 +17,58 @@ import api from '../../api/axios';
 
 const BUSINESS_TYPES = ['llc', 'sole_prop', 'corp', 'partnership'];
 
+// 730 (D-773): the reporting contact for one entity card, loaded on
+// demand so the section does not fire one request per card on load.
+// The contact names a person for entity questions (the business owner)
+// and, for holders, the admin who granted the audience (for audience
+// and dataset questions). No email is shown, and the messages link opens
+// the inbox — there is no deep link to a thread with this person, so the
+// card never promises one.
+function EntityContact({ entityId }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [contact, setContact] = useState({ status: 'idle', data: null });
+
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    if (contact.status !== 'idle') return;
+    setContact({ status: 'loading', data: null });
+    api.get(`/investor/reporting/entities/${entityId}/contact`)
+      .then(({ data }) => setContact({ status: 'ready', data }))
+      .catch(() => setContact({ status: 'error', data: null }));
+  };
+
+  return (
+    <div className="mt-3">
+      <button type="button" onClick={toggle} className="text-xs text-emerald-300 hover:text-emerald-200" data-track="ui.064018e3ca.1">
+        {open ? t('investorDashboard.entityReporting.contact.hide') : t('investorDashboard.entityReporting.contact.show')}
+      </button>
+      {open && contact.status === 'loading' && <p role="status" className="text-xs text-gray-500 mt-1">{t('investorDashboard.entityReporting.contact.loading')}</p>}
+      {open && contact.status === 'error' && <p role="alert" className="text-xs text-red-400 mt-1">{t('investorDashboard.entityReporting.contact.loadError')}</p>}
+      {open && contact.status === 'ready' && (
+        <ul className="mt-2 space-y-1">
+          {(contact.data?.contacts ?? []).map((c) => (
+            <li key={c.kind} className="text-xs text-gray-400">
+              {c.displayName && <span className="text-gray-200">{c.displayName}</span>}
+              {c.displayName && ' — '}
+              {t(`investorDashboard.entityReporting.contact.${c.kind === 'business_owner' ? 'ownerRole' : 'adminRole'}`)}
+            </li>
+          ))}
+        </ul>
+      )}
+      {open && contact.status === 'ready' && (
+        <Link to="/messages" className="text-xs text-emerald-300 hover:text-emerald-200 mt-2 inline-block">
+          {t('investorDashboard.entityReporting.contact.openMessages')}
+        </Link>
+      )}
+    </div>
+  );
+}
+
 export default function EntityReportingSection() {
   const { t, i18n } = useTranslation();
   const [state, setState] = useState({ status: 'loading', data: null });
@@ -115,6 +167,7 @@ export default function EntityReportingSection() {
                 {' · '}
                 {t('investorDashboard.entityReporting.stakesApplications', { count: Number(entity.stakes?.applications ?? 0) })}
               </p>
+              <EntityContact entityId={entity.entityId} />
             </li>
           ))}
         </ul>

@@ -26843,6 +26843,15 @@
           "failed": "Failed {{date}}",
           "cancelled": "Cancelled {{date}}"
         }
+      },
+      "contact": {
+        "show": "Show contact",
+        "hide": "Hide contact",
+        "loading": "Loading contact…",
+        "loadError": "Could not load the reporting contact.",
+        "ownerRole": "Entity owner — questions about the entity and its raises",
+        "adminRole": "Reporting access — questions about your audience and datasets",
+        "openMessages": "Open messages"
       }
     }
   },
