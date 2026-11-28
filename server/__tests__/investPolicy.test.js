@@ -167,14 +167,14 @@ describe('invest flag posture (revised 2026-11-17: default on)', () => {
     else process.env.INVEST_PILOT_USER_IDS = ORIGINAL_PILOT;
   });
 
-  test('INVEST_ENABLED defaults on when unset; the commitments gate defaults off', () => {
+  test('INVEST_ENABLED defaults on when unset; the commitments gate defaults on', () => {
     delete process.env.INVEST_ENABLED;
     delete process.env.INVEST_COMMITMENTS_ENABLED;
     delete process.env.INVEST_PILOT_USER_IDS;
     expect(investFlags.investEnabled('some-user')).toBe(true);
-    expect(investFlags.investCommitmentsEnabled('some-user')).toBe(false);
+    expect(investFlags.investCommitmentsEnabled('some-user')).toBe(true);
     expect(investFlags.clientFlags('some-user')).toEqual(
-      expect.objectContaining({ investEnabled: true, investCommitmentsEnabled: false, investPilot: false }),
+      expect.objectContaining({ investEnabled: true, investCommitmentsEnabled: true, investPilot: false }),
     );
   });
 
@@ -185,14 +185,12 @@ describe('invest flag posture (revised 2026-11-17: default on)', () => {
     expect(() => investFlags.requireInvestEnabled('some-user')).toThrow(expect.objectContaining({ code: 'invest_disabled' }));
   });
 
-  test('the commitments gate stays off by default even with the master on', () => {
+  test('the commitments gate stays on by default even with the master on', () => {
     delete process.env.INVEST_COMMITMENTS_ENABLED;
     process.env.INVEST_ENABLED = 'true';
     delete process.env.INVEST_PILOT_USER_IDS;
-    expect(investFlags.investCommitmentsEnabled('some-user')).toBe(false);
-    expect(() => investFlags.requireInvestCommitmentsEnabled('some-user')).toThrow(
-      expect.objectContaining({ code: 'invest_commitments_disabled' }),
-    );
+    expect(investFlags.investCommitmentsEnabled('some-user')).toBe(true);
+    expect(() => investFlags.requireInvestCommitmentsEnabled('some-user')).not.toThrow();
   });
 });
 
