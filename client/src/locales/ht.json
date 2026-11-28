@@ -23270,7 +23270,26 @@
       "adjustmentsHeader": "Ajisteman",
       "disputesHeader": "Diskisyon",
       "receiptHeader": "Resi",
+      "detailHeader": "Detay",
+      "viewDetail": "Wè detay",
       "adjustment": "{{from}} → {{to}} · {{reason}} · pa {{by}}"
+    },
+    "driverPayoutDetail": {
+      "title": "Detay peman",
+      "subtitle": "Yon peman: montan li, estati li, referans peman li, ajisteman li, diskisyon li, ak liy tan estati li. Montan yo an USD.",
+      "loadFailed": "Pa t ka chaje peman sa a.",
+      "notFound": "Peman sa a pa jwenn.",
+      "backToHistory": "Retounen nan istwa peman",
+      "backToOperations": "Retounen nan operasyon",
+      "driver": "Chofè",
+      "note": "Nòt",
+      "created": "Akimile",
+      "timelineTitle": "Liy tan estati",
+      "by": "pa {{name}}",
+      "adjustmentsTitle": "Ajisteman",
+      "adjustmentsEmpty": "Pa gen ajisteman pou peman sa a.",
+      "disputesTitle": "Diskisyon",
+      "disputesEmpty": "Pa gen diskisyon sou travay peman sa a."
     },
     "weeklyReport": {
       "link": "Wè rapò chak semèn mwen yo",

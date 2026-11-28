@@ -142,6 +142,8 @@ const LogisticsHomePage = lazyWithRetry(routeLoaders.logistics, { name: 'logisti
 const DeliveryPage = lazyWithRetry(() => import('./pages/DeliveryPage'));
 const DeliveryDetailPage = lazyWithRetry(() => import('./pages/DeliveryDetailPage'));
 const DriverPayoutHistoryPage = lazyWithRetry(() => import('./pages/DriverPayoutHistoryPage'));
+// Group 14 Slice 5j (747, D-790): the single-payout detail view.
+const DriverPayoutDetailPage = lazyWithRetry(() => import('./pages/DriverPayoutDetailPage'));
 // Group 9 Slice F (item 495): the driver's weekly work report page.
 const DriverWeeklyReportPage = lazyWithRetry(() => import('./pages/DriverWeeklyReportPage'));
 // Group 9 Slice G (item 500): the driver's shift and closeout page.
@@ -862,6 +864,8 @@ export default function App() {
                     <Route path="/delivery/jobs/:id"           element={<Guarded><ProtectedRoute><RouteErrorBoundary><DeliveryDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Weekly self-audit 2026-11-04 item 9: driver payout history. Read-only; the endpoint scopes to the signed-in driver. */}
                     <Route path="/delivery/payouts"             element={<Guarded><ProtectedRoute><RouteErrorBoundary><DriverPayoutHistoryPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Group 14 Slice 5j (747): payout detail. Read-only; the endpoint scopes to the payout's driver or the operations workspace. */}
+                    <Route path="/delivery/payouts/:payoutId"   element={<Guarded><ProtectedRoute><RouteErrorBoundary><DriverPayoutDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Group 9 Slice F (item 495): the driver's weekly work report. Read-only; the endpoint scopes to the signed-in driver. */}
                     <Route path="/delivery/weekly-report"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><DriverWeeklyReportPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Group 9 Slice G (item 500): the driver's shifts and closeout. The endpoint scopes to the signed-in driver. */}

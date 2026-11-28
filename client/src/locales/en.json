@@ -23270,7 +23270,26 @@
       "adjustmentsHeader": "Adjustments",
       "disputesHeader": "Disputes",
       "receiptHeader": "Receipt",
+      "detailHeader": "Detail",
+      "viewDetail": "View detail",
       "adjustment": "{{from}} → {{to}} · {{reason}} · by {{by}}"
+    },
+    "driverPayoutDetail": {
+      "title": "Payout detail",
+      "subtitle": "One payout: its amount, status, payment reference, adjustments, disputes, and status timeline. Amounts are in USD.",
+      "loadFailed": "We could not load this payout.",
+      "notFound": "This payout could not be found.",
+      "backToHistory": "Back to payout history",
+      "backToOperations": "Back to operations",
+      "driver": "Driver",
+      "note": "Note",
+      "created": "Accrued",
+      "timelineTitle": "Status timeline",
+      "by": "by {{name}}",
+      "adjustmentsTitle": "Adjustments",
+      "adjustmentsEmpty": "No adjustments to this payout.",
+      "disputesTitle": "Disputes",
+      "disputesEmpty": "No disputes on this payout's job."
     },
     "weeklyReport": {
       "link": "View my weekly reports",

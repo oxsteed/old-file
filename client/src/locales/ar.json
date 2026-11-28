@@ -23281,7 +23281,26 @@
       "adjustmentsHeader": "التعديلات",
       "disputesHeader": "النزاعات",
       "receiptHeader": "الإيصال",
+      "detailHeader": "التفاصيل",
+      "viewDetail": "عرض التفاصيل",
       "adjustment": "{{from}} إلى {{to}} · {{reason}} · بواسطة {{by}}"
+    },
+    "driverPayoutDetail": {
+      "title": "تفاصيل الدفعة",
+      "subtitle": "دفعة واحدة: مبلغها وحالتها ومرجع الدفع وتعديلاتها ونزاعاتها والخط الزمني للحالة. المبالغ بالدولار الأمريكي.",
+      "loadFailed": "تعذّر تحميل هذه الدفعة.",
+      "notFound": "تعذّر العثور على هذه الدفعة.",
+      "backToHistory": "العودة إلى سجل المدفوعات",
+      "backToOperations": "العودة إلى العمليات",
+      "driver": "السائق",
+      "note": "ملاحظة",
+      "created": "متراكمة",
+      "timelineTitle": "الخط الزمني للحالة",
+      "by": "بواسطة {{name}}",
+      "adjustmentsTitle": "التعديلات",
+      "adjustmentsEmpty": "لا توجد تعديلات على هذه الدفعة.",
+      "disputesTitle": "النزاعات",
+      "disputesEmpty": "لا توجد نزاعات على مهمة هذه الدفعة."
     },
     "weeklyReport": {
       "link": "عرض تقاريري الأسبوعية",

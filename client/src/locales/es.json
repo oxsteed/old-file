@@ -23270,7 +23270,26 @@
       "adjustmentsHeader": "Ajustes",
       "disputesHeader": "Disputas",
       "receiptHeader": "Recibo",
+      "detailHeader": "Detalle",
+      "viewDetail": "Ver detalle",
       "adjustment": "{{from}} → {{to}} · {{reason}} · por {{by}}"
+    },
+    "driverPayoutDetail": {
+      "title": "Detalle del pago",
+      "subtitle": "Un pago: su monto, estado, referencia de pago, ajustes, disputas y línea de tiempo. Los montos están en USD.",
+      "loadFailed": "No se pudo cargar este pago.",
+      "notFound": "No se encontró este pago.",
+      "backToHistory": "Volver al historial de pagos",
+      "backToOperations": "Volver a operaciones",
+      "driver": "Conductor",
+      "note": "Nota",
+      "created": "Acumulado",
+      "timelineTitle": "Línea de tiempo de estado",
+      "by": "por {{name}}",
+      "adjustmentsTitle": "Ajustes",
+      "adjustmentsEmpty": "No hay ajustes en este pago.",
+      "disputesTitle": "Disputas",
+      "disputesEmpty": "No hay disputas en el trabajo de este pago."
     },
     "weeklyReport": {
       "link": "Ver mis informes semanales",

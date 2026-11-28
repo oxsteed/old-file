@@ -136,6 +136,8 @@ function DriverPayoutsSection() {
                   {t('logistics.operations.driverPayouts.amount', { amount: (Number(payout.payout_cents || 0) / 100).toFixed(2) })}
                   {payout.job_reference ? ` · ${t('logistics.operations.driverPayouts.job', { reference: payout.job_reference })}` : ''}
                   {payout.payment_reference ? ` · ${t('logistics.operations.driverPayouts.reference', { reference: payout.payment_reference })}` : ''}
+                  {' · '}
+                  <Link to={`/delivery/payouts/${payout.id}`}>{t('delivery.driverPayoutHistory.viewDetail')}</Link>
                 </p>
                 {(payout.status === 'approved') && (
                   <label className="lx-t-small lx-driver-payout-field">

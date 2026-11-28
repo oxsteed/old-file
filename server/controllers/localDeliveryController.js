@@ -2313,8 +2313,112 @@ exports.listAllDriverPayouts = async (req, res, next) => {
   }
 };
 
-exports.approveDriverPayout = async (req, res, next) => {
-  let client;
+// ── Group 14 Slice 5j (747, D-790): single-payout detail read ──────────
+// The driver and ops lists existed; no endpoint returned one payout with
+// its adjustments, its job disputes, and its status timeline, so neither
+// the driver nor ops could open a payout. Payout rows carry no currency
+// column (delivery pricing is USD); the detail states that explicitly
+// instead of letting the client guess. The timeline is derived from the
+// stored transition timestamps: accrued at creation, approved at
+// approved_at, paid at paid_at, voided at the last update while voided.
+function payoutTimeline(payout) {
+  const events = [{ status: 'accrued', at: payout.created_at, by: null }];
+  if (payout.approved_at) {
+    events.push({
+      status: 'approved',
+      at: payout.approved_at,
+      by: [payout.approved_by_first_name, payout.approved_by_last_name].filter(Boolean).join(' ') || null,
+    });
+  }
+  if (payout.paid_at) {
+    events.push({
+      status: 'paid',
+      at: payout.paid_at,
+      by: [payout.paid_by_first_name, payout.paid_by_last_name].filter(Boolean).join(' ') || null,
+    });
+  }
+  if (payout.status === 'voided') events.push({ status: 'voided', at: payout.updated_at, by: null });
+  return events;
+}
+
+function parsePayoutId(raw) {
+  const id = Number(raw);
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new AppError('Driver payout not found', 404, 'driver_payout_not_found');
+  }
+  return id;
+}
+
+async function loadPayoutDetail(payoutId) {
+  const { rows: [payout] } = await pool.query(
+    `SELECT p.*, j.reference AS job_reference, j.status AS job_status,
+            ap.first_name AS approved_by_first_name, ap.last_name AS approved_by_last_name,
+            pp.first_name AS paid_by_first_name, pp.last_name AS paid_by_last_name
+       FROM delivery_driver_payouts p
+       LEFT JOIN delivery_jobs j ON j.id = p.delivery_job_id
+       LEFT JOIN users ap ON ap.id = p.approved_by_user_id
+       LEFT JOIN users pp ON pp.id = p.paid_by_user_id
+      WHERE p.id = $1`,
+    [payoutId],
+  );
+  if (!payout) throw new AppError('Driver payout not found', 404, 'driver_payout_not_found');
+  const adjustments = await listAdjustmentsForPayouts(pool, [payout.id]);
+  let disputes = [];
+  if (payout.delivery_job_id) {
+    const { rows } = await pool.query(
+      `SELECT d.*, j.reference AS job_reference
+         FROM delivery_driver_disputes d
+         JOIN delivery_jobs j ON j.id = d.delivery_job_id
+        WHERE d.delivery_job_id = $1 AND d.driver_user_id = $2
+        ORDER BY d.created_at DESC, d.id DESC`,
+      [payout.delivery_job_id, payout.driver_user_id],
+    );
+    disputes = rows;
+  }
+  return {
+    ...payout,
+    currency: 'USD',
+    adjustments: adjustments.get(String(payout.id)) || [],
+    disputes,
+    timeline: payoutTimeline(payout),
+  };
+}
+
+// Driver: their own payout only. Another driver's payout is 404, never
+// the amount: the id space is enumerable, so a 403 would confirm the
+// payout exists.
+exports.getDriverPayout = async (req, res, next) => {
+  try {
+    if (!(await isAdmittedDriver(req.user))
+      || !(await hasApprovedActiveDriverProfile(req.user.id))) {
+      throw new AppError('Driver access required', 403, 'delivery_driver_required');
+    }
+    const payout = await loadPayoutDetail(parsePayoutId(req.params.payoutId));
+    if (payout.driver_user_id !== req.user.id) {
+      throw new AppError('Driver payout not found', 404, 'driver_payout_not_found');
+    }
+    res.json({ success: true, payout });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Ops: any payout, with the driver identity attached. The operations
+// workspace is enforced by route middleware.
+exports.getInternalDriverPayout = async (req, res, next) => {
+  try {
+    const payout = await loadPayoutDetail(parsePayoutId(req.params.payoutId));
+    const { rows: [driver] } = await pool.query(
+      'SELECT id, email, first_name, last_name FROM users WHERE id = $1',
+      [payout.driver_user_id],
+    );
+    res.json({ success: true, payout: { ...payout, driver: driver || null } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.approveDriverPayout = async (req, res, next) => {  let client;
   try {
     client = await pool.connect();
     await client.query('BEGIN');
