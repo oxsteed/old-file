@@ -41,6 +41,50 @@ const { sendError } = require('../utils/apiError');
 const PAID_RENTAL_STATUSES = ['payment_confirmed', 'returned', 'completed'];
 const PAID_JOB_PAYMENT_STATUSES = ['captured', 'released'];
 
+// Group 14 Slice 5j (746, D-789): receipt archive filters. The vault list
+// existed with no archive semantics — no period filter, no kind filter,
+// no search, no pagination. The archive adds them, server-side, still
+// scoped to the requesting customer. A month without a year is rejected:
+// a bare month matches a different twelve months and would silently
+// under-report the archive.
+const ARCHIVE_KINDS = new Set(['tool_rental', 'helper_job']);
+const ARCHIVE_DEFAULT_LIMIT = 50;
+const ARCHIVE_MAX_LIMIT = 200;
+
+function parseArchiveQuery(query = {}) {
+  const errors = {};
+  let year = null;
+  let month = null;
+  if (query.year !== undefined && query.year !== '') {
+    year = Number(query.year);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) errors.year = 'year must be between 2000 and 2100.';
+  }
+  if (query.month !== undefined && query.month !== '') {
+    month = Number(query.month);
+    if (!Number.isInteger(month) || month < 1 || month > 12) errors.month = 'month must be between 1 and 12.';
+  }
+  if ((query.month !== undefined && query.month !== '') && (query.year === undefined || query.year === '')) {
+    errors.month = 'month requires a year.';
+  }
+  let kind = null;
+  if (query.kind !== undefined && query.kind !== '') {
+    kind = String(query.kind);
+    if (!ARCHIVE_KINDS.has(kind)) errors.kind = 'kind must be tool_rental or helper_job.';
+  }
+  const q = typeof query.q === 'string' ? query.q.trim().slice(0, 100) : '';
+  const limit = Math.min(ARCHIVE_MAX_LIMIT, Math.max(1, parseInt(query.limit, 10) || ARCHIVE_DEFAULT_LIMIT));
+  const offset = Math.max(0, parseInt(query.offset, 10) || 0);
+  let from = null;
+  let to = null;
+  if (year !== null) {
+    const startMonth = month === null ? 0 : month - 1;
+    const endMonth = month === null ? 11 : month - 1;
+    from = new Date(Date.UTC(year, startMonth, 1)).toISOString();
+    to = new Date(Date.UTC(year, endMonth + 1, 1)).toISOString();
+  }
+  return { year, month, kind, q, limit, offset, from, to, errors };
+}
+
 function rentalReceipt(row) {
   return {
     kind: 'tool_rental',
@@ -76,8 +120,38 @@ function jobPaymentReceipt(row) {
 exports.listReceipts = async (req, res) => {
   try {
     const userId = req.user.id;
+    const archive = parseArchiveQuery(req.query || {});
+    if (Object.keys(archive.errors).length) {
+      const periodError = archive.errors.year || archive.errors.month;
+      return sendError(
+        res,
+        400,
+        periodError ? 'Invalid receipt archive period.' : 'Invalid receipt archive filter.',
+        periodError ? 'receipt_archive_invalid_period' : 'receipt_archive_invalid_filter',
+        { fields: archive.errors },
+      );
+    }
+    const rentalParams = [userId, PAID_RENTAL_STATUSES];
+    const jobParams = [userId, PAID_JOB_PAYMENT_STATUSES];
+    let rentalWhere = '';
+    let jobWhere = '';
+    if (archive.from) {
+      rentalParams.push(archive.from, archive.to);
+      rentalWhere += ` AND COALESCE(b.payment_confirmed_at, b.created_at) >= $${rentalParams.length - 1} AND COALESCE(b.payment_confirmed_at, b.created_at) < $${rentalParams.length}`;
+      jobParams.push(archive.from, archive.to);
+      jobWhere += ` AND COALESCE(p.released_at, p.captured_at) >= $${jobParams.length - 1} AND COALESCE(p.released_at, p.captured_at) < $${jobParams.length}`;
+    }
+    if (archive.q) {
+      const like = `%${archive.q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
+      rentalParams.push(like);
+      rentalWhere += ` AND (tr.name ILIKE $${rentalParams.length} OR inv.invoice_number ILIKE $${rentalParams.length})`;
+      jobParams.push(like);
+      jobWhere += ` AND j.title ILIKE $${jobParams.length}`;
+    }
+    const rentalKind = !archive.kind || archive.kind === 'tool_rental';
+    const jobKind = !archive.kind || archive.kind === 'helper_job';
     const [rentals, jobPayments] = await Promise.all([
-      pool.query(
+      rentalKind ? pool.query(
         `SELECT b.id, b.total_price, b.status, b.start_date, b.end_date,
                 b.payment_confirmed_at, b.created_at,
                 tr.name AS tool_name,
@@ -86,10 +160,10 @@ exports.listReceipts = async (req, res) => {
            JOIN tool_rentals tr ON tr.id = b.tool_id
            LEFT JOIN tool_rental_invoices inv ON inv.booking_id = b.id
           WHERE b.customer_id = $1
-            AND b.status = ANY($2::text[])`,
-        [userId, PAID_RENTAL_STATUSES],
-      ),
-      pool.query(
+            AND b.status = ANY($2::text[])${rentalWhere}`,
+        rentalParams,
+      ) : Promise.resolve({ rows: [] }),
+      jobKind ? pool.query(
         `SELECT p.id, p.job_id, p.amount, p.currency, p.status,
                 p.captured_at, p.released_at,
                 j.title AS job_title,
@@ -98,15 +172,17 @@ exports.listReceipts = async (req, res) => {
            JOIN jobs j ON j.id = p.job_id
            LEFT JOIN booking_requests br ON br.converted_to_job_id = j.id
           WHERE p.payer_id = $1
-            AND p.status = ANY($2::text[])`,
-        [userId, PAID_JOB_PAYMENT_STATUSES],
-      ),
+            AND p.status = ANY($2::text[])${jobWhere}`,
+        jobParams,
+      ) : Promise.resolve({ rows: [] }),
     ]);
     const receipts = [
       ...rentals.rows.map(rentalReceipt),
       ...jobPayments.rows.map(jobPaymentReceipt),
     ].sort((a, b) => new Date(b.paidAt || 0) - new Date(a.paidAt || 0));
-    return res.json({ success: true, data: receipts });
+    const total = receipts.length;
+    const page = receipts.slice(archive.offset, archive.offset + archive.limit);
+    return res.json({ success: true, data: page, total, limit: archive.limit, offset: archive.offset });
   } catch (err) {
     logger.error('Error listing receipts', { error: err.message });
     return sendError(res, 500, 'Failed to load receipts');
