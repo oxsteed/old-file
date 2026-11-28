@@ -604,3 +604,18 @@ test('Slice 5g (733): issuer identity display renders the entity on the opportun
   const en = JSON.parse(await read('src/locales/en.json'));
   assert.equal(typeof en.invest.directory.entityUnknown, 'string');
 });
+
+test('Slice 5g (734): credit-only contribution policy notice is acknowledged at application and repeated at commit', async () => {
+  const application = await read('src/pages/invest/InvestApplicationPage.jsx');
+  assert.match(application, /creditOnlyAck/);
+  assert.match(application, /invest\.application\.sections\.eligibility\.creditOnlyAck/);
+  const commit = await read('src/pages/invest/InvestCommitPage.jsx');
+  assert.match(commit, /invest\.commit\.amount\.hint/);
+  assert.match(commit, /invest\.commit\.eligibleBalance/);
+  for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const catalog = JSON.parse(await read(`src/locales/${lang}.json`));
+    assert.equal(typeof catalog.invest.application.sections.eligibility.creditOnlyAck, 'string', `${lang} creditOnlyAck`);
+    assert.equal(typeof catalog.invest.commit.amount.hint, 'string', `${lang} commit amount hint`);
+    assert.doesNotMatch(catalog.invest.application.sections.eligibility.creditOnlyAck, /—/, `${lang} em dash`);
+  }
+});
