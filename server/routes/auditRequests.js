@@ -30,15 +30,18 @@
  */
 
 const express = require('express');
+const crypto = require('crypto');
 
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 const { authenticate } = require('../middleware/auth');
-const { creditMutationLimiter } = require('../middleware/rateLimiter');
+const { creditMutationLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const { createSignedUrl } = require('../services/statementArtifactService');
 const defaultStorage = require('../utils/statementStorage');
 const { notifySupportStaff } = require('../services/supportNotificationService');
+const { sendEmail } = require('../utils/email');
+const { withTransaction } = require('../utils/transaction');
 
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -54,6 +57,74 @@ const MESSAGE_MAX_LENGTH = 5000;
 const NOTE_MAX_LENGTH = 1000;
 const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 20;
+
+// ── 741: accountant invitation ──────────────────────────────────────
+// Same HMAC shape as investor invitations: the one-time code is never
+// stored, only its hash; verification compares in constant time. A code
+// is 8 digits; 5 wrong attempts lock the invitation for 1 hour.
+const INVITE_SECRET = process.env.OTP_HMAC_SECRET || process.env.JWT_SECRET
+  || 'development-only-audit-accountant-invitation-secret';
+const INVITE_MAX_ATTEMPTS = 5;
+
+function hashInviteCode(value) {
+  return crypto.createHmac('sha256', INVITE_SECRET)
+    .update(`audit-accountant-invite:${String(value)}`).digest('hex');
+}
+
+function inviteCode() { return crypto.randomInt(10000000, 100000000).toString(); }
+
+function safeBaseUrl() {
+  return String(process.env.PUBLIC_APP_URL || process.env.APP_URL || 'https://oxsteed.com').replace(/\/$/, '');
+}
+
+function invitationView(row) {
+  const now = Date.now();
+  const status = row.revoked_at ? 'revoked'
+    : row.accepted_by ? 'accepted'
+    : new Date(row.expires_at).getTime() <= now ? 'expired' : 'pending';
+  return {
+    id: row.id,
+    auditRequestId: row.audit_request_id,
+    email: row.email,
+    status,
+    invitedBy: row.invited_by,
+    expiresAt: row.expires_at,
+    acceptedBy: row.accepted_by,
+    acceptedAt: row.accepted_at,
+    revokedAt: row.revoked_at,
+    revokedBy: row.revoked_by,
+    createdAt: row.created_at,
+  };
+}
+
+function invitationInvalid() {
+  return new AppError('The invitation could not be verified.', 400, 'audit_invitation_invalid');
+}
+
+async function bumpInviteAttempts(db, row) {
+  const attempts = Number(row.invite_attempts || 0) + 1;
+  // Explicit casts: pg cannot deduce a consistent type for $2 from the
+  // assignment and the comparison alone ("inconsistent types deduced
+  // for parameter $2").
+  await db.query(
+    `UPDATE audit_request_invitations SET invite_attempts = $2::int,
+       locked_until = CASE WHEN $2::int >= $3::int THEN NOW() + interval '1 hour' ELSE locked_until END
+     WHERE id = $1`,
+    [row.id, attempts, INVITE_MAX_ATTEMPTS],
+  );
+  return attempts;
+}
+
+function inviteAttemptError(row) {
+  if (row.locked_until && new Date(row.locked_until).getTime() > Date.now()) {
+    const err = new AppError('Too many attempts. Try again later.', 429, 'audit_invitation_rate_limited');
+    return err;
+  }
+  if (Number(row.invite_attempts || 0) >= INVITE_MAX_ATTEMPTS) {
+    return new AppError('Too many attempts. Try again later.', 429, 'audit_invitation_rate_limited');
+  }
+  return null;
+}
 
 function isAdminRole(role) {
   return role === 'admin' || role === 'super_admin';
@@ -199,6 +270,61 @@ async function loadRequestForOwnerOrAdmin(requestId, user) {
 
 function createAuditRequestsRouter({ storage = defaultStorage, notifyStaff = notifySupportStaff } = {}) {
   const router = express.Router();
+
+  // ── 741: invitation verification is public (the id + email + code
+  // triple is the secret) and must sit before the authenticate
+  // middleware below. It reveals nothing about the request: only
+  // whether the code is valid, and the invitation expiry.
+  // The attempt bump runs on the pool, not inside a transaction: a
+  // withTransaction rollback would undo the bump and the lockout would
+  // never trigger.
+  router.post('/invitations/verify', strictLimiter, async (req, res, next) => {
+    try {
+      const normalized = String(req.body?.email || '').trim().toLowerCase();
+      const code = String(req.body?.code || req.body?.inviteCode || '');
+      const invitationId = req.body?.invitationId ?? req.body?.invitation_id;
+      if (!EMAIL_RE.test(normalized) || !code) throw invitationInvalid();
+      const { rows } = invitationId && UUID_RE.test(String(invitationId))
+        ? await pool.query(
+          'SELECT * FROM audit_request_invitations WHERE id = $1',
+          [String(invitationId).toLowerCase()],
+        )
+        : await pool.query(
+          `SELECT * FROM audit_request_invitations
+            WHERE email = $1 AND revoked_at IS NULL AND accepted_by IS NULL
+            ORDER BY created_at DESC LIMIT 1`,
+          [normalized],
+        );
+      const row = rows[0];
+      // A wrong email, a revoked/accepted/expired row, or a locked row
+      // all answer the same generic error: invitation state cannot be
+      // probed without the code.
+      const limiter = row && row.email === normalized && !row.revoked_at && !row.accepted_by
+        ? inviteAttemptError(row) : null;
+      if (!row || row.email !== normalized || row.revoked_at || row.accepted_by
+        || new Date(row.expires_at).getTime() <= Date.now() || limiter) {
+        if (row && row.email === normalized && !row.revoked_at && !row.accepted_by) {
+          await bumpInviteAttempts(pool, row);
+        }
+        throw limiter || invitationInvalid();
+      }
+      const presented = hashInviteCode(code);
+      const ok = crypto.timingSafeEqual(
+        Buffer.from(presented), Buffer.from(row.token_hash),
+      );
+      if (!ok) {
+        const attempts = await bumpInviteAttempts(pool, row);
+        throw attempts >= INVITE_MAX_ATTEMPTS
+          ? new AppError('Too many attempts. Try again later.', 429, 'audit_invitation_rate_limited')
+          : invitationInvalid();
+      }
+      res.json({
+        invitationId: row.id,
+        email: row.email,
+        expiresAt: row.expires_at,
+      });
+    } catch (error) { next(error); }
+  });
 
   router.use(authenticate, (_req, res, next) => {
     res.set('Cache-Control', 'private, no-store');
@@ -505,6 +631,223 @@ function createAuditRequestsRouter({ storage = defaultStorage, notifyStaff = not
         throw new AppError('Share is already revoked', 409, 'audit_share_already_revoked');
       }
       res.json({ share: shareView(row) });
+    } catch (error) { next(error); }
+  });
+
+  // ── 741: accountant invitation ───────────────────────────────────
+  // POST /:id/invitations — invite an external accountant by email
+  // (owner/admin). The code is emailed; the invitation itself grants
+  // nothing until the accountant accepts it with a signed-in account,
+  // which mints the 718 share grant. A delivery failure revokes the
+  // invitation and answers 503, mirroring investor invitations.
+  router.post('/:id/invitations', creditMutationLimiter, async (req, res, next) => {
+    try {
+      const request = await loadRequestForOwnerOrAdmin(req.params.id, req.user);
+      if (request.status === 'closed') {
+        throw new AppError('A closed audit request cannot invite an accountant', 409, 'audit_request_closed');
+      }
+      const rawEmail = req.body?.email;
+      if (typeof rawEmail !== 'string' || !EMAIL_RE.test(rawEmail.trim())) {
+        throw new AppError('A valid email address is required', 400, 'audit_invitation_email_invalid');
+      }
+      const email = rawEmail.trim().toLowerCase();
+      const rawTtl = req.body?.expiresInSeconds ?? req.body?.expires_in_seconds;
+      const ttl = rawTtl === undefined || rawTtl === null ? GRANT_TTL_DEFAULT_SECONDS : Number(rawTtl);
+      if (!Number.isSafeInteger(ttl) || ttl < GRANT_TTL_MIN_SECONDS || ttl > GRANT_TTL_MAX_SECONDS) {
+        throw new AppError(
+          `Invitation expiry must be between ${GRANT_TTL_MIN_SECONDS} and ${GRANT_TTL_MAX_SECONDS} seconds`,
+          400, 'audit_invitation_ttl_invalid',
+        );
+      }
+      const code = inviteCode();
+      const { rows: [row] } = await pool.query(
+        `INSERT INTO audit_request_invitations
+           (audit_request_id, email, token_hash, invited_by, expires_at)
+         VALUES ($1, $2, $3, $4, NOW() + ($5 || ' seconds')::interval)
+         RETURNING *`,
+        [request.id, email, hashInviteCode(code), req.user.id, String(ttl)],
+      );
+      const link = `${safeBaseUrl()}/statements/audit-requests/invite?id=${encodeURIComponent(row.id)}`;
+      const delivery = await sendEmail({
+        to: email,
+        subject: 'Your OxSteed audit invitation',
+        text: `You have been invited to review an OxSteed audit request. Open ${link} and enter this one-time code: ${code}. This invitation expires ${new Date(row.expires_at).toISOString()}.`,
+        html: `<p>You have been invited to review an OxSteed audit request.</p><p><a href="${link}">Open your invitation</a></p><p>One-time code: <strong>${code}</strong></p><p>This invitation expires ${new Date(row.expires_at).toISOString()}.</p>`,
+        idempotencyKey: `audit-accountant-invite:${row.id}`,
+      });
+      if (!delivery || delivery.success === false) {
+        await pool.query(
+          'UPDATE audit_request_invitations SET revoked_at = NOW(), revoked_by = $2 WHERE id = $1',
+          [row.id, req.user.id],
+        ).catch(() => {});
+        throw new AppError('Unable to deliver the invitation.', 503, 'audit_invitation_delivery_failed');
+      }
+      res.status(201).json({ invitation: invitationView(row) });
+    } catch (error) { next(error); }
+  });
+
+  // GET /:id/invitations — owner/admin only; an auditor must not
+  // enumerate other invitees.
+  router.get('/:id/invitations', async (req, res, next) => {
+    try {
+      const request = await loadRequestForOwnerOrAdmin(req.params.id, req.user);
+      const { rows } = await pool.query(
+        `SELECT * FROM audit_request_invitations
+          WHERE audit_request_id = $1 ORDER BY created_at DESC, id DESC`,
+        [request.id],
+      );
+      res.json({ invitations: rows.map(invitationView) });
+    } catch (error) { next(error); }
+  });
+
+  // POST /:id/invitations/:invitationId/revoke — owner/admin. Only a
+  // pending (unaccepted, unrevoked) invitation can be revoked; an
+  // accepted invitation is already a grant, revoke the share instead.
+  router.post('/:id/invitations/:invitationId/revoke', creditMutationLimiter, async (req, res, next) => {
+    try {
+      const request = await loadRequestForOwnerOrAdmin(req.params.id, req.user);
+      if (!UUID_RE.test(String(req.params.invitationId || ''))) {
+        throw new AppError('Invitation not found', 404, 'audit_invitation_not_found');
+      }
+      const { rows: [row] } = await pool.query(
+        `UPDATE audit_request_invitations
+            SET revoked_at = NOW(), revoked_by = $3
+          WHERE id = $1 AND audit_request_id = $2
+            AND accepted_by IS NULL AND revoked_at IS NULL
+          RETURNING *`,
+        [String(req.params.invitationId).toLowerCase(), request.id, req.user.id],
+      );
+      if (!row) {
+        const { rows: [existing] } = await pool.query(
+          'SELECT id, accepted_by FROM audit_request_invitations WHERE id = $1 AND audit_request_id = $2',
+          [String(req.params.invitationId).toLowerCase(), request.id],
+        );
+        if (!existing) throw new AppError('Invitation not found', 404, 'audit_invitation_not_found');
+        if (existing.accepted_by) {
+          throw new AppError('This invitation was already accepted; revoke the auditor share instead', 409, 'audit_invitation_already_accepted');
+        }
+        throw new AppError('Invitation is already revoked', 409, 'audit_invitation_already_revoked');
+      }
+      res.json({ invitation: invitationView(row) });
+    } catch (error) { next(error); }
+  });
+
+  // POST /invitations/accept — the invited accountant accepts with a
+  // signed-in account. The code proves the invitation; the account must
+  // own the invited email. Accepting marks the invitation accepted and
+  // mints the 718 share grant for the invitation's remaining lifetime,
+  // so the accountant becomes an auditor on the request. A closed
+  // request refuses the accept; an already-active share replays.
+  router.post('/invitations/accept', strictLimiter, async (req, res, next) => {
+    try {
+      const normalized = String(req.body?.email || '').trim().toLowerCase();
+      const code = String(req.body?.code || req.body?.inviteCode || '');
+      const invitationId = req.body?.invitationId ?? req.body?.invitation_id;
+      if (!EMAIL_RE.test(normalized) || !code) throw invitationInvalid();
+      // The code is proven on the pool first: the attempt bump must not
+      // sit inside the mutation transaction, or a rollback would undo it
+      // and the lockout would never trigger. The token hash never changes
+      // after insert, so a code proven here stays proven; the mutation
+      // below re-reads the row FOR UPDATE and re-checks every other
+      // condition (accepted, revoked, expired, closed request, email
+      // match) inside the transaction.
+      const { rows: [candidate] } = invitationId && UUID_RE.test(String(invitationId))
+        ? await pool.query(
+          'SELECT * FROM audit_request_invitations WHERE id = $1',
+          [String(invitationId).toLowerCase()],
+        )
+        : await pool.query(
+          `SELECT * FROM audit_request_invitations
+            WHERE email = $1 AND revoked_at IS NULL AND accepted_by IS NULL
+            ORDER BY created_at DESC LIMIT 1`,
+          [normalized],
+        );
+      const limiter = candidate && candidate.email === normalized && !candidate.revoked_at && !candidate.accepted_by
+        ? inviteAttemptError(candidate) : null;
+      if (!candidate || candidate.email !== normalized || candidate.revoked_at || candidate.accepted_by
+        || new Date(candidate.expires_at).getTime() <= Date.now() || limiter) {
+        if (candidate && candidate.email === normalized && !candidate.revoked_at && !candidate.accepted_by) {
+          await bumpInviteAttempts(pool, candidate);
+        }
+        throw limiter || invitationInvalid();
+      }
+      const presented = hashInviteCode(code);
+      const ok = crypto.timingSafeEqual(
+        Buffer.from(presented), Buffer.from(candidate.token_hash),
+      );
+      if (!ok) {
+        const attempts = await bumpInviteAttempts(pool, candidate);
+        throw attempts >= INVITE_MAX_ATTEMPTS
+          ? new AppError('Too many attempts. Try again later.', 429, 'audit_invitation_rate_limited')
+          : invitationInvalid();
+      }
+      const result = await withTransaction(pool, async (client) => {
+        const { rows: [row] } = await client.query(
+          'SELECT * FROM audit_request_invitations WHERE id = $1 FOR UPDATE',
+          [candidate.id],
+        );
+        if (!row || row.revoked_at || row.accepted_by
+          || new Date(row.expires_at).getTime() <= Date.now()) {
+          throw invitationInvalid();
+        }
+        const { rows: [account] } = await client.query(
+          'SELECT id, email, is_active FROM users WHERE id = $1 AND deleted_at IS NULL',
+          [req.user.id],
+        );
+        if (!account || !account.is_active) {
+          throw new AppError('The signed-in account is not active', 403, 'audit_invitation_account_inactive');
+        }
+        if (String(account.email).toLowerCase() !== normalized) {
+          throw new AppError(
+            'Sign in with the invited email address to accept this invitation',
+            403, 'audit_invitation_email_mismatch',
+          );
+        }
+        const { rows: [request] } = await client.query(
+          'SELECT id, status FROM audit_requests WHERE id = $1 FOR UPDATE',
+          [row.audit_request_id],
+        );
+        if (!request) throw invitationInvalid();
+        if (request.status === 'closed') {
+          throw new AppError('This audit request is closed', 409, 'audit_request_closed');
+        }
+        const { rows: [accepted] } = await client.query(
+          `UPDATE audit_request_invitations
+              SET accepted_by = $2, accepted_at = NOW()
+            WHERE id = $1 RETURNING *`,
+          [row.id, req.user.id],
+        );
+        let share;
+        let shareReplayed = false;
+        // A unique violation aborts the whole transaction in Postgres,
+        // so the insert runs under a SAVEPOINT: on conflict, roll back
+        // to the savepoint and read the existing active share instead.
+        await client.query('SAVEPOINT mint_audit_share');
+        try {
+          ({ rows: [share] } = await client.query(
+            `INSERT INTO audit_request_shares (audit_request_id, auditor_user_id, created_by, expires_at)
+             VALUES ($1, $2, $3, $4) RETURNING *`,
+            [row.audit_request_id, req.user.id, row.invited_by, row.expires_at],
+          ));
+        } catch (error) {
+          if (error.code !== '23505') throw error;
+          await client.query('ROLLBACK TO SAVEPOINT mint_audit_share');
+          ({ rows: [share] } = await client.query(
+            `SELECT * FROM audit_request_shares
+              WHERE audit_request_id = $1 AND auditor_user_id = $2 AND revoked_at IS NULL
+              ORDER BY created_at DESC LIMIT 1`,
+            [row.audit_request_id, req.user.id],
+          ));
+          shareReplayed = true;
+        }
+        await client.query('RELEASE SAVEPOINT mint_audit_share');
+        return { invitation: accepted, share, shareReplayed };
+      }, 'accept_audit_accountant_invitation');
+      res.json({
+        invitation: invitationView(result.invitation),
+        share: shareView(result.share),
+        shareReplayed: result.shareReplayed,
+      });
     } catch (error) { next(error); }
   });
 
