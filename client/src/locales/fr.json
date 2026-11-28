@@ -26719,6 +26719,16 @@
       "copy": "Vous consultez en mode rapports uniquement. Vous pouvez examiner les rapports des entités que vous êtes autorisé à voir, mais vous ne pouvez pas prendre d'engagements d'investissement. Pour participer, explorez les opportunités et demandez l'accès.",
       "title": "Mode rapports uniquement"
     },
+    "datasetRecovery": {
+      "action": "Demander l’accès dans Réglages",
+      "copy": "Le jeu de données {{dataset}} ne fait pas partie de votre audience de rapports. Demandez l’accès pour le restaurer."
+    },
+    "scopeRecovery": {
+      "action": "Ouvrir Réglages",
+      "copy": "Votre audience de rapports est manquante ou expirée. Demandez à nouveau l’accès depuis Réglages pour la restaurer.",
+      "copyDataset": "Le jeu de données {{dataset}} ne fait pas partie de votre audience de rapports. Demandez l’accès depuis Réglages pour le restaurer.",
+      "title": "Il manque quelque chose à votre accès aux rapports"
+    },
     "periods": {
       "sevenDays": "7 derniers jours",
       "thirtyDays": "30 derniers jours",

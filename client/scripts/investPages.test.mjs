@@ -632,3 +632,57 @@ test('Slice 5g (735): disabled commitment state shows the gate-off notice and di
   // invest_commitments_disabled with the flag off); the page only renders
   // the disabled state, it never substitutes its own gate for the server's.
 });
+
+// ── Slice 5h: handle access changes (736-740) ──────────────────────────
+
+test('Slice 5h (736): a withheld dataset renders a recovery note, never bare "No data"', async () => {
+  const src = await read('src/pages/InvestorDashboardPage.jsx');
+  // Every withheld section renders the recovery note naming the dataset.
+  assert.match(src, /DatasetRecoveryNote/);
+  assert.match(src, /<DatasetRecoveryNote dataset="revenue" \/>/);
+  assert.match(src, /<DatasetRecoveryNote dataset="franchise" \/>/);
+  assert.match(src, /<DatasetRecoveryNote dataset="supply_demand" \/>/);
+  // The note names the dataset and links to Settings to re-apply.
+  assert.match(src, /investorDashboard\.datasetRecovery\.copy/);
+  assert.match(src, /investorDashboard\.datasetRecovery\.action/);
+  assert.match(src, /to="\/settings\/applications"/);
+  // No withheld section still renders the bare "No data" line: the only
+  // remaining noData uses are genuine empty states (chart with no rows,
+  // empty category table), never a withheld dataset.
+  assert.doesNotMatch(src, /!datasetAllowed\('revenue'\)\s*\?\s*<p[^>]*>\{t\('investorDashboard\.noData'\)\}/);
+  assert.doesNotMatch(src, /!datasetAllowed\('franchise'\)\s*\?\s*<p[^>]*>\{t\('investorDashboard\.noData'\)\}/);
+  assert.doesNotMatch(src, /!datasetAllowed\('supply_demand'\)\s*\?\s*<p[^>]*>\{t\('investorDashboard\.noData'\)\}/);
+  for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const catalog = JSON.parse(await read(`src/locales/${lang}.json`));
+    assert.equal(typeof catalog.investorDashboard.datasetRecovery.copy, 'string', `${lang} datasetRecovery.copy`);
+    assert.equal(typeof catalog.investorDashboard.datasetRecovery.action, 'string', `${lang} datasetRecovery.action`);
+    assert.doesNotMatch(JSON.stringify(catalog.investorDashboard.datasetRecovery), /—/, `${lang} em dash`);
+  }
+});
+
+test('Slice 5h (736): a missing-scope load failure renders a recovery panel, not the raw error', async () => {
+  const src = await read('src/pages/InvestorDashboardPage.jsx');
+  // The load captures the failure code and dataset, not just the message.
+  assert.match(src, /errorCode === 'investor_audience_required'/);
+  assert.match(src, /errorCode === 'access_required'/);
+  assert.match(src, /errorCode === 'investor_dataset_not_granted'/);
+  assert.match(src, /investorDashboard\.scopeRecovery\.title/);
+  assert.match(src, /investorDashboard\.scopeRecovery\.copy'/);
+  assert.match(src, /investorDashboard\.scopeRecovery\.copyDataset/);
+  assert.match(src, /investorDashboard\.scopeRecovery\.action/);
+  // A missing dataset names the dataset; any other load failure stays a
+  // plain error panel.
+  assert.match(src, /errorDataset/);
+  assert.match(src, /bg-red-500\/10/);
+  // The no-reporting redirect stays: a revoked viewer is cleared off the
+  // dashboard immediately, and recovery for that case is the workspace
+  // reports card, which already links to /settings/applications.
+  assert.match(src, /navigate\('\/dashboard', \{ replace: true \}\)/);
+  for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const catalog = JSON.parse(await read(`src/locales/${lang}.json`));
+    for (const key of ['title', 'copy', 'copyDataset', 'action']) {
+      assert.equal(typeof catalog.investorDashboard.scopeRecovery[key], 'string', `${lang} scopeRecovery.${key}`);
+    }
+    assert.doesNotMatch(JSON.stringify(catalog.investorDashboard.scopeRecovery), /—/, `${lang} em dash`);
+  }
+});

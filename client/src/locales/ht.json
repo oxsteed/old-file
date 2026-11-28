@@ -26719,6 +26719,16 @@
       "copy": "W ap gade nan mòd rapò sèlman. Ou ka revize rapò pou antite ou gen otorizasyon pou wè yo, men ou pa ka pran angajman envestisman. Pou patisipe, eksplore opòtinite yo epi mande aksè.",
       "title": "Mòd rapò sèlman"
     },
+    "datasetRecovery": {
+      "action": "Mande aksè nan Anviwònman",
+      "copy": "Dataset {{dataset}} la pa nan odyans rapò ou. Mande aksè pou retabli li."
+    },
+    "scopeRecovery": {
+      "action": "Louvri Anviwònman",
+      "copy": "Odyans rapò ou a pa la oswa li ekspire. Mande aksè ankò nan Anviwònman pou retabli li.",
+      "copyDataset": "Dataset {{dataset}} la pa nan odyans rapò ou. Mande aksè nan Anviwònman pou retabli li.",
+      "title": "Gen yon bagay ki manke nan aksè rapò ou"
+    },
     "periods": {
       "sevenDays": "7 jou dènye jou",
       "thirtyDays": "30 jou dènye",

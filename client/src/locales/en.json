@@ -26719,6 +26719,16 @@
       "copy": "You are viewing in reporting-only mode. You can review reports for the entities you are authorized to see, but you cannot make investment commitments. To participate, explore opportunities and request access.",
       "title": "Reporting-only mode"
     },
+    "datasetRecovery": {
+      "action": "Request access in Settings",
+      "copy": "The {{dataset}} dataset is not in your reporting audience. Request access to restore it."
+    },
+    "scopeRecovery": {
+      "action": "Open Settings",
+      "copy": "Your reporting audience is missing or expired. Request access again from Settings to restore it.",
+      "copyDataset": "The {{dataset}} dataset is not in your reporting audience. Request access from Settings to restore it.",
+      "title": "Your reporting access is missing something"
+    },
     "periods": {
       "sevenDays": "Last 7 Days",
       "thirtyDays": "Last 30 Days",
