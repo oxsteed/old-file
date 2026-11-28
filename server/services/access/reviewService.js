@@ -166,6 +166,7 @@ async function decide(user, id, { action, expectedVersion, reasonCode = null, no
       throw err(409, 'request_version_conflict', 'The applicant changed their answers.', { current: access._internal.toApplicantSummary(row) });
     }
     const cap = registry.getCapability(row.capability);
+    let audienceChange = null;
     if (action === 'approve') {
       // Re-validate against the CURRENT policy; a changed policy needs new facts.
       if (row.policy_version !== cap.version) throw err(409, 'policy_changed', 'The policy changed; request updated information first.');
@@ -215,6 +216,12 @@ async function decide(user, id, { action, expectedVersion, reasonCode = null, no
           .map((value) => String(value).trim().toLowerCase())
           .filter((value, index, values) => INVESTOR_DATASETS.has(value) && values.indexOf(value) === index);
         if (!datasets.length) throw err(409, 'policy_changed', 'The investor audience must request at least one supported report.');
+        // D-772 (729): remember the previous audience row so the notice
+        // can say whether this approval granted access or changed it.
+        const { rows: priorAudience } = await client.query(
+          `SELECT datasets, entity_ids, audience_key FROM investor_reporting_audiences WHERE grant_id = $1`,
+          [grantId],
+        );
         // G-45: snapshot the applicant's position scope on the audience row
         // (live positions, commitments, and participation applications).
         // The franchise dataset filters by these ids; a re-approval
@@ -229,6 +236,16 @@ async function decide(user, id, { action, expectedVersion, reasonCode = null, no
                  opportunity_ids = EXCLUDED.opportunity_ids, status = 'active', revoked_at = NULL, updated_at = NOW()`,
           [row.applicant_id, grantId, String(answers.audience || '').trim(), datasets, scope.entityIds, scope.opportunityIds],
         );
+        const prior = priorAudience[0] || null;
+        const sameIds = (a, b) => JSON.stringify([...(a || [])].sort()) === JSON.stringify([...(b || [])].sort());
+        const audienceKey = String(answers.audience || '').trim();
+        if (!prior) {
+          audienceChange = { kind: 'granted', datasets, entityIds: scope.entityIds, decisionId, userId: row.applicant_id };
+        } else if (!sameIds(prior.datasets, datasets) || !sameIds(prior.entity_ids, scope.entityIds) || prior.audience_key !== audienceKey) {
+          audienceChange = { kind: 'changed', datasets, entityIds: scope.entityIds, decisionId, userId: row.applicant_id };
+        }
+        // An identical re-approval sends no notice: the holder's access
+        // did not change, and the approval notice already told them.
       }
     }
     if (['approve', 'decline', 'request_information'].includes(action)) {
@@ -242,7 +259,7 @@ async function decide(user, id, { action, expectedVersion, reasonCode = null, no
       });
     }
     await access.bumpProjection(client, row.applicant_id);
-    return { status: 200, body: { request: toReviewerView(updated[0]), grantId: grantId ? String(grantId) : null } };
+    return { status: 200, body: { request: toReviewerView(updated[0]), grantId: grantId ? String(grantId) : null, audienceChange } };
   });
 }
 

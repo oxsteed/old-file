@@ -10,6 +10,7 @@ const access = require('../services/access/accessService');
 const review = require('../services/access/reviewService');
 const registry = require('../services/access/policyRegistry');
 const flags = require('../services/access/flags');
+const { notifyInvestorAudienceGranted, notifyInvestorAudienceChanged } = require('../services/invest/investNotifications');
 
 function send(res, result) {
   if (result.replay) res.set('Idempotent-Replay', 'true');
@@ -117,17 +118,38 @@ const reviewGet = wrap('admin.access.get', async (req, res) => {
 
 const reviewDecide = wrap('admin.access.decide', async (req, res) => {
   const b = req.body || {};
-  return send(res, await review.decide(req.user, req.params.id, {
+  const result = await review.decide(req.user, req.params.id, {
     action: b.decision, expectedVersion: b.expectedVersion, reasonCode: b.reasonCode || null,
     note: b.note ?? null, informationRequest: b.informationRequest ?? null, evidenceRevision: b.evidenceRevision ?? null,
-  }, { idemKey: idemKey(req) }));
+  }, { idemKey: idemKey(req) });
+  // D-772 (729): the audience notice fires after decide() commits, never
+  // inside the decision transaction, so a notice failure can never roll
+  // back the decision and a notice can never fire for a decision that did
+  // not commit. The idempotency key is stable per decision, so an
+  // idempotent replay of the decision dedupes the notice.
+  const change = result.body && result.body.audienceChange;
+  if (change && change.kind === 'granted') {
+    await notifyInvestorAudienceGranted({ userId: change.userId, datasets: change.datasets, entityCount: (change.entityIds || []).length, idempotencyKey: `invest-audience:${change.decisionId}:granted` });
+  } else if (change && change.kind === 'changed') {
+    await notifyInvestorAudienceChanged({ userId: change.userId, changeAction: 'approve', datasets: change.datasets, entityCount: (change.entityIds || []).length, idempotencyKey: `invest-audience:${change.decisionId}:changed` });
+  }
+  return send(res, result);
 });
 
 const grantChange = wrap('admin.access.grant', async (req, res) => {
   const b = req.body || {};
-  return send(res, await review.changeGrant(req.user, req.params.grantId, {
+  const result = await review.changeGrant(req.user, req.params.grantId, {
     action: b.action, expectedVersion: b.expectedVersion, reasonCode: b.reasonCode,
-  }, { idemKey: idemKey(req) }));
+  }, { idemKey: idemKey(req) });
+  // D-772 (729): a suspend / reinstate / revoke of an investor.reporting
+  // grant changes the holder's audience, so the holder is told — after
+  // changeGrant() commits. The grant version is stable per transition,
+  // so an idempotent replay dedupes the notice.
+  const grant = result.body && result.body.grant;
+  if (result.status === 200 && grant && grant.capability === 'investor.reporting' && ['suspend', 'reinstate', 'revoke'].includes(b.action)) {
+    await notifyInvestorAudienceChanged({ userId: grant.user_id, changeAction: b.action, reasonCode: b.reasonCode || null, idempotencyKey: `invest-audience-grant:${grant.id}:${grant.version}` });
+  }
+  return send(res, result);
 });
 
 const userGrants = wrap('admin.access.userGrants', async (req, res) => {

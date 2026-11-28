@@ -52,6 +52,8 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
   let noAudienceUser;
   let admin;
   let stranger;
+  let superAdmin;
+  let investorReviewer;
   let bizA;
   let bizB;
   let bizC;
@@ -59,6 +61,7 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
   const tokenFor = (user) => require('../middleware/auth').generateTokens(user).accessToken;
   const authAs = (user, req) => req.set('Authorization', `Bearer ${tokenFor(user)}`);
   const getAs = (user, path) => authAs(user, request(app).get(path));
+  const postAs = (user, path, body = {}) => authAs(user, request(app).post(path).set('Idempotency-Key', `slice-5f-${runId}-${crypto.randomUUID()}`)).send(body);
 
   async function makeUser(role = 'customer') {
     const id = crypto.randomUUID();
@@ -196,6 +199,9 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
     app = express();
     app.use(express.json());
     app.use('/api/investor', require('../routes/investor'));
+    const progressiveAccess = require('../routes/progressiveAccess');
+    app.use('/api/me', progressiveAccess.meRouter);
+    app.use('/api/admin/access-requests', progressiveAccess.adminRouter);
     app.use(require('../middleware/errorHandler').errorHandler);
 
     // A failed run leaves its fixtures behind (beforeAll has no
@@ -277,6 +283,19 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
     await makeExportJob(holder.id, { product: 'oxsteed', format: 'csv', state: 'complete' });
     await makeExportJob(holder.id, { product: 'business', format: 'pdf', state: 'failed' });
     await makeExportJob(stranger.id, { product: 'oxsteed', format: 'csv', state: 'complete' });
+
+    // 729 fixtures: an investor reviewer (admin + review_investor_access).
+    // Real adminAuth runs here (unlike the progressive-access suite, which
+    // mocks it), so the reviewer must be 2FA-enrolled or requireAdmin
+    // refuses with admin_2fa_required.
+    superAdmin = await makeUser('super_admin');
+    investorReviewer = await makeUser('admin');
+    await pool.query(`UPDATE users SET totp_enabled = TRUE WHERE id = $1`, [investorReviewer.id]);
+    await pool.query(
+      `INSERT INTO admin_permission_grants (grantor_id, grantee_id, permissions, expires_at)
+       VALUES ($1, $2, $3::jsonb, NOW() + INTERVAL '1 day')`,
+      [superAdmin.id, investorReviewer.id, JSON.stringify(['review_investor_access'])],
+    );
   });
 
   afterAll(async () => { if (pool) await pool.end(); });
@@ -375,6 +394,39 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
     await getAs(stranger, '/api/investor/reporting/datasets').expect(403);
   });
 
+  // 729 helpers: file an investor.reporting request the way WP-077 seeds
+  // it (the public flow refuses investor.reporting as invite-only) and
+  // approve it through the real reviewer endpoint.
+  async function seedInvestorRequest(user, requestedReports) {
+    const { rows } = await pool.query(
+      `INSERT INTO access_requests
+         (applicant_id, capability, subject_type, subject_id, subject_key, status, policy_version,
+          answers, source, return_to)
+       VALUES ($1, 'investor.reporting', 'self', NULL, 'self', 'draft', 'investor-policy-2',
+          $2::jsonb, 'in_context', NULL)
+       RETURNING id`,
+      [user.id, JSON.stringify({ audience: 'quarterly board', requestedReports, about: 'Board reporting' })],
+    );
+    const id = rows[0].id;
+    const submitted = await postAs(user, `/api/me/access-requests/${id}/submit`, { expectedVersion: 1 });
+    expect(submitted.status).toBe(200);
+    return id;
+  }
+
+  async function approveInvestorRequest(requestId) {
+    const approved = await postAs(investorReviewer, `/api/admin/access-requests/${requestId}/decision`, { decision: 'approve', expectedVersion: 2 });
+    expect(approved.status).toBe(200);
+    return approved.body;
+  }
+
+  async function audienceNotices(userId, type) {
+    const { rows } = await pool.query(
+      `SELECT type, title, body, action_url, data FROM notifications WHERE user_id = $1 AND type = $2 ORDER BY created_at ASC`,
+      [userId, type],
+    );
+    return rows;
+  }
+
   test('728: the holder sees exactly their own active shares and export jobs', async () => {
     const res = await getAs(holder, '/api/investor/reporting/documents').expect(200);
     const docs = res.body.documents;
@@ -405,5 +457,54 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
 
   test('728: a user without the grant is refused', async () => {
     await getAs(stranger, '/api/investor/reporting/documents').expect(403);
+  });
+
+  test('729: approving an investor.reporting request sends the audience-granted notice', async () => {
+    const applicant = await makeUser('customer');
+    const requestId = await seedInvestorRequest(applicant, ['overview', 'revenue']);
+    const body = await approveInvestorRequest(requestId);
+    expect(body.audienceChange).toMatchObject({ kind: 'granted' });
+    const notices = await audienceNotices(applicant.id, 'invest_reporting_audience_granted');
+    expect(notices).toHaveLength(1);
+    expect(notices[0].title).toBe('Investor reporting access granted');
+    expect(notices[0].action_url).toBe('/investor/dashboard');
+    expect(notices[0].data.datasets).toEqual(['overview', 'revenue']);
+    expect(notices[0].data.entityCount).toBe(0);
+    // The notice carries only the audience facts, never reviewer notes.
+    expect(notices[0].body).not.toContain('quarterly board');
+  });
+
+  test('729: re-approval with different datasets sends the changed notice, and an identical re-approval sends nothing', async () => {
+    const applicant = await makeUser('customer');
+    const first = await seedInvestorRequest(applicant, ['overview', 'revenue']);
+    await approveInvestorRequest(first);
+    const second = await seedInvestorRequest(applicant, ['overview']);
+    const changedBody = await approveInvestorRequest(second);
+    expect(changedBody.audienceChange).toMatchObject({ kind: 'changed' });
+    let changed = await audienceNotices(applicant.id, 'invest_reporting_audience_changed');
+    expect(changed).toHaveLength(1);
+    expect(changed[0].title).toBe('Investor reporting access changed');
+    expect(changed[0].data.changeAction).toBe('approve');
+    expect(changed[0].data.datasets).toEqual(['overview']);
+    // Identical re-approval: same datasets, same audience key, same scope.
+    const third = await seedInvestorRequest(applicant, ['overview']);
+    const sameBody = await approveInvestorRequest(third);
+    expect(sameBody.audienceChange).toBeNull();
+    changed = await audienceNotices(applicant.id, 'invest_reporting_audience_changed');
+    expect(changed).toHaveLength(1);
+    expect(await audienceNotices(applicant.id, 'invest_reporting_audience_granted')).toHaveLength(1);
+  });
+
+  test('729: revoking an investor.reporting grant sends the changed notice', async () => {
+    const applicant = await makeUser('customer');
+    const requestId = await seedInvestorRequest(applicant, ['overview']);
+    const body = await approveInvestorRequest(requestId);
+    const { rows: grantRows } = await pool.query(`SELECT version FROM access_grants WHERE id = $1`, [body.grantId]);
+    const revoked = await postAs(investorReviewer, `/api/admin/access-requests/grants/${body.grantId}`, { action: 'revoke', expectedVersion: grantRows[0].version, reasonCode: 'policy_not_met' });
+    expect(revoked.status).toBe(200);
+    const changed = await audienceNotices(applicant.id, 'invest_reporting_audience_changed');
+    expect(changed).toHaveLength(1);
+    expect(changed[0].data.changeAction).toBe('revoke');
+    expect(changed[0].data.reasonCode).toBe('policy_not_met');
   });
 });

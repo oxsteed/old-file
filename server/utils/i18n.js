@@ -537,6 +537,38 @@ const T = {
       ar: 'تم اقتراح تعديل على فرصة استثمرت فيها. راجعه وأعد تأكيده قبل الموعد النهائي.',
     },
   },
+  invest_reporting_audience_granted: {
+    title: {
+      en: 'Investor reporting access granted',
+      fr: 'Accès aux rapports investisseurs accordé',
+      es: 'Acceso a informes para inversores concedido',
+      ht: 'Aksè rapò envestisè yo bay',
+      ar: 'تم منح الوصول إلى تقارير المستثمرين',
+    },
+    body: {
+      en: 'You can now view the reporting datasets in your audience. Open the investor dashboard to see what you can access.',
+      fr: 'Vous pouvez désormais consulter les jeux de données de votre audience. Ouvrez le tableau de bord investisseur pour voir ce à quoi vous avez accès.',
+      es: 'Ya puede consultar los conjuntos de datos de su audiencia. Abra el panel del inversor para ver a qué tiene acceso.',
+      ht: 'Kounye a ou ka wè dataset odyans ou yo. Louvri tablodbò envestisè a pou wè sa ou ka jwenn aksè.',
+      ar: 'يمكنك الآن عرض مجموعات البيانات في جمهورك. افتح لوحة معلومات المستثمر لترى ما يمكنك الوصول إليه.',
+    },
+  },
+  invest_reporting_audience_changed: {
+    title: {
+      en: 'Investor reporting access changed',
+      fr: 'Accès aux rapports investisseurs modifié',
+      es: 'Acceso a informes para inversores modificado',
+      ht: 'Aksè rapò envestisè yo chanje',
+      ar: 'تم تغيير الوصول إلى تقارير المستثمرين',
+    },
+    body: {
+      en: 'Your investor reporting access changed. Open the investor dashboard to see your current datasets and entities.',
+      fr: 'Votre accès aux rapports investisseurs a changé. Ouvrez le tableau de bord investisseur pour voir vos jeux de données et entités actuels.',
+      es: 'Su acceso a informes para inversores cambió. Abra el panel del inversor para ver sus conjuntos de datos y entidades actuales.',
+      ht: 'Aksè rapò envestisè ou chanje. Louvri tablodbò envestisè a pou wè dataset ak antite ou yo kounye a.',
+      ar: 'تم تغيير وصولك إلى تقارير المستثمرين. افتح لوحة معلومات المستثمر لترى مجموعات البيانات والكيانات الحالية.',
+    },
+  },
   credit_identity_verification_requested: {
     title: { en: 'Identity review requested', es: 'Solicitud de revisión de identidad', fr: 'Demande de vérification d’identité', ht: 'Demann verifikasyon idantite', ar: 'تم طلب مراجعة الهوية' },
     body: { en: 'Your identity review request is in the compliance queue.', es: 'Tu solicitud de revisión de identidad está en la cola de cumplimiento.', fr: 'Votre demande de vérification d’identité est dans la file de conformité.', ht: 'Demann verifikasyon idantite ou nan ke konformite a.', ar: 'طلب مراجعة هويتك في قائمة الامتثال.' },
@@ -3209,6 +3241,21 @@ const EMAIL_TEMPLATES = {
       es: 'Revisar modificación',
       ht: 'Revize modifikasyon an',
       ar: 'مراجعة التعديل',
+    },
+    // 729 (D-772): Invest reporting-audience buttons.
+    invest_reporting_audience_granted: {
+      en: 'View Reporting',
+      fr: 'Voir les rapports',
+      es: 'Ver informes',
+      ht: 'Gade rapò yo',
+      ar: 'عرض التقارير',
+    },
+    invest_reporting_audience_changed: {
+      en: 'View Reporting',
+      fr: 'Voir les rapports',
+      es: 'Ver informes',
+      ht: 'Gade rapò yo',
+      ar: 'عرض التقارير',
     },
     // G10-1: consultant payout leg.
     consultant_payout_paid: {

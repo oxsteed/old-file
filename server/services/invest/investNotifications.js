@@ -10,9 +10,10 @@
 // never roll back money that did. Failures are warn-logged and recorded
 // as deduped medium incidents (the N6 shape), never thrown.
 //
-// INVEST_COMMITMENTS_ENABLED stays false: this is the notice delivery leg,
-// not an activation of live commitments. The send sites below are all
-// reached only after the gated money functions already enforced it.
+// This is the notice delivery leg, not an activation of live
+// commitments: the send sites below are all reached only after the
+// gated money functions already enforced their own flags
+// (INVEST_COMMITMENTS_ENABLED is default-on since D-752, PR #824).
 
 const { sendNotification } = require('../notificationService');
 const logger = require('../../utils/logger');
@@ -91,4 +92,29 @@ async function notifyAmendmentReconfirmation({ dbPool, opportunityId, amendmentI
   return { notified, recipients: rows.length };
 }
 
-module.exports = { notifyInvestor, notifyAmendmentReconfirmation, moneyText };
+// 729 (D-772): reporting-audience notices. An approval grants an
+// audience (first audience row for the grant) or changes it (re-approval
+// with different datasets/entities); a suspend, reinstate, or revoke of
+// an investor.reporting grant changes it too. Both fire after the
+// decision/transition commits, through the same N15 helper, with the
+// datasets and entity count in data (the bodies stay generic; no
+// reviewer note or business name is ever interpolated). The caller
+// passes a stable idempotency key per decision/transition, so an
+// idempotent replay of the decision dedupes the notice.
+async function notifyInvestorAudienceGranted({ userId, datasets, entityCount, idempotencyKey }) {
+  return notifyInvestor({
+    userId, type: 'invest_reporting_audience_granted',
+    data: { datasets: datasets || [], entityCount: entityCount || 0, path: '/investor/dashboard' },
+    actionUrl: '/investor/dashboard', idempotencyKey,
+  });
+}
+
+async function notifyInvestorAudienceChanged({ userId, changeAction, reasonCode, datasets, entityCount, idempotencyKey }) {
+  return notifyInvestor({
+    userId, type: 'invest_reporting_audience_changed',
+    data: { changeAction: changeAction || null, reasonCode: reasonCode || null, datasets: datasets || null, entityCount: entityCount == null ? null : entityCount, path: '/investor/dashboard' },
+    actionUrl: '/investor/dashboard', idempotencyKey,
+  });
+}
+
+module.exports = { notifyInvestor, notifyAmendmentReconfirmation, notifyInvestorAudienceGranted, notifyInvestorAudienceChanged, moneyText };
