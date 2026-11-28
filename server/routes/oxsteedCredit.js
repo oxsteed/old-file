@@ -128,5 +128,8 @@ router.post('/cards/:cardId/freeze', creditMutationLimiter, rejectImpersonated, 
 router.post('/cards/:cardId/unfreeze', creditMutationLimiter, rejectImpersonated, cardController.unfreezeMyCard);
 router.post('/cards/:cardId/report-lost', creditMutationLimiter, rejectImpersonated, cardController.reportMyCardLost);
 router.post('/cards/:cardId/pin', creditMutationLimiter, rejectImpersonated, cardController.setMyCardPin);
+router.post('/cards/:cardId/reveal', creditMutationLimiter, rejectImpersonated, cardController.revealMyCard);
+router.post('/cards/:cardId/security-code/reset', creditMutationLimiter, rejectImpersonated, cardController.resetMyCardSecurityCode);
+router.post('/cards/:cardId/limits', creditMutationLimiter, rejectImpersonated, cardController.setMyCardLimits);
 
 module.exports = router;

@@ -20,11 +20,20 @@
 // PINs (low entropy) are stored as a memory-hard scrypt hash prefixed with
 // `$scrypt$`; legacy SHA-256 PIN hashes are verified on the fallback path and
 // transparently upgraded to scrypt on the next successful verification.
+//
+// Credit redesign (D-798/D-800/D-804): new cards mint a 16-digit closed-loop
+// number (OxSteed-owned prefix 9700, Luhn check digit) instead of a random
+// base64 token. The number is stored encrypted (AES-256-GCM) so the owner
+// can reveal it after step-up; the hash stays the spend lookup. The 3-digit
+// security code is scrypt-hashed with a per-card salt and can only be reset,
+// never read back. Legacy base64-credential cards keep working: the hash
+// lookup is unchanged, they simply have no encrypted number to reveal.
 
 const crypto = require('crypto');
 const util = require('util');
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { encrypt, decrypt } = require('../utils/encryption');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const cardSecurity = require('./oxsteedCreditCardSecurity');
@@ -138,6 +147,63 @@ function generateCredential() {
   return crypto.randomBytes(VIRTUAL_CREDENTIAL_BYTES).toString('base64url');
 }
 
+// Credit redesign (D-798): the closed-loop card number. Prefix 9700 is an
+// OxSteed-owned identifier (MII 9, national assignment — never a card-network
+// prefix), then 11 random digits and a Luhn check digit. The number is the
+// credential: its SHA-256 is the spend lookup, its last 4 are the display.
+const CLOSED_LOOP_CARD_PREFIX = '9700';
+const CLOSED_LOOP_CARD_LENGTH = 16;
+
+function generateCardNumber() {
+  const digits = [];
+  const bytes = crypto.randomBytes(CLOSED_LOOP_CARD_LENGTH - CLOSED_LOOP_CARD_PREFIX.length - 1);
+  for (let i = 0; i < CLOSED_LOOP_CARD_LENGTH - CLOSED_LOOP_CARD_PREFIX.length - 1; i += 1) {
+    digits.push(String(bytes[i] % 10));
+  }
+  const body = `${CLOSED_LOOP_CARD_PREFIX}${digits.join('')}`;
+  return `${body}${creditService.luhnCheckDigit(body)}`;
+}
+
+function isClosedLoopCardNumber(value) {
+  const normalized = String(value || '');
+  return /^\d{16}$/.test(normalized)
+    && normalized.startsWith(CLOSED_LOOP_CARD_PREFIX)
+    && creditService.isValidLuhn(normalized);
+}
+
+function generateSecurityCode() {
+  // 3 digits, 100-999: never a leading zero, always typeable.
+  return String(crypto.randomInt(100, 1000));
+}
+
+async function hashSecurityCode(code) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = await hashCardPinScrypt(code, salt);
+  return { hash, salt };
+}
+
+async function verifySecurityCode(storedHash, code) {
+  return verifyScryptPinHash(storedHash, code);
+}
+
+// Mint the one-time issuance bundle: the number (returned once), its
+// encrypted + hashed forms, and the security code (returned once) with
+// its scrypt hash. Nothing here is logged.
+async function mintCardCredential() {
+  const number = generateCardNumber();
+  const securityCode = generateSecurityCode();
+  const { hash: securityCodeHash, salt: securityCodeSalt } = await hashSecurityCode(securityCode);
+  return {
+    number,
+    securityCode,
+    credentialHash: sha256Hex(number),
+    credentialLast4: number.slice(-4),
+    credentialEncrypted: encrypt(number),
+    securityCodeHash,
+    securityCodeSalt,
+  };
+}
+
 function generateActivationCode() {
   // Avoid visually ambiguous characters (0/O, 1/I/L) on a physically printed card.
   const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -147,11 +213,6 @@ function generateActivationCode() {
     code += alphabet[bytes[i] % alphabet.length];
   }
   return code;
-}
-
-function last4Of(rawCredential) {
-  const normalized = String(rawCredential || '');
-  return normalized.slice(-4).toUpperCase();
 }
 
 function requireCardOwner(actorUserId, customerId) {
@@ -166,7 +227,7 @@ function requireAdministrativeActor(actorUserId) {
   }
 }
 
-function formatCard(row, { includeIssuedCredential = null, includeActivationCode = null } = {}) {
+function formatCard(row, { includeIssuedCredential = null, includeIssuedSecurityCode = null, includeActivationCode = null } = {}) {
   if (!row) return null;
   return {
     id: row.id,
@@ -177,6 +238,15 @@ function formatCard(row, { includeIssuedCredential = null, includeActivationCode
     fulfillmentStatus: row.fulfillment_status,
     hasCredential: Boolean(row.credential_hash),
     credentialLast4: row.credential_last4 || null,
+    // Credit redesign (D-798/D-804): a card has a revealable number only
+    // when an encrypted credential was stored at issuance; legacy
+    // base64-credential cards report false here.
+    hasRevealableNumber: Boolean(row.credential_encrypted),
+    hasSecurityCode: Boolean(row.security_code_hash),
+    dailyLimitCents: row.daily_limit_cents === null || row.daily_limit_cents === undefined
+      ? null
+      : Number(row.daily_limit_cents),
+    merchantTypeLimits: row.merchant_type_limits || null,
     hasPin: Boolean(row.pin_hash),
     pinLocked: Boolean(row.pin_locked_until && new Date(row.pin_locked_until).getTime() > Date.now()),
     nickname: row.nickname || null,
@@ -196,6 +266,7 @@ function formatCard(row, { includeIssuedCredential = null, includeActivationCode
     updatedAt: row.updated_at || null,
     // Returned exactly once, only by the mutation that just minted them.
     ...(includeIssuedCredential ? { credential: includeIssuedCredential } : {}),
+    ...(includeIssuedSecurityCode ? { securityCode: includeIssuedSecurityCode } : {}),
     ...(includeActivationCode ? { activationCode: includeActivationCode } : {}),
   };
 }
@@ -236,17 +307,22 @@ async function issueVirtualCard({ customerId, currencyCode = CREDIT_CURRENCY, ni
       throw new AppError('OxSteed Credit account is not active', 409, 'credit_account_inactive');
     }
 
-    const rawCredential = generateCredential();
-    const credentialHash = sha256Hex(rawCredential);
+    // Credit redesign (D-798): the credential is a 16-digit closed-loop
+    // number now, stored encrypted (for reveal) and hashed (for spend).
+    const minted = await mintCardCredential();
 
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_cards
          (customer_id, account_id, card_type, status, fulfillment_status,
-          credential_hash, credential_last4, nickname, idempotency_key, issued_by,
+          credential_hash, credential_last4, credential_encrypted,
+          security_code_hash, security_code_salt,
+          nickname, idempotency_key, issued_by,
           activated_at, metadata)
-       VALUES ($1, $2, 'virtual', 'active', 'not_applicable', $3, $4, $5, $6, $7, NOW(), $8::jsonb)
+       VALUES ($1, $2, 'virtual', 'active', 'not_applicable', $3, $4, $5, $6, $7, $8, $9, $10, NOW(), $11::jsonb)
        RETURNING *`,
-      [customerId, account.id, credentialHash, last4Of(rawCredential), normalizeString(nickname, 80), normalizedIdempotencyKey, actorUserId || null, JSON.stringify({ ...normalizeMetadata(metadata), ...(isAdmin ? { issuedByAdmin: true } : {}) })]
+      [customerId, account.id, minted.credentialHash, minted.credentialLast4, minted.credentialEncrypted,
+        minted.securityCodeHash, minted.securityCodeSalt,
+        normalizeString(nickname, 80), normalizedIdempotencyKey, actorUserId || null, JSON.stringify({ ...normalizeMetadata(metadata), ...(isAdmin ? { issuedByAdmin: true } : {}) })]
     );
 
     await client.query(
@@ -256,7 +332,7 @@ async function issueVirtualCard({ customerId, currencyCode = CREDIT_CURRENCY, ni
       [actorUserId || null, customerId, String(rows[0].id), isAdmin ? normalizeString(issuanceReason, 500) : null, normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ cardType: 'virtual', status: 'active', issuedByAdmin: isAdmin })]
     );
 
-    return { card: formatCard(rows[0], { includeIssuedCredential: rawCredential }), replayed: false };
+    return { card: formatCard(rows[0], { includeIssuedCredential: minted.number, includeIssuedSecurityCode: minted.securityCode }), replayed: false };
   }, 'credit_card_issue_virtual');
 }
 
@@ -414,15 +490,18 @@ async function activatePhysicalCard(args) {
 
     // Mint the real spend credential only at activation, once the customer has
     // physically received the card and proven it via the printed code.
-    const rawCredential = generateCredential();
+    // Credit redesign (D-798): the credential is the 16-digit closed-loop
+    // number, stored encrypted (for reveal) and hashed (for spend).
+    const minted = await mintCardCredential();
     const { rows: updatedRows } = await client.query(
       `UPDATE oxsteed_credit_cards
           SET status = 'active', fulfillment_status = CASE WHEN card_type = 'physical' THEN 'delivered' ELSE fulfillment_status END,
               activated_at = NOW(), credential_hash = $2, credential_last4 = $3,
+              credential_encrypted = $4, security_code_hash = $5, security_code_salt = $6,
               activation_code_hash = NULL, activation_code_expires_at = NULL
         WHERE id = $1
         RETURNING *`,
-      [cardId, sha256Hex(rawCredential), last4Of(rawCredential)]
+      [cardId, minted.credentialHash, minted.credentialLast4, minted.credentialEncrypted, minted.securityCodeHash, minted.securityCodeSalt]
     );
 
     await client.query(
@@ -432,7 +511,7 @@ async function activatePhysicalCard(args) {
       [actorUserId, customerId, String(cardId), normalizeString(correlationId, 160), requestIp || null, JSON.stringify({ status: 'active' })]
     );
 
-    return { card: formatCard(updatedRows[0], { includeIssuedCredential: rawCredential }), replayed: false };
+    return { card: formatCard(updatedRows[0], { includeIssuedCredential: minted.number, includeIssuedSecurityCode: minted.securityCode }), replayed: false };
   });
 }
 
@@ -617,6 +696,206 @@ async function setCardPin(args) {
   }), args);
 }
 
+// ---------------------------------------------------------------------------
+// Credit redesign (D-798/D-799/D-800/D-804): reveal, security-code reset,
+// and spend limits. All three ride the card-security step-up (password +
+// optional TOTP + emailed code) and notify the owner on every success.
+// ---------------------------------------------------------------------------
+
+// One notification shape for the three card actions, mirroring the
+// suspension notice: best-effort, never fails the action, idempotency
+// keyed per card + type + second so a retry replays silently.
+async function notifyCardActionCustomer({ customerId, cardId, type, data = {} }) {
+  try {
+    const { sendNotification } = require('./notificationService');
+    const result = await sendNotification({
+      userId: customerId,
+      type,
+      data: { card_id: String(cardId), ...data },
+      action_url: '/oxsteed-credit/cards',
+      idempotencyKey: `credit-card:${cardId}:${type}:${Math.floor(Date.now() / 1000)}`,
+    });
+    if (result?.success === false) {
+      logger.warn('Credit card action notification not delivered', { cardId, type, reason: result.reason || null });
+    }
+  } catch (err) {
+    logger.warn('Credit card action notification failed', { cardId, type, error: err.message });
+  }
+}
+
+// Reveal the full 16-digit number. The number is decryptable only for
+// cards issued (or activated) after the closed-loop migration; legacy
+// base64-credential cards have no encrypted number and get a 409 with a
+// reissue affordance instead of a number. The number is returned once:
+// the step-up replay store strips it, so a retried request reports
+// replayed and the client must start a fresh reveal.
+async function revealCard(args) {
+  const { cardId, customerId, actorUserId, correlationId, requestIp } = args;
+  requireCardOwner(actorUserId, customerId);
+
+  return cardSecurity.runVerified(args, 'reveal', async (client) => {
+    const { rows } = await client.query(`SELECT * FROM oxsteed_credit_cards WHERE id = $1 AND customer_id = $2 FOR UPDATE`, [cardId, customerId]);
+    const card = rows[0];
+    if (!card) throw new AppError('Card not found', 404, 'credit_card_not_found');
+    if (card.status !== 'active') throw new AppError('Only an active card can be revealed', 409, 'credit_card_not_active');
+    if (!card.credential_encrypted) {
+      throw new AppError('This card was issued before revealable numbers; request a replacement card to get a number you can view', 409, 'credit_card_reveal_unavailable');
+    }
+    let number;
+    try {
+      number = decrypt(card.credential_encrypted);
+    } catch {
+      throw new AppError('This card number cannot be revealed right now', 503, 'credit_card_reveal_unavailable');
+    }
+    if (!isClosedLoopCardNumber(number)) {
+      throw new AppError('This card number cannot be revealed right now', 503, 'credit_card_reveal_unavailable');
+    }
+    await client.query(
+      `INSERT INTO oxsteed_credit_audit_events (action_type, actor_user_id, customer_id, resource_type, resource_id, correlation_id, request_ip)
+       VALUES ('credit.card.revealed', $1, $2, 'credit_card', $3, $4, $5)`,
+      [actorUserId, customerId, String(cardId), normalizeString(correlationId, 160), requestIp || null]
+    );
+    await notifyCardActionCustomer({ customerId, cardId, type: 'credit_card_revealed' });
+    return { card: formatCard(card), cardNumber: number };
+  });
+}
+
+// Reset the 3-digit security code. The code is hashed only, so a reset
+// mints a fresh one and returns it once; the old code stops working.
+async function resetCardSecurityCode(args) {
+  const { cardId, customerId, actorUserId, correlationId, requestIp } = args;
+  requireCardOwner(actorUserId, customerId);
+
+  return cardSecurity.runVerified(args, 'security_code_reset', async (client) => {
+    const { rows } = await client.query(`SELECT * FROM oxsteed_credit_cards WHERE id = $1 AND customer_id = $2 FOR UPDATE`, [cardId, customerId]);
+    const card = rows[0];
+    assertCardMutable(card);
+    if (card.status !== 'active') throw new AppError('Only an active card can have its security code reset', 409, 'credit_card_not_active');
+    const securityCode = generateSecurityCode();
+    const { hash, salt } = await hashSecurityCode(securityCode);
+    const { rows: updatedRows } = await client.query(
+      `UPDATE oxsteed_credit_cards SET security_code_hash = $2, security_code_salt = $3 WHERE id = $1 RETURNING *`,
+      [cardId, hash, salt]
+    );
+    await client.query(
+      `INSERT INTO oxsteed_credit_audit_events (action_type, actor_user_id, customer_id, resource_type, resource_id, correlation_id, request_ip)
+       VALUES ('credit.card.security_code_reset', $1, $2, 'credit_card', $3, $4, $5)`,
+      [actorUserId, customerId, String(cardId), normalizeString(correlationId, 160), requestIp || null]
+    );
+    await notifyCardActionCustomer({ customerId, cardId, type: 'credit_card_security_code_reset' });
+    return { card: formatCard(updatedRows[0]), securityCode };
+  });
+}
+
+const MERCHANT_TYPE_LIMIT_KEYS = Object.freeze(['pickup', 'dine_in', 'delivery']);
+
+function normalizeMerchantTypeLimits(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new AppError('Merchant-type limits must be an object keyed by order type', 400, 'credit_card_limits_invalid');
+  }
+  const limits = {};
+  for (const [key, cents] of Object.entries(value)) {
+    if (!MERCHANT_TYPE_LIMIT_KEYS.includes(key)) {
+      throw new AppError(`Unknown merchant-type limit: ${key}`, 400, 'credit_card_limits_invalid');
+    }
+    if (cents === null || cents === undefined) continue;
+    const parsed = Number(cents);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new AppError('Merchant-type limits must be positive whole cents', 400, 'credit_card_limits_invalid');
+    }
+    limits[key] = parsed;
+  }
+  return Object.keys(limits).length ? limits : null;
+}
+
+function normalizeDailyLimit(value) {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new AppError('The daily limit must be positive whole cents', 400, 'credit_card_limits_invalid');
+  }
+  return parsed;
+}
+
+// Set (or clear, with null) the card's daily spend limit and per-order-type
+// limits. Limits are enforced at kiosk redeem and cash-out; clearing a limit
+// removes its cap. The limits ride the step-up payload hash, so a replay
+// with different limits is an idempotency conflict, not a silent overwrite.
+async function setCardLimits(args) {
+  const { cardId, customerId, actorUserId, correlationId, requestIp } = args;
+  requireCardOwner(actorUserId, customerId);
+  const limits = args.limits || {};
+  const dailyLimitCents = normalizeDailyLimit(limits.dailyLimitCents ?? limits.daily_limit_cents);
+  const merchantTypeLimits = normalizeMerchantTypeLimits(limits.merchantTypeLimits ?? limits.merchant_type_limits);
+
+  return cardSecurity.runVerified(args, 'limits_set', async (client) => {
+    const { rows } = await client.query(`SELECT * FROM oxsteed_credit_cards WHERE id = $1 AND customer_id = $2 FOR UPDATE`, [cardId, customerId]);
+    const card = rows[0];
+    assertCardMutable(card);
+    if (card.status !== 'active') throw new AppError('Only an active card can have limits set', 409, 'credit_card_not_active');
+    const { rows: updatedRows } = await client.query(
+      `UPDATE oxsteed_credit_cards SET daily_limit_cents = $2, merchant_type_limits = $3::jsonb WHERE id = $1 RETURNING *`,
+      [cardId, dailyLimitCents, merchantTypeLimits ? JSON.stringify(merchantTypeLimits) : null]
+    );
+    await client.query(
+      `INSERT INTO oxsteed_credit_audit_events (action_type, actor_user_id, customer_id, resource_type, resource_id, correlation_id, request_ip, after_state)
+       VALUES ('credit.card.limits_updated', $1, $2, 'credit_card', $3, $4, $5, $6::jsonb)`,
+      [actorUserId, customerId, String(cardId), normalizeString(correlationId, 160), requestIp || null,
+        JSON.stringify({ dailyLimitCents, merchantTypeLimits })]
+    );
+    await notifyCardActionCustomer({ customerId, cardId, type: 'credit_card_limits_updated' });
+    return { card: formatCard(updatedRows[0]) };
+  });
+}
+
+// Per-card spend limits, enforced at redeem and cash-out (D-799). The
+// caller holds the card row FOR UPDATE, so concurrent spends on the same
+// card serialize here. The daily limit counts every posted card spend
+// today (kiosk purchases + cash-outs); a merchant-type limit counts only
+// today's purchases of that order type (the order type rides the purchase
+// metadata). Cash-outs carry no order type, so only the daily limit
+// applies to them.
+async function assertCardSpendLimits(client, card, { amountCents, orderType = null } = {}) {
+  const amount = parseAmountCents(amountCents);
+  const normalizedOrderType = normalizeString(orderType, 40)?.toLowerCase() || null;
+  const dailyLimit = card.daily_limit_cents === null || card.daily_limit_cents === undefined
+    ? null
+    : Number(card.daily_limit_cents);
+  const merchantLimits = card.merchant_type_limits || null;
+  const merchantLimit = normalizedOrderType && merchantLimits && merchantLimits[normalizedOrderType] !== undefined
+    ? Number(merchantLimits[normalizedOrderType])
+    : null;
+  if (dailyLimit === null && merchantLimit === null) return;
+  const { rows } = await client.query(
+    `SELECT COALESCE(SUM(t.amount_cents), 0)::int AS total_cents,
+            COALESCE(SUM(CASE WHEN t.transaction_type = 'purchase' AND t.metadata->>'orderType' = $2 THEN t.amount_cents ELSE 0 END), 0)::int AS type_cents
+       FROM oxsteed_credit_transactions t
+      WHERE t.status = 'posted'
+        AND t.transaction_type IN ('purchase', 'cash_out')
+        AND t.metadata->>'cardId' = $1
+        AND t.created_at >= CURRENT_DATE`,
+    [String(card.id), normalizedOrderType]
+  );
+  const spentToday = Number(rows[0]?.total_cents || 0);
+  const spentTypeToday = Number(rows[0]?.type_cents || 0);
+  if (dailyLimit !== null && spentToday + amount > dailyLimit) {
+    throw new AppError('This card has reached its daily spend limit', 409, 'credit_card_daily_limit_exceeded', {
+      spentTodayCents: String(spentToday),
+      requestedCents: String(amount),
+      dailyLimitCents: String(dailyLimit),
+    });
+  }
+  if (merchantLimit !== null && spentTypeToday + amount > merchantLimit) {
+    throw new AppError(`This card has reached its ${normalizedOrderType} spend limit for today`, 409, 'credit_card_merchant_type_limit_exceeded', {
+      spentTodayCents: String(spentTypeToday),
+      requestedCents: String(amount),
+      merchantTypeLimitCents: String(merchantLimit),
+      orderType: normalizedOrderType,
+    });
+  }
+}
+
 async function verifyCardPin(client, card, pin) {
   if (!card.pin_hash || !card.pin_salt) {
     throw new AppError('This card has no PIN configured; set a PIN before cashing out', 409, 'credit_card_pin_not_set');
@@ -791,6 +1070,9 @@ async function redeemCardAtPartner({ credential, pin, partnerId, amountCents, cu
   return withPersistentPinFailures(() => withTransaction(pool, async (client) => {
     const card = await resolveCardByCredential(client, credential);
     await verifyCardPin(client, card, normalizedPin);
+    // Credit redesign (D-799): the card's own daily and per-order-type
+    // limits gate the spend before any ledger movement.
+    await assertCardSpendLimits(client, card, { amountCents: amount, orderType });
     // Resolve the partner to a restaurant participant for the adapter.
     // Kiosk redemptions are always at a restaurant partner.
     const { rows: partnerRows } = await client.query(
@@ -909,6 +1191,8 @@ async function cashOutWithCardInTransaction(client, { credential, pin, kioskDevi
   await assertCreditRailEnabled(client);
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-cashout:${card.customer_id}`]);
 
+  // Credit redesign (D-799): the card's daily limit also caps cash-outs.
+  await assertCardSpendLimits(client, card, { amountCents: amount });
   await assertCustomerCashOutCapacity(client, { customerId: card.customer_id, amountCents: amount, currencyCode: currency });
   const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });
 
@@ -979,6 +1263,10 @@ module.exports = {
   revokeCard,
   reportCardLostOrStolen,
   setCardPin,
+  revealCard,
+  resetCardSecurityCode,
+  setCardLimits,
+  assertCardSpendLimits,
   listCustomerCards,
   adminListCards,
   redeemCardAtPartner,
@@ -990,6 +1278,12 @@ module.exports = {
   // Exported for tests / reuse.
   sha256Hex,
   generateCredential,
+  generateCardNumber,
+  isClosedLoopCardNumber,
+  generateSecurityCode,
+  hashSecurityCode,
+  verifySecurityCode,
+  mintCardCredential,
   generateActivationCode,
   isScryptPinHash,
   hashCardPinScrypt,

@@ -3732,7 +3732,7 @@ async function listCustomerCreditTransactions(customerId, { limit = 25, offset =
   const currency = assertSupportedCreditCurrency(currencyCode);
   const { rows } = await pool.query(
     `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
-            t.reference_type, t.reference_id, t.description, t.posted_at, t.created_at,
+            t.reference_type, t.reference_id, t.description, t.posted_at, t.created_at, t.metadata,
             CASE WHEN t.debit_account_id = a.id THEN 'debit' ELSE 'credit' END AS direction,
             CASE WHEN t.debit_account_id = a.id THEN pa.partner_id ELSE da.partner_id END AS related_partner_id,
             fr.display_name AS restaurant_name
@@ -3776,6 +3776,10 @@ function formatCustomerCreditTransaction(row) {
     && /^\d+$/.test(String(referenceId || ''))
     ? String(referenceId)
     : null;
+  // Credit redesign (D-798): activity rows say which card was used, so
+  // the owner can match a spend to a card. Only the last 4 ever leaves
+  // the server; the full number is never in a transaction row.
+  const cardLast4 = normalizeMetadata(row.metadata).cardLast4 || null;
   return {
     id: String(row.id),
     transactionType: row.transaction_type,
@@ -3790,6 +3794,7 @@ function formatCustomerCreditTransaction(row) {
     referenceType,
     referenceId,
     orderId,
+    cardLast4,
     postedAt: row.posted_at || row.created_at || null,
     createdAt: row.created_at || null,
     balanceAfterCents: row.balance_after_cents === null || row.balance_after_cents === undefined

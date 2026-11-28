@@ -58,6 +58,11 @@ function securityArgs(req, cardId) {
     activationCode: req.body?.activationCode || req.body?.activation_code,
     pin: req.body?.pin, currentPin: req.body?.currentPin || req.body?.current_pin,
     resetPin: req.body?.resetPin === true,
+    // Credit redesign (D-800): the limits ride the step-up payload hash.
+    limits: {
+      dailyLimitCents: req.body?.dailyLimitCents ?? req.body?.daily_limit_cents ?? null,
+      merchantTypeLimits: req.body?.merchantTypeLimits ?? req.body?.merchant_type_limits ?? null,
+    },
   };
 }
 
@@ -190,6 +195,45 @@ async function setMyCardPin(req, res, next) {
   try {
     const cardId = parseUuid(req.params.cardId, 'cardId');
     const result = await cardService.setCardPin(securityArgs(req, cardId));
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Credit redesign (D-798/D-799/D-800): reveal, security-code reset, and
+// limits — all behind the card-security step-up (password + optional TOTP
+// + emailed code, issued via POST /cards/:cardId/security-challenges with
+// action 'reveal' | 'security_code_reset' | 'limits_set').
+async function revealMyCard(req, res, next) {
+  try {
+    const cardId = parseUuid(req.params.cardId, 'cardId');
+    const result = await cardService.revealCard(securityArgs(req, cardId));
+    if (result.replayed) {
+      // The number is one-time per challenge and the replay store strips
+      // it, so a retried reveal cannot re-show the number: start fresh.
+      throw new AppError('This reveal was already used; start a new reveal to view the number again', 409, 'credit_card_reveal_replayed');
+    }
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function resetMyCardSecurityCode(req, res, next) {
+  try {
+    const cardId = parseUuid(req.params.cardId, 'cardId');
+    const result = await cardService.resetCardSecurityCode(securityArgs(req, cardId));
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function setMyCardLimits(req, res, next) {
+  try {
+    const cardId = parseUuid(req.params.cardId, 'cardId');
+    const result = await cardService.setCardLimits(securityArgs(req, cardId));
     res.json(result);
   } catch (error) {
     next(error);
@@ -422,6 +466,9 @@ module.exports = {
   unfreezeMyCard,
   reportMyCardLost,
   setMyCardPin,
+  revealMyCard,
+  resetMyCardSecurityCode,
+  setMyCardLimits,
   adminIssueVirtualCard,
   adminIssuePhysicalCard,
   listAdminCards,

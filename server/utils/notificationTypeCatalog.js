@@ -343,6 +343,10 @@ const NOTIFICATION_TYPES = [
   { type: 'invest_reporting_audience_removed', group: 'credit' },
   { type: 'credit_card_frozen', group: 'credit' },
   { type: 'credit_card_revoked', group: 'credit' },
+  // Credit redesign (D-800): the owner is told on every reveal and card action.
+  { type: 'credit_card_revealed', group: 'credit' },
+  { type: 'credit_card_security_code_reset', group: 'credit' },
+  { type: 'credit_card_limits_updated', group: 'credit' },
   // Group 13 (694, D-401/D-402): participant eligibility/status change.
   { type: 'credit_participant_status_changed', group: 'credit' },
   { type: 'credit_dispute_provisional_credit', group: 'credit' },

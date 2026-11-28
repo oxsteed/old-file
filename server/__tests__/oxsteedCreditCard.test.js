@@ -169,7 +169,14 @@ describe('issueVirtualCard', () => {
     expect(res.body.card.status).toBe('active');
     expect(res.body.card.cardType).toBe('virtual');
     expect(typeof res.body.card.credential).toBe('string');
-    expect(res.body.card.credential.length).toBeGreaterThanOrEqual(32);
+    // Credit redesign (D-798): the credential is a 16-digit closed-loop
+    // number now, not a 32-char token; the 3-digit security code rides
+    // alongside it, returned once.
+    expect(res.body.card.credential).toMatch(/^9700\d{12}$/);
+    expect(res.body.card.securityCode).toMatch(/^[1-9]\d{2}$/);
+    // The mocked insert row carries a fixed last4, so the equality of
+    // last4 to the minted number's tail is pinned by the db test instead.
+    expect(typeof res.body.card.credentialLast4).toBe('string');
     // The stored hash must never be echoed back to the client.
     expect(JSON.stringify(res.body)).not.toContain('x'.repeat(64));
   });
