@@ -356,6 +356,10 @@ describeDb('Group 14 Slice 5j: read financial detail (746-750)', () => {
     const paymentId = await makePayment(job, customer.id, helper.id, {
       amount: 120.00, status: 'released', capturedAt: '2026-03-09T10:00:00Z', releasedAt: '2026-03-10T10:00:00Z',
     });
+    // The dedicated slice DB keeps rows between runs, and stripe_refund_id
+    // is unique: clear this test's sentinel row first so a re-run does not
+    // collide with the previous run's seed. (Slice 5j, checkpoint 4.)
+    await pool.query("DELETE FROM payment_refund_attempts WHERE stripe_refund_id = 're_test123'");
     await makeRefundAttempt(paymentId, {
       status: 'failed', amountCents: 5000, reason: 'Partial refund',
       actor: admin.id, createdAt: '2026-03-12T10:00:00Z', lastError: 'card_declined',
