@@ -566,3 +566,26 @@ test('Slice 5g (731): reporting-only banner names the mode on the investor dashb
     assert.doesNotMatch(JSON.stringify(catalog.investorDashboard.reportingOnly), /—/, `${lang} em dash`);
   }
 });
+
+test('Slice 5g (732): directory explains planned participation, with a gate-conditional line', async () => {
+  const src = await read('src/pages/invest/InvestDirectoryPage.jsx');
+  for (const key of [
+    'invest.directory.participation.title',
+    'invest.directory.participation.creditOnly',
+    'invest.directory.participation.structure',
+    'invest.directory.participation.pending',
+    'invest.directory.participation.gateOn',
+    'invest.directory.participation.gateOff',
+  ]) {
+    assert.ok(src.includes(key), key);
+  }
+  // The gate line follows the live commitment gate, never a hard-coded state.
+  assert.match(src, /access\.investCommitmentsEnabled \? t\('invest\.directory\.participation\.gateOn'\) : t\('invest\.directory\.participation\.gateOff'\)/);
+  for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const catalog = JSON.parse(await read(`src/locales/${lang}.json`));
+    for (const key of ['title', 'creditOnly', 'structure', 'pending', 'gateOn', 'gateOff']) {
+      assert.equal(typeof catalog.invest.directory.participation[key], 'string', `${lang} participation.${key}`);
+    }
+    assert.doesNotMatch(JSON.stringify(catalog.invest.directory.participation), /—/, `${lang} em dash`);
+  }
+});

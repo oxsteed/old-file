@@ -26565,6 +26565,14 @@
       },
       "intro": "Des opportunités d'entités éligibles, financées avec du Crédit OxSteed éligible. Elles sont classées par date de publication ou de clôture. OxSteed ne classe ni ne recommande les investissements.",
       "myInvestments": "Mes investissements",
+      "participation": {
+        "creditOnly": "Les contributions utilisent uniquement le Crédit OxSteed éligible. Aucune carte, banque ni espèce n'est utilisée.",
+        "gateOff": "Les engagements ne sont pas encore ouverts. Ils s'ouvrent uniquement pour le pilote approuvé, après l'approbation du conseiller juridique et du partenaire de règlement. Vous pouvez toujours examiner les opportunités et postuler.",
+        "gateOn": "Les engagements sont ouverts aux participants approuvés. Vous avez besoin d'une demande approuvée avant de pouvoir vous engager.",
+        "pending": "Un engagement reste en attente jusqu'à la clôture de l'opportunité. La clôture est tout ou rien : l'objectif, la date limite et les conditions de clôture approuvées doivent être remplis.",
+        "structure": "Chaque opportunité est un investissement à partage de revenus dans une entité des États-Unis.",
+        "title": "Comment fonctionne la participation"
+      },
       "requestAccess": "Demander l'accès investisseur",
       "sort": {
         "closingDate": "Date de clôture",
