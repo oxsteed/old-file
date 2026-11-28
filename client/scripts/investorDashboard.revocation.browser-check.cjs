@@ -65,7 +65,9 @@ test('revoked investor projection clears the dashboard before stale data renders
     await page.goto('http://investor-revocation.test/investor/dashboard');
     await page.getByRole('heading', { name: /Investor/i }).waitFor();
     await page.waitForFunction(() => window.location.pathname === '/investor/dashboard');
-    assert.deepEqual(investorCalls.sort(), ['/api/investor/kpis', '/api/investor/revenue-chart'].sort());
+    // Slice 5f (726-728, D-769..D-771): the dashboard also loads the
+    // entity reporting section on mount (entities, datasets, documents).
+    assert.deepEqual(investorCalls.sort(), ['/api/investor/kpis', '/api/investor/reporting/datasets', '/api/investor/reporting/documents', '/api/investor/reporting/entities', '/api/investor/revenue-chart'].sort());
 
     await page.evaluate(() => window.dispatchEvent(new Event('oxsteed:access-changed')));
     await page.getByText('customer-home', { exact: true }).waitFor();
