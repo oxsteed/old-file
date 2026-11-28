@@ -515,6 +515,20 @@ ddescribe('Track C preference toggles (DB)', () => {
       //   no `type` in the call at all       -> the file must be listed
       //     in SPREAD_SITES with its expansions cataloged (the payload
       //     object is built elsewhere in the same flow).
+      // N14: every sendable type must also be deliverable — it either
+      // resolves through tNotif (a template title) or passes an explicit
+      // title at every call site. A cataloged type with neither produces
+      // a NULL title and the insert fails, so the notice is silently
+      // lost (S-C2, R9). The extractor records, for every site it
+      // classifies, whether the call passes a top-level `title`:
+      //   concrete / ternary / template sites -> hasTitle per site.
+      //   variable (fan-out) sites          -> the fan-out call's own
+      //     hasTitle applies to all its expansions.
+      //   spread sites                      -> the payload is built
+      //     elsewhere, so the title cannot be seen here; a SPREAD_SITES
+      //     entry must declare titleInPayload: true (verified firsthand
+      //     at the payload construction) or the type must resolve
+      //     through tNotif.
       // A NEW site in any unlisted shape fails here on purpose: classify
       // it (add the type to the catalog, or the site to the lists below
       // with its resolution) instead of widening the extractor.
@@ -629,19 +643,25 @@ ddescribe('Track C preference toggles (DB)', () => {
         // upstream, so the type already passed through the central
         // path once; the worker adds no type of its own.
         { file: 'workers/paymentWorker.js', name: 'type', expansions: [] },
+        // N15 (D-744): notifyInvestor in the Invest notice helper; the
+        // five types are the only ones its four send sites pass.
+        { file: 'services/invest/investNotifications.js', name: 'type', expansions: ['invest_distribution_paid', 'invest_proceeds_released', 'invest_raise_closed', 'invest_commitment_excluded', 'invest_amendment_reconfirmation_requested'] },
       ];
 
       // Spread sites: sendNotification(payload) with the payload built
       // elsewhere in the same flow. Expansions are the payload types.
+      // titleInPayload: true means the payload construction was verified
+      // firsthand to carry an explicit `title` (so the type need not
+      // resolve through tNotif); without it, the type must resolve.
       const SPREAD_SITES = [
         { file: 'controllers/businessAccessCodesController.js', expansions: ['vortex_approval_requested', 'vortex_member_joined'] },
-        { file: 'controllers/businessInvoiceController.js', expansions: ['invoice'] },
-        { file: 'controllers/customer360Controller.js', expansions: ['watchlist_ticket', 'watchlist_booking'] },
-        { file: 'controllers/helpersController.js', expansions: ['credential_removed'] },
-        { file: 'controllers/leadController.js', expansions: ['lead_received', 'quote_received', 'lead_accepted', 'lead_rejected'] },
-        { file: 'controllers/restaurantAppFlowController.js', expansions: ['crew_shift_published', 'crew_shift_cancelled'] },
-        { file: 'controllers/restaurantTeamCommsController.js', expansions: ['restaurant_announcement'] },
-        { file: 'controllers/vortexController.js', expansions: ['vortex_redeemed'] },
+        { file: 'controllers/businessInvoiceController.js', expansions: ['invoice'], titleInPayload: true },
+        { file: 'controllers/customer360Controller.js', expansions: ['watchlist_ticket', 'watchlist_booking', 'watchlist_dispute'], titleInPayload: true },
+        { file: 'controllers/helpersController.js', expansions: ['credential_removed'], titleInPayload: true },
+        { file: 'controllers/leadController.js', expansions: ['lead_received', 'quote_received', 'lead_accepted', 'lead_rejected'], titleInPayload: true },
+        { file: 'controllers/restaurantAppFlowController.js', expansions: ['crew_shift_published', 'crew_shift_cancelled'], titleInPayload: true },
+        { file: 'controllers/restaurantTeamCommsController.js', expansions: ['restaurant_announcement'], titleInPayload: true },
+        { file: 'controllers/vortexController.js', expansions: ['vortex_redeemed'], titleInPayload: true },
         { file: 'services/statementAmendmentService.js', expansions: ['statement_amended'] },
         { file: 'services/statementExportJobService.js', expansions: ['statement_ready'] },
         { file: 'services/statementIssuanceService.js', expansions: ['statement_ready'] },
@@ -695,6 +715,55 @@ ddescribe('Track C preference toggles (DB)', () => {
         return afterColon.slice(0, end).trim();
       }
 
+      // N14: does the call pass an explicit top-level `title`? The scan
+      // starts at the call's object literal and counts brace depth,
+      // skipping strings, template literals and line comments, so a
+      // `title` inside data/params copy never counts: sendNotification
+      // reads only the top-level title. Shorthand `title,` counts, as
+      // does a ternary or a variable — the shape, not the value, is
+      // what the static check can see.
+      function hasTopLevelTitle(windowText) {
+        let i = windowText.indexOf('{');
+        if (i === -1) return false;
+        let depth = 0;
+        let quote = null;
+        let tpl = false;
+        let tplDepth = 0;
+        for (; i < windowText.length; i++) {
+          const ch = windowText[i];
+          if (quote) {
+            if (ch === '\\') { i++; continue; }
+            if (ch === quote) quote = null;
+            continue;
+          }
+          if (tpl) {
+            if (ch === '`' && tplDepth === 0) { tpl = false; continue; }
+            if (ch === '$' && windowText[i + 1] === '{') { tplDepth++; i++; continue; }
+            if (ch === '}' && tplDepth > 0) { tplDepth--; continue; }
+            continue;
+          }
+          if (ch === "'" || ch === '"') { quote = ch; continue; }
+          if (ch === '`') { tpl = true; continue; }
+          if (ch === '/' && windowText[i + 1] === '/') {
+            const nl = windowText.indexOf('\n', i);
+            i = nl === -1 ? windowText.length : nl;
+            continue;
+          }
+          if (ch === '(' || ch === '[' || ch === '{') { depth++; continue; }
+          if (ch === ')' || ch === ']' || ch === '}') {
+            if (depth === 0) return false;
+            depth--;
+            continue;
+          }
+          if (depth === 1 && windowText.slice(i).startsWith('title')) {
+            const before = windowText[i - 1];
+            if (before !== undefined && /[A-Za-z0-9_$]/.test(before)) continue;
+            if (/^[\s]*[:,]/.test(windowText.slice(i + 5))) return true;
+          }
+        }
+        return false;
+      }
+
       function extractTypes(file) {
         const rel = path.relative(serverDir, file);
         const src = fs.readFileSync(file, 'utf8');
@@ -705,15 +774,16 @@ ddescribe('Track C preference toggles (DB)', () => {
           // notification service; it carries no notification type.
           if (src.slice(Math.max(0, m.index - 8), m.index) === 'webpush.') continue;
           const windowText = src.slice(m.index, m.index + 1200);
+          const hasTitle = hasTopLevelTitle(windowText);
           const typeMatch = /\btype\b\s*([:,])/.exec(windowText);
           if (!typeMatch) { spreads.push(rel); continue; }
-          if (typeMatch[1] === ',') { variables.push({ file: rel, name: 'type' }); continue; }
+          if (typeMatch[1] === ',') { variables.push({ file: rel, name: 'type', hasTitle }); continue; }
           const expr = extractTypeValue(windowText.slice(typeMatch.index + typeMatch[0].length));
           if (expr.startsWith('`')) {
             const t = expr.match(/^`([^`$]*)\$\{/);
             if (t) {
               if (!prefixes.has(t[1])) prefixes.set(t[1], []);
-              prefixes.get(t[1]).push(rel);
+              prefixes.get(t[1]).push({ file: rel, hasTitle });
               continue;
             }
           }
@@ -721,7 +791,7 @@ ddescribe('Track C preference toggles (DB)', () => {
           if (ternary) {
             for (const t of [ternary[1], ternary[2]]) {
               if (!concrete.has(t)) concrete.set(t, []);
-              concrete.get(t).push(rel);
+              concrete.get(t).push({ file: rel, hasTitle });
             }
             continue;
           }
@@ -730,15 +800,15 @@ ddescribe('Track C preference toggles (DB)', () => {
             const after = expr.slice(lit[0].length).trim();
             if (after.startsWith('+')) {
               if (!prefixes.has(lit[1])) prefixes.set(lit[1], []);
-              prefixes.get(lit[1]).push(rel);
+              prefixes.get(lit[1]).push({ file: rel, hasTitle });
             } else {
               if (!concrete.has(lit[1])) concrete.set(lit[1], []);
-              concrete.get(lit[1]).push(rel);
+              concrete.get(lit[1]).push({ file: rel, hasTitle });
             }
             continue;
           }
           const v = expr.match(/^([A-Za-z_$][A-Za-z0-9_$.]*)/);
-          if (v) { variables.push({ file: rel, name: v[1] }); continue; }
+          if (v) { variables.push({ file: rel, name: v[1], hasTitle }); continue; }
           unknown.push(`${rel}: ${expr.slice(0, 80)}`);
         }
       }
@@ -795,6 +865,237 @@ ddescribe('Track C preference toggles (DB)', () => {
       }
       for (const t of ['bid_received', 'new_message', 'media_creator_update', 'weekly_summary', 'safety_sos']) {
         expect(seen.has(t)).toBe(true);
+      }
+
+      // 7. N14: every sendable type is deliverable — it resolves through
+      // tNotif (a template title) or passes an explicit title at every
+      // call site that can send it. A type with neither loses its
+      // notice on the NOT NULL title insert (S-C2, R9). Spread sites
+      // carry no visible title: their types resolve through tNotif
+      // unless the SPREAD_SITES entry declares titleInPayload.
+      const { tNotif } = require('../utils/i18n');
+      const sendable = new Map();
+      const noteSite = (type, file, hasTitle) => {
+        if (!sendable.has(type)) sendable.set(type, []);
+        sendable.get(type).push({ file, hasTitle });
+      };
+      for (const [type, sites] of concrete) {
+        for (const site of sites) noteSite(type, site.file, site.hasTitle);
+      }
+      for (const [prefix, sites] of prefixes) {
+        for (const expansion of TEMPLATE_FAMILIES[prefix] || []) {
+          for (const site of sites) noteSite(expansion, site.file, site.hasTitle);
+        }
+      }
+      for (const site of variables) {
+        const entry = VARIABLE_SITES.find((s) => s.file === site.file && s.name === site.name);
+        for (const expansion of (entry && entry.expansions) || []) {
+          noteSite(expansion, site.file, site.hasTitle);
+        }
+      }
+      for (const file of [...new Set(spreads)]) {
+        const entry = SPREAD_SITES.find((s) => s.file === file);
+        for (const expansion of (entry && entry.expansions) || []) {
+          noteSite(expansion, file, entry && entry.titleInPayload === true ? true : null);
+        }
+      }
+      const untitled = [];
+      for (const [type, sites] of [...sendable.entries()].sort()) {
+        if (tNotif(type, 'en').title) continue;
+        const bad = sites.filter((s) => s.hasTitle !== true);
+        if (bad.length) {
+          untitled.push(`${type} (no template; no title at: ${[...new Set(bad.map((s) => s.file))].join(', ')})`);
+        }
+      }
+      // N14 ratchet: the types below are still untitled, and each one
+      // is owned by a later checkpoint of this batch (named in the
+      // comment). The guard is real from this checkpoint on: any
+      // template-less type NOT on this list fails. The owning
+      // checkpoint removes its entries when it adds the templates, and
+      // the batch ends with this list empty. Nothing may be added here
+      // except by a checkpoint that owns the fix; a stale entry (a type
+      // that gained a template or a title) fails on purpose.
+      // The list is empty: S-C2 left in checkpoint 2 (D-730/D-731) and
+      // the last 6 R9 entries left in checkpoint 4 (D-734).
+      const KNOWN_UNTITLED = {};
+      const untitledTypes = untitled.map((line) => line.split(' ')[0]);
+      const staleKnown = Object.keys(KNOWN_UNTITLED).filter((type) => !untitledTypes.includes(type));
+      expect(staleKnown).toEqual([]);
+      const surprise = untitled.filter((line) => !Object.hasOwn(KNOWN_UNTITLED, line.split(' ')[0]));
+      expect(surprise).toEqual([]);
+    });
+
+    // N14 (D-729): the four stray types the extended guard caught send
+    // through the real path with resolved titles (they were lost before:
+    // no template, no title at the send site).
+    test('the four N14 stray types send through the real path with resolved titles', async () => {
+      const user = await makeUser();
+      const sends = [
+        { type: 'account_banned', data: { reason: 'test' }, action_url: null, idempotencyKey: `n14-real-send-banned-${user.id}` },
+        { type: 'account_restored', data: {}, action_url: '/login', idempotencyKey: `n14-real-send-restored-${user.id}` },
+        { type: 'delivery:tracking_stale', data: { deliveryJobId: '1', assignmentId: '2' }, action_url: '/delivery/jobs/1', idempotencyKey: `n14-real-send-stale-${user.id}` },
+        { type: 'delivery:weekly_report_ready', data: { deliveryWeeklyReportId: 1, weekStart: '2026-11-23' }, action_url: '/delivery/weekly-report', idempotencyKey: `n14-real-send-weekly-${user.id}` },
+      ];
+      for (const send of sends) {
+        const result = await sendNotification({ userId: user.id, ...send });
+        expect(result.success).toBe(true);
+      }
+      const { rows } = await pool.query(
+        `SELECT type, title, body FROM notifications WHERE user_id = $1 ORDER BY created_at ASC`,
+        [user.id],
+      );
+      expect(rows.map((row) => row.type)).toEqual([
+        'account_banned',
+        'account_restored',
+        'delivery:tracking_stale',
+        'delivery:weekly_report_ready',
+      ]);
+      for (const row of rows) expect(row.title.length).toBeGreaterThan(0);
+      expect(rows[0].title).toBe('Account banned');
+      expect(rows[1].title).toBe('Account restored');
+      expect(rows[2].title).toBe('Delivery tracking went quiet');
+      expect(rows[3].title).toBe('Weekly delivery report ready');
+    });
+
+    // S-C2 + S-D2 (D-730, D-731): the 24 consulting types send through
+    // the real path. The 9 S-C2 types were lost before (no template, no
+    // title at the send site); the 15 S-D2 types arrived title-only with
+    // an empty body and no link (the shared helper passed `message` /
+    // `metadata`, which sendNotification drops). The S-D2 sends below
+    // carry a caller body and an action URL the way the rewritten helper
+    // now forwards them, and assert both land in the stored row.
+    test('the 24 S-C2/S-D2 consulting types send with resolved titles, bodies and links', async () => {
+      const user = await makeUser();
+      // S-C2: data-only sends, exactly as notifyProposalParty /
+      // notifySessionParty call them; the template is the whole body.
+      const sc2 = [
+        ['consulting_proposal_sent', 'Proposal sent', 'A consulting proposal was sent. Open the portal to review it.'],
+        ['consulting_proposal_approved', 'Proposal approved', 'Your consulting proposal was approved.'],
+        ['consulting_proposal_rejected', 'Proposal declined', 'Your consulting proposal was declined.'],
+        ['consulting_proposal_withdrawn', 'Proposal withdrawn', 'A consulting proposal was withdrawn.'],
+        ['consulting_session_reschedule_proposed', 'Session reschedule proposed', 'A new time was proposed for your consulting session. Open the portal to review it.'],
+        ['consulting_session_reschedule_accepted', 'Reschedule accepted', 'The proposed time for your consulting session was accepted.'],
+        ['consulting_session_reschedule_declined', 'Reschedule declined', 'The proposed time for your consulting session was declined.'],
+        ['consulting_session_cancelled', 'Session cancelled', 'A consulting session was cancelled.'],
+        ['consulting_session_attendance_confirmed', 'Attendance confirmed', 'Attendance for a consulting session was confirmed.'],
+      ];
+      // S-D2: [type, title, template body, action URL]. The caller body
+      // is the same marker for every send; the stored body must be the
+      // template body joined with it, and the action URL must land.
+      const sd2 = [
+        ['consulting_change_requested', 'Change requested', 'A change was requested on your consulting engagement.', '/consulting/portal'],
+        ['consulting_change_approved', 'Change approved', 'Your change request was approved.', '/consulting/contractor-dashboard'],
+        ['consulting_change_rejected', 'Change declined', 'Your change request was declined.', '/consulting/contractor-dashboard'],
+        ['consulting_engagement_paused', 'Engagement paused', 'Your consulting engagement was paused.', '/consulting/contractor-dashboard'],
+        ['consulting_engagement_resumed', 'Engagement resumed', 'Your consulting engagement resumed.', '/consulting/contractor-dashboard'],
+        ['consulting_closeout_confirmed', 'Closeout confirmed', 'A closeout was confirmed on your consulting engagement.', '/consulting/portal'],
+        ['consulting_follow_up_scheduled', 'Follow-up scheduled', 'A follow-up was scheduled on your consulting engagement.', '/consulting/portal'],
+        ['consulting_feedback_requested', 'Feedback requested', 'Your consultant requested your feedback on the engagement.', '/consulting/portal'],
+        ['consulting_engagement_archived', 'Engagement archived', 'Your consulting engagement was archived.', '/consulting/portal'],
+        ['consulting_participant_added', 'Added to an engagement', 'You were added to a consulting engagement.', '/consulting/portal'],
+        ['consulting_confidentiality_acknowledged', 'Confidentiality acknowledged', 'Confidentiality was acknowledged on your consulting engagement.', '/consulting/contractor-dashboard'],
+        ['consulting_engagement_started', 'Engagement started', 'Work started on your consulting engagement.', '/consulting/portal'],
+        ['consulting_draft_delivered', 'Draft delivered', 'A draft was delivered on your consulting engagement.', '/consulting/portal'],
+        ['consulting_deliverable_feedback', 'Feedback left', 'Feedback was left on your delivered work.', '/consulting/contractor-dashboard'],
+        ['consulting_milestone_accepted', 'Milestone accepted', 'A milestone was accepted on your consulting engagement.', '/consulting/contractor-dashboard'],
+      ];
+      for (const [type] of sc2) {
+        const result = await sendNotification({
+          userId: user.id, type, data: {}, action_url: null,
+          idempotencyKey: `sc2-real-send-${type}-${user.id}`,
+        });
+        expect(result.success).toBe(true);
+      }
+      for (const [type, , , actionUrl] of sd2) {
+        const result = await sendNotification({
+          userId: user.id, type, body: 'Caller specifics here.', data: {}, action_url: actionUrl,
+          idempotencyKey: `sd2-real-send-${type}-${user.id}`,
+        });
+        expect(result.success).toBe(true);
+      }
+      const { rows } = await pool.query(
+        `SELECT type, title, body, action_url FROM notifications WHERE user_id = $1 ORDER BY created_at ASC`,
+        [user.id],
+      );
+      expect(rows.map((row) => row.type)).toEqual([...sc2.map(([t]) => t), ...sd2.map(([t]) => t)]);
+      const byType = new Map(rows.map((row) => [row.type, row]));
+      for (const [type, title, body] of sc2) {
+        const row = byType.get(type);
+        expect(row.title).toBe(title);
+        expect(row.body).toBe(body);
+      }
+      for (const [type, title, body, actionUrl] of sd2) {
+        const row = byType.get(type);
+        expect(row.title).toBe(title);
+        expect(row.body).toBe(`${body} Caller specifics here.`);
+        expect(row.action_url).toBe(actionUrl);
+      }
+    });
+
+    // R9 (D-734): the 6 booking auto-notice types send through the real
+    // path. They were lost before (caller body, no template, no title).
+    // The sends below mirror the real sites' bodies and action URLs.
+    test('the 6 R9 booking auto-notice types send with resolved titles, bodies and links', async () => {
+      const user = await makeUser();
+      const sends = [
+        ['booking_auto_posted', 'Booking posted for bids', 'Your booking is now open for bids.', 'Plumbing fix is now open for bids', '/jobs/42'],
+        ['booking_counter_proposed', 'Counter-proposal received', 'Your helper proposed a different time for your booking.', 'Plumbing fix, 2026-12-02 09:00-11:00', '/my-bookings'],
+        ['booking_counter_accepted', 'Counter-proposal accepted', 'Your helper accepted the counter-proposal.', 'Plumbing fix: counter-proposal accepted', '/calendar?tab=bookingRequests'],
+        ['booking_counter_declined', 'Counter-proposal declined', 'Your helper declined the counter-proposal.', 'Plumbing fix: counter-proposal declined', '/calendar?tab=bookingRequests'],
+        ['booking_expired', 'Booking expired', 'A booking request expired without a response.', 'Plumbing fix, 2026-12-01', '/calendar?tab=bookingRequests'],
+        ['recurring_booking_new', 'New recurring booking', 'A new recurring booking was created for you.', 'Lawn care weekly', '/calendar?tab=recurring'],
+      ];
+      for (const [type, , , body, actionUrl] of sends) {
+        const result = await sendNotification({
+          userId: user.id, type, body, data: {}, action_url: actionUrl,
+          idempotencyKey: `r9-real-send-${type}-${user.id}`,
+        });
+        expect(result.success).toBe(true);
+      }
+      const { rows } = await pool.query(
+        `SELECT type, title, body, action_url FROM notifications WHERE user_id = $1 ORDER BY created_at ASC`,
+        [user.id],
+      );
+      expect(rows.map((row) => row.type)).toEqual(sends.map(([t]) => t));
+      const byType = new Map(rows.map((row) => [row.type, row]));
+      for (const [type, title, templateBody, callerBody, actionUrl] of sends) {
+        const row = byType.get(type);
+        expect(row.title).toBe(title);
+        expect(row.body).toBe(`${templateBody} ${callerBody}`);
+        expect(row.action_url).toBe(actionUrl);
+      }
+    });
+
+    // N15 (D-744): the 5 Invest money-event types send through the real
+    // path. They did not exist before — Invest money events notified
+    // nobody. The sends below mirror the real sites' bodies and URLs.
+    test('the 5 N15 Invest money-event types send with resolved titles, bodies and links', async () => {
+      const user = await makeUser();
+      const sends = [
+        ['invest_raise_closed', 'Raise closed', 'Your investment closed. Your Credit was debited and your position was created.', 'Your investment of $100.00 closed. Your Credit was debited and your position was created.', '/invest/my-investments'],
+        ['invest_commitment_excluded', 'Commitment excluded from closing', 'Your commitment was excluded from the closing because it was not reconfirmed against the current agreement version. It stays reserved.', 'Your commitment of $50.00 was excluded from the closing because it was not reconfirmed against the current agreement version. It stays reserved.', '/invest/my-investments'],
+        ['invest_proceeds_released', 'Proceeds released', 'The proceeds for your opportunity were released.', 'Proceeds of $100.00 were released for your opportunity.', '/investments'],
+        ['invest_distribution_paid', 'Distribution paid', 'A distribution was credited to your OxSteed Credit balance.', 'A distribution of $10.00 was credited to your OxSteed Credit balance.', '/invest/my-investments'],
+        ['invest_amendment_reconfirmation_requested', 'Reconfirmation requested', 'An amendment was proposed for an opportunity you invested in. Review it and reconfirm before the deadline.', 'An amendment was proposed for an opportunity you invested in. Review it and reconfirm before 2027-01-15.', '/invest/my-investments'],
+      ];
+      for (const [type, , , body, actionUrl] of sends) {
+        const result = await sendNotification({
+          userId: user.id, type, body, data: {}, action_url: actionUrl,
+          idempotencyKey: `n15-real-send-${type}-${user.id}`,
+        });
+        expect(result.success).toBe(true);
+      }
+      const { rows } = await pool.query(
+        `SELECT type, title, body, action_url FROM notifications WHERE user_id = $1 ORDER BY created_at ASC`,
+        [user.id],
+      );
+      expect(rows.map((row) => row.type)).toEqual(sends.map(([t]) => t));
+      const byType = new Map(rows.map((row) => [row.type, row]));
+      for (const [type, title, templateBody, callerBody, actionUrl] of sends) {
+        const row = byType.get(type);
+        expect(row.title).toBe(title);
+        expect(row.body).toBe(`${templateBody} ${callerBody}`);
+        expect(row.action_url).toBe(actionUrl);
       }
     });
   });

@@ -22050,7 +22050,7 @@
         "statusPaid": "Payé",
         "statusVoided": "Annulé",
         "paymentReferenceLabel": "Référence de paiement",
-        "paymentReferencePlaceholder": "Virement bancaire ou référence de paiement",
+        "paymentReferencePlaceholder": "Identifiant de virement Stripe (tr_...)",
         "noteLabel": "Note (facultatif)",
         "notePlaceholder": "Note pour cette action",
         "approve": "Approuver",

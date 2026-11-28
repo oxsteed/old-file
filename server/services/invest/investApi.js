@@ -45,6 +45,7 @@ const {
 } = require('./participation');
 const { hasGlobalGrant } = require('../../middleware/adminAuth');
 const { getEligibleBalance } = require('./creditLots');
+const { notifyAmendmentReconfirmation } = require('./investNotifications');
 
 function fail(message, code, status = 400) {
   throw new AppError(message, status, code);
@@ -1249,7 +1250,13 @@ async function proposeAmendment(userId, opportunityId, amendmentId, reconfirmati
     [amendmentId, opportunityId, deadline.toISOString()],
   );
   if (!rows[0]) fail('Amendment not found or not a draft', 'invest_amendment_not_found', 404);
-  return formatAmendment(rows[0]);
+  const amendment = formatAmendment(rows[0]);
+  // N15 (D-744): the proposal IS the reconfirmation request — every
+  // investor with a live stake hears it now that notice_sent_at is
+  // stamped. The helper swallows its own failures, so a notice failure
+  // never fails the proposal.
+  await notifyAmendmentReconfirmation({ dbPool, opportunityId, amendmentId, deadline });
+  return amendment;
 }
 
 async function listAmendments(user, opportunityId, dbPool = pool) {

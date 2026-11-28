@@ -29,6 +29,13 @@
 jest.unmock('pg');
 jest.unmock('../db');
 
+// G9-B8 (D-745): mark-paid verifies the reference against Stripe, so this
+// file mocks the stripe module (the affiliate payout tests' pattern).
+// Only the 451e test drives a transfer retrieve; the other tests never
+// touch Stripe.
+const mockTransfersRetrieve = jest.fn();
+jest.mock('stripe', () => () => ({ transfers: { create: jest.fn(), retrieve: mockTransfersRetrieve } }));
+
 const crypto = require('crypto');
 
 const RAW_URL = process.env.STATEMENT_TEST_DATABASE_URL || '';
@@ -609,10 +616,18 @@ ddescribe('Group 9 Slice A: driver enroll and prepare (451-455)', () => {
     expect(approvedNotes).toHaveLength(1);
     expect(approvedNotes[0].title).toBe('Driver payout approved');
 
+    // G9-B8 (D-745): the rail gate reads the credit flag, and another
+    // suite in a full run can delete the flag row — ensure it is on (the
+    // pattern investSettlement/creditCashoutLifecycle use). The mocked
+    // Stripe retrieve returns the transfer that paid this payout (700
+    // USD cents, not reversed).
+    await pool.query(`UPDATE feature_flags SET is_enabled = true WHERE key = 'oxsteed_credit_enabled'`);
+    await pool.query(`INSERT INTO feature_flags (key, is_enabled) SELECT 'oxsteed_credit_enabled', true WHERE NOT EXISTS (SELECT 1 FROM feature_flags WHERE key = 'oxsteed_credit_enabled')`);
+    mockTransfersRetrieve.mockResolvedValue({ id: 'tr_test1234567890abcdef', amount: 700, currency: 'usd', reversed: false });
     const paid = await call(localDelivery.markDriverPayoutPaid, {
       user: { id: payerId, role: 'admin' },
       params: { payoutId: String(payout.id) },
-      body: { paymentReference: 'stripe_tr_test_123' },
+      body: { paymentReference: 'tr_test1234567890abcdef' },
     });
     expect(paid.next).not.toHaveBeenCalled();
     expect(paid.res.payload.payout.status).toBe('paid');

@@ -58,10 +58,19 @@ test('paid payout replay preserves the first payment reference and timestamp', a
 test('payout writes require the previously locked source status', async () => {
   // Fixture carries a recorded approver: a null approver now fails closed
   // with approver_unknown before the UPDATE (audit item 8), so the
-  // status-guard assertion below needs a normally-approved row.
-  const client = { query: jest.fn().mockResolvedValueOnce({ rows: [{ status: 'approved', approved_by_user_id: 'approver-1' }] }).mockResolvedValueOnce({ rows: [] }) };
-  await expect(payout.markPayoutPaid(client, 1, userId, 'ref')).rejects.toMatchObject({ statusCode: 409 });
-  expect(client.query.mock.calls[1][0]).toContain("AND status = 'approved'");
+  // status-guard assertion below needs a normally-approved row. G9-B8
+  // (D-745): the reference must be a Stripe transfer id verified against
+  // Stripe, so the mock answers the rail-gate queries and returns a
+  // matching transfer; the UPDATE itself returns no rows, which is the
+  // concurrent-change failure this test pins.
+  const stripe = { transfers: { retrieve: jest.fn().mockResolvedValue({ id: 'tr_1a2b3c', amount: 5000, currency: 'usd', reversed: false }) } };
+  const client = { query: jest.fn(async (sql) => {
+    if (sql.includes('FROM delivery_driver_payouts')) return { rows: [{ id: 1, status: 'approved', approved_by_user_id: 'approver-1', payout_cents: 5000 }] };
+    if (sql.includes('FROM feature_flags')) return { rows: [{ is_enabled: true }] };
+    return { rows: [] };
+  }) };
+  await expect(payout.markPayoutPaid(client, 1, userId, 'tr_1a2b3c', null, { stripe })).rejects.toMatchObject({ statusCode: 409 });
+  expect(client.query.mock.calls.some(([sql]) => sql.includes("AND status = 'approved'"))).toBe(true);
 });
 
 test('access requests cannot be completed with a status-only update', async () => {

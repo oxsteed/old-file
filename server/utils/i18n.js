@@ -454,6 +454,89 @@ const T = {
       ar: 'راجع نشاط OxSteed Credit الخاص بك.',
     },
   },
+  // N15 (D-744): Invest money-event notices. The caller body appends
+  // after these template bodies (amounts, deadlines), so the templates
+  // stay generic with no placeholders.
+  invest_distribution_paid: {
+    title: {
+      en: 'Distribution paid',
+      fr: 'Distribution versée',
+      es: 'Distribución pagada',
+      ht: 'Distribisyon peye',
+      ar: 'تم دفع التوزيعات',
+    },
+    body: {
+      en: 'A distribution was credited to your OxSteed Credit balance.',
+      fr: 'Une distribution a été créditée sur votre solde OxSteed Credit.',
+      es: 'Se acreditó una distribución a tu saldo de OxSteed Credit.',
+      ht: 'Yo kredite yon distribisyon nan balans OxSteed Credit ou.',
+      ar: 'تمت إضافة توزيعات إلى رصيد OxSteed Credit الخاص بك.',
+    },
+  },
+  invest_proceeds_released: {
+    title: {
+      en: 'Proceeds released',
+      fr: 'Fonds libérés',
+      es: 'Fondos liberados',
+      ht: 'Lajan yo libere',
+      ar: 'تم تحرير العائدات',
+    },
+    body: {
+      en: 'The proceeds for your opportunity were released.',
+      fr: 'Les fonds de votre opportunité ont été libérés.',
+      es: 'Se liberaron los fondos de tu oportunidad.',
+      ht: 'Yo libere lajan opòtinite ou.',
+      ar: 'تم تحرير عائدات فرصتك.',
+    },
+  },
+  invest_raise_closed: {
+    title: {
+      en: 'Raise closed',
+      fr: 'Levée clôturée',
+      es: 'Ronda cerrada',
+      ht: 'Leve a fèmen',
+      ar: 'تم إغلاق الجولة',
+    },
+    body: {
+      en: 'Your investment closed. Your Credit was debited and your position was created.',
+      fr: 'Votre investissement est clôturé. Votre Crédit a été débité et votre position créée.',
+      es: 'Tu inversión se cerró. Se debitó tu Crédito y se creó tu posición.',
+      ht: 'Envestisman ou fèmen. Yo debite Kredi ou epi yo kreye pozisyon ou.',
+      ar: 'تم إغلاق استثمارك. تم خصم رصيدك وإنشاء مركزك.',
+    },
+  },
+  invest_commitment_excluded: {
+    title: {
+      en: 'Commitment excluded from closing',
+      fr: 'Engagement exclu de la clôture',
+      es: 'Compromiso excluido del cierre',
+      ht: 'Angajman eskli nan fèmti a',
+      ar: 'تم استبعاد الالتزام من الإغلاق',
+    },
+    body: {
+      en: 'Your commitment was excluded from the closing because it was not reconfirmed against the current agreement version. It stays reserved.',
+      fr: 'Votre engagement a été exclu de la clôture car il n’a pas été reconfirmé sur la version actuelle de l’accord. Il reste réservé.',
+      es: 'Tu compromiso quedó excluido del cierre porque no lo reconfirmaste con la versión vigente del acuerdo. Sigue reservado.',
+      ht: 'Yo eskli angajman ou nan fèmti a paske ou pa t rekonfime l sou vèsyon aktyèl akò a. Li rete rezève.',
+      ar: 'تم استبعاد التزامك من الإغلاق لأنه لم تتم إعادة تأكيده وفق النسخة الحالية من الاتفاقية. ويبقى محجوزًا.',
+    },
+  },
+  invest_amendment_reconfirmation_requested: {
+    title: {
+      en: 'Reconfirmation requested',
+      fr: 'Reconfirmation demandée',
+      es: 'Reconfirmación solicitada',
+      ht: 'Yo mande rekonfimasyon',
+      ar: 'تم طلب إعادة التأكيد',
+    },
+    body: {
+      en: 'An amendment was proposed for an opportunity you invested in. Review it and reconfirm before the deadline.',
+      fr: 'Une modification a été proposée pour une opportunité dans laquelle vous avez investi. Relisez-la et reconfirmez avant la date limite.',
+      es: 'Se propuso una modificación para una oportunidad en la que invertiste. Revísala y reconfírmala antes de la fecha límite.',
+      ht: 'Yo pwopoze yon modifikasyon pou yon opòtinite ou te envesti ladan l. Revize l epi rekonfime anvan dat limit la.',
+      ar: 'تم اقتراح تعديل على فرصة استثمرت فيها. راجعه وأعد تأكيده قبل الموعد النهائي.',
+    },
+  },
   credit_identity_verification_requested: {
     title: { en: 'Identity review requested', es: 'Solicitud de revisión de identidad', fr: 'Demande de vérification d’identité', ht: 'Demann verifikasyon idantite', ar: 'تم طلب مراجعة الهوية' },
     body: { en: 'Your identity review request is in the compliance queue.', es: 'Tu solicitud de revisión de identidad está en la cola de cumplimiento.', fr: 'Votre demande de vérification d’identité est dans la file de conformité.', ht: 'Demann verifikasyon idantite ou nan ke konformite a.', ar: 'طلب مراجعة هويتك في قائمة الامتثال.' },
@@ -1711,6 +1794,107 @@ const T = {
       ar: 'اكتملت الزيارة.',
     },
   },
+  // R9 (D-734): the 6 booking auto-notice types were sent with a caller
+  // body but no template and no title, so the notices were lost on the
+  // NOT NULL title insert. The caller body appends after these template
+  // bodies (notificationService joins them), so the templates stay
+  // generic and carry no placeholders.
+  booking_auto_posted: {
+    title: {
+      en: 'Booking posted for bids',
+      fr: 'Réservation publiée pour offres',
+      es: 'Reserva publicada para ofertas',
+      ht: 'Rezèvasyon pibliye pou òf',
+      ar: 'تم نشر الحجز للعروض',
+    },
+    body: {
+      en: 'Your booking is now open for bids.',
+      fr: 'Votre réservation est maintenant ouverte aux offres.',
+      es: 'Tu reserva ahora está abierta a ofertas.',
+      ht: 'Rezèvasyon ou an louvri pou òf kounye a.',
+      ar: 'حجزك مفتوح الآن للعروض.',
+    },
+  },
+  booking_counter_proposed: {
+    title: {
+      en: 'Counter-proposal received',
+      fr: 'Contre-proposition reçue',
+      es: 'Contrapropuesta recibida',
+      ht: 'Kont-pwopozisyon resevwa',
+      ar: 'تم استلام اقتراح بديل',
+    },
+    body: {
+      en: 'Your helper proposed a different time for your booking.',
+      fr: 'Votre assistant a proposé un autre horaire pour votre réservation.',
+      es: 'Tu ayudante propuso otra hora para tu reserva.',
+      ht: 'Asistan ou pwopoze yon lòt lè pou rezèvasyon ou.',
+      ar: 'اقترح مساعدك وقتًا آخر لحجزك.',
+    },
+  },
+  booking_counter_accepted: {
+    title: {
+      en: 'Counter-proposal accepted',
+      fr: 'Contre-proposition acceptée',
+      es: 'Contrapropuesta aceptada',
+      ht: 'Kont-pwopozisyon aksepte',
+      ar: 'تم قبول الاقتراح البديل',
+    },
+    body: {
+      en: 'Your helper accepted the counter-proposal.',
+      fr: 'Votre assistant a accepté la contre-proposition.',
+      es: 'Tu ayudante aceptó la contrapropuesta.',
+      ht: 'Asistan ou aksepte kont-pwopozisyon an.',
+      ar: 'قبل مساعدك الاقتراح البديل.',
+    },
+  },
+  booking_counter_declined: {
+    title: {
+      en: 'Counter-proposal declined',
+      fr: 'Contre-proposition refusée',
+      es: 'Contrapropuesta rechazada',
+      ht: 'Kont-pwopozisyon refize',
+      ar: 'تم رفض الاقتراح البديل',
+    },
+    body: {
+      en: 'Your helper declined the counter-proposal.',
+      fr: 'Votre assistant a refusé la contre-proposition.',
+      es: 'Tu ayudante rechazó la contrapropuesta.',
+      ht: 'Asistan ou refize kont-pwopozisyon an.',
+      ar: 'رفض مساعدك الاقتراح البديل.',
+    },
+  },
+  booking_expired: {
+    title: {
+      en: 'Booking expired',
+      fr: 'Réservation expirée',
+      es: 'Reserva vencida',
+      ht: 'Rezèvasyon ekspire',
+      ar: 'انتهت صلاحية الحجز',
+    },
+    body: {
+      en: 'A booking request expired without a response.',
+      fr: 'Une demande de réservation a expiré sans réponse.',
+      es: 'Una solicitud de reserva venció sin respuesta.',
+      ht: 'Yon demann rezèvasyon ekspire san okenn repons.',
+      ar: 'انتهت صلاحية طلب حجز دون رد.',
+    },
+  },
+  recurring_booking_new: {
+    title: {
+      en: 'New recurring booking',
+      fr: 'Nouvelle réservation récurrente',
+      es: 'Nueva reserva recurrente',
+      ht: 'Nouvo rezèvasyon ki repete',
+      ar: 'حجز متكرر جديد',
+    },
+    body: {
+      en: 'A new recurring booking was created for you.',
+      fr: 'Une nouvelle réservation récurrente a été créée pour vous.',
+      es: 'Se creó una nueva reserva recurrente para ti.',
+      ht: 'Yo kreye yon nouvo rezèvasyon ki repete pou ou.',
+      ar: 'تم إنشاء حجز متكرر جديد لك.',
+    },
+  },
   booking_auto_released: {
     title: {
       en: 'Booking Auto Released',
@@ -1741,6 +1925,400 @@ const T = {
       es: 'Un cliente programó una sesión de consultoría contigo. Abre tu panel para ver los detalles y prepararte.',
       ht: 'Yon kliyan pwograme yon sesyon konsiltasyon avè ou. Louvri tablodbò ou pou wè detay yo epi prepare ou.',
       ar: 'جدول عميل جلسة استشارية معك. افتح لوحة التحكم لعرض التفاصيل والاستعداد.',
+    },
+  },
+  // S-C2 (D-730): the 9 consulting proposal/session types were sent
+  // with no template and no title, so the notices were lost on the
+  // NOT NULL title insert. Copy is static: the send sites pass ids
+  // only (no render params), so there is nothing to interpolate.
+  consulting_proposal_sent: {
+    title: {
+      en: 'Proposal sent',
+      fr: 'Proposition envoyée',
+      es: 'Propuesta enviada',
+      ht: 'Pwopozisyon voye',
+      ar: 'تم إرسال الاقتراح',
+    },
+    body: {
+      en: 'A consulting proposal was sent. Open the portal to review it.',
+      fr: 'Une proposition de consultation a été envoyée. Ouvrez le portail pour la relire.',
+      es: 'Se envió una propuesta de consultoría. Abre el portal para revisarla.',
+      ht: 'Yo voye yon pwopozisyon konsiltasyon. Louvri pòtay la pou w revize l.',
+      ar: 'تم إرسال اقتراح استشاري. افتح البوابة لمراجعته.',
+    },
+  },
+  consulting_proposal_approved: {
+    title: {
+      en: 'Proposal approved',
+      fr: 'Proposition approuvée',
+      es: 'Propuesta aprobada',
+      ht: 'Pwopozisyon apwouve',
+      ar: 'تمت الموافقة على الاقتراح',
+    },
+    body: {
+      en: 'Your consulting proposal was approved.',
+      fr: 'Votre proposition de consultation a été approuvée.',
+      es: 'Tu propuesta de consultoría fue aprobada.',
+      ht: 'Pwopozisyon konsiltasyon ou an apwouve.',
+      ar: 'تمت الموافقة على اقتراحك الاستشاري.',
+    },
+  },
+  consulting_proposal_rejected: {
+    title: {
+      en: 'Proposal declined',
+      fr: 'Proposition refusée',
+      es: 'Propuesta rechazada',
+      ht: 'Pwopozisyon refize',
+      ar: 'تم رفض الاقتراح',
+    },
+    body: {
+      en: 'Your consulting proposal was declined.',
+      fr: 'Votre proposition de consultation a été refusée.',
+      es: 'Tu propuesta de consultoría fue rechazada.',
+      ht: 'Pwopozisyon konsiltasyon ou an refize.',
+      ar: 'تم رفض اقتراحك الاستشاري.',
+    },
+  },
+  consulting_proposal_withdrawn: {
+    title: {
+      en: 'Proposal withdrawn',
+      fr: 'Proposition retirée',
+      es: 'Propuesta retirada',
+      ht: 'Pwopozisyon retire',
+      ar: 'تم سحب الاقتراح',
+    },
+    body: {
+      en: 'A consulting proposal was withdrawn.',
+      fr: 'Une proposition de consultation a été retirée.',
+      es: 'Se retiró una propuesta de consultoría.',
+      ht: 'Yo retire yon pwopozisyon konsiltasyon.',
+      ar: 'تم سحب اقتراح استشاري.',
+    },
+  },
+  consulting_session_reschedule_proposed: {
+    title: {
+      en: 'Session reschedule proposed',
+      fr: 'Report proposé',
+      es: 'Reprogramación propuesta',
+      ht: 'Nouvo lè pwopoze',
+      ar: 'تم اقتراح موعد جديد',
+    },
+    body: {
+      en: 'A new time was proposed for your consulting session. Open the portal to review it.',
+      fr: 'Un nouvel horaire a été proposé pour votre séance de consultation. Ouvrez le portail pour le relire.',
+      es: 'Se propuso una nueva hora para tu sesión de consultoría. Abre el portal para revisarla.',
+      ht: 'Yo pwopoze yon nouvo lè pou sesyon konsiltasyon ou. Louvri pòtay la pou w revize l.',
+      ar: 'تم اقتراح موعد جديد لجلسة الاستشارة الخاصة بك. افتح البوابة لمراجعته.',
+    },
+  },
+  consulting_session_reschedule_accepted: {
+    title: {
+      en: 'Reschedule accepted',
+      fr: 'Report accepté',
+      es: 'Reprogramación aceptada',
+      ht: 'Nouvo lè a aksepte',
+      ar: 'تم قبول الموعد الجديد',
+    },
+    body: {
+      en: 'The proposed time for your consulting session was accepted.',
+      fr: 'L’horaire proposé pour votre séance de consultation a été accepté.',
+      es: 'Se aceptó la hora propuesta para tu sesión de consultoría.',
+      ht: 'Yo aksepte nouvo lè yo te pwopoze pou sesyon konsiltasyon ou.',
+      ar: 'تم قبول الموعد المقترح لجلسة الاستشارة الخاصة بك.',
+    },
+  },
+  consulting_session_reschedule_declined: {
+    title: {
+      en: 'Reschedule declined',
+      fr: 'Report refusé',
+      es: 'Reprogramación rechazada',
+      ht: 'Nouvo lè a refize',
+      ar: 'تم رفض الموعد الجديد',
+    },
+    body: {
+      en: 'The proposed time for your consulting session was declined.',
+      fr: 'L’horaire proposé pour votre séance de consultation a été refusé.',
+      es: 'Se rechazó la hora propuesta para tu sesión de consultoría.',
+      ht: 'Yo refize nouvo lè yo te pwopoze pou sesyon konsiltasyon ou.',
+      ar: 'تم رفض الموعد المقترح لجلسة الاستشارة الخاصة بك.',
+    },
+  },
+  consulting_session_cancelled: {
+    title: {
+      en: 'Session cancelled',
+      fr: 'Séance annulée',
+      es: 'Sesión cancelada',
+      ht: 'Sesyon anile',
+      ar: 'تم إلغاء الجلسة',
+    },
+    body: {
+      en: 'A consulting session was cancelled.',
+      fr: 'Une séance de consultation a été annulée.',
+      es: 'Se canceló una sesión de consultoría.',
+      ht: 'Yo anile yon sesyon konsiltasyon.',
+      ar: 'تم إلغاء جلسة استشارية.',
+    },
+  },
+  consulting_session_attendance_confirmed: {
+    title: {
+      en: 'Attendance confirmed',
+      fr: 'Présence confirmée',
+      es: 'Asistencia confirmada',
+      ht: 'Prezans konfime',
+      ar: 'تم تأكيد الحضور',
+    },
+    body: {
+      en: 'Attendance for a consulting session was confirmed.',
+      fr: 'La présence à une séance de consultation a été confirmée.',
+      es: 'Se confirmó la asistencia a una sesión de consultoría.',
+      ht: 'Yo konfime prezans pou yon sesyon konsiltasyon.',
+      ar: 'تم تأكيد الحضور لجلسة استشارية.',
+    },
+  },
+  // S-D2 (D-731): the 15 shared-notifyUser types arrived title-only
+  // with an empty body and no link (the helper passed `message` and
+  // `metadata`, which sendNotification drops). Templates give them
+  // localized copy; the helper now forwards the caller's body/data and
+  // an action URL, so the specific message still appends after the
+  // template body.
+  consulting_change_requested: {
+    title: {
+      en: 'Change requested',
+      fr: 'Modification demandée',
+      es: 'Cambio solicitado',
+      ht: 'Chanjman mande',
+      ar: 'تم طلب تغيير',
+    },
+    body: {
+      en: 'A change was requested on your consulting engagement.',
+      fr: 'Une modification a été demandée sur votre mission de consultation.',
+      es: 'Se solicitó un cambio en tu encargo de consultoría.',
+      ht: 'Yo mande yon chanjman sou angajman konsiltasyon ou.',
+      ar: 'تم طلب تغيير على مهمتك الاستشارية.',
+    },
+  },
+  consulting_change_approved: {
+    title: {
+      en: 'Change approved',
+      fr: 'Modification approuvée',
+      es: 'Cambio aprobado',
+      ht: 'Chanjman apwouve',
+      ar: 'تمت الموافقة على التغيير',
+    },
+    body: {
+      en: 'Your change request was approved.',
+      fr: 'Votre demande de modification a été approuvée.',
+      es: 'Tu solicitud de cambio fue aprobada.',
+      ht: 'Yo apwouve demann chanjman ou.',
+      ar: 'تمت الموافقة على طلب التغيير الخاص بك.',
+    },
+  },
+  consulting_change_rejected: {
+    title: {
+      en: 'Change declined',
+      fr: 'Modification refusée',
+      es: 'Cambio rechazado',
+      ht: 'Chanjman refize',
+      ar: 'تم رفض التغيير',
+    },
+    body: {
+      en: 'Your change request was declined.',
+      fr: 'Votre demande de modification a été refusée.',
+      es: 'Tu solicitud de cambio fue rechazada.',
+      ht: 'Yo refize demann chanjman ou.',
+      ar: 'تم رفض طلب التغيير الخاص بك.',
+    },
+  },
+  consulting_engagement_paused: {
+    title: {
+      en: 'Engagement paused',
+      fr: 'Mission en pause',
+      es: 'Encargo en pausa',
+      ht: 'Angajman an poz',
+      ar: 'تم إيقاف المهمة مؤقتًا',
+    },
+    body: {
+      en: 'Your consulting engagement was paused.',
+      fr: 'Votre mission de consultation a été mise en pause.',
+      es: 'Tu encargo de consultoría quedó en pausa.',
+      ht: 'Angajman konsiltasyon ou an poz.',
+      ar: 'تم إيقاف مهمتك الاستشارية مؤقتًا.',
+    },
+  },
+  consulting_engagement_resumed: {
+    title: {
+      en: 'Engagement resumed',
+      fr: 'Mission reprise',
+      es: 'Encargo reanudado',
+      ht: 'Angajman an rekòmanse',
+      ar: 'تم استئناف المهمة',
+    },
+    body: {
+      en: 'Your consulting engagement resumed.',
+      fr: 'Votre mission de consultation a repris.',
+      es: 'Tu encargo de consultoría se reanudó.',
+      ht: 'Angajman konsiltasyon ou an rekòmanse.',
+      ar: 'تم استئناف مهمتك الاستشارية.',
+    },
+  },
+  consulting_closeout_confirmed: {
+    title: {
+      en: 'Closeout confirmed',
+      fr: 'Clôture confirmée',
+      es: 'Cierre confirmado',
+      ht: 'Fèmti konfime',
+      ar: 'تم تأكيد الإغلاق',
+    },
+    body: {
+      en: 'A closeout was confirmed on your consulting engagement.',
+      fr: 'Une clôture a été confirmée sur votre mission de consultation.',
+      es: 'Se confirmó un cierre en tu encargo de consultoría.',
+      ht: 'Yo konfime yon fèmti sou angajman konsiltasyon ou.',
+      ar: 'تم تأكيد إغلاق على مهمتك الاستشارية.',
+    },
+  },
+  consulting_follow_up_scheduled: {
+    title: {
+      en: 'Follow-up scheduled',
+      fr: 'Suivi planifié',
+      es: 'Seguimiento programado',
+      ht: 'Swivi pwograme',
+      ar: 'تمت جدولة متابعة',
+    },
+    body: {
+      en: 'A follow-up was scheduled on your consulting engagement.',
+      fr: 'Un suivi a été planifié sur votre mission de consultation.',
+      es: 'Se programó un seguimiento en tu encargo de consultoría.',
+      ht: 'Yo pwograme yon swivi sou angajman konsiltasyon ou.',
+      ar: 'تمت جدولة متابعة على مهمتك الاستشارية.',
+    },
+  },
+  consulting_feedback_requested: {
+    title: {
+      en: 'Feedback requested',
+      fr: 'Avis demandé',
+      es: 'Opinión solicitada',
+      ht: 'Opinyon mande',
+      ar: 'تم طلب ملاحظات',
+    },
+    body: {
+      en: 'Your consultant requested your feedback on the engagement.',
+      fr: 'Votre consultant a demandé votre avis sur la mission.',
+      es: 'Tu consultor solicitó tu opinión sobre el encargo.',
+      ht: 'Konsiltan ou mande opinyon ou sou angajman an.',
+      ar: 'طلب مستشارك ملاحظاتك حول المهمة.',
+    },
+  },
+  consulting_engagement_archived: {
+    title: {
+      en: 'Engagement archived',
+      fr: 'Mission archivée',
+      es: 'Encargo archivado',
+      ht: 'Angajman achive',
+      ar: 'تمت أرشفة المهمة',
+    },
+    body: {
+      en: 'Your consulting engagement was archived.',
+      fr: 'Votre mission de consultation a été archivée.',
+      es: 'Tu encargo de consultoría fue archivado.',
+      ht: 'Angajman konsiltasyon ou an achive.',
+      ar: 'تمت أرشفة مهمتك الاستشارية.',
+    },
+  },
+  consulting_participant_added: {
+    title: {
+      en: 'Added to an engagement',
+      fr: 'Ajouté(e) à une mission',
+      es: 'Añadido a un encargo',
+      ht: 'Yo ajoute ou nan yon angajman',
+      ar: 'تمت إضافتك إلى مهمة',
+    },
+    body: {
+      en: 'You were added to a consulting engagement.',
+      fr: 'Vous avez été ajouté(e) à une mission de consultation.',
+      es: 'Te añadieron a un encargo de consultoría.',
+      ht: 'Yo ajoute ou nan yon angajman konsiltasyon.',
+      ar: 'تمت إضافتك إلى مهمة استشارية.',
+    },
+  },
+  consulting_confidentiality_acknowledged: {
+    title: {
+      en: 'Confidentiality acknowledged',
+      fr: 'Confidentialité reconnue',
+      es: 'Confidencialidad reconocida',
+      ht: 'Konfidansyalite rekonèt',
+      ar: 'تم الإقرار بالسرية',
+    },
+    body: {
+      en: 'Confidentiality was acknowledged on your consulting engagement.',
+      fr: 'La confidentialité a été reconnue sur votre mission de consultation.',
+      es: 'Se reconoció la confidencialidad en tu encargo de consultoría.',
+      ht: 'Yo rekonèt konfidansyalite sou angajman konsiltasyon ou.',
+      ar: 'تم الإقرار بالسرية على مهمتك الاستشارية.',
+    },
+  },
+  consulting_engagement_started: {
+    title: {
+      en: 'Engagement started',
+      fr: 'Mission démarrée',
+      es: 'Encargo iniciado',
+      ht: 'Angajman an kòmanse',
+      ar: 'بدأت المهمة',
+    },
+    body: {
+      en: 'Work started on your consulting engagement.',
+      fr: 'Le travail a démarré sur votre mission de consultation.',
+      es: 'Comenzó el trabajo en tu encargo de consultoría.',
+      ht: 'Travay la kòmanse sou angajman konsiltasyon ou.',
+      ar: 'بدأ العمل على مهمتك الاستشارية.',
+    },
+  },
+  consulting_draft_delivered: {
+    title: {
+      en: 'Draft delivered',
+      fr: 'Brouillon livré',
+      es: 'Borrador entregado',
+      ht: 'Bouyon delivre',
+      ar: 'تم تسليم مسودة',
+    },
+    body: {
+      en: 'A draft was delivered on your consulting engagement.',
+      fr: 'Un brouillon a été livré sur votre mission de consultation.',
+      es: 'Se entregó un borrador en tu encargo de consultoría.',
+      ht: 'Yo delivre yon bouyon sou angajman konsiltasyon ou.',
+      ar: 'تم تسليم مسودة على مهمتك الاستشارية.',
+    },
+  },
+  consulting_deliverable_feedback: {
+    title: {
+      en: 'Feedback left',
+      fr: 'Avis reçu',
+      es: 'Opinión recibida',
+      ht: 'Opinyon resevwa',
+      ar: 'تم تلقي ملاحظات',
+    },
+    body: {
+      en: 'Feedback was left on your delivered work.',
+      fr: 'Un avis a été laissé sur votre travail livré.',
+      es: 'Se dejó una opinión sobre tu trabajo entregado.',
+      ht: 'Yo kite yon opinyon sou travay ou te delivre a.',
+      ar: 'تم ترك ملاحظات على العمل الذي سلمته.',
+    },
+  },
+  consulting_milestone_accepted: {
+    title: {
+      en: 'Milestone accepted',
+      fr: 'Jalon accepté',
+      es: 'Hito aceptado',
+      ht: 'Etap aksepte',
+      ar: 'تم قبول مرحلة',
+    },
+    body: {
+      en: 'A milestone was accepted on your consulting engagement.',
+      fr: 'Un jalon a été accepté sur votre mission de consultation.',
+      es: 'Se aceptó un hito en tu encargo de consultoría.',
+      ht: 'Yo aksepte yon etap sou angajman konsiltasyon ou.',
+      ar: 'تم قبول مرحلة على مهمتك الاستشارية.',
     },
   },
   // G10-1: consultant payout leg (OxSteed Credit settlement on completion).
@@ -2000,6 +2578,43 @@ const T = {
       ar: 'لديك فواتير متأخرة. تابع مع العملاء لتحصيل الدفع.',
     },
   },
+  // N14 (D-729): account_banned / account_restored were sent with no
+  // template and no title at any site (toggleUserBan and the two
+  // notifyUserAccountEvent callers), so the notice was lost on the
+  // NOT NULL title insert. The ban body stays static: the reason rides
+  // in the notification data, not in params.
+  account_banned: {
+    title: {
+      en: 'Account banned',
+      fr: 'Compte banni',
+      es: 'Cuenta suspendida',
+      ht: 'Kont ou an bloke',
+      ar: 'تم حظر الحساب',
+    },
+    body: {
+      en: 'Your account was banned. Contact support if you believe this is a mistake.',
+      fr: 'Votre compte a été banni. Contactez le support si vous pensez qu’il s’agit d’une erreur.',
+      es: 'Tu cuenta fue suspendida. Contacta con soporte si crees que es un error.',
+      ht: 'Yo bloke kont ou. Kontakte sipò a si ou panse se yon erè.',
+      ar: 'تم حظر حسابك. اتصل بالدعم إذا كنت تعتقد أن هذا خطأ.',
+    },
+  },
+  account_restored: {
+    title: {
+      en: 'Account restored',
+      fr: 'Compte restauré',
+      es: 'Cuenta restaurada',
+      ht: 'Kont ou an retabli',
+      ar: 'تمت استعادة الحساب',
+    },
+    body: {
+      en: 'Your account has been restored. You can sign in again.',
+      fr: 'Votre compte a été restauré. Vous pouvez vous reconnecter.',
+      es: 'Tu cuenta ha sido restaurada. Ya puedes iniciar sesión.',
+      ht: 'Yo retabli kont ou. Ou ka konekte ankò.',
+      ar: 'تمت استعادة حسابك. يمكنك تسجيل الدخول مرة أخرى.',
+    },
+  },
 };
 
 const EMAIL_TEMPLATES = {
@@ -2161,6 +2776,22 @@ const EMAIL_TEMPLATES = {
       es: 'Ver conducción',
       ht: 'Gade kondwi',
       ar: 'عرض القيادة',
+    },
+    // N14 (D-729): button labels for the two literal delivery: types;
+    // their T entries live in localDeliveryNotifications.js.
+    'delivery:tracking_stale': {
+      en: 'View Delivery',
+      fr: 'Voir la livraison',
+      es: 'Ver entrega',
+      ht: 'Gade livrezon an',
+      ar: 'عرض التوصيل',
+    },
+    'delivery:weekly_report_ready': {
+      en: 'View Report',
+      fr: 'Voir le rapport',
+      es: 'Ver informe',
+      ht: 'Gade rapò a',
+      ar: 'عرض التقرير',
     },
     payout_failed: {
       en: 'View Payouts',
@@ -2372,6 +3003,213 @@ const EMAIL_TEMPLATES = {
       ht: 'Gade sesyon yo',
       ar: 'عرض الجلسات',
     },
+    // S-C2 (D-730) + S-D2 (D-731): button labels for the 24 consulting
+    // types; proposals point at the proposal, sessions at the sessions,
+    // engagement events at the engagement.
+    consulting_proposal_sent: {
+      en: 'View Proposal',
+      fr: 'Voir la proposition',
+      es: 'Ver propuesta',
+      ht: 'Gade pwopozisyon an',
+      ar: 'عرض الاقتراح',
+    },
+    consulting_proposal_approved: {
+      en: 'View Proposal',
+      fr: 'Voir la proposition',
+      es: 'Ver propuesta',
+      ht: 'Gade pwopozisyon an',
+      ar: 'عرض الاقتراح',
+    },
+    consulting_proposal_rejected: {
+      en: 'View Proposal',
+      fr: 'Voir la proposition',
+      es: 'Ver propuesta',
+      ht: 'Gade pwopozisyon an',
+      ar: 'عرض الاقتراح',
+    },
+    consulting_proposal_withdrawn: {
+      en: 'View Proposal',
+      fr: 'Voir la proposition',
+      es: 'Ver propuesta',
+      ht: 'Gade pwopozisyon an',
+      ar: 'عرض الاقتراح',
+    },
+    consulting_session_reschedule_proposed: {
+      en: 'View Sessions',
+      fr: 'Voir les séances',
+      es: 'Ver sesiones',
+      ht: 'Gade sesyon yo',
+      ar: 'عرض الجلسات',
+    },
+    consulting_session_reschedule_accepted: {
+      en: 'View Sessions',
+      fr: 'Voir les séances',
+      es: 'Ver sesiones',
+      ht: 'Gade sesyon yo',
+      ar: 'عرض الجلسات',
+    },
+    consulting_session_reschedule_declined: {
+      en: 'View Sessions',
+      fr: 'Voir les séances',
+      es: 'Ver sesiones',
+      ht: 'Gade sesyon yo',
+      ar: 'عرض الجلسات',
+    },
+    consulting_session_cancelled: {
+      en: 'View Sessions',
+      fr: 'Voir les séances',
+      es: 'Ver sesiones',
+      ht: 'Gade sesyon yo',
+      ar: 'عرض الجلسات',
+    },
+    consulting_session_attendance_confirmed: {
+      en: 'View Sessions',
+      fr: 'Voir les séances',
+      es: 'Ver sesiones',
+      ht: 'Gade sesyon yo',
+      ar: 'عرض الجلسات',
+    },
+    consulting_change_requested: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_change_approved: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_change_rejected: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_engagement_paused: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_engagement_resumed: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_closeout_confirmed: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_follow_up_scheduled: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_feedback_requested: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_engagement_archived: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_participant_added: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_confidentiality_acknowledged: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_engagement_started: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_draft_delivered: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_deliverable_feedback: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    consulting_milestone_accepted: {
+      en: 'View Engagement',
+      fr: 'Voir la mission',
+      es: 'Ver encargo',
+      ht: 'Gade angajman an',
+      ar: 'عرض المهمة',
+    },
+    // N15 (D-744): Invest money-event buttons.
+    invest_distribution_paid: {
+      en: 'View Investments',
+      fr: 'Voir les investissements',
+      es: 'Ver inversiones',
+      ht: 'Gade envestisman yo',
+      ar: 'عرض الاستثمارات',
+    },
+    invest_proceeds_released: {
+      en: 'View Investments',
+      fr: 'Voir les investissements',
+      es: 'Ver inversiones',
+      ht: 'Gade envestisman yo',
+      ar: 'عرض الاستثمارات',
+    },
+    invest_raise_closed: {
+      en: 'View Investments',
+      fr: 'Voir les investissements',
+      es: 'Ver inversiones',
+      ht: 'Gade envestisman yo',
+      ar: 'عرض الاستثمارات',
+    },
+    invest_commitment_excluded: {
+      en: 'View Investments',
+      fr: 'Voir les investissements',
+      es: 'Ver inversiones',
+      ht: 'Gade envestisman yo',
+      ar: 'عرض الاستثمارات',
+    },
+    invest_amendment_reconfirmation_requested: {
+      en: 'Review Amendment',
+      fr: 'Revoir la modification',
+      es: 'Revisar modificación',
+      ht: 'Revize modifikasyon an',
+      ar: 'مراجعة التعديل',
+    },
     // G10-1: consultant payout leg.
     consultant_payout_paid: {
       en: 'View Payouts',
@@ -2394,37 +3232,65 @@ const EMAIL_TEMPLATES = {
       ht: 'Gade peman yo',
       ar: 'عرض المدفوعات',
     },
+  // R9 (D-734): booking_auto_completed and booking_auto_released were
+  // pasted here in T shape (title/body objects) instead of flat locale
+  // strings, so tNotifEmail fell back to 'View Dashboard' for both.
+  // They are flat labels now; the T templates above are untouched.
   booking_auto_completed: {
-    title: {
-      en: 'Booking Completed',
-      fr: 'Réservation terminée',
-      es: 'Reserva completada',
-      ht: 'Rezèvasyon an fini',
-      ar: 'اكتمل الحجز',
-    },
-    body: {
-      en: 'The visit was completed.',
-      fr: 'La visite est terminée.',
-      es: 'La visita se completó.',
-      ht: 'Vizit la fini.',
-      ar: 'اكتملت الزيارة.',
-    },
+    en: 'View Bookings',
+    fr: 'Voir les réservations',
+    es: 'Ver reservas',
+    ht: 'Gade rezèvasyon yo',
+    ar: 'عرض الحجوزات',
   },
   booking_auto_released: {
-    title: {
-      en: 'Booking Request Expired',
-      fr: 'Demande de réservation expirée',
-      es: 'La solicitud de reserva expiró',
-      ht: 'Demann rezèvasyon an ekspire',
-      ar: 'انتهت صلاحية طلب الحجز',
-    },
-    body: {
-      en: 'The booking request expired without a response.',
-      fr: 'La demande de réservation a expiré sans réponse.',
-      es: 'La solicitud de reserva expiró sin respuesta.',
-      ht: 'Demann rezèvasyon an ekspire san okenn repons.',
-      ar: 'انتهت صلاحية طلب الحجز دون تلقي أي رد.',
-    },
+    en: 'View Bookings',
+    fr: 'Voir les réservations',
+    es: 'Ver reservas',
+    ht: 'Gade rezèvasyon yo',
+    ar: 'عرض الحجوزات',
+  },
+  booking_auto_posted: {
+    en: 'View Job',
+    fr: 'Voir l’annonce',
+    es: 'Ver trabajo',
+    ht: 'Gade travay la',
+    ar: 'عرض الوظيفة',
+  },
+  booking_counter_proposed: {
+    en: 'View Booking',
+    fr: 'Voir la réservation',
+    es: 'Ver reserva',
+    ht: 'Gade rezèvasyon an',
+    ar: 'عرض الحجز',
+  },
+  booking_counter_accepted: {
+    en: 'View Bookings',
+    fr: 'Voir les réservations',
+    es: 'Ver reservas',
+    ht: 'Gade rezèvasyon yo',
+    ar: 'عرض الحجوزات',
+  },
+  booking_counter_declined: {
+    en: 'View Bookings',
+    fr: 'Voir les réservations',
+    es: 'Ver reservas',
+    ht: 'Gade rezèvasyon yo',
+    ar: 'عرض الحجوزات',
+  },
+  booking_expired: {
+    en: 'View Bookings',
+    fr: 'Voir les réservations',
+    es: 'Ver reservas',
+    ht: 'Gade rezèvasyon yo',
+    ar: 'عرض الحجوزات',
+  },
+  recurring_booking_new: {
+    en: 'View Calendar',
+    fr: 'Voir le calendrier',
+    es: 'Ver calendario',
+    ht: 'Gade kalandriye a',
+    ar: 'عرض التقويم',
   },
   booking_request_expired: {
     en: 'Post as Job',

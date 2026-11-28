@@ -216,10 +216,14 @@ async function createChangeRequest(req, res) {
       const requesterIsConsultant = String(session.consultant_assigned_id) === String(req.user.id);
       const deciderId = requesterIsConsultant ? session.user_id : session.consultant_assigned_id;
       const deciderEmail = requesterIsConsultant ? session.email : await consultantEmail(session.consultant_assigned_id);
-      await notifyUser(deciderId, 'consulting_change_requested',
-        'A change was requested on your engagement',
-        `A ${changeLabel(changeRequest)} was requested. Review it on the milestone board.`,
-        { sessionId: String(session.id), requestId: changeRequest.id });
+      await notifyUser({
+        userId: deciderId, type: 'consulting_change_requested',
+        title: 'A change was requested on your engagement',
+        body: `A ${changeLabel(changeRequest)} was requested. Review it on the milestone board.`,
+        data: { sessionId: String(session.id), requestId: changeRequest.id },
+        // The decider is the other party from the requester.
+        actionUrl: requesterIsConsultant ? '/consulting/portal' : '/consulting/contractor-dashboard',
+      });
       await emailParty(deciderEmail, 'A change was requested on your engagement',
         'A change was requested on your engagement',
         `A ${changeLabel(changeRequest)} was requested. Open the milestone board to review it.`);
@@ -389,10 +393,14 @@ function decideChangeRequest(decision) {
         const requesterIsConsultant = String(session.consultant_assigned_id) === requesterId;
         const requesterEmail = requesterIsConsultant
           ? await consultantEmail(session.consultant_assigned_id) : session.email;
-        await notifyUser(requesterId, decision === 'approved' ? 'consulting_change_approved' : 'consulting_change_rejected',
-          decision === 'approved' ? 'Your change request was approved' : 'Your change request was declined',
-          `Your ${changeLabel(changeRequest)} was ${decision}.`,
-          { sessionId: String(session.id), requestId: changeRequest.id });
+        await notifyUser({
+          userId: requesterId, type: decision === 'approved' ? 'consulting_change_approved' : 'consulting_change_rejected',
+          title: decision === 'approved' ? 'Your change request was approved' : 'Your change request was declined',
+          body: `Your ${changeLabel(changeRequest)} was ${decision}.`,
+          data: { sessionId: String(session.id), requestId: changeRequest.id },
+          // The requester hears the decision on their own side.
+          actionUrl: requesterIsConsultant ? '/consulting/contractor-dashboard' : '/consulting/portal',
+        });
         await emailParty(requesterEmail,
           decision === 'approved' ? 'Your change request was approved' : 'Your change request was declined',
           decision === 'approved' ? 'Your change request was approved' : 'Your change request was declined',
@@ -531,10 +539,15 @@ async function pauseEngagement(req, res) {
       const { session } = result.body;
       const otherId = String(session.user_id) === String(req.user.id)
         ? session.consultant_assigned_id : session.user_id;
-      await notifyUser(otherId, 'consulting_engagement_paused',
-        'The engagement was paused',
-        'The engagement was paused. Milestone work and change approvals are on hold until it resumes.',
-        { sessionId: String(session.id) });
+      await notifyUser({
+        userId: otherId, type: 'consulting_engagement_paused',
+        title: 'The engagement was paused',
+        body: 'The engagement was paused. Milestone work and change approvals are on hold until it resumes.',
+        data: { sessionId: String(session.id) },
+        // The other party from the actor: the client actor's other side
+        // is the consultant, and vice versa.
+        actionUrl: String(session.user_id) === String(req.user.id) ? '/consulting/contractor-dashboard' : '/consulting/portal',
+      });
     }
     return res.status(result.status).json(result.body);
   } catch (err) {
@@ -581,10 +594,15 @@ async function resumeEngagement(req, res) {
       const { session } = result.body;
       const otherId = String(session.user_id) === String(req.user.id)
         ? session.consultant_assigned_id : session.user_id;
-      await notifyUser(otherId, 'consulting_engagement_resumed',
-        'The engagement resumed',
-        'The engagement resumed. Milestone work and change approvals are open again.',
-        { sessionId: String(session.id) });
+      await notifyUser({
+        userId: otherId, type: 'consulting_engagement_resumed',
+        title: 'The engagement resumed',
+        body: 'The engagement resumed. Milestone work and change approvals are open again.',
+        data: { sessionId: String(session.id) },
+        // The other party from the actor: the client actor's other side
+        // is the consultant, and vice versa.
+        actionUrl: String(session.user_id) === String(req.user.id) ? '/consulting/contractor-dashboard' : '/consulting/portal',
+      });
     }
     return res.status(result.status).json(result.body);
   } catch (err) {

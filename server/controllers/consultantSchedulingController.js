@@ -616,7 +616,7 @@ exports.bookTimeSlot = async (req, res) => {
     setImmediate(async () => {
       try {
         const consultant = await db.query(
-          `SELECT first_name, last_name FROM users
+          `SELECT first_name, last_name, email FROM users
            WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL`,
           [consultantId]
         );
@@ -653,6 +653,77 @@ exports.bookTimeSlot = async (req, res) => {
           html: rendered.html,
           text: rendered.text,
         });
+
+        // Notifications audit item 53(b)(c): the consultant was never
+        // told the slot was booked — the customer email above was the
+        // only notice, and the earlier consulting_session_scheduled
+        // notice carries the 1970-01-01 sentinel date because it fires
+        // when the row is created, before any slot exists. Tell the
+        // consultant the real slot now that it exists, by email and
+        // in-app. Each leg is independent: a consultant-email failure
+        // must not skip the in-app notice, and vice versa. The in-app
+        // notice uses its own key so it never dedupes against the
+        // row-creation notice.
+        const consultantRow = consultant.rows[0];
+        if (consultantRow?.email) {
+          try {
+            const clientName = session.first_name || 'Your client';
+            const consultantRendered = renderOxSteedEmail({
+              language: 'en',
+              preheader: 'A consulting session was booked',
+              eyebrow: 'OXSTEED CONSULTING',
+              title: 'A session was booked',
+              intro: `Hi ${consultantRow.first_name || 'there'}, ${clientName} booked a consulting session with you.`,
+              details: [
+                { label: 'Client', value: clientName },
+                { label: 'Date and time', value: formattedDate },
+                { label: 'Duration', value: `${durationMinutes} minutes` },
+              ],
+              ...(meetingLink ? { cta: { url: meetingLink, label: 'Join meeting' } } : {}),
+              footerText: 'The OxSteed Consulting Team',
+            });
+            await sendEmailOrThrow({
+              to: consultantRow.email,
+              subject: 'A Consulting Session Was Booked',
+              html: consultantRendered.html,
+              text: consultantRendered.text,
+            });
+          } catch (consultantEmailErr) {
+            logger.warn('Failed to send consultant booking email', { error: consultantEmailErr.message, sessionId });
+          }
+        }
+        try {
+          const noticeResult = await sendNotification({
+            userId: consultantId,
+            type: 'consulting_session_scheduled',
+            body: `Session booked for ${formattedDate}.`,
+            data: {
+              session_id: session.session_id,
+              scheduled_session_id: sessionId,
+              consultant_id: consultantId,
+              scheduled_date: date,
+              scheduled_time: startTime,
+            },
+            action_url: '/consulting/contractor-dashboard',
+            idempotencyKey: `consulting-session-booked:${sessionId}`,
+          });
+          if (noticeResult && noticeResult.success !== true) {
+            logger.warn('Failed to notify consultant of booked session', { error: noticeResult.error || 'send_failed', sessionId });
+            try {
+              await require('../services/incidentStore').recordIncident({
+                type: 'consulting_session_booked_notice_failed',
+                severity: 'medium',
+                message: `Consultant booked-session notice failed for scheduled session ${sessionId}`,
+                dedupeKey: `consulting-session-booked-notify:${sessionId}`,
+                details: { sessionId, consultantId, error: noticeResult.error || 'send_failed' },
+              });
+            } catch (incidentError) {
+              logger.warn('Failed to record consultant booked notice incident', { error: incidentError.message, sessionId });
+            }
+          }
+        } catch (noticeErr) {
+          logger.warn('Failed to notify consultant of booked session', { error: noticeErr.message, sessionId });
+        }
       } catch (emailErr) {
         logger.warn('Failed to send session confirmation email', { error: emailErr.message, sessionId });
       }

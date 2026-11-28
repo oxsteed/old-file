@@ -58,3 +58,21 @@ test('per-tick cap holds back overflow into one digest per admin', async () => {
     delete process.env.CUSTOMER360_ALERT_TICK_CAP;
   }
 });
+
+test('item 55: a per-anomaly notice names the anomaly instead of sending an empty body', async () => {
+  db.query
+    .mockResolvedValueOnce({ rows: [rule(1)] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [anomaly('a1', 'c1')] })
+    .mockResolvedValueOnce({ rows: [] });
+  const result = await evaluateCustomer360Alerts();
+  expect(result.sent).toBe(1);
+  expect(sendNotification).toHaveBeenCalledTimes(1);
+  const [arg] = sendNotification.mock.calls[0];
+  expect(arg.type).toBe('customer360_attention');
+  expect(arg.title).toBe('Customer 360 anomaly');
+  expect(arg.body).toContain('refund_spike');
+  expect(arg.body).toContain('open');
+  expect(arg.body).toContain('c1');
+  expect(arg.body.length).toBeGreaterThan(0);
+});

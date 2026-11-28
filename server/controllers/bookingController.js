@@ -2121,8 +2121,11 @@ exports.createRecurringBooking = async (req, res) => {
       // recurring-booking path). A retried create must not notify the
       // helper twice; the boundary derivation would also cover it via
       // data.subscriptionId, but the explicit key stays stable even if
-      // the payload text changes.
-      idempotencyKey: `recurring-booking:${subscription.id}`,
+      // the payload text changes. The payload hash keeps the key
+      // distinct when the same subscription is notified again with
+      // different content, instead of collapsing every repeat for one
+      // subscription id into a single key forever.
+      idempotencyKey: `recurring-booking:${subscription.id}:${crypto.createHash('sha256').update(`${subscription.service_name}|${subscription.frequency}`).digest('hex').slice(0, 16)}`,
     }).catch((err) => logger.warn('Failed recurring booking notification', { error: err.message }));
 
     res.status(201).json({ subscription, message: 'Recurring booking created' });

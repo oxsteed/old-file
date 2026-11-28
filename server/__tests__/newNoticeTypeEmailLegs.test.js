@@ -76,3 +76,29 @@ test.each(['affiliate_payout_processed', 'affiliate_payout_voided'])(
     expect(sendEmail).toHaveBeenCalledTimes(1);
   },
 );
+
+// N15 (D-744): the five Invest money-event types reach email — they are
+// in emailTypes as non-transactional, so the mail fires only when the
+// recipient's email toggles allow it (mocked prefs allow it here).
+test.each([
+  'invest_distribution_paid',
+  'invest_proceeds_released',
+  'invest_raise_closed',
+  'invest_commitment_excluded',
+  'invest_amendment_reconfirmation_requested',
+])('%s reaches email (N15)', async (type) => {
+  mockPrefs();
+  const result = await sendNotification({
+    userId: 'investor-1',
+    type,
+    body: 'Caller specifics here.',
+    data: { opportunityId: 'opp-1' },
+    action_url: '/invest/my-investments',
+    emailChannel: true,
+    inAppChannel: false,
+    pushChannel: false,
+    idempotencyKey: `email-leg:${type}:1`,
+  });
+  expect(result.success).toBe(true);
+  expect(sendEmail).toHaveBeenCalledTimes(1);
+});

@@ -87,7 +87,11 @@ async function evaluatePlatformAnomalyRule(rule, def, budget = null) {
       userId: rule.admin_id,
       type: "customer360_attention",
       title: "Customer 360 anomaly",
-      body: "",
+      // Item 55: the per-anomaly notices used to send body "" — the
+      // admin got a title and a link and nothing about which anomaly
+      // it was. The overflow digest already names its records (see
+      // noteOverflow/topText below); name this one the same way.
+      body: `Anomaly ${row.kind} is ${row.status} for customer ${row.customer_id} (source: ${rule.source}). Open the anomalies workspace to review it.`,
       action_url: `/admin/customers/${row.customer_id}/360?tab=workspace&area=anomalies`,
       data: { customer_id: row.customer_id, source: rule.source, record_id: row.id, status: row.status, kind: row.kind, area: def.area },
       idempotencyKey: `customer360-rule:${rule.id}:${row.id}:${row.status}`,
@@ -150,7 +154,10 @@ async function evaluateRule(rule, budget, getPrefs) {
         userId: rule.admin_id,
         type: "customer360_attention",
         title: "Customer 360 attention",
-        body: "",
+        // Item 55: same empty-body gap as the platform path above — name
+        // the record (source + status) so the admin knows what it is
+        // without opening the link first.
+        body: `A ${rule.source} record for this customer is ${row.status}. Open the anomalies workspace to review it.`,
         action_url: `/admin/customers/${rule.customer_id}/360?tab=workspace&area=${encodeURIComponent(def.area)}&source=${rule.source}`,
         data: {
           customer_id: rule.customer_id,

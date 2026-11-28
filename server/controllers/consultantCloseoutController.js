@@ -390,14 +390,19 @@ async function confirmCloseout(req, res) {
       const otherId = side === 'consultant' ? session.user_id : session.consultant_assigned_id;
       const otherEmail = side === 'consultant'
         ? session.email : await consultantEmail(session.consultant_assigned_id);
-      await notifyUser(otherId, 'consulting_closeout_confirmed',
-        side === 'consultant' ? 'Your consultant confirmed the closeout' : 'Your client confirmed the closeout',
-        closed
+      await notifyUser({
+        userId: otherId, type: 'consulting_closeout_confirmed',
+        title: side === 'consultant' ? 'Your consultant confirmed the closeout' : 'Your client confirmed the closeout',
+        body: closed
           ? 'Both parties confirmed the closeout. The engagement is now closed.'
           : side === 'consultant'
             ? 'Your consultant confirmed the closeout. Confirm it yourself to close the engagement.'
             : 'Your client confirmed the closeout. Confirm it yourself to close the engagement.',
-        { sessionId: String(session.id) });
+        data: { sessionId: String(session.id) },
+        // The other party from the confirmer: the consultant's other
+        // side is the client, and vice versa.
+        actionUrl: side === 'consultant' ? '/consulting/portal' : '/consulting/contractor-dashboard',
+      });
       await emailParty(otherEmail,
         side === 'consultant' ? 'Your consultant confirmed the closeout' : 'Your client confirmed the closeout',
         side === 'consultant' ? 'Your consultant confirmed the closeout' : 'Your client confirmed the closeout',
@@ -465,10 +470,13 @@ async function createFollowUp(req, res) {
     if (result.status === 201) {
       const { followUp, session } = result.body;
       const kindLabel = { check_in: 'check-in', review: 'review', renewal: 'renewal', other: 'follow-up' }[followUp.kind] || 'follow-up';
-      await notifyUser(session.user_id, 'consulting_follow_up_scheduled',
-        'A follow-up check-in is scheduled',
-        `Your consultant scheduled a ${kindLabel} for ${String(followUp.dueAt).slice(0, 10)}.`,
-        { sessionId: String(session.id), followUpId: followUp.id });
+      await notifyUser({
+        userId: session.user_id, type: 'consulting_follow_up_scheduled',
+        title: 'A follow-up check-in is scheduled',
+        body: `Your consultant scheduled a ${kindLabel} for ${String(followUp.dueAt).slice(0, 10)}.`,
+        data: { sessionId: String(session.id), followUpId: followUp.id },
+        actionUrl: '/consulting/portal',
+      });
       await emailParty(session.email, 'A follow-up check-in is scheduled',
         'A follow-up check-in is scheduled',
         `Your consultant scheduled a ${kindLabel} for ${String(followUp.dueAt).slice(0, 10)}.`);
@@ -645,10 +653,13 @@ async function requestFeedback(req, res) {
     });
     if (result.status === 201) {
       const { feedbackRequest, session } = result.body;
-      await notifyUser(session.user_id, 'consulting_feedback_requested',
-        'Your consultant requested your feedback',
-        'Your consultant asked for your feedback on the engagement. Open your milestone board to leave it.',
-        { sessionId: String(session.id), requestId: feedbackRequest.id });
+      await notifyUser({
+        userId: session.user_id, type: 'consulting_feedback_requested',
+        title: 'Your consultant requested your feedback',
+        body: 'Your consultant asked for your feedback on the engagement. Open your milestone board to leave it.',
+        data: { sessionId: String(session.id), requestId: feedbackRequest.id },
+        actionUrl: '/consulting/portal',
+      });
       await emailParty(session.email, 'Your consultant requested your feedback',
         'Your consultant requested your feedback',
         'Your consultant asked for your feedback on the engagement. Open your milestone board to leave a rating and a note.');
@@ -719,18 +730,24 @@ async function archiveEngagement(req, res) {
     if (result.status === 200) {
       const { session } = result.body;
       const actorIsConsultant = String(session.consultant_assigned_id) === String(req.user.id);
-      await notifyUser(session.user_id, 'consulting_engagement_archived',
-        'Your engagement was archived',
-        'Your engagement was archived. Its record stays available to you.',
-        { sessionId: String(session.id) });
+      await notifyUser({
+        userId: session.user_id, type: 'consulting_engagement_archived',
+        title: 'Your engagement was archived',
+        body: 'Your engagement was archived. Its record stays available to you.',
+        data: { sessionId: String(session.id) },
+        actionUrl: '/consulting/portal',
+      });
       await emailParty(session.email, 'Your engagement was archived',
         'Your engagement was archived',
         'Your engagement was archived. Its record stays available on your milestone board.');
       if (!actorIsConsultant && session.consultant_assigned_id) {
-        await notifyUser(session.consultant_assigned_id, 'consulting_engagement_archived',
-          'An engagement was archived',
-          'An engagement you worked on was archived. Its record stays available.',
-          { sessionId: String(session.id) });
+        await notifyUser({
+          userId: session.consultant_assigned_id, type: 'consulting_engagement_archived',
+          title: 'An engagement was archived',
+          body: 'An engagement you worked on was archived. Its record stays available.',
+          data: { sessionId: String(session.id) },
+          actionUrl: '/consulting/contractor-dashboard',
+        });
       }
     }
     return res.status(result.status).json(result.body);

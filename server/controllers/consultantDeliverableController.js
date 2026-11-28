@@ -216,11 +216,17 @@ async function presentDeliverable(client, row, type, userId) {
   };
 }
 
-async function notifyUser(userId, type, title, message, metadata) {
+// S-D2 (D-731): this helper used to pass `message` and `metadata`,
+// which sendNotification silently drops (it reads `body`/`data`), so
+// all 15 types arrived title-only with an empty body and no link. The
+// params are now the names sendNotification reads, plus the action URL
+// each call site passes for its recipient's side (client portal or
+// contractor dashboard).
+async function notifyUser({ userId, type, title, body, data, actionUrl }) {
   if (!userId) return;
   try {
     await sendNotification({
-      userId: String(userId), type, title, message, metadata: metadata || {},
+      userId: String(userId), type, title, body, data: data || {}, action_url: actionUrl || null,
     });
   } catch (err) {
     logger.warn('Consulting deliverable notification failed', { userId, type, error: err.message });
@@ -300,9 +306,12 @@ async function startEngagement(req, res) {
       return { status: 201, body: { session, deliverables: seeded } };
     });
     if (result.status === 201 && result.body.session?.user_id) {
-      await notifyUser(result.body.session.user_id, 'consulting_engagement_started',
-        'Your engagement has started',
-        'Your consultant started work on your engagement. Your milestone board is ready.');
+      await notifyUser({
+        userId: result.body.session.user_id, type: 'consulting_engagement_started',
+        title: 'Your engagement has started',
+        body: 'Your consultant started work on your engagement. Your milestone board is ready.',
+        actionUrl: '/consulting/portal',
+      });
     }
     return res.status(result.status).json(result.body);
   } catch (err) {
@@ -476,10 +485,13 @@ async function deliverDraft(req, res) {
     });
     if (result.status === 200) {
       const { deliverable, session } = result.body;
-      await notifyUser(session.user_id, 'consulting_draft_delivered',
-        'A draft is ready for your review',
-        `Your consultant delivered a draft of "${deliverable.name}". Review it on your milestone board.`,
-        { sessionId: String(session.id), deliverableId: String(deliverable.id) });
+      await notifyUser({
+        userId: session.user_id, type: 'consulting_draft_delivered',
+        title: 'A draft is ready for your review',
+        body: `Your consultant delivered a draft of "${deliverable.name}". Review it on your milestone board.`,
+        data: { sessionId: String(session.id), deliverableId: String(deliverable.id) },
+        actionUrl: '/consulting/portal',
+      });
       await emailParty(session.email, 'A draft is ready for your review',
         'A draft is ready for your review',
         `Your consultant delivered a draft of "${deliverable.name}". Open your milestone board to review it and leave feedback.`);
@@ -674,10 +686,13 @@ async function submitFeedback(req, res) {
     });
     if (result.status === 201) {
       const { session } = result.body;
-      await notifyUser(session.consultant_assigned_id, 'consulting_deliverable_feedback',
-        'Your client left feedback',
-        'Your client left feedback on the delivered work. Open the milestone board to read it.',
-        { sessionId: String(session.id) });
+      await notifyUser({
+        userId: session.consultant_assigned_id, type: 'consulting_deliverable_feedback',
+        title: 'Your client left feedback',
+        body: 'Your client left feedback on the delivered work. Open the milestone board to read it.',
+        data: { sessionId: String(session.id) },
+        actionUrl: '/consulting/contractor-dashboard',
+      });
       delete result.body.session;
     }
     return res.status(result.status).json(result.body);
@@ -721,10 +736,13 @@ async function acceptDeliverable(req, res) {
     });
     if (result.status === 200) {
       const { deliverable, session } = result.body;
-      await notifyUser(session.consultant_assigned_id, 'consulting_milestone_accepted',
-        'A milestone was accepted',
-        `Your client accepted "${deliverable.name}".`,
-        { sessionId: String(session.id), deliverableId: String(deliverable.id) });
+      await notifyUser({
+        userId: session.consultant_assigned_id, type: 'consulting_milestone_accepted',
+        title: 'A milestone was accepted',
+        body: `Your client accepted "${deliverable.name}".`,
+        data: { sessionId: String(session.id), deliverableId: String(deliverable.id) },
+        actionUrl: '/consulting/contractor-dashboard',
+      });
       const { rows: [consultant] } = await db.query(
         'SELECT email FROM users WHERE id = $1', [session.consultant_assigned_id],
       );

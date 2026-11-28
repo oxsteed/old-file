@@ -25,6 +25,12 @@ describeDb('Sunday integrity against the full production migration history', () 
     const { rows } = await client.query("SELECT filename FROM _migrations WHERE status='applied'");
     const applied = new Set(rows.map(r => r.filename));
     if (migrations.some(name => !applied.has(name))) throw new Error('Apply the complete migration history before audit integrity tests');
+    // G9-B8 (D-745): the concurrent mark-paid test drives
+    // markPayoutPaid, whose rail gate reads the credit flag — and another
+    // suite in a full run can delete the flag row. Ensure it is on (the
+    // pattern investSettlement/creditCashoutLifecycle use).
+    await client.query(`UPDATE feature_flags SET is_enabled = true WHERE key = 'oxsteed_credit_enabled'`);
+    await client.query(`INSERT INTO feature_flags (key, is_enabled) SELECT 'oxsteed_credit_enabled', true WHERE NOT EXISTS (SELECT 1 FROM feature_flags WHERE key = 'oxsteed_credit_enabled')`);
     owner = crypto.randomUUID(); customer = crypto.randomUUID(); approver = crypto.randomUUID();
     for (const id of [owner,customer,approver]) await client.query("INSERT INTO users(id,email,password_hash,first_name,last_name) VALUES($1,$2,'synthetic-test-hash','Audit','Fixture')", [id,`${id}@example.invalid`]);
     const { rows: [business] } = await client.query("INSERT INTO businesses(user_id,business_name) VALUES($1,'Audit fixture') RETURNING id",[owner]);
@@ -57,16 +63,21 @@ describeDb('Sunday integrity against the full production migration history', () 
   });
   test('concurrent paid transitions cannot overwrite the winning reference', async () => {
     const a = await pool.connect(), b = await pool.connect();
+    // G9-B8 (D-745): the references must be Stripe transfer ids verified
+    // against Stripe, so the test injects a mock client returning a
+    // transfer matching the fixture payout (50 USD cents). The rail gate
+    // reads the real flag row in this database.
+    const stripe = { transfers: { retrieve: async () => ({ id: 'tr_first000000000000000001', amount: 50, currency: 'usd', reversed: false }) } };
     try {
       await a.query('BEGIN'); await b.query('BEGIN');
-      await markPayoutPaid(a,payoutId,owner,'first-provider-reference');
+      await markPayoutPaid(a,payoutId,owner,'tr_first000000000000000001', undefined, { stripe });
       // b waits for a's row lock, then observes its committed paid state.
-      const pending = markPayoutPaid(b,payoutId,owner,'second-provider-reference');
+      const pending = markPayoutPaid(b,payoutId,owner,'tr_second00000000000000002', undefined, { stripe });
       const rejection = expect(pending).rejects.toMatchObject({ statusCode: 409 });
       await a.query('COMMIT');
       await rejection;
       await b.query('ROLLBACK');
-      expect((await client.query('SELECT payment_reference FROM delivery_driver_payouts WHERE id=$1',[payoutId])).rows[0].payment_reference).toBe('first-provider-reference');
+      expect((await client.query('SELECT payment_reference FROM delivery_driver_payouts WHERE id=$1',[payoutId])).rows[0].payment_reference).toBe('tr_first000000000000000001');
     } finally { await a.query('ROLLBACK'); await b.query('ROLLBACK'); a.release(); b.release(); }
   });
 });
