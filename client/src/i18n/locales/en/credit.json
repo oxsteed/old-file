@@ -371,7 +371,74 @@
       "unavailable": "Unavailable"
     ,
       "auditRequestsLink": "Audit requests",
-      "auditRequestsDescription": "Ask for an audit of your statements and share approved evidence with your auditor for a limited time."
+      "auditRequestsDescription": "Ask for an audit of your statements and share approved evidence with your auditor for a limited time.",
+      "definitionsDescription": "What each report contains, where its data comes from, and what columns it has.",
+      "definitionsHeading": "Report definitions"
+    },
+    "definitions": {
+      "containsLabel": "Contains",
+      "sourceLabel": "Source",
+      "columnsLabel": "Columns",
+      "monthly-statement": {
+        "title": "Monthly statement",
+        "contains": "One immutable document per closed calendar month: opening balance, credits, debits, closing balance, and every posted transaction.",
+        "source": "Issued automatically once the 72-hour grace after month-end elapses; also available on demand.",
+        "columns": "Date, transaction, debit, credit, balance after"
+      },
+      "interim-report": {
+        "title": "Interim report",
+        "contains": "Balances and posted activity for the current month or a custom period you choose. Provisional: it changes as new activity posts.",
+        "source": "Computed live from posted Credit activity when you apply a period.",
+        "columns": "Date, transaction, debit, credit, balance after"
+      },
+      "statement-archive": {
+        "title": "Statement archive",
+        "contains": "Every issued monthly original with its revision, issued date, readiness, and files; corrected versions stay attached to the original.",
+        "source": "Issued monthly originals, append-only.",
+        "columns": "Period, issued date, revision, currency, languages, readiness"
+      },
+      "period-comparison": {
+        "title": "Period comparison",
+        "contains": "This calendar month against the previous one: totals, net change, and the five largest drivers, split by credits and debits.",
+        "source": "Derived from posted Credit activity for the two months.",
+        "columns": "Total credits, total debits, net, transaction count, top drivers"
+      },
+      "report-export": {
+        "title": "Report export",
+        "contains": "The same statement data as CSV, PDF, OFX, QFX, or QBO. Files expire 30 days after the export completes and can be re-issued.",
+        "source": "Rendered on demand from the statement data.",
+        "columns": "Format, period, account, currency"
+      },
+      "export-history": {
+        "title": "Export history",
+        "contains": "Every export job with its state, format, and expiry, including failed jobs and their error.",
+        "source": "Export jobs recorded when an export is requested.",
+        "columns": "Job, format, state, created, expires"
+      },
+      "reconciliation-checklist": {
+        "title": "Reconciliation checklist",
+        "contains": "Five derived steps for closing a location's period: review the summary, review differences, match adjustments, annotate differences, record the period close. The checklist never approves a settlement.",
+        "source": "Derived live from the location's reconciliation data; never stored.",
+        "columns": "Step, status (done or pending)"
+      },
+      "audit-evidence": {
+        "title": "Audit evidence",
+        "contains": "Audit requests, approved evidence, time-limited shares, and receipts for what was shared.",
+        "source": "Audit requests and approved evidence, gated by the request's scope.",
+        "columns": "Request, evidence, share expiry, receipt"
+      },
+      "document-search": {
+        "title": "Document search",
+        "contains": "Search across statements by text, filter by type and amount, and save the view for later.",
+        "source": "The statement search index, scoped to your accounts.",
+        "columns": "Date, transaction, type, amount"
+      },
+      "investor-reporting": {
+        "title": "Investor reporting",
+        "contains": "The datasets your audience grants: overview, KPIs, revenue, franchise, and supply and demand, plus evidence.",
+        "source": "Investor reporting datasets, gated to your assigned audience.",
+        "columns": "Dataset, period, scope"
+      }
     },
     "preview": {
       "adjusted": "Adjusted",

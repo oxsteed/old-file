@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
 import { buildStatementAccounts, statementAccountPath, statementScopeAccountId } from '../../lib/statementAccounts';
 import { formatPeriodMonth } from '../../lib/statementFreshness';
+import { REPORT_DEFINITIONS } from '../../lib/reportDefinitions';
 import './StatementCenterPage.css';
 
 const CreditStatementsPage = lazy(() => import('./CreditStatementsPage'));
@@ -137,6 +138,19 @@ export default function StatementCenterPage() {
             </section>;
           })}
         </div>
+        <details className="statement-center-definitions"><summary>{text('definitionsHeading')}</summary>
+          <p>{text('definitionsDescription')}</p>
+          <ul className="statement-center-definitions-list">{REPORT_DEFINITIONS.map(definition => <li key={definition.id}>
+            <h3>{definition.route.includes(':')
+              ? t(definition.titleKey)
+              : <Link to={definition.route}>{t(definition.titleKey)}</Link>}</h3>
+            <dl>
+              <dt>{t('statements.definitions.containsLabel')}</dt><dd>{t(definition.containsKey)}</dd>
+              <dt>{t('statements.definitions.sourceLabel')}</dt><dd>{t(definition.sourceKey)}</dd>
+              <dt>{t('statements.definitions.columnsLabel')}</dt><dd>{t(definition.columnsKey)}</dd>
+            </dl>
+          </li>)}</ul>
+        </details>
         <details className="statement-center-search"><summary>{text('searchAllRecords')}</summary><StatementSearch key={userId} /></details>
       </>}
       {current.status === 'ready' && account && record && scope && <section className="statement-center-selected" aria-labelledby="statement-account-heading">

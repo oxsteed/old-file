@@ -61,8 +61,15 @@
 .statement-center-account strong { font-size: 18px; }
 .statement-center-account span > span { color: var(--sc-muted); font-size: 14px; line-height: 1.5; }
 .statement-center-search { margin-block-start: 32px; border-block-start: 1px solid var(--sc-line); }
-.statement-center-search > summary, .sa-export-disclosure > summary { min-height: 44px; padding-block: 12px; cursor: pointer; font-weight: 650; }
-.statement-center-search > summary:focus-visible, .sa-export-disclosure > summary:focus-visible { outline: 3px solid var(--sc-focus); outline-offset: 3px; }
+.statement-center-definitions { margin-block-start: 32px; border-block-start: 1px solid var(--sc-line); }
+.statement-center-search > summary, .statement-center-definitions > summary, .sa-export-disclosure > summary { min-height: 44px; padding-block: 12px; cursor: pointer; font-weight: 650; }
+.statement-center-search > summary:focus-visible, .statement-center-definitions > summary:focus-visible, .sa-export-disclosure > summary:focus-visible { outline: 3px solid var(--sc-focus); outline-offset: 3px; }
+.statement-center-definitions-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px; }
+.statement-center-definitions-list h3 { font-size: 17px; margin: 0 0 4px; }
+.statement-center-definitions-list p { color: var(--sc-muted); margin: 4px 0; line-height: 1.6; }
+.statement-center-definitions-list dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 8px 0 0; }
+.statement-center-definitions-list dt { font-weight: 650; }
+.statement-center-definitions-list dd { margin: 0; color: var(--sc-muted); line-height: 1.6; }
 .statement-center-selected { margin-block-start: 24px; min-width: 0; }
 .statement-center-selected-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-block: 20px 12px; }
 .statement-center-selected-heading h2 { margin: 0; overflow-wrap: anywhere; }

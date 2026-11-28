@@ -371,7 +371,74 @@
       "unavailable": "Pa disponib"
     ,
       "auditRequestsLink": "Demann odit",
-      "auditRequestsDescription": "Mande yon odit pou releve ou yo epi pataje prèv yo apwouve ak oditè ou pou yon tan limite."
+      "auditRequestsDescription": "Mande yon odit pou releve ou yo epi pataje prèv yo apwouve ak oditè ou pou yon tan limite.",
+      "definitionsDescription": "Sa chak rapò gen ladan l, ki kote done li yo soti, ak ki kolòn li genyen.",
+      "definitionsHeading": "Definisyon rapò yo"
+    },
+    "definitions": {
+      "containsLabel": "Kontni",
+      "sourceLabel": "Sous",
+      "columnsLabel": "Kolòn",
+      "monthly-statement": {
+        "title": "Relve mansyèl",
+        "contains": "Yon dokiman ki pa chanje pou chak mwa kalandriye ki fini: balans nan kòmansman, kredi, debi, balans nan fen, ak chak tranzaksyon ki anrejistre.",
+        "source": "Li emèt otomatikman yon fwa peryòd gras 72 èdtan apre fen mwa a pase; li disponib sou demann tou.",
+        "columns": "Dat, tranzaksyon, debi, kredi, balans apre"
+      },
+      "interim-report": {
+        "title": "Rapò pwovizwa",
+        "contains": "Balans ak aktivite ki anrejistre pou mwa aktyèl la oswa yon peryòd ou chwazi. Pwovizwa: li chanje pandan nouvo aktivite ap anrejistre.",
+        "source": "Li kalkile an dirèk apati aktivite Kredi ki anrejistre lè ou aplike yon peryòd.",
+        "columns": "Dat, tranzaksyon, debi, kredi, balans apre"
+      },
+      "statement-archive": {
+        "title": "Achiv relve yo",
+        "contains": "Chak orijinal mansyèl ki emèt ak revizyon li, dat emisyon li, preparasyon li, ak fichye li yo; vèsyon korije yo rete tache ak orijinal la.",
+        "source": "Orijinal mansyèl ki emèt, yo pa chanje.",
+        "columns": "Peryòd, dat emisyon, revizyon, lajan, lang, preparasyon"
+      },
+      "period-comparison": {
+        "title": "Konparezon peryòd",
+        "contains": "Mwa kalandriye sa a konpare ak mwa anvan an: total, chanjman nèt, ak senk pi gwo faktè yo, separe pa kredi ak debi.",
+        "source": "Li derive apati aktivite Kredi ki anrejistre pou de mwa yo.",
+        "columns": "Total kredi, total debi, nèt, kantite tranzaksyon, pi gwo faktè"
+      },
+      "report-export": {
+        "title": "Ekspòtasyon rapò",
+        "contains": "Menm done relve a an CSV, PDF, OFX, QFX, oswa QBO. Fichye yo ekspire 30 jou apre ekspòtasyon an fini epi yo ka emèt ankò.",
+        "source": "Li pwodui sou demann apati done relve a.",
+        "columns": "Fòma, peryòd, kont, lajan"
+      },
+      "export-history": {
+        "title": "Istorik ekspòtasyon",
+        "contains": "Chak travay ekspòtasyon ak eta li, fòma li, ak ekspirasyon li, enkli travay ki echwe yo ak erè yo.",
+        "source": "Travay ekspòtasyon yo anrejistre lè yo mande yon ekspòtasyon.",
+        "columns": "Travay, fòma, eta, kreye, ekspire"
+      },
+      "reconciliation-checklist": {
+        "title": "Lis rekonsilyasyon",
+        "contains": "Senk etap derive pou fèmen peryòd yon lokal: revize rezime a, revize diferans yo, koresponn ajisteman yo, anote diferans yo, anrejistre fèmti peryòd la. Lis la pa janm apwouve yon règleman.",
+        "source": "Li derive an dirèk apati done rekonsilyasyon lokal la; li pa janm estoke.",
+        "columns": "Etap, eta (fèt oswa annatant)"
+      },
+      "audit-evidence": {
+        "title": "Prev pou odit",
+        "contains": "Demann odit, prev ki apwouve, pataj ki gen limit tan, ak resi pou sa ki te pataje.",
+        "source": "Demann odit ak prev ki apwouve, limite ak dimansyon demann lan.",
+        "columns": "Demann, prev, ekspirasyon pataj la, resi"
+      },
+      "document-search": {
+        "title": "Rechèch dokiman",
+        "contains": "Chèche nan relve yo pa tèks, filtre pa kalite ak montan, epi sove vi a pou pita.",
+        "source": "Endèks rechèch relve yo, limite ak kont ou yo.",
+        "columns": "Dat, tranzaksyon, kalite, montan"
+      },
+      "investor-reporting": {
+        "title": "Rapò pou envestisè",
+        "contains": "Je done odyans ou a bay: apèsi, endikatè, revni, franchiz, ak òf ak demann, plis prev.",
+        "source": "Je done rapò pou envestisè yo, limite ak odyans yo ba ou a.",
+        "columns": "Je done, peryòd, dimansyon"
+      }
     },
     "preview": {
       "adjusted": "Ajiste",
