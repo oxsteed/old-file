@@ -2153,6 +2153,7 @@
   "adminPartnerTransitionDefault": "Apwobasyon komèsyal oswa revizyon operasyonèl",
   "adminPartnerTransitionReasonRequired": "Yon rezon obligatwa pou chanje estati yon patnè.",
   "adminPartnerStatusChanged": "{{partner}} chanje pou {{status}}.",
+  "adminPartnerStatusChangedWithParticipants": "{{partner}} chanje pou {{status}}. {{count}} patisipan chanje pou {{participantStatus}}.",
   "adminPartnerStatusChangeFailed": "Chanjman estati patnè a echwe.",
   "adminAgreementTransitionTitle": "Poukisa w ap chanje akò v{{version}} pou {{status}}?",
   "adminAgreementTransitionDescription": "Bay rezon odit la pou chanjman estati akò sa a.",

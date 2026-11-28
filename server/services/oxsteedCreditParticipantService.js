@@ -139,14 +139,15 @@ function buildActivationChecklist(participant, { approvalRequested = false } = {
 }
 
 /**
- * Group 13 (694, D-401/D-402): eligibility/status change notice.
+ * Group 13 (694, D-401/D-402, D-763): eligibility/status change notice.
  * One notification type (`credit_participant_status_changed`, group
- * `credit`) for every participant status change that exists today —
- * apply/enroll (none -> pending) and activation (pending -> active).
- * There is no suspend/revoke transition in this service to hook (that
- * missing transition is survey defect 1 / item 700 territory), and
- * partner transitions (`transitionPartner`) never touch
- * `credit_participants`, so neither sends a participant notice here.
+ * `credit`) for every participant status change — apply/enroll (none ->
+ * pending), activation (pending -> active), suspension (pending/active ->
+ * suspended) and revocation (pending/active/suspended -> revoked). The
+ * suspend/revoke transitions live in this service (D-763, item 700) and
+ * `transitionPartner` cascades them to a suspended/terminated partner's
+ * participants, so a partner suspension now reaches the participant rows
+ * and their notices instead of leaving them active and silent.
  * Identity-verdict flips already notify via
  * `credit_identity_verification_approved`/`_rejected` (D-403).
  *
@@ -162,6 +163,8 @@ function buildActivationChecklist(participant, { approvalRequested = false } = {
 const PARTICIPANT_STATUS_NOTICE_COPY = {
   pending: 'Your application is now pending review. We will notify you when a decision is made.',
   active: 'Your participation is now active. You can accept OxSteed Credit on your approved surfaces.',
+  suspended: 'Your participation is suspended. You cannot accept OxSteed Credit until it is restored.',
+  revoked: 'Your participation is revoked. You can no longer accept OxSteed Credit.',
 };
 
 async function resolveParticipantUserIds(client, participant) {
@@ -710,6 +713,106 @@ async function activateParticipant({ participantId, actorUserId, reason, request
   return result;
 }
 
+// G13-B5 (D-763, item 700): the suspend/revoke transitions. They mirror
+// activateParticipantInTransaction — FOR UPDATE row lock, replay when
+// already in the target status, 409 from a terminal state, reason
+// required, audit event — so a participant can be closed individually
+// as well as by the partner cascade in transitionPartner.
+async function suspendParticipantInTransaction(client, { participantId, actorUserId, reason, requestIp, correlationId }) {
+  await assertCreditParticipantsReady(client);
+  const { rows } = await client.query(
+    `SELECT cp.* FROM credit_participants cp WHERE cp.id = $1 FOR UPDATE`,
+    [participantId]
+  );
+  const participant = rows[0];
+  if (!participant) throw new AppError('Credit participant not found', 404, 'credit_participant_not_found');
+  if (participant.status === 'suspended') return { participant: formatParticipant(participant), replayed: true, previousStatus: 'suspended' };
+  if (participant.status === 'revoked') {
+    throw new AppError(`Cannot suspend participant from status 'revoked'`, 409, 'credit_participant_transition_invalid');
+  }
+  const normalizedReason = normalizeString(reason, 2000);
+  if (!normalizedReason) throw new AppError('An audit reason is required to suspend', 400, 'credit_suspension_reason_required');
+  await client.query(
+    `UPDATE credit_participants SET status = 'suspended', updated_at = NOW() WHERE id = $1`,
+    [participant.id]
+  );
+  await insertAudit(client, {
+    actionType: 'credit.participant.suspended',
+    actorUserId,
+    partnerId: participant.partner_id,
+    resourceType: 'credit_participant',
+    resourceId: String(participant.id),
+    reason: normalizedReason,
+    correlationId: correlationId || null,
+    requestIp: requestIp || null,
+    beforeState: { status: participant.status },
+    afterState: { status: 'suspended' },
+  });
+  const { rows: updated } = await client.query(
+    `SELECT * FROM credit_participants WHERE id = $1`,
+    [participant.id]
+  );
+  return { participant: formatParticipant(updated[0]), replayed: false, previousStatus: participant.status };
+}
+
+async function revokeParticipantInTransaction(client, { participantId, actorUserId, reason, requestIp, correlationId }) {
+  await assertCreditParticipantsReady(client);
+  const { rows } = await client.query(
+    `SELECT cp.* FROM credit_participants cp WHERE cp.id = $1 FOR UPDATE`,
+    [participantId]
+  );
+  const participant = rows[0];
+  if (!participant) throw new AppError('Credit participant not found', 404, 'credit_participant_not_found');
+  if (participant.status === 'revoked') return { participant: formatParticipant(participant), replayed: true, previousStatus: 'revoked' };
+  const normalizedReason = normalizeString(reason, 2000);
+  if (!normalizedReason) throw new AppError('An audit reason is required to revoke', 400, 'credit_revocation_reason_required');
+  await client.query(
+    `UPDATE credit_participants SET status = 'revoked', updated_at = NOW() WHERE id = $1`,
+    [participant.id]
+  );
+  await insertAudit(client, {
+    actionType: 'credit.participant.revoked',
+    actorUserId,
+    partnerId: participant.partner_id,
+    resourceType: 'credit_participant',
+    resourceId: String(participant.id),
+    reason: normalizedReason,
+    correlationId: correlationId || null,
+    requestIp: requestIp || null,
+    beforeState: { status: participant.status },
+    afterState: { status: 'revoked' },
+  });
+  const { rows: updated } = await client.query(
+    `SELECT * FROM credit_participants WHERE id = $1`,
+    [participant.id]
+  );
+  return { participant: formatParticipant(updated[0]), replayed: false, previousStatus: participant.status };
+}
+
+async function suspendParticipant({ participantId, actorUserId, reason, requestIp, correlationId }) {
+  const result = await withTransaction(pool, async (client) =>
+    suspendParticipantInTransaction(client, { participantId, actorUserId, reason, requestIp, correlationId }),
+  'credit_participant_suspend');
+  // Group 13 (694): the suspended subject hears about the new status.
+  // A replay (already suspended) sends nothing.
+  if (result && !result.replayed) {
+    await notifyParticipantStatusChange(result.participant, { previousStatus: result.previousStatus });
+  }
+  return result;
+}
+
+async function revokeParticipant({ participantId, actorUserId, reason, requestIp, correlationId }) {
+  const result = await withTransaction(pool, async (client) =>
+    revokeParticipantInTransaction(client, { participantId, actorUserId, reason, requestIp, correlationId }),
+  'credit_participant_revoke');
+  // Group 13 (694): the revoked subject hears about the new status.
+  // A replay (already revoked) sends nothing.
+  if (result && !result.replayed) {
+    await notifyParticipantStatusChange(result.participant, { previousStatus: result.previousStatus });
+  }
+  return result;
+}
+
 /**
  * Partner activation with guards (LOCKED: Didit mandatory). Used by the
  * maker-checker executor for credit_partner_activation actions.
@@ -750,6 +853,10 @@ module.exports = {
   listParticipants,
   activateParticipant,
   activateParticipantInTransaction,
+  suspendParticipant,
+  suspendParticipantInTransaction,
+  revokeParticipant,
+  revokeParticipantInTransaction,
   activatePartnerWithGuards,
   notifyParticipantStatusChange,
 };

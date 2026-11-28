@@ -2152,6 +2152,7 @@
   "adminPartnerTransitionDefault": "Commercial approval or operational review",
   "adminPartnerTransitionReasonRequired": "A reason is required for partner status changes.",
   "adminPartnerStatusChanged": "{{partner}} moved to {{status}}.",
+  "adminPartnerStatusChangedWithParticipants": "{{partner}} moved to {{status}}. {{count}} participant(s) moved to {{participantStatus}}.",
   "adminPartnerStatusChangeFailed": "Partner status change failed.",
   "adminAgreementTransitionTitle": "Why are you moving agreement v{{version}} to {{status}}?",
   "adminAgreementTransitionDescription": "Provide the audit reason for this agreement status change.",

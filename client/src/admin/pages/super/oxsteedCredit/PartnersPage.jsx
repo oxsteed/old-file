@@ -227,8 +227,16 @@ export default function OxsteedCreditPartnersPage() {
     }
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/partners/${partner.partnerId}/transition`, { status, expectedStatus: partner.status, reason: reason.trim() });
-      setNotice(t('adminPartnerStatusChanged', { partner: partner.restaurantName || t('adminPartner'), status: localizeCreditStatus(status, t) }));
+      const response = await adminApi.post(`/admin/super/oxsteed-credit/partners/${partner.partnerId}/transition`, { status, expectedStatus: partner.status, reason: reason.trim() });
+      // G13-B5 (D-763): a suspension/termination moves the partner's
+      // participants too — say how many, so the admin does not assume the
+      // partner row was the whole change.
+      const changed = response?.data?.participantsChanged || [];
+      if (changed.length > 0) {
+        setNotice(t('adminPartnerStatusChangedWithParticipants', { partner: partner.restaurantName || t('adminPartner'), status: localizeCreditStatus(status, t), count: changed.length, participantStatus: localizeCreditStatus(changed[0].status, t) }));
+      } else {
+        setNotice(t('adminPartnerStatusChanged', { partner: partner.restaurantName || t('adminPartner'), status: localizeCreditStatus(status, t) }));
+      }
       await load({ quiet: true });
     } catch (err) {
       setError(safeCreditErrorMessage(err, t('adminPartnerStatusChangeFailed')));

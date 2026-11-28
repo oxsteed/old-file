@@ -1129,7 +1129,10 @@ async function transitionPartner({ partnerId, targetStatus, expectedStatus, reas
   if (expectedStatus !== undefined && expectedStatus !== null && (typeof expectedStatus !== 'string' || !normalizeString(expectedStatus, 24))) throw new AppError('Invalid expected partner status', 400, 'invalid_expected_partner_status');
   const normalizedExpected = expectedStatus === undefined || expectedStatus === null ? null : normalizeString(expectedStatus, 24);
   if (normalizedExpected && !PARTNER_STATUSES.has(normalizedExpected)) throw new AppError('Invalid expected partner status', 400, 'invalid_expected_partner_status');
-  return withTransaction(pool, async (client) => {
+  // G13-B5 (D-763): the participants a suspension/termination moves,
+  // collected inside the transaction and notified after it commits.
+  const changedParticipants = [];
+  const result = await withTransaction(pool, async (client) => {
     const { rows } = await client.query(
       `SELECT p.*, fr.display_name AS restaurant_name, fr.status AS restaurant_status
          FROM oxsteed_credit_partners p
@@ -1169,11 +1172,65 @@ async function transitionPartner({ partnerId, targetStatus, expectedStatus, reas
       beforeState: { status: partner.status },
       afterState: { status: normalizedTarget },
     });
+    // G13-B5 (D-763): a partner suspension/termination reaches its
+    // participants in the same transaction — suspended moves pending and
+    // active participants to suspended; terminated revokes pending,
+    // active, and suspended ones. Each move is its own participant
+    // transition (row lock, audit event, reason naming the partner
+    // cause), so the participant lifecycle stays the single source of
+    // truth and no surface keeps showing a closed partner's participants
+    // as active. Reactivation deliberately does NOT restore them: a
+    // restore is an explicit per-participant activation, and
+    // auto-activation would bypass the LOCKED Didit gate in
+    // activateParticipantInTransaction.
+    if (normalizedTarget === 'suspended' || normalizedTarget === 'terminated') {
+      // Lazy require: the participant service requires this module at
+      // load time, so a top-level require here would be a cycle.
+      const { suspendParticipantInTransaction, revokeParticipantInTransaction } = require('./oxsteedCreditParticipantService');
+      const targetParticipantStatus = normalizedTarget === 'suspended' ? 'suspended' : 'revoked';
+      const sourceStatuses = normalizedTarget === 'suspended'
+        ? ['pending', 'active']
+        : ['pending', 'active', 'suspended'];
+      const { rows: participants } = await client.query(
+        `SELECT id FROM credit_participants WHERE partner_id = $1 AND status = ANY($2::text[]) ORDER BY id`,
+        [normalizedPartnerId, sourceStatuses],
+      );
+      const transition = targetParticipantStatus === 'suspended'
+        ? suspendParticipantInTransaction
+        : revokeParticipantInTransaction;
+      for (const row of participants) {
+        const changed = await transition(client, {
+          participantId: row.id,
+          actorUserId,
+          reason: `Partner ${normalizedTarget}: ${normalizedReason}`,
+          requestIp,
+          correlationId,
+        });
+        if (!changed.replayed) changedParticipants.push(changed);
+      }
+    }
     return {
       partner: formatPartner({ ...updatedRows[0], restaurant_name: partner.restaurant_name }),
       replayed: false,
     };
   }, 'credit_admin_transition_partner');
+  // Notices go after commit, best-effort (the helper logs a failed send
+  // and never throws); a replay sends nothing because the cascade only
+  // ever touches rows that actually moved.
+  if (result && !result.replayed && changedParticipants.length > 0) {
+    const { notifyParticipantStatusChange } = require('./oxsteedCreditParticipantService');
+    for (const changed of changedParticipants) {
+      await notifyParticipantStatusChange(changed.participant, { previousStatus: changed.previousStatus });
+    }
+  }
+  return {
+    ...result,
+    participantsChanged: changedParticipants.map(({ participant, previousStatus }) => ({
+      participantId: participant.participantId,
+      status: participant.status,
+      previousStatus,
+    })),
+  };
 }
 
 async function listAgreements({ partnerId, status, search, limit = 250, offset = 0, includePagination = false } = {}) {

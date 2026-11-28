@@ -2153,6 +2153,7 @@
   "adminPartnerTransitionDefault": "اعتماد تجاري أو مراجعة تشغيلية",
   "adminPartnerTransitionReasonRequired": "يلزم سبب لتغيير حالة الشريك.",
   "adminPartnerStatusChanged": "تم نقل {{partner}} إلى {{status}}.",
+  "adminPartnerStatusChangedWithParticipants": "انتقل {{partner}} إلى {{status}}. انتقل {{count}} من المشاركين إلى {{participantStatus}}.",
   "adminPartnerStatusChangeFailed": "فشل تغيير حالة الشريك.",
   "adminAgreementTransitionTitle": "لماذا تنقل الاتفاقية v{{version}} إلى {{status}}؟",
   "adminAgreementTransitionDescription": "قدم سبب التدقيق لتغيير حالة هذه الاتفاقية.",

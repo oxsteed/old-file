@@ -2153,6 +2153,7 @@
   "adminPartnerTransitionDefault": "Aprobación comercial o revisión operativa",
   "adminPartnerTransitionReasonRequired": "Se requiere un motivo para cambiar el estado de un socio.",
   "adminPartnerStatusChanged": "{{partner}} cambió a {{status}}.",
+  "adminPartnerStatusChangedWithParticipants": "{{partner}} pasó a {{status}}. {{count}} participante(s) pasaron a {{participantStatus}}.",
   "adminPartnerStatusChangeFailed": "El cambio de estado del socio falló.",
   "adminAgreementTransitionTitle": "¿Por qué cambias el acuerdo v{{version}} a {{status}}?",
   "adminAgreementTransitionDescription": "Indica el motivo de auditoría de este cambio de estado del acuerdo.",

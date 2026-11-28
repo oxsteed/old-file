@@ -2153,6 +2153,7 @@
   "adminPartnerTransitionDefault": "Approbation commerciale ou revue opérationnelle",
   "adminPartnerTransitionReasonRequired": "Un motif est requis pour modifier le statut d’un partenaire.",
   "adminPartnerStatusChanged": "{{partner}} est passé à {{status}}.",
+  "adminPartnerStatusChangedWithParticipants": "{{partner}} est passé à {{status}}. {{count}} participant(s) sont passés à {{participantStatus}}.",
   "adminPartnerStatusChangeFailed": "Le changement de statut du partenaire a échoué.",
   "adminAgreementTransitionTitle": "Pourquoi faire passer l’accord v{{version}} à {{status}} ?",
   "adminAgreementTransitionDescription": "Indiquez le motif d’audit de ce changement de statut de l’accord.",
