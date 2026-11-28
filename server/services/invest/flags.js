@@ -41,7 +41,7 @@ const isInvestPilot = (userId) => !!userId && investPilotIds().has(String(userId
 const investEnabled = (userId) => envFlagEnabled('INVEST_ENABLED', true) || isInvestPilot(userId);
 
 const investCommitmentsEnabled = (userId) => investEnabled(userId)
-  && (envFlagEnabled('INVEST_COMMITMENTS_ENABLED', false) || isInvestPilot(userId));
+  && (envFlagEnabled('INVEST_COMMITMENTS_ENABLED', true) || isInvestPilot(userId));
 
 function requireInvestEnabled(userId) {
   if (!investEnabled(userId)) {
