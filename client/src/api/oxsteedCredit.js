@@ -67,6 +67,20 @@ export const getOxsteedCreditAccountDetails = (params = {}) =>
   api.get('/oxsteed-credit/account-details', { params })
     .then((response) => response.data?.details || null);
 
+// Credit redesign (D-797): the account letter download, gated by a fresh
+// 'account_letter' step-up challenge issued through the money-out endpoint.
+export const downloadOxsteedCreditAccountLetter = async (payload) => {
+  const response = await api.post('/oxsteed-credit/account-details/letter', payload, { responseType: 'blob' });
+  const url = window.URL.createObjectURL(response.data);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `oxsteed-credit-account-letter-${payload?.currencyCode || 'USD'}.txt`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+};
+
 // Group 13 Slice 4h (686-690): the participant/HQ door of the location
 // reconciliation surface. The caller reads only their own restaurant's
 // locations, server-enforced by requireRestaurantAccess; the admin
@@ -194,6 +208,11 @@ export const createOxsteedCreditTransfer = (payload, idempotencyKey) =>
 // only, never an email address.
 export const getOxsteedCreditTransferRecipient = (customerId) =>
   api.get(`/oxsteed-credit/transfer-recipients/${encodeURIComponent(customerId)}`).then((response) => response.data?.recipient || null);
+
+// Credit redesign (D-798): resolve a recipient by account number or by
+// card number (a scanned card or QR code), instead of a pasted UUID.
+export const resolveOxsteedCreditTransferRecipient = (payload) =>
+  api.post('/oxsteed-credit/transfer-recipients/resolve', payload).then((response) => response.data?.recipient || null);
 
 export const createOxsteedCreditRestaurantConversion = (payload, idempotencyKey) =>
   api.post('/oxsteed-credit/restaurant-conversions', payload, {

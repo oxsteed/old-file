@@ -47,6 +47,7 @@ router.get('/documents', creditExportLimiter, statementController.handler('oxste
 router.get('/documents.pdf', creditExportLimiter, statementController.handler('oxsteed', 'pdf'));
 router.get('/documents.csv', creditExportLimiter, statementController.handler('oxsteed', 'csv'));
 router.get('/account-details', controller.getMyAccountDetails);
+router.post('/account-details/letter', creditMutationLimiter, rejectImpersonated, controller.downloadMyAccountLetter);
 router.get('/transactions', controller.getMyTransactions);
 router.get('/transactions/:transactionId', controller.getMyTransaction);
 router.post('/holds', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.createMyHold);
@@ -58,6 +59,7 @@ router.post('/transfers', creditMutationLimiter, rejectImpersonated, checkRestri
 // Recipient name lookup for the transfer review panel. Read-only; the
 // router-level authenticate + requireRole('customer') gate applies.
 router.get('/transfer-recipients/:customerId', controller.lookupTransferRecipient);
+router.post('/transfer-recipients/resolve', creditMutationLimiter, rejectImpersonated, controller.resolveMyTransferRecipient);
 router.get('/disputes', controller.listMyDisputes);
 router.post('/disputes', creditMutationLimiter, rejectImpersonated, controller.openMyDispute);
 // Group 13, item 674 (D-371/D-372/D-373): customer evidence on their own

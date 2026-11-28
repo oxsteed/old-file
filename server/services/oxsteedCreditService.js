@@ -3995,6 +3995,12 @@ async function getCustomerCreditAccountDetails(customerId, { currencyCode = CRED
   );
   const account = accountRows[0] || null;
 
+  const { rows: holderRows } = await pool.query(
+    `SELECT first_name, last_name FROM users WHERE id = $1 LIMIT 1`,
+    [customerId],
+  );
+  const accountHolderName = [holderRows[0]?.first_name, holderRows[0]?.last_name].filter(Boolean).join(' ').trim() || null;
+
   const now = new Date();
   const lastMonthLastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0));
   const lastMonthYear = lastMonthLastDay.getUTCFullYear();
@@ -4055,6 +4061,7 @@ async function getCustomerCreditAccountDetails(customerId, { currencyCode = CRED
 
   return {
     currencyCode: currency,
+    accountId: account?.id ? String(account.id) : null,
     lastStatement: issuedStatement || (balanceRow
       ? {
           from: lastStatementFrom,
@@ -4076,7 +4083,183 @@ async function getCustomerCreditAccountDetails(customerId, { currencyCode = CRED
       totalCents: Number(pendingWithdrawalsRow.total_cents || 0),
       count: Number(pendingWithdrawalsRow.withdrawal_count || 0),
     },
+    // Credit redesign (D-795/D-796): bank-like account identity. The
+    // account number is one per currency account; the member code is one
+    // per customer and replaces any routing number (never 9 digits).
+    accountNumber: account ? await getOrCreateAccountNumber(account.id) : null,
+    memberCode: await getOrCreateMemberCode(customerId),
+    accountHolderName,
   };
+}
+
+// Credit redesign (D-795/D-796): bank-like account identity.
+//
+// Account number: 10 digits, '8' (the OxSteed account prefix) + 8 random
+// digits + a Luhn check digit. Member code: 8 digits, first digit 1-9.
+// Neither is ever 9 digits, and neither is ever called a routing number.
+// Both are minted lazily on first read with a unique-index retry, so no
+// deploy-time backfill is needed and concurrent first reads converge on
+// one stored value.
+function luhnCheckDigit(digits) {
+  const normalized = String(digits || '').replace(/\D/g, '');
+  if (!normalized) throw new AppError('Luhn check digit requires digits', 400, 'credit_luhn_digits_required');
+  let sum = 0;
+  // The check digit doubles every second digit from the right of the
+  // payload (the payload becomes the odd positions once the check digit
+  // is appended), matching the standard Luhn validation below.
+  for (let index = normalized.length - 1, position = 1; index >= 0; index -= 1, position += 1) {
+    let digit = Number(normalized[index]);
+    if (position % 2 === 1) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+  }
+  return String((10 - (sum % 10)) % 10);
+}
+
+function isValidLuhn(number) {
+  const normalized = String(number || '').replace(/\D/g, '');
+  if (normalized.length < 2) return false;
+  return luhnCheckDigit(normalized.slice(0, -1)) === normalized.slice(-1);
+}
+
+function generateAccountNumber() {
+  let body = '8';
+  for (let index = 0; index < 8; index += 1) body += String(crypto.randomInt(0, 10));
+  return body + luhnCheckDigit(body);
+}
+
+function generateMemberCode() {
+  let code = String(crypto.randomInt(1, 10));
+  for (let index = 0; index < 7; index += 1) code += String(crypto.randomInt(0, 10));
+  return code;
+}
+
+async function getOrCreateAccountNumber(accountId) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const { rows: existingRows } = await pool.query(
+      'SELECT account_number FROM oxsteed_credit_accounts WHERE id = $1',
+      [accountId],
+    );
+    if (existingRows[0]?.account_number) return existingRows[0].account_number;
+    const candidate = generateAccountNumber();
+    try {
+      const { rows } = await pool.query(
+        `UPDATE oxsteed_credit_accounts SET account_number = $2
+          WHERE id = $1 AND account_number IS NULL RETURNING account_number`,
+        [accountId, candidate],
+      );
+      if (rows[0]?.account_number) return rows[0].account_number;
+    } catch (error) {
+      // A concurrent first read minted a different number (unique index):
+      // re-read the winner instead of surfacing a raw unique violation.
+      if (error?.code !== '23505') throw error;
+    }
+  }
+  throw new AppError('Account number could not be issued', 503, 'credit_account_number_unavailable');
+}
+
+async function getOrCreateMemberCode(customerId) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const { rows: existingRows } = await pool.query(
+      'SELECT member_code FROM oxsteed_credit_member_codes WHERE customer_id = $1',
+      [customerId],
+    );
+    if (existingRows[0]?.member_code) return existingRows[0].member_code;
+    const candidate = generateMemberCode();
+    try {
+      const { rows } = await pool.query(
+        `INSERT INTO oxsteed_credit_member_codes (customer_id, member_code)
+         VALUES ($1, $2) ON CONFLICT (customer_id) DO NOTHING RETURNING member_code`,
+        [customerId, candidate],
+      );
+      if (rows[0]?.member_code) return rows[0].member_code;
+    } catch (error) {
+      // A concurrent first read minted a different code (unique index):
+      // re-read the winner instead of surfacing a raw unique violation.
+      if (error?.code !== '23505') throw error;
+    }
+  }
+  throw new AppError('Member code could not be issued', 503, 'credit_member_code_unavailable');
+}
+
+// Credit redesign (D-797): the downloadable account letter (name, account
+// number, member code, currency). The letter moves no money; the caller
+// proves a fresh step-up challenge first, and the download is audit-logged.
+async function issueAccountLetter({ customerId, currencyCode = CREDIT_CURRENCY, challengeId, code, correlationId, requestIp } = {}) {
+  const { verifyStepupChallenge } = require('./stepupChallengeService');
+  // A nominal 1-cent binding: the challenge service requires a positive
+  // amount, and the letter itself moves no money.
+  await verifyStepupChallenge({
+    challengeId,
+    actorUserId: customerId,
+    actionType: 'account_letter',
+    code,
+    expectedAmountCents: 1,
+  });
+  const details = await getCustomerCreditAccountDetails(customerId, { currencyCode });
+  const issuedAt = new Date().toISOString();
+  await pool.query(
+    `INSERT INTO oxsteed_credit_audit_events
+       (action_type, actor_user_id, customer_id, resource_type, resource_id, correlation_id, request_ip, after_state)
+     VALUES ('credit.account_letter.downloaded', $1, $1, 'credit_account', $2, $3, $4, $5::jsonb)`,
+    [customerId, String(details.accountId || ''), correlationId || null, requestIp || null,
+      JSON.stringify({ currencyCode: details.currencyCode, accountNumber: details.accountNumber, memberCode: details.memberCode })],
+  );
+  const lines = [
+    'OxSteed Credit — Account Letter',
+    '',
+    `Account holder: ${details.accountHolderName || 'OxSteed Credit customer'}`,
+    `Account number: ${details.accountNumber || '—'}`,
+    `OxSteed member code: ${details.memberCode || '—'}`,
+    `Currency: ${details.currencyCode}`,
+    `Issued: ${issuedAt}`,
+    '',
+    'Accepted at OxSteed partners only. This letter confirms the account',
+    'details above for OxSteed Credit; it is not a bank account and the',
+    'member code is not a bank routing number.',
+  ];
+  return { filename: `oxsteed-credit-account-letter-${details.currencyCode}.txt`, text: `${lines.join('\n')}\n`, issuedAt, details };
+}
+
+// Credit redesign (D-798): resolve a transfer recipient by the account
+// number or the card number, so the Send drawer accepts more than a
+// pasted customer UUID. Both paths apply the same recipient checks as the
+// UUID lookup: an active customer who is not deleted. The display name
+// is returned; no email address ever leaves the server.
+async function resolveTransferRecipientByAccountNumber(accountNumber) {
+  const normalized = String(accountNumber || '').replace(/[\s-]/g, '');
+  if (!/^\d{10}$/.test(normalized)) return null;
+  const { rows } = await pool.query(
+    `SELECT u.id, u.first_name, u.last_name
+       FROM oxsteed_credit_accounts a
+       JOIN users u ON u.id = a.customer_id
+      WHERE a.account_type = 'customer_wallet' AND a.account_number = $1
+        AND u.role = 'customer' AND u.is_active = TRUE AND u.deleted_at IS NULL
+      LIMIT 1`,
+    [normalized],
+  );
+  if (!rows[0]) return null;
+  const displayName = [rows[0].first_name, rows[0].last_name].filter(Boolean).join(' ').trim();
+  return { customerId: String(rows[0].id), displayName: displayName || null };
+}
+
+async function resolveTransferRecipientByCardNumber(cardNumber) {
+  const normalized = String(cardNumber || '').replace(/[\s-]/g, '');
+  if (!/^\d{16}$/.test(normalized)) return null;
+  const { rows } = await pool.query(
+    `SELECT u.id, u.first_name, u.last_name
+       FROM oxsteed_credit_cards c
+       JOIN users u ON u.id = c.customer_id
+      WHERE c.credential_hash = $1
+        AND u.role = 'customer' AND u.is_active = TRUE AND u.deleted_at IS NULL
+      LIMIT 1`,
+    [crypto.createHash('sha256').update(normalized).digest('hex')],
+  );
+  if (!rows[0]) return null;
+  const displayName = [rows[0].first_name, rows[0].last_name].filter(Boolean).join(' ').trim();
+  return { customerId: String(rows[0].id), displayName: displayName || null };
 }
 
 // F-15: the shared hardened helper.
@@ -4799,6 +4982,18 @@ module.exports = {
   getCustomerCreditStatement,
   getCustomerCreditStatementPeriods,
   getCustomerCreditAccountDetails,
+  // Credit redesign (D-795..D-798): bank-like account identity, the
+  // step-up-gated account letter, and recipient resolution by account
+  // number or card number.
+  luhnCheckDigit,
+  isValidLuhn,
+  generateAccountNumber,
+  generateMemberCode,
+  getOrCreateAccountNumber,
+  getOrCreateMemberCode,
+  issueAccountLetter,
+  resolveTransferRecipientByAccountNumber,
+  resolveTransferRecipientByCardNumber,
   customerCreditStatementCsv,
   getCustomerCreditTransaction,
   // Group 13 Slice 4b (659): pure reversal derivation, unit-tested without a DB.

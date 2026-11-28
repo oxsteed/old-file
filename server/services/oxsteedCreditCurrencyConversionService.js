@@ -365,6 +365,10 @@ async function createLiveRateCurrencyQuote({
 }) {
   const from = String(sourceCurrency || '').toUpperCase();
   const to = String(targetCurrency || '').toUpperCase();
+  // Credit redesign (D-794): fail fast on a paused rail before spending
+  // a live FX call — the quote cannot be consumed while the rail is off,
+  // and a rail-off attempt must not depend on the FX provider being up.
+  await assertCreditRailEnabled(pool);
   const fx = await getFxQuote(from, to);
   // Provider rates are per MAJOR unit; quotes work in minor units, so scale
   // by the exponent difference (e.g. USD cents → KWD fils is ×10).

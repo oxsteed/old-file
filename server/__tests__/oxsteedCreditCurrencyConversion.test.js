@@ -354,6 +354,9 @@ test('creates a self-serve quote from the live rate', async () => {
     quotedAt: '2026-11-28T12:00:00.000Z',
   });
   mockQuery
+    .mockResolvedValueOnce({ rows: [] }) // fail-fast rail check: advisory lock
+    .mockResolvedValueOnce({ rows: [{ is_enabled: true }] }) // rail enabled
+    .mockResolvedValueOnce({ rows: [] }) // fail-fast rail check: freeze check
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] })
@@ -409,6 +412,11 @@ test('creates a self-serve quote from the live rate', async () => {
 test('a failed live rate fails closed with no quote row', async () => {
   getFxQuote.mockClear();
   getFxQuote.mockRejectedValue(Object.assign(new Error('FX unavailable'), { code: 'fx_rate_unavailable' }));
+  // The fail-fast rail check runs before the FX call; the rail is on.
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [] });
 
   await expect(createLiveRateCurrencyQuote({
     sourceCurrency: 'USD',
@@ -422,13 +430,21 @@ test('a failed live rate fails closed with no quote row', async () => {
   })).rejects.toMatchObject({ code: 'fx_rate_unavailable' });
 
   expect(getFxQuote).toHaveBeenCalledWith('USD', 'EUR');
-  expect(mockQuery).not.toHaveBeenCalled();
+  // The fail-fast rail check is the only DB traffic: no quote row is
+  // ever attempted once the FX call fails.
+  expect(mockQuery).toHaveBeenCalledTimes(3);
+  expect(mockQuery.mock.calls.map(([sql]) => String(sql)).join(' ')).not.toContain('INSERT');
 });
 
-test('a self-serve quote for one currency rejects before any DB call', async () => {
+test('a self-serve quote for one currency rejects before any quote row', async () => {
   getFxQuote.mockReset();
   // The live provider itself refuses a same-currency pair, so the failure
-  // surfaces from the FX call and no quote row is ever attempted.
+  // surfaces from the FX call and no quote row is ever attempted. The
+  // fail-fast rail check runs first; the rail is on.
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [] });
   getFxQuote.mockRejectedValue(Object.assign(new Error('same currency'), { code: 'fx_invalid_currency' }));
   await expect(createLiveRateCurrencyQuote({
     sourceCurrency: 'USD',
@@ -442,5 +458,8 @@ test('a self-serve quote for one currency rejects before any DB call', async () 
   })).rejects.toMatchObject({ code: 'fx_invalid_currency' });
 
   expect(getFxQuote).toHaveBeenCalledWith('USD', 'USD');
-  expect(mockQuery).not.toHaveBeenCalled();
+  // The fail-fast rail check is the only DB traffic: no quote row is
+  // ever attempted once the FX call fails.
+  expect(mockQuery).toHaveBeenCalledTimes(3);
+  expect(mockQuery.mock.calls.map(([sql]) => String(sql)).join(' ')).not.toContain('INSERT');
 });
