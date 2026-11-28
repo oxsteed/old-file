@@ -26788,7 +26788,33 @@
       "platformWide": "إجماليات على مستوى المنصة بالكامل. هذه الأرقام تغطي المنصة كلها، وليس مراكزك فقط.",
       "position_one": "مقتصر على مراكزك ({{count}} كيان).",
       "position_other": "مقتصر على مراكزك ({{count}} كيانات)."
-    }
+    },
+        "entityReporting": {
+            "title": "تقارير الكيانات",
+            "help": "الكيانات التي يغطيها جمهور تقاريرك، ومراكزك النشطة في كل منها.",
+            "audienceKey": "جمهور التقارير: {{key}}",
+            "audienceExpires": "ينتهي الوصول في {{date}}",
+            "audienceNoExpiry": "الوصول لا ينتهي",
+            "loading": "جارٍ تحميل الكيانات…",
+            "loadError": "تعذّر تحميل ملخص الكيانات.",
+            "empty": "لا توجد كيانات في جمهور تقاريرك بعد.",
+            "opportunities": "{{live}} نشطة من أصل {{total}} جولة",
+            "stakesPositions_one": "{{count}} مركز",
+            "stakesPositions_other": "{{count}} مركزًا",
+            "stakesCommitments_one": "{{count}} التزام",
+            "stakesCommitments_other": "{{count}} التزامًا",
+            "stakesApplications_one": "{{count}} طلب",
+            "stakesApplications_other": "{{count}} طلبًا",
+            "active": "نشط",
+            "inactive": "غير نشط",
+            "types": {
+                "llc": "شركة ذات مسؤولية محدودة",
+                "sole_prop": "مؤسسة فردية",
+                "corp": "شركة مساهمة",
+                "partnership": "شراكة",
+                "unknown": "نشاط تجاري"
+            }
+        }
   },
   "healthAlertsDashboard": {
     "title": "سلامة الأعمال",

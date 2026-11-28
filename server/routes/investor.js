@@ -16,6 +16,7 @@ const {
   getSupplyDemand,
   getEvidence,
 } = require('../controllers/investorController');
+const investorReportingController = require('../controllers/investorReportingController');
 
 // requireRole is variadic. Passing the role list as one array makes every
 // legitimate investor, admin, and super-admin request fail the mounted guard.
@@ -39,5 +40,10 @@ router.get('/revenue-chart', authenticate, requireInvestorCapability, allowInves
 router.get('/franchise',     authenticate, requireInvestorCapability, allowInvestor, requireInvestorDataset('franchise'), getFranchisePipeline);
 router.get('/supply-demand', authenticate, requireInvestorCapability, allowInvestor, requireInvestorDataset('supply_demand'), getSupplyDemand);
 router.get('/evidence/:metric', authenticate, requireInvestorCapability, allowInvestor, requireInvestorDataset('evidence'), getEvidence);
+
+// Slice 5f, "View entity reporting" (726-730). These are read-only
+// audience-scope surfaces, not datasets: the capability gate is the
+// authority, and the scope inside is the audience row (D-769).
+router.get('/reporting/entities', authenticate, requireInvestorCapability, allowInvestor, investorReportingController.getEntities);
 
 module.exports = router;

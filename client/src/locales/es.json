@@ -26777,7 +26777,33 @@
       "platformWide": "Totales de toda la plataforma. Estas cifras cubren toda la plataforma, no solo sus posiciones.",
       "position_one": "Limitado a sus posiciones ({{count}} entidad).",
       "position_other": "Limitado a sus posiciones ({{count}} entidades)."
-    }
+    },
+        "entityReporting": {
+            "title": "Informes de entidades",
+            "help": "Las entidades que cubre su audiencia de informes y sus participaciones activas en cada una.",
+            "audienceKey": "Audiencia de informes: {{key}}",
+            "audienceExpires": "El acceso vence el {{date}}",
+            "audienceNoExpiry": "El acceso no vence",
+            "loading": "Cargando entidades…",
+            "loadError": "No se pudo cargar el resumen de entidades.",
+            "empty": "Aún no hay entidades en su audiencia de informes.",
+            "opportunities": "{{live}} activas de {{total}} rondas",
+            "stakesPositions_one": "{{count}} posición",
+            "stakesPositions_other": "{{count}} posiciones",
+            "stakesCommitments_one": "{{count}} compromiso",
+            "stakesCommitments_other": "{{count}} compromisos",
+            "stakesApplications_one": "{{count}} solicitud",
+            "stakesApplications_other": "{{count}} solicitudes",
+            "active": "Activa",
+            "inactive": "Inactiva",
+            "types": {
+                "llc": "LLC",
+                "sole_prop": "Empresa unipersonal",
+                "corp": "Corporación",
+                "partnership": "Sociedad",
+                "unknown": "Empresa"
+            }
+        }
   },
   "healthAlertsDashboard": {
     "title": "Salud del negocio",

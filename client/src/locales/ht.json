@@ -26777,7 +26777,33 @@
       "platformWide": "Total pou tout platfòm nan. Chif sa yo kouvri tout platfòm nan, pa sèlman pozisyon ou yo.",
       "position_one": "Limite ak pozisyon ou yo ({{count}} antite).",
       "position_other": "Limite ak pozisyon ou yo ({{count}} antite)."
-    }
+    },
+        "entityReporting": {
+            "title": "Rapò antite yo",
+            "help": "Antite odyans rapò ou kouvri yo, ak patisipasyon ou ki aktif nan chak.",
+            "audienceKey": "Odyans rapò: {{key}}",
+            "audienceExpires": "Aksè ekspire {{date}}",
+            "audienceNoExpiry": "Aksè pa ekspire",
+            "loading": "Ap chaje antite yo…",
+            "loadError": "Yo pa t kapab chaje rezime antite yo.",
+            "empty": "Pa gen antite nan odyans rapò ou pou kounye a.",
+            "opportunities": "{{live}} aktif sou {{total}} levée",
+            "stakesPositions_one": "{{count}} pozisyon",
+            "stakesPositions_other": "{{count}} pozisyon",
+            "stakesCommitments_one": "{{count}} angajman",
+            "stakesCommitments_other": "{{count}} angajman",
+            "stakesApplications_one": "{{count}} aplikasyon",
+            "stakesApplications_other": "{{count}} aplikasyon",
+            "active": "Aktif",
+            "inactive": "Inaktif",
+            "types": {
+                "llc": "LLC",
+                "sole_prop": "Antrepriz endividyèl",
+                "corp": "Sosyeté",
+                "partnership": "Sosyeté patnè",
+                "unknown": "Biznis"
+            }
+        }
   },
   "healthAlertsDashboard": {
     "title": "Sante biznis",

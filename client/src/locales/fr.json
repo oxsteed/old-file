@@ -26777,7 +26777,33 @@
       "platformWide": "Totaux de toute la plateforme. Ces chiffres couvrent toute la plateforme, pas seulement vos positions.",
       "position_one": "Limité à vos positions ({{count}} entité).",
       "position_other": "Limité à vos positions ({{count}} entités)."
-    }
+    },
+        "entityReporting": {
+            "title": "Rapports des entités",
+            "help": "Les entités couvertes par votre audience de rapports et vos participations actives dans chacune.",
+            "audienceKey": "Audience de rapports : {{key}}",
+            "audienceExpires": "Accès expire le {{date}}",
+            "audienceNoExpiry": "Accès sans expiration",
+            "loading": "Chargement des entités…",
+            "loadError": "Impossible de charger le résumé des entités.",
+            "empty": "Aucune entité dans votre audience de rapports pour le moment.",
+            "opportunities": "{{live}} actives sur {{total}} levées",
+            "stakesPositions_one": "{{count}} position",
+            "stakesPositions_other": "{{count}} positions",
+            "stakesCommitments_one": "{{count}} engagement",
+            "stakesCommitments_other": "{{count}} engagements",
+            "stakesApplications_one": "{{count}} demande",
+            "stakesApplications_other": "{{count}} demandes",
+            "active": "Active",
+            "inactive": "Inactive",
+            "types": {
+                "llc": "SARL",
+                "sole_prop": "Entreprise individuelle",
+                "corp": "Société",
+                "partnership": "Société de personnes",
+                "unknown": "Entreprise"
+            }
+        }
   },
   "healthAlertsDashboard": {
     "title": "État de l’activité",
