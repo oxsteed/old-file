@@ -220,20 +220,21 @@ describeDatabase('invest credit lots', () => {
     expect(audit[0].evidence_ref).toBe('receipt-test-1');
   });
 
-  // PRE-EXISTING BUG, pinned here, not fixed by Track 1: the real
-  // top-up webhook completion posts a `load` as actor `system` with no
-  // actor user, and migration 487 rejects exactly that. Worse, the
-  // requires_attention parking UPDATE runs inside the same aborted
-  // transaction, so the call throws instead of parking and the top-up
-  // stays `pending` (Stripe redelivery retries the same failure). The
-  // lot tagging hook is wired in completeCreditTopupFromWebhook (it
-  // creates the purchased lot in the same transaction as the journal
-  // post), but it cannot execute until the actor conflict is resolved
-  // (either the top-up post attributes an actor or the trigger exempts
-  // Stripe top-up loads). The second test below proves the tagging
-  // contract the hook uses: one purchased lot per completed top-up,
-  // idempotent.
-  test('top-up completion currently throws instead of parking (pre-existing migration 487 conflict)', async () => {
+  // G13-B2 (D-753): the real top-up webhook completion posts a `load` as
+  // actor `system` with no actor user, and migration 487 rejects exactly
+  // that — the top-up cannot complete while the service-admin actor is
+  // unconfigured (G13-B1, Emile's domain). But the failure now parks:
+  // the post runs under its own savepoint, so the requires_attention
+  // parking UPDATE lands in a live transaction instead of throwing
+  // `current transaction is aborted`, the top-up leaves `pending`, and
+  // a critical incident is recorded. The lot tagging hook is wired in
+  // completeCreditTopupFromWebhook (it creates the purchased lot in the
+  // same transaction as the journal post), but it cannot execute until
+  // the actor conflict is resolved (either the top-up post attributes
+  // an actor or the trigger exempts Stripe top-up loads). The second
+  // test below proves the tagging contract the hook uses: one purchased
+  // lot per completed top-up, idempotent.
+  test('top-up completion parks as requires_attention when the 487 actor check rejects the post (G13-B2)', async () => {
     const topupId = crypto.randomUUID();
     const paymentIntentId = `pi_invest_lot_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
     await pool.query(
@@ -244,9 +245,9 @@ describeDatabase('invest credit lots', () => {
       [topupId, investorId, paymentIntentId, `invest-lot-topup-${topupId}`],
     );
     await expect(completeCreditTopupFromWebhook({ paymentIntentId }))
-      .rejects.toThrow('current transaction is aborted');
+      .rejects.toThrow('OxSteed Credit issuance requires an administrator identity and reason');
     const { rows } = await pool.query(`SELECT status FROM oxsteed_credit_topups WHERE id = $1`, [topupId]);
-    expect(rows[0].status).toBe('pending');
+    expect(rows[0].status).toBe('requires_attention');
     const { rows: lots } = await pool.query(
       `SELECT * FROM oxsteed_credit_balance_lots WHERE topup_id = $1`, [topupId],
     );

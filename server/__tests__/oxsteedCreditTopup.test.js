@@ -468,6 +468,14 @@ describe('completeCreditTopupFromWebhook', () => {
     await expect(topupService.completeCreditTopupFromWebhook({ paymentIntentId: 'pi_topup_1' }))
       .rejects.toThrow('journal boom');
 
+    // G13-B2: the post runs under its own savepoint, so the parking
+    // UPDATE lands in a live transaction instead of the aborted one.
+    const savepoint = mockQuery.mock.calls.find((c) => c[0].includes('SAVEPOINT credit_topup_journal'));
+    expect(savepoint).toBeDefined();
+    const rollback = mockQuery.mock.calls.find((c) => c[0].includes('ROLLBACK TO SAVEPOINT credit_topup_journal'));
+    expect(rollback).toBeDefined();
+    expect(mockQuery.mock.calls.some((c) => c[0].includes('RELEASE SAVEPOINT credit_topup_journal'))).toBe(false);
+
     const parked = mockQuery.mock.calls.find((c) => c[0].includes("SET status = 'requires_attention'"));
     expect(parked).toBeDefined();
     expect(parked[1]).toEqual([TOPUP_ID]);

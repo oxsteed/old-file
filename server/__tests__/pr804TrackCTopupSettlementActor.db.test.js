@@ -7,10 +7,14 @@
 // top-ups never credit. The fix resolves a configured service-admin
 // actor from OXSTEED_CREDIT_SERVICE_ADMIN_ID and posts as that admin;
 // when unconfigured the current behavior is preserved exactly.
-// Reproduction: on this database 487 IS applied, so the unconfigured
-// call fails and the top-up stays pending (the 487 error aborts the
-// settlement transaction, so the catch block's parking UPDATE cannot
-// run either: the call throws 'current transaction is aborted').
+// G13-B2 (D-753): when the journal post fails, the top-up now parks as
+// requires_attention instead of staying pending forever: the post runs
+// under its own savepoint, so the parking UPDATE lands in a live
+// transaction (previously the call threw 'current transaction is
+// aborted' and no incident was recorded). The unconfigured call still
+// fails to credit — only the parking + incident are fixed; the
+// settlement itself still needs OXSTEED_CREDIT_SERVICE_ADMIN_ID set in
+// Coolify (Emile's domain, G13-B1).
 
 jest.unmock('pg');
 jest.unmock('../db');
@@ -135,36 +139,40 @@ describe('R-3 top-up settlement actor (migration 487)', () => {
     expect(Number(lots[0].amount_cents)).toBe(5000);
   });
 
-  test('unconfigured: the 487 trigger rejects the system actor and the top-up stays pending', async () => {
+  test('unconfigured: the 487 trigger rejects the system actor, and the top-up parks as requires_attention with a critical incident', async () => {
     const paymentIntentId = `pi_r3_unset_${crypto.randomUUID().slice(0, 8)}`;
     const topupId = await pendingTopup(paymentIntentId);
-    // The 487 error aborts the settlement transaction, so the catch
-    // block's parking UPDATE cannot run either: the call throws
-    // 'current transaction is aborted' and the top-up stays pending
-    // (the KNOWN DEFECT noted at the top of
-    // completeCreditTopupFromWebhook). No incident is recorded for
-    // this path: the rethrow happens before the incident code runs.
+    // G13-B2: the journal post still fails (only the service-admin
+    // actor fixes that), but the failure now parks the top-up instead
+    // of leaving it pending with no signal.
     await expect(topupService.completeCreditTopupFromWebhook({ paymentIntentId }))
-      .rejects.toThrow('current transaction is aborted');
-    expect(await topupStatus(topupId)).toBe('pending');
+      .rejects.toThrow('OxSteed Credit issuance requires an administrator identity and reason');
+    expect(await topupStatus(topupId)).toBe('requires_attention');
     expect(await walletBalance()).toBe(5000); // only the configured top-up credited
+    const { rows: [incident] } = await pool.query(
+      `SELECT type, severity, dedupe_key FROM incident_log WHERE dedupe_key = $1`,
+      [`credit-topup-uncredited:${topupId}`]
+    );
+    expect(incident).toBeDefined();
+    expect(incident.type).toBe('oxsteed_credit_topup_uncredited');
+    expect(incident.severity).toBe('critical');
   });
 
-  test('configured with a nonexistent user id: falls back to the system actor and 487 rejects it', async () => {
+  test('configured with a nonexistent user id: falls back to the system actor, 487 rejects it, and the top-up parks', async () => {
     process.env.OXSTEED_CREDIT_SERVICE_ADMIN_ID = crypto.randomUUID();
     const paymentIntentId = `pi_r3_nope_${crypto.randomUUID().slice(0, 8)}`;
     const topupId = await pendingTopup(paymentIntentId);
     await expect(topupService.completeCreditTopupFromWebhook({ paymentIntentId }))
-      .rejects.toThrow('current transaction is aborted');
-    expect(await topupStatus(topupId)).toBe('pending');
+      .rejects.toThrow('OxSteed Credit issuance requires an administrator identity and reason');
+    expect(await topupStatus(topupId)).toBe('requires_attention');
   });
 
-  test('configured with a non-admin user: falls back to the system actor and 487 rejects it', async () => {
+  test('configured with a non-admin user: falls back to the system actor, 487 rejects it, and the top-up parks', async () => {
     process.env.OXSTEED_CREDIT_SERVICE_ADMIN_ID = plainCustomerId;
     const paymentIntentId = `pi_r3_plain_${crypto.randomUUID().slice(0, 8)}`;
     const topupId = await pendingTopup(paymentIntentId);
     await expect(topupService.completeCreditTopupFromWebhook({ paymentIntentId }))
-      .rejects.toThrow('current transaction is aborted');
-    expect(await topupStatus(topupId)).toBe('pending');
+      .rejects.toThrow('OxSteed Credit issuance requires an administrator identity and reason');
+    expect(await topupStatus(topupId)).toBe('requires_attention');
   });
 });

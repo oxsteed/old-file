@@ -657,14 +657,12 @@ async function resolveTopupSettlementActor(client) {
 
 // Webhook: the PaymentIntent succeeded. Credit the customer wallet with one
 // balanced `load` journal transaction. Runs in a single DB transaction.
-// KNOWN DEFECT (pre-existing, needs Emile's call; see the counsel brief
-// and investCreditLots.db.test.js): when the journal post fails, the
-// parking UPDATE below runs inside the already-aborted transaction, so
-// the call throws `current transaction is aborted` instead of parking
-// the top-up as requires_attention, the top-up stays `pending`, and no
-// incident is recorded. Stripe redelivery retries the same failure.
-// Do NOT read the catch block below as a working parking path: it only
-// executes when the journal post fails without aborting the transaction.
+// G13-B2 (D-753): the journal post runs under its own savepoint (see below).
+// Previously the parking UPDATE ran inside the already-aborted transaction
+// after a journal-post failure, so the call threw `current transaction is
+// aborted` instead of parking the top-up as requires_attention, the top-up
+// stayed `pending`, and no incident was recorded. Stripe redelivery retried
+// the same failure.
 async function completeCreditTopupFromWebhook({ paymentIntentId, providerEvidence = null }) {
   let journalError = null;
   let topupId = null;
@@ -737,6 +735,19 @@ async function completeCreditTopupFromWebhook({ paymentIntentId, providerEvidenc
       accountType: 'platform_treasury', currencyCode: currency,
     });
 
+    // G13-B2: the journal post (or the lot tagging) can fail after the
+    // transaction is already open — e.g. migration 487's trigger rejects
+    // the system actor. A failed statement aborts the whole transaction,
+    // so a parking UPDATE issued after the failure throws `current
+    // transaction is aborted` and the top-up stays `pending` forever
+    // with no incident. The post/tagging therefore run under their own
+    // savepoint: on failure we roll back to just before the post and
+    // park the top-up as `requires_attention` in the still-live
+    // transaction, so the parking commits and the incident below fires.
+    // A re-delivered webhook for the parked row retries the post (the
+    // top-of-function gate admits `requires_attention`), and the
+    // incident dedupe key keeps the repeat from double-paging.
+    await client.query('SAVEPOINT credit_topup_journal');
     try {
       // R-3: resolve the settlement actor before posting (see
       // resolveTopupSettlementActor above).
@@ -766,13 +777,11 @@ async function completeCreditTopupFromWebhook({ paymentIntentId, providerEvidenc
       );
       // OxSteed Invest lot tagging: a completed top-up is provably
       // purchased settled value, so it gets a `purchased` lot in the
-      // same transaction as the journal post. The catch below intends
-      // to park the top-up as requires_attention when the journal post
-      // or the tagging fails, but that parking UPDATE runs inside the
-      // already-aborted transaction (see the function header): on a
-      // journal-post failure the call throws instead of parking and
-      // the top-up stays `pending`. createLot is idempotent on the
-      // top-up id, so a retry that does reach the tag cannot double-tag.
+      // same transaction as the journal post. If the post or the tagging
+      // fails, the savepoint rollback above undoes the post as well, so
+      // a parked top-up never leaves a half-posted journal behind.
+      // createLot is idempotent on the top-up id, so a retry that does
+      // reach the tag cannot double-tag.
       await createLot(client, {
         accountId: wallet.id,
         customerId: topup.customer_id,
@@ -785,6 +794,7 @@ async function completeCreditTopupFromWebhook({ paymentIntentId, providerEvidenc
         referenceType: 'stripe_topup',
         referenceId: paymentIntentId,
       });
+      await client.query('RELEASE SAVEPOINT credit_topup_journal');
       return {
         outcome: 'completed',
         topupId,
@@ -794,6 +804,7 @@ async function completeCreditTopupFromWebhook({ paymentIntentId, providerEvidenc
         currencyCode: currency,
       };
     } catch (err) {
+      await client.query('ROLLBACK TO SAVEPOINT credit_topup_journal');
       await client.query(
         `UPDATE oxsteed_credit_topups
             SET status = 'requires_attention', updated_at = NOW()
