@@ -267,6 +267,20 @@ export const setOxsteedCreditCardPin = (cardId, payload, idempotencyKey) =>
 
 export const issueCreditCardSecurityChallenge = (cardId, payload) =>
   api.post(`/oxsteed-credit/cards/${cardId}/security-challenges`, payload).then(response => response.data);
+
+// Credit redesign (D-800): reveal, security-code reset, and limits —
+// each behind a card-security step-up challenge issued for the matching
+// action ('reveal' | 'security_code_reset' | 'limits_set'). The one-time
+// values (card number, fresh security code) come back in the response
+// body and are never stored client-side beyond the showing.
+export const revealOxsteedCreditCard = (cardId, payload, idempotencyKey) =>
+  api.post(`/oxsteed-credit/cards/${cardId}/reveal`, payload, { headers: { 'Idempotency-Key': idempotencyKey } }).then((response) => response.data);
+
+export const resetOxsteedCreditCardSecurityCode = (cardId, payload, idempotencyKey) =>
+  api.post(`/oxsteed-credit/cards/${cardId}/security-code/reset`, payload, { headers: { 'Idempotency-Key': idempotencyKey } }).then((response) => response.data);
+
+export const setOxsteedCreditCardLimits = (cardId, payload, idempotencyKey) =>
+  api.post(`/oxsteed-credit/cards/${cardId}/limits`, payload, { headers: { 'Idempotency-Key': idempotencyKey } }).then((response) => response.data);
 export const getCreditCardHistory = (cardId, offset = 0) =>
   api.get(`/oxsteed-credit/cards/${cardId}/history`, { params: { offset, limit: 25 } }).then(response => response.data);
 export const markCreditCardFound = cardId => api.post(`/oxsteed-credit/cards/${cardId}/found`).then(response => response.data);
