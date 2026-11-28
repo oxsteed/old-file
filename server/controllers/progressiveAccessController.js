@@ -10,7 +10,7 @@ const access = require('../services/access/accessService');
 const review = require('../services/access/reviewService');
 const registry = require('../services/access/policyRegistry');
 const flags = require('../services/access/flags');
-const { notifyInvestorAudienceGranted, notifyInvestorAudienceChanged } = require('../services/invest/investNotifications');
+const { notifyInvestorAudienceGranted, notifyInvestorAudienceChanged, notifyInvestorAudienceRemoved } = require('../services/invest/investNotifications');
 
 function send(res, result) {
   if (result.replay) res.set('Idempotent-Replay', 'true');
@@ -121,6 +121,7 @@ const reviewDecide = wrap('admin.access.decide', async (req, res) => {
   const result = await review.decide(req.user, req.params.id, {
     action: b.decision, expectedVersion: b.expectedVersion, reasonCode: b.reasonCode || null,
     note: b.note ?? null, informationRequest: b.informationRequest ?? null, evidenceRevision: b.evidenceRevision ?? null,
+    retainedScope: b.retainedScope ?? null,
   }, { idemKey: idemKey(req) });
   // D-772 (729): the audience notice fires after decide() commits, never
   // inside the decision transaction, so a notice failure can never roll
@@ -141,13 +142,20 @@ const grantChange = wrap('admin.access.grant', async (req, res) => {
   const result = await review.changeGrant(req.user, req.params.grantId, {
     action: b.action, expectedVersion: b.expectedVersion, reasonCode: b.reasonCode,
   }, { idemKey: idemKey(req) });
-  // D-772 (729): a suspend / reinstate / revoke of an investor.reporting
-  // grant changes the holder's audience, so the holder is told — after
+  // D-772 (729): a suspend / reinstate of an investor.reporting grant
+  // changes the holder's audience, so the holder is told — after
   // changeGrant() commits. The grant version is stable per transition,
   // so an idempotent replay dedupes the notice.
+  // D-780 (737): a revoke is a removal, not a change — it sends the
+  // removal notice, which points at Settings to re-apply instead of at
+  // the dashboard the removed holder can no longer open.
   const grant = result.body && result.body.grant;
   if (result.status === 200 && grant && grant.capability === 'investor.reporting' && ['suspend', 'reinstate', 'revoke'].includes(b.action)) {
-    await notifyInvestorAudienceChanged({ userId: grant.user_id, changeAction: b.action, reasonCode: b.reasonCode || null, idempotencyKey: `invest-audience-grant:${grant.id}:${grant.version}` });
+    if (b.action === 'revoke') {
+      await notifyInvestorAudienceRemoved({ userId: grant.user_id, reasonCode: b.reasonCode || null, idempotencyKey: `invest-audience-grant:${grant.id}:${grant.version}:removed` });
+    } else {
+      await notifyInvestorAudienceChanged({ userId: grant.user_id, changeAction: b.action, reasonCode: b.reasonCode || null, idempotencyKey: `invest-audience-grant:${grant.id}:${grant.version}` });
+    }
   }
   return send(res, result);
 });

@@ -27,6 +27,11 @@ function DecisionPanel({ t, data, onDecided }) {
   const [note, setNote] = useState('');
   const [infoRequest, setInfoRequest] = useState('');
   const [audienceConfirmed, setAudienceConfirmed] = useState(false);
+  // 740 (D-783): retained scope — datasets/entities from the prior
+  // audience the reviewer explicitly keeps. Both start empty: nothing
+  // is retained by default, retention is a deliberate check.
+  const [retainedDatasets, setRetainedDatasets] = useState([]);
+  const [retainedEntityIds, setRetainedEntityIds] = useState([]);
   const [busy, setBusy] = useState(false);
   const keys = useRef({});
   const keyFor = (action) => {
@@ -45,6 +50,13 @@ function DecisionPanel({ t, data, onDecided }) {
         reasonCode: decision === 'approve' || decision === 'decline' || decision === 'request_information' ? reasonCode : undefined,
         note: note.trim() || undefined,
         informationRequest: decision === 'request_information' ? infoRequest.trim() : undefined,
+        // 740 (D-783): only on approve, and only when the reviewer
+        // checked something — an empty retention is the same as none,
+        // and sending nothing keeps the approval working if the prior
+        // audience vanished between render and decide.
+        retainedScope: decision === 'approve' && (retainedDatasets.length || retainedEntityIds.length)
+          ? { datasets: retainedDatasets, entityIds: retainedEntityIds }
+          : undefined,
       }, keyFor(decision));
       toast.success(t('progressiveAccess.admin.decided', { ns: NS }));
       onDecided();
@@ -140,6 +152,43 @@ function DecisionPanel({ t, data, onDecided }) {
               <input type="checkbox" checked={audienceConfirmed} onChange={(e) => setAudienceConfirmed(e.target.checked)} className="mt-0.5" />
               <span>{t('progressiveAccess.admin.investorConfirm', { ns: NS })}</span>
             </label>
+          )}
+          {needsInvestorConfirmation && data.priorAudience && (
+            <section aria-labelledby="ar-retained-scope" className="space-y-2 rounded-lg border border-gray-300 p-3 dark:border-gray-600">
+              <h3 id="ar-retained-scope" className="text-sm font-semibold text-gray-900 dark:text-white">{t('progressiveAccess.admin.retainedScope.title', { ns: NS })}</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-300">{t('progressiveAccess.admin.retainedScope.help', { ns: NS })}</p>
+              {(data.priorAudience.datasets || []).length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{t('progressiveAccess.admin.retainedScope.datasets', { ns: NS })}</p>
+                  {(data.priorAudience.datasets || []).map((dataset) => {
+                    const inRequest = (req.answers?.requestedReports || []).includes(dataset);
+                    return (
+                      <label key={`retained-dataset-${dataset}`} className="mt-1 flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200">
+                        <input type="checkbox" checked={retainedDatasets.includes(dataset)} onChange={(e) => setRetainedDatasets((cur) => (e.target.checked ? [...cur, dataset] : cur.filter((d) => d !== dataset)))} className="mt-0.5" />
+                        <span>{dataset}{inRequest ? '' : ` — ${t('progressiveAccess.admin.retainedScope.notRequested', { ns: NS })}`}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+              {((data.priorAudience.entities || []).length > 0 || (data.priorAudience.entityIds || []).length > 0) && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{t('progressiveAccess.admin.retainedScope.entities', { ns: NS })}</p>
+                  {(data.priorAudience.entities || []).map((entity) => (
+                    <label key={`retained-entity-${entity.id}`} className="mt-1 flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200">
+                      <input type="checkbox" checked={retainedEntityIds.includes(entity.id)} onChange={(e) => setRetainedEntityIds((cur) => (e.target.checked ? [...cur, entity.id] : cur.filter((id) => id !== entity.id)))} className="mt-0.5" />
+                      <span>{entity.name}</span>
+                    </label>
+                  ))}
+                  {(data.priorAudience.entityIds || []).filter((id) => !(data.priorAudience.entities || []).some((e) => e.id === id)).map((id) => (
+                    <label key={`retained-entity-${id}`} className="mt-1 flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200">
+                      <input type="checkbox" checked={retainedEntityIds.includes(id)} onChange={(e) => setRetainedEntityIds((cur) => (e.target.checked ? [...cur, id] : cur.filter((kept) => kept !== id)))} className="mt-0.5" />
+                      <span>{id}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </section>
           )}
           <label className="block text-sm text-gray-700 dark:text-gray-200">
             {t('progressiveAccess.admin.note', { ns: NS })}

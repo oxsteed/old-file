@@ -663,14 +663,19 @@ function AccountApplications({ accountId, epoch }) {
                           <time dateTime={event.at} className="text-muted">{formatDate(event.at, language)}</time>
                           <span className="font-medium text-content">{capabilityLabel(t, event.capability)}</span>
                           <span className="text-muted">
-                            {event.kind === 'grant'
-                              ? (event.action === 'granted'
-                                ? t('progressiveAccess.historyGranted', { ns: NS })
-                                : t(`progressiveAccess.grantStatus.${event.action}`, { ns: NS, defaultValue: event.action }))
-                              : t(`progressiveAccess.historyAction.${event.action}`, { ns: NS, defaultValue: event.action })}
+                            {event.kind === 'audience'
+                              ? t(`progressiveAccess.historyAudience.${event.action}`, { ns: NS, defaultValue: event.action })
+                              : event.kind === 'grant'
+                                ? (event.action === 'granted'
+                                  ? t('progressiveAccess.historyGranted', { ns: NS })
+                                  : t(`progressiveAccess.grantStatus.${event.action}`, { ns: NS, defaultValue: event.action }))
+                                : t(`progressiveAccess.historyAction.${event.action}`, { ns: NS, defaultValue: event.action })}
                           </span>
                           {event.publicReasonCode && (
                             <span className="text-muted">{t(`progressiveAccess.reasons.${event.publicReasonCode}`, { ns: NS, defaultValue: '' })}</span>
+                          )}
+                          {event.kind === 'audience' && (
+                            <span className="text-muted">{t('progressiveAccess.historyAudienceScope', { ns: NS, datasets: (event.datasets || []).join(', ') || '—', count: (event.entityIds || []).length })}</span>
                           )}
                         </li>
                       ))}

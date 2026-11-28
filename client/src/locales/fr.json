@@ -26719,6 +26719,16 @@
       "copy": "Vous consultez en mode rapports uniquement. Vous pouvez examiner les rapports des entités que vous êtes autorisé à voir, mais vous ne pouvez pas prendre d'engagements d'investissement. Pour participer, explorez les opportunités et demandez l'accès.",
       "title": "Mode rapports uniquement"
     },
+    "datasetRecovery": {
+      "action": "Demander l’accès dans Réglages",
+      "copy": "Le jeu de données {{dataset}} ne fait pas partie de votre audience de rapports. Demandez l’accès pour le restaurer."
+    },
+    "scopeRecovery": {
+      "action": "Ouvrir Réglages",
+      "copy": "Votre audience de rapports est manquante ou expirée. Demandez à nouveau l’accès depuis Réglages pour la restaurer.",
+      "copyDataset": "Le jeu de données {{dataset}} ne fait pas partie de votre audience de rapports. Demandez l’accès depuis Réglages pour le restaurer.",
+      "title": "Il manque quelque chose à votre accès aux rapports"
+    },
     "periods": {
       "sevenDays": "7 derniers jours",
       "thirtyDays": "30 derniers jours",
@@ -26855,6 +26865,24 @@
           "complete": "Terminé {{date}}",
           "failed": "Échoué {{date}}",
           "cancelled": "Annulé {{date}}"
+        },
+        "cancelRequested": "Annulation demandée {{date}}"
+      },
+      "accessHistory": {
+        "title": "Historique d’accès aux rapports",
+        "help": "Quand votre audience de rapports a changé et ce qu’elle couvrait. L’historique complet des demandes est dans Réglages.",
+        "loading": "Chargement de l’historique d’accès…",
+        "loadError": "Impossible de charger l’historique d’accès.",
+        "empty": "Aucun changement d’accès aux rapports pour l’instant.",
+        "viewFull": "Voir l’historique complet dans Réglages",
+        "datasets": "Jeux de données : {{list}}",
+        "entities": "{{count}} entités",
+        "actions": {
+          "granted": "Accès aux rapports accordé",
+          "changed": "Accès aux rapports modifié",
+          "removed": "Accès aux rapports retiré",
+          "suspended": "Accès aux rapports suspendu",
+          "reinstated": "Accès aux rapports rétabli"
         }
       },
       "contact": {

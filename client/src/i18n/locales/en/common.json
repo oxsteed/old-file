@@ -6841,6 +6841,13 @@
       "note": "Internal note (not shown to the applicant)",
       "informationRequest": "What should the applicant add?",
       "investorConfirm": "I reviewed the requested audience and datasets; approval creates only this scoped reporting access.",
+      "retainedScope": {
+        "title": "Retained scope",
+        "help": "Datasets and entities from the applicant's current audience that this approval would otherwise drop. Check only what should stay; nothing is retained by default.",
+        "datasets": "Datasets",
+        "entities": "Entities",
+        "notRequested": "not in the new request"
+      },
       "actions": {
         "claim": "Start review",
         "request_information": "Ask for information",
@@ -6913,7 +6920,15 @@
     },
     "accessHistoryTitle": "Access history",
     "accessHistoryEmpty": "No access changes yet.",
-    "historyGranted": "Granted"
+    "historyGranted": "Granted",
+    "historyAudience": {
+      "granted": "Audience granted",
+      "changed": "Audience changed",
+      "removed": "Audience removed",
+      "suspended": "Audience suspended",
+      "reinstated": "Audience reinstated"
+    },
+    "historyAudienceScope": "{{datasets}} · {{count}} entities"
   },
   "businessLaunchAttachments": {
     "download": "Download",

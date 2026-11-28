@@ -26719,6 +26719,16 @@
       "copy": "You are viewing in reporting-only mode. You can review reports for the entities you are authorized to see, but you cannot make investment commitments. To participate, explore opportunities and request access.",
       "title": "Reporting-only mode"
     },
+    "datasetRecovery": {
+      "action": "Request access in Settings",
+      "copy": "The {{dataset}} dataset is not in your reporting audience. Request access to restore it."
+    },
+    "scopeRecovery": {
+      "action": "Open Settings",
+      "copy": "Your reporting audience is missing or expired. Request access again from Settings to restore it.",
+      "copyDataset": "The {{dataset}} dataset is not in your reporting audience. Request access from Settings to restore it.",
+      "title": "Your reporting access is missing something"
+    },
     "periods": {
       "sevenDays": "Last 7 Days",
       "thirtyDays": "Last 30 Days",
@@ -26855,6 +26865,24 @@
           "complete": "Completed {{date}}",
           "failed": "Failed {{date}}",
           "cancelled": "Cancelled {{date}}"
+        },
+        "cancelRequested": "Cancellation requested {{date}}"
+      },
+      "accessHistory": {
+        "title": "Reporting access history",
+        "help": "When your reporting audience changed, and what it covered. The full application history is in Settings.",
+        "loading": "Loading access history…",
+        "loadError": "Could not load the access history.",
+        "empty": "No reporting access changes yet.",
+        "viewFull": "View full access history in Settings",
+        "datasets": "Datasets: {{list}}",
+        "entities": "{{count}} entities",
+        "actions": {
+          "granted": "Reporting access granted",
+          "changed": "Reporting access changed",
+          "removed": "Reporting access removed",
+          "suspended": "Reporting access suspended",
+          "reinstated": "Reporting access reinstated"
         }
       },
       "contact": {

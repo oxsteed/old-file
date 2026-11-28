@@ -269,10 +269,13 @@ exports.getDocuments = async (req, res) => {
     }
     if (hasExports) {
       const jobs = await safeQuery(`
-        SELECT id, product, format, state, created_at, completed_at
-          FROM statement_export_jobs
-         WHERE requested_by = $1::uuid
-         ORDER BY created_at DESC
+        SELECT j.id, j.product, j.format, j.state, j.created_at, j.completed_at, j.updated_at,
+               EXISTS (SELECT 1 FROM statement_export_cancellations c WHERE c.job_id = j.id) AS cancel_requested,
+               c.created_at AS cancel_requested_at
+          FROM statement_export_jobs j
+          LEFT JOIN statement_export_cancellations c ON c.job_id = j.id
+         WHERE j.requested_by = $1::uuid
+         ORDER BY j.created_at DESC
          LIMIT 25`, [userId]);
       for (const row of jobs) {
         documents.push({
@@ -283,6 +286,14 @@ exports.getDocuments = async (req, res) => {
           state: row.state,
           createdAt: row.created_at,
           completedAt: row.completed_at,
+          // 738 (D-781): cancellation status. A cancelled job's date is
+          // the cancellation date (updated_at when the state flipped),
+          // not its creation date; an in-flight job with a cancellation
+          // request keeps its state while the request is pending, and
+          // says so instead of looking merely slow.
+          cancelRequested: row.cancel_requested === true,
+          cancelRequestedAt: row.cancel_requested_at || null,
+          cancelledAt: row.state === 'cancelled' ? row.updated_at : null,
           url: EXPORT_ARCHIVE_URL[row.product] || '/statements',
         });
       }

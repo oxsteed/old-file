@@ -660,6 +660,34 @@ async function listAccessHistory(userId) {
       });
     }
   }
+  // 739 (D-782): audience-change events for investor.reporting — what
+  // the audience covered when it changed, which neither the request
+  // decisions nor the grant rows keep (the audience row holds only the
+  // latest snapshot). Deployments without the 5h migration have no
+  // events table yet; the request/grant history still serves
+  // (getInvestorAudience pattern: 42P01 means "not migrated yet", not a
+  // failure). Only the applicant's own rows are ever read.
+  try {
+    const { rows: audience } = await pool.query(
+      `SELECT grant_id, kind, datasets, entity_ids, reason_code, created_at
+         FROM investor_reporting_audience_events WHERE user_id = $1 ORDER BY created_at DESC, id DESC`,
+      [userId],
+    );
+    for (const ev of audience) {
+      events.push({
+        kind: 'audience',
+        grantId: String(ev.grant_id),
+        capability: 'investor.reporting',
+        action: ev.kind,
+        datasets: Array.isArray(ev.datasets) ? ev.datasets : [],
+        entityIds: (Array.isArray(ev.entity_ids) ? ev.entity_ids : []).map(Number).filter((n) => Number.isFinite(n)),
+        publicReasonCode: ev.reason_code || null,
+        at: ev.created_at,
+      });
+    }
+  } catch (e) {
+    if (!e || e.code !== '42P01') throw e;
+  }
   events.sort((a, b) => new Date(b.at) - new Date(a.at));
   return { events: events.slice(0, 100) };
 }

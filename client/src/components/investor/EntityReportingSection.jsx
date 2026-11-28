@@ -74,6 +74,11 @@ export default function EntityReportingSection() {
   const [state, setState] = useState({ status: 'loading', data: null });
   const [datasetsState, setDatasetsState] = useState({ status: 'loading', data: null });
   const [documentsState, setDocumentsState] = useState({ status: 'loading', data: null });
+  // 739 (D-782): the holder's reporting access history — the audience
+  // events (granted/changed/removed/suspended/reinstated) with the
+  // snapshot each change carried. The full application history lives in
+  // Settings; this section shows only the reporting-audience changes.
+  const [historyState, setHistoryState] = useState({ status: 'loading', data: null });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -104,6 +109,17 @@ export default function EntityReportingSection() {
       .catch((err) => {
         if (controller.signal.aborted || err?.name === 'CanceledError') return;
         setDocumentsState({ status: 'error', data: null });
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api.get('/me/access-history', { signal: controller.signal })
+      .then(({ data }) => setHistoryState({ status: 'ready', data: data?.events || [] }))
+      .catch((err) => {
+        if (controller.signal.aborted || err?.name === 'CanceledError') return;
+        setHistoryState({ status: 'error', data: null });
       });
     return () => controller.abort();
   }, []);
@@ -223,12 +239,53 @@ export default function EntityReportingSection() {
               <p className="text-xs text-gray-500 mt-0.5">
                 {doc.kind === 'evidence_share'
                   ? t('investorDashboard.entityReporting.documents.shareExpires', { date: date(doc.expiresAt) })
-                  : t(`investorDashboard.entityReporting.documents.exportStates.${doc.state}`, { date: date(doc.completedAt || doc.createdAt) })}
+                  : t(`investorDashboard.entityReporting.documents.exportStates.${doc.state}`, { date: date(doc.state === 'cancelled' ? (doc.cancelledAt || doc.completedAt || doc.createdAt) : (doc.completedAt || doc.createdAt)) })}
               </p>
+              {/* 738 (D-781): an in-flight export with a cancellation
+                  request says so; a cancelled job's date above is the
+                  cancellation date, not its creation date. */}
+              {doc.kind === 'export' && doc.cancelRequested && doc.state !== 'cancelled' && (
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {t('investorDashboard.entityReporting.documents.cancelRequested', { date: date(doc.cancelRequestedAt) })}
+                </p>
+              )}
             </li>
           ))}
         </ul>
       )}
+      {/* ── 739: reporting access history ──────────────────────────── */}
+      <h3 className="font-semibold text-sm text-gray-200 mt-5 mb-2">{t('investorDashboard.entityReporting.accessHistory.title')}</h3>
+      <p className="text-xs text-gray-500 mb-3">{t('investorDashboard.entityReporting.accessHistory.help')}</p>
+      {historyState.status === 'loading' && <p role="status" className="text-xs text-gray-500">{t('investorDashboard.entityReporting.accessHistory.loading')}</p>}
+      {historyState.status === 'error' && <p role="alert" className="text-xs text-red-400">{t('investorDashboard.entityReporting.accessHistory.loadError')}</p>}
+      {historyState.status === 'ready' && (() => {
+        const audienceEvents = (historyState.data || []).filter((event) => event.kind === 'audience');
+        return (
+          <>
+            {audienceEvents.length === 0 && <p className="text-xs text-gray-500">{t('investorDashboard.entityReporting.accessHistory.empty')}</p>}
+            {audienceEvents.length > 0 && (
+              <ul className="space-y-2">
+                {audienceEvents.map((event, index) => {
+                  const datasetList = (event.datasets || []).map((id) => t(`investorDashboard.entityReporting.datasets.labels.${id}`)).join(', ');
+                  return (
+                    <li key={`${event.grantId}-${event.at}-${index}`} className="rounded-xl bg-gray-800/50 border border-gray-800 px-3 py-2">
+                      <p className="text-sm text-gray-200">{t(`investorDashboard.entityReporting.accessHistory.actions.${event.action}`)}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {date(event.at)}
+                        {datasetList ? ` · ${t('investorDashboard.entityReporting.accessHistory.datasets', { list: datasetList })}` : ''}
+                        {` · ${t('investorDashboard.entityReporting.accessHistory.entities', { count: event.entityIds?.length ?? 0 })}`}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <Link to="/settings/applications" className="text-xs text-emerald-300 hover:text-emerald-200 mt-2 inline-block">
+              {t('investorDashboard.entityReporting.accessHistory.viewFull')}
+            </Link>
+          </>
+        );
+      })()}
     </section>
   );
 }

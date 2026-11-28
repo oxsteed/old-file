@@ -193,6 +193,24 @@ function PipelineRow({ status, count, total, labels }) {
   );
 }
 
+// ── Slice 5h, 736 (D-779): missing scope recovery ─────────────────────────
+// A withheld dataset is a missing scope, not missing data. Name the
+// dataset and the recovery (re-apply from Settings) instead of the bare
+// "No data" the dashboard rendered before.
+function DatasetRecoveryNote({ dataset }) {
+  const { t } = useTranslation();
+  return (
+    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+      <p className="text-xs text-gray-300 leading-relaxed">
+        {t('investorDashboard.datasetRecovery.copy', { dataset: t(`investorDashboard.entityReporting.datasets.labels.${dataset}`) })}
+      </p>
+      <Link to="/settings/applications" className="mt-1 inline-block text-xs font-semibold text-orange-400 hover:text-orange-300">
+        {t('investorDashboard.datasetRecovery.action')}
+      </Link>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function InvestorDashboardPage() {
   const { user } = useAuth();
@@ -208,6 +226,12 @@ export default function InvestorDashboardPage() {
   const [supDem, setSupDem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Slice 5h, 736 (D-779): the recovery panel needs the failure code and
+  // dataset, not just the message — a missing dataset or audience is
+  // recoverable by re-applying, while any other load failure stays a
+  // plain error.
+  const [errorCode, setErrorCode] = useState(null);
+  const [errorDataset, setErrorDataset] = useState(null);
 
   const legacyInvestor = ['admin', 'super_admin'].includes(user?.role);
   const projectedAccess = accessProjection?.access || accessProjection;
@@ -240,6 +264,8 @@ export default function InvestorDashboardPage() {
   const load = useCallback(async (p = period) => {
     setLoading(true);
     setError(null);
+    setErrorCode(null);
+    setErrorDataset(null);
     try {
       const [k, c, f, s] = await Promise.all([
         api.get('/investor/kpis', { params: { period: p } }).then(r => r.data),
@@ -261,6 +287,8 @@ export default function InvestorDashboardPage() {
       setSupDem(s);
     } catch (e) {
       setError(e.response?.data?.error || e.message || t('investorDashboard.error.loadFailed'));
+      setErrorCode(e.response?.data?.code || null);
+      setErrorDataset(e.response?.data?.dataset || null);
     } finally {
       setLoading(false);
     }
@@ -339,11 +367,26 @@ export default function InvestorDashboardPage() {
             </div>
           </div>
 
-          {error && (
+          {/* Slice 5h, 736 (D-779): a missing scope is recoverable — name
+              what is missing and where to re-apply, instead of the bare
+              server message. Any other load failure stays a plain error. */}
+          {error && (errorCode === 'investor_audience_required' || errorCode === 'access_required' || errorCode === 'investor_dataset_not_granted') ? (
+            <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4">
+              <p className="text-sm font-semibold text-white">{t('investorDashboard.scopeRecovery.title')}</p>
+              <p className="mt-1 text-sm text-gray-300 leading-relaxed">
+                {errorDataset
+                  ? t('investorDashboard.scopeRecovery.copyDataset', { dataset: t(`investorDashboard.entityReporting.datasets.labels.${errorDataset}`) })
+                  : t('investorDashboard.scopeRecovery.copy')}
+              </p>
+              <Link to="/settings/applications" className="mt-2 inline-block text-sm font-semibold text-orange-400 hover:text-orange-300">
+                {t('investorDashboard.scopeRecovery.action')}
+              </Link>
+            </div>
+          ) : error ? (
             <div className="rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3">
               {error}
             </div>
-          )}
+          ) : null}
 
           {/* Slice 5g, 731: reporting-only mode copy. */}
           {reportingOnly && (
@@ -403,7 +446,7 @@ export default function InvestorDashboardPage() {
               {loading
                 ? <Skeleton className="h-28 w-full" />
                 : !datasetAllowed('revenue')
-                  ? <p className="text-xs text-gray-600 text-center py-4">{t('investorDashboard.noData')}</p>
+                  ? <DatasetRecoveryNote dataset="revenue" />
                 : (
                   <AreaChart
                     rows={chart}
@@ -433,7 +476,7 @@ export default function InvestorDashboardPage() {
               {loading
                 ? <div className="space-y-3">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-4" />)}</div>
                 : !datasetAllowed('franchise')
-                  ? <p className="text-xs text-gray-600">{t('investorDashboard.noData')}</p>
+                  ? <DatasetRecoveryNote dataset="franchise" />
                 : franchise?.pipeline?.length
                   ? (
                     <div className="space-y-3">
@@ -468,7 +511,7 @@ export default function InvestorDashboardPage() {
               {loading
                 ? <Skeleton className="h-16 w-full" />
                 : !datasetAllowed('supply_demand')
-                  ? <p className="text-xs text-gray-600 text-center py-4">{t('investorDashboard.noData')}</p>
+                  ? <DatasetRecoveryNote dataset="supply_demand" />
                 : <MiniBarChart data={weeklyBars} height={64} emptyLabel={t('investorDashboard.noData')} />
               }
               {!loading && datasetAllowed('supply_demand') && (
@@ -488,7 +531,7 @@ export default function InvestorDashboardPage() {
               {loading
                 ? <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-4" />)}</div>
                 : !datasetAllowed('supply_demand')
-                  ? <p className="text-xs text-gray-600">{t('investorDashboard.noData')}</p>
+                  ? <DatasetRecoveryNote dataset="supply_demand" />
                 : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">

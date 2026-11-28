@@ -6841,6 +6841,13 @@
       "note": "ملاحظة داخلية (لا يراها مقدّم الطلب)",
       "informationRequest": "ما الذي يجب أن يضيفه مقدّم الطلب؟",
       "investorConfirm": "راجعت الجمهور والتقارير المطلوبة؛ الموافقة تنشئ هذا الوصول المحدد للتقارير فقط.",
+      "retainedScope": {
+        "title": "النطاق المحتفَظ به",
+        "help": "مجموعات البيانات والكيانات من جمهور مقدم الطلب الحالي التي كان هذا الاعتماد سيُسقطها. حدّد فقط ما يجب أن يبقى؛ لا يتم الاحتفاظ بأي شيء افتراضيًا.",
+        "datasets": "مجموعات البيانات",
+        "entities": "الكيانات",
+        "notRequested": "ليس في الطلب الجديد"
+      },
       "actions": {
         "claim": "بدء المراجعة",
         "request_information": "طلب معلومات",
@@ -6913,7 +6920,15 @@
     },
     "accessHistoryTitle": "سجل الوصول",
     "accessHistoryEmpty": "لا توجد تغييرات وصول بعد.",
-    "historyGranted": "تم المنح"
+    "historyGranted": "تم المنح",
+    "historyAudience": {
+      "granted": "تم منح الجمهور",
+      "changed": "تم تغيير الجمهور",
+      "removed": "تمت إزالة الجمهور",
+      "suspended": "تم تعليق الجمهور",
+      "reinstated": "تمت إعادة الجمهور"
+    },
+    "historyAudienceScope": "{{datasets}} · {{count}} من الكيانات"
   },
   "businessLaunchAttachments": {
     "download": "تنزيل",

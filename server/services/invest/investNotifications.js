@@ -117,4 +117,17 @@ async function notifyInvestorAudienceChanged({ userId, changeAction, reasonCode,
   });
 }
 
-module.exports = { notifyInvestor, notifyAmendmentReconfirmation, notifyInvestorAudienceGranted, notifyInvestorAudienceChanged, moneyText };
+// 737 (D-780): removal is its own type, not a "changed". A removed holder
+// can no longer open the dashboard (the gate 403s), so the notice points
+// at Settings to re-apply instead of at a page that would refuse them.
+// The reason code rides in data; the body stays generic, never
+// interpolating a reviewer note.
+async function notifyInvestorAudienceRemoved({ userId, reasonCode, datasets, entityCount, idempotencyKey }) {
+  return notifyInvestor({
+    userId, type: 'invest_reporting_audience_removed',
+    data: { changeAction: 'revoke', reasonCode: reasonCode || null, datasets: datasets || null, entityCount: entityCount == null ? null : entityCount, path: '/settings/applications' },
+    actionUrl: '/settings/applications', idempotencyKey,
+  });
+}
+
+module.exports = { notifyInvestor, notifyAmendmentReconfirmation, notifyInvestorAudienceGranted, notifyInvestorAudienceChanged, notifyInvestorAudienceRemoved, moneyText };

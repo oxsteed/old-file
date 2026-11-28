@@ -43,6 +43,7 @@ test('revoked investor projection clears the dashboard before stale data renders
     page.setDefaultTimeout(5_000);
     let accessReads = 0;
     const investorCalls = [];
+    const historyCalls = [];
     const pendingInvestor = [];
     await page.route('http://investor-revocation.test/**', async (route) => {
       const { pathname } = new URL(route.request().url());
@@ -54,6 +55,10 @@ test('revoked investor projection clears the dashboard before stale data renders
           : { personal: ['customer'], organizations: [] };
         return route.fulfill({ json: { accountId: 'applicant', access, flags: { accessProjection: true } } });
       }
+      // Slice 5h (739, D-782): the reporting section loads the holder's
+      // access history on mount; it is fulfilled immediately, unlike the
+      // held investor calls below.
+      if (pathname === '/api/me/access-history') { historyCalls.push(pathname); return route.fulfill({ json: { events: [] } }); }
       if (pathname.startsWith('/api/investor/')) {
         investorCalls.push(pathname);
         await new Promise(resolve => pendingInvestor.push({ route, resolve }));
@@ -65,9 +70,11 @@ test('revoked investor projection clears the dashboard before stale data renders
     await page.goto('http://investor-revocation.test/investor/dashboard');
     await page.getByRole('heading', { name: /Investor/i }).waitFor();
     await page.waitForFunction(() => window.location.pathname === '/investor/dashboard');
+    await page.getByText('Reporting access history').waitFor();
     // Slice 5f (726-728, D-769..D-771): the dashboard also loads the
     // entity reporting section on mount (entities, datasets, documents).
     assert.deepEqual(investorCalls.sort(), ['/api/investor/kpis', '/api/investor/reporting/datasets', '/api/investor/reporting/documents', '/api/investor/reporting/entities', '/api/investor/revenue-chart'].sort());
+    assert.ok(historyCalls.includes('/api/me/access-history'));
 
     await page.evaluate(() => window.dispatchEvent(new Event('oxsteed:access-changed')));
     await page.getByText('customer-home', { exact: true }).waitFor();

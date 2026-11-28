@@ -26719,6 +26719,16 @@
       "copy": "Estás viendo en modo de solo informes. Puedes revisar los informes de las entidades que tienes autorizado ver, pero no puedes hacer compromisos de inversión. Para participar, explora las oportunidades y solicita acceso.",
       "title": "Modo de solo informes"
     },
+    "datasetRecovery": {
+      "action": "Solicitar acceso en Ajustes",
+      "copy": "El conjunto de datos {{dataset}} no está en tu audiencia de informes. Solicita acceso para restaurarlo."
+    },
+    "scopeRecovery": {
+      "action": "Abrir Ajustes",
+      "copy": "Tu audiencia de informes falta o ha caducado. Vuelve a solicitar acceso desde Ajustes para restaurarla.",
+      "copyDataset": "El conjunto de datos {{dataset}} no está en tu audiencia de informes. Solicita acceso desde Ajustes para restaurarlo.",
+      "title": "A tu acceso a informes le falta algo"
+    },
     "periods": {
       "sevenDays": "Últimos 7 días",
       "thirtyDays": "Últimos 30 días",
@@ -26855,6 +26865,24 @@
           "complete": "Completado {{date}}",
           "failed": "Fallido {{date}}",
           "cancelled": "Cancelado {{date}}"
+        },
+        "cancelRequested": "Cancelación solicitada {{date}}"
+      },
+      "accessHistory": {
+        "title": "Historial de acceso a informes",
+        "help": "Cuándo cambió tu audiencia de informes y qué cubría. El historial completo de solicitudes está en Ajustes.",
+        "loading": "Cargando historial de acceso…",
+        "loadError": "No se pudo cargar el historial de acceso.",
+        "empty": "Aún no hay cambios en el acceso a informes.",
+        "viewFull": "Ver el historial completo en Ajustes",
+        "datasets": "Conjuntos de datos: {{list}}",
+        "entities": "{{count}} entidades",
+        "actions": {
+          "granted": "Acceso a informes concedido",
+          "changed": "Acceso a informes cambiado",
+          "removed": "Acceso a informes retirado",
+          "suspended": "Acceso a informes suspendido",
+          "reinstated": "Acceso a informes restablecido"
         }
       },
       "contact": {

@@ -6841,6 +6841,13 @@
       "note": "Nòt entèn (aplikan an pa wè l)",
       "informationRequest": "Kisa aplikan an dwe ajoute?",
       "investorConfirm": "Mwen verifye odyans ak rapò yo mande yo; apwobasyon an kreye sèlman aksè rapò sa a ki limite.",
+      "retainedScope": {
+        "title": "Dimansyon yo kenbe",
+        "help": "Dataset ak antite nan odyans aktyèl moun k ap mande a ke apwobasyon sa a ta retire. Tcheke sèlman sa ki dwe rete; anyen pa kenbe pa defo.",
+        "datasets": "Dataset",
+        "entities": "Antite",
+        "notRequested": "pa nan nouvo demann lan"
+      },
       "actions": {
         "claim": "Kòmanse revizyon",
         "request_information": "Mande enfòmasyon",
@@ -6913,7 +6920,15 @@
     },
     "accessHistoryTitle": "Istorik aksè",
     "accessHistoryEmpty": "Pa gen chanjman aksè pou kounye a.",
-    "historyGranted": "Akòde"
+    "historyGranted": "Akòde",
+    "historyAudience": {
+      "granted": "Odyans bay",
+      "changed": "Odyans chanje",
+      "removed": "Odyans retire",
+      "suspended": "Odyans sispann",
+      "reinstated": "Odyans retabli"
+    },
+    "historyAudienceScope": "{{datasets}} · {{count}} antite"
   },
   "businessLaunchAttachments": {
     "download": "Telechaje",
