@@ -3376,7 +3376,10 @@
     "goBack": "Volver",
     "skipToast": "Continuando sin verificación",
     "errorSkip": "No se pudo omitir la verificación",
-    "errorStart": "No se pudo iniciar la verificación"
+    "errorStart": "No se pudo iniciar la verificación",
+    "expiredTitle": "La sesión de verificación caducó",
+    "expiredSubtitle": "Tu sesión de verificación terminó antes de completarse. Inicia una verificación nueva para continuar.",
+    "startFreshButton": "Iniciar una verificación nueva"
   },
   "footer": {
     "explore": "Explorar",

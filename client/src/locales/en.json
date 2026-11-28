@@ -3376,7 +3376,10 @@
     "goBack": "Go back",
     "skipToast": "Continuing without verification",
     "errorSkip": "Could not skip verification",
-    "errorStart": "Could not start verification"
+    "errorStart": "Could not start verification",
+    "expiredTitle": "Verification session expired",
+    "expiredSubtitle": "Your verification session ended before it was completed. Start a fresh verification to continue.",
+    "startFreshButton": "Start fresh verification"
   },
   "footer": {
     "explore": "Explore",

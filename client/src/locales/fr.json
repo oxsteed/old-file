@@ -3376,7 +3376,10 @@
     "goBack": "Retour",
     "skipToast": "Continuation sans vérification",
     "errorSkip": "Impossible d'ignorer la vérification",
-    "errorStart": "Impossible de démarrer la vérification"
+    "errorStart": "Impossible de démarrer la vérification",
+    "expiredTitle": "La session de vérification a expiré",
+    "expiredSubtitle": "Votre session de vérification s’est terminée avant d’être complétée. Lancez une nouvelle vérification pour continuer.",
+    "startFreshButton": "Lancer une nouvelle vérification"
   },
   "footer": {
     "explore": "Explorer",

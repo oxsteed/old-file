@@ -3677,7 +3677,10 @@
     "goBack": "Tounen",
     "skipToast": "Ap kontinye san verifikasyon",
     "errorSkip": "Pa kapab sote verifikasyon",
-    "errorStart": "Pa kapab kòmanse verifikasyon"
+    "errorStart": "Pa kapab kòmanse verifikasyon",
+    "expiredTitle": "Sesyon verifikasyon an ekspire",
+    "expiredSubtitle": "Sesyon verifikasyon ou an te fini anvan li te konplete. Kòmanse yon nouvo verifikasyon pou kontinye.",
+    "startFreshButton": "Kòmanse yon nouvo verifikasyon"
   },
   "footer": {
     "explore": "Eksplore",

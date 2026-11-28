@@ -200,6 +200,66 @@ describe('Didit v3 webhook unhappy paths', () => {
     expect(logger.error).not.toHaveBeenCalled();
   });
 
+  // G13-A3: an expired session is a terminal state, not an "unhandled"
+  // status to log and forget — while didit_status stays 'pending' the
+  // stored payload keeps being reused and enrollment is trapped.
+  test('marks an expired verification terminal and clears the dead payload', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 42 }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ event_id: 'wm' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ user_id: 'user-a3' }] });
+    const payload = {
+      event_id: 'didit-expired',
+      session_id: 'didit-expired-session',
+      status: 'Expired',
+      created_at: Math.floor(Date.now() / 1000),
+    };
+
+    const response = await postSignedDidit(payload);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ received: true });
+    const failedUpdate = mockQuery.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('identity_verifications') && sql.includes("SET status = 'failed'")
+    );
+    expect(failedUpdate).toBeDefined();
+    expect(failedUpdate[1]).toEqual(['Verification session expired', 'didit-expired-session']);
+    const userUpdate = mockQuery.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('didit_session_payload_ciphertext = NULL')
+    );
+    expect(userUpdate).toBeDefined();
+    expect(userUpdate[1]).toEqual(['user-a3', 'expired', 'didit-expired-session']);
+    expect(diditEntityLink.linkVerificationToEntity).toHaveBeenCalledWith(
+      'user-a3', expect.objectContaining({ sessionId: 'didit-expired-session', status: 'failed' })
+    );
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  test('normalizes a cancelled webhook to the terminal canceled status', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 42 }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ event_id: 'wm' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ user_id: 'user-a3' }] });
+    const payload = {
+      event_id: 'didit-cancelled',
+      session_id: 'didit-cancelled-session',
+      status: 'Cancelled',
+      created_at: Math.floor(Date.now() / 1000),
+    };
+
+    const response = await postSignedDidit(payload);
+
+    expect(response.status).toBe(200);
+    const userUpdate = mockQuery.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('didit_session_payload_ciphertext = NULL')
+    );
+    expect(userUpdate).toBeDefined();
+    expect(userUpdate[1]).toEqual(['user-a3', 'canceled', 'didit-cancelled-session']);
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
   test('handles a declined verification whose warnings are not an array', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 7 }], rowCount: 1 }).mockResolvedValueOnce({ rows: [{ event_id: 'wm' }], rowCount: 1 });
     const payload = {
