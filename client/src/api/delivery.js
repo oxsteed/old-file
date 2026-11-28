@@ -187,6 +187,12 @@ export const listInternalDriverPayouts = (status, { limit, offset } = {}) => {
   return api.get(`/delivery/internal/driver-payouts${query}`).then((response) => response.data);
 };
 
+// Group 14 Slice 5j (747, D-790): single-payout detail read. The driver
+// endpoint serves the payout's own driver; the internal endpoint serves
+// the operations workspace, with the driver identity attached.
+export const getMyDriverPayout = (payoutId) => api.get(`/delivery/driver-payouts/${payoutId}`).then((response) => response.data);
+export const getInternalDriverPayout = (payoutId) => api.get(`/delivery/internal/driver-payouts/${payoutId}`).then((response) => response.data);
+
 // Group 9 Slice F (items 488-495): exception summary, documents,
 // receipt, disputes, payout adjustments, aggregate exceptions, and
 // weekly work reports.

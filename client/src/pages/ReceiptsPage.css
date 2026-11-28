@@ -78,6 +78,7 @@
 
 .receipts-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem;
@@ -122,4 +123,97 @@
 .receipts-amount {
   font-weight: 700;
   font-size: 1.05rem;
+}
+
+/* Group 14 Slice 5j (746): receipt archive filters and pagination. */
+.receipts-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.receipts-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--muted-text);
+}
+
+.receipts-filter select,
+.receipts-filter input {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: var(--card-bg);
+  color: inherit;
+  font-size: 0.95rem;
+}
+
+.receipts-filter input[type='search'] {
+  min-width: 12rem;
+}
+
+.receipts-count {
+  font-size: 0.875rem;
+  color: var(--muted-text);
+  margin: 0 0 1rem;
+}
+
+.receipts-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  color: var(--muted-text);
+}
+
+/* Group 14 Slice 5j (748): per-receipt refund status history. */
+.receipts-refund-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--link-color, #2563eb);
+  font-size: 0.875rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.receipts-refund-history {
+  flex-basis: 100%;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.receipts-refund-history h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+}
+
+.receipts-refund-total {
+  font-size: 0.875rem;
+  color: var(--muted-text);
+  margin: 0 0 0.5rem;
+}
+
+.receipts-refund-history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.receipts-refund-attempt {
+  font-size: 0.875rem;
+}
+
+.receipts-refund-amount {
+  font-weight: 700;
 }

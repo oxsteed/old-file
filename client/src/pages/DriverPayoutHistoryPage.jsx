@@ -141,6 +141,7 @@ export default function DriverPayoutHistoryPage() {
                 <th>{t('delivery.driverPayoutHistory.adjustmentsHeader')}</th>
                 <th>{t('delivery.driverPayoutHistory.disputesHeader')}</th>
                 <th>{t('delivery.driverPayoutHistory.receiptHeader')}</th>
+                <th>{t('delivery.driverPayoutHistory.detailHeader')}</th>
               </tr>
             </thead>
             <tbody>
@@ -173,6 +174,9 @@ export default function DriverPayoutHistoryPage() {
                     {payout.delivery_job_id
                       ? <button type="button" className="delivery-button delivery-button--secondary" onClick={() => downloadDeliveryReceipt(payout.delivery_job_id, payout.job_reference)} data-track="ui.fdc4d46ef9.7">{t('delivery.detail.receiptDownload')}</button>
                       : '—'}
+                  </td>
+                  <td>
+                    <Link to={`/delivery/payouts/${payout.id}`}>{t('delivery.driverPayoutHistory.viewDetail')}</Link>
                   </td>
                 </tr>
               ))}

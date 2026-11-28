@@ -10,6 +10,7 @@ import {
   approveInternalDriverPayout,
   markInternalDriverPayoutPaid,
   voidInternalDriverPayout,
+  deliveryMoney,
 } from '../../api/delivery';
 import { canAccessOperationsWorkspace } from '../../utils/logisticsWorkspaces';
 import '../../styles/logistics/LogisticsHomePage.css';
@@ -27,7 +28,12 @@ const PAYOUT_PAGE_SIZE = 50;
  * surface verbatim instead of being papered over.
  */
 function DriverPayoutsSection() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // Group 14 Slice 5j (749, D-792): payout amounts render through
+  // deliveryMoney (currency- and locale-aware) instead of a hardcoded
+  // '$' plus two fixed decimals. Delivery pricing is USD; the helper
+  // supplies the symbol and the locale's grouping.
+  const payoutMoney = (cents) => deliveryMoney(cents, i18n.language, 'USD');
   const [status, setStatus] = useState('all');
   const [payouts, setPayouts] = useState([]);
   const [total, setTotal] = useState(0);
@@ -68,7 +74,7 @@ function DriverPayoutsSection() {
     }
     if (action === 'approve' || action === 'markPaid') {
       const driver = [payout.first_name, payout.last_name].filter(Boolean).join(' ') || payout.driver_email || t('logistics.operations.driverPayouts.unknownDriver');
-      const amount = (Number(payout.payout_cents || 0) / 100).toFixed(2);
+      const amount = payoutMoney(payout.payout_cents);
       const confirmKey = action === 'approve' ? 'confirmApprove' : 'confirmMarkPaid';
       if (!window.confirm(t(`logistics.operations.driverPayouts.${confirmKey}`, { driver, amount }))) {
         return;
@@ -133,9 +139,11 @@ function DriverPayoutsSection() {
                   <span className="lx-t-small lx-t-muted">{t(`logistics.operations.driverPayouts.status${payout.status[0].toUpperCase()}${payout.status.slice(1)}`)}</span>
                 </div>
                 <p className="lx-t-small lx-t-muted lx-driver-payout-meta">
-                  {t('logistics.operations.driverPayouts.amount', { amount: (Number(payout.payout_cents || 0) / 100).toFixed(2) })}
+                  {t('logistics.operations.driverPayouts.amount', { amount: payoutMoney(payout.payout_cents) })}
                   {payout.job_reference ? ` · ${t('logistics.operations.driverPayouts.job', { reference: payout.job_reference })}` : ''}
                   {payout.payment_reference ? ` · ${t('logistics.operations.driverPayouts.reference', { reference: payout.payment_reference })}` : ''}
+                  {' · '}
+                  <Link to={`/delivery/payouts/${payout.id}`}>{t('delivery.driverPayoutHistory.viewDetail')}</Link>
                 </p>
                 {(payout.status === 'approved') && (
                   <label className="lx-t-small lx-driver-payout-field">

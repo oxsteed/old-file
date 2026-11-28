@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { listOrders, previewLandedCost, listLanes, listRefundCases, createRefundCase } from '../../api/logistics';
+import { formatMoney } from '../../lib/format';
 import PageShell from '../../components/PageShell';
 import LogisticsLayout from '../../components/logistics/LogisticsLayout';
 import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
@@ -16,8 +17,13 @@ import '../../styles/logistics/LogisticsWorkspaces.css';
  * form labels are htmlFor-linked; submission surfaces success/error toasts.
  */
 export default function LogisticsFinancePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const tx = (key, fallback, opts = {}) => t(key, { defaultValue: fallback, ...opts });
+  // Group 14 Slice 5j (749, D-792): refund amounts render through the
+  // currency-aware formatter instead of a hardcoded '$' plus two fixed
+  // decimals. The field is USD by name; the formatter supplies the
+  // symbol and the locale's grouping.
+  const refundMoney = (usd) => formatMoney(parseFloat(usd || 0), { currency: 'USD', locale: i18n.language });
   const [orders, setOrders] = useState([]);
   const [lanes, setLanes]   = useState([]);
   const [refundCases, setRefundCases] = useState([]);
@@ -252,7 +258,7 @@ export default function LogisticsFinancePage() {
                           <LogisticsStatusPill status={refund.status} />
                         </div>
                         <div className="lx-t-small lx-mt-6">
-                          {tx('logistics.finance.refund.requested', 'Requested')}: <strong>${parseFloat(refund.requested_amount_usd || 0).toFixed(2)}</strong>
+                          {tx('logistics.finance.refund.requested', 'Requested')}: <strong>{refundMoney(refund.requested_amount_usd)}</strong>
                         </div>
                       </div>
                     ))}

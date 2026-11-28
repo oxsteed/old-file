@@ -10,6 +10,7 @@ const {
   capturePayment,
   refundPayment,
   getJobPayment,
+  getPaymentRefundHistory,
   getMyPayments,
   requestInstantPayout,
   issueInstantPayoutStepupChallenge,
@@ -49,6 +50,10 @@ router.post('/capture', authenticate, requireEmailVerified, requireTermsAcceptan
 // ADM-040: impersonated sessions cannot issue refunds.
 router.post('/refund', authenticate, requirePaymentsEnabled, checkRestrictions('checkout'), paymentsLimiter, requireAdmin, rejectImpersonated, requirePermission('issue_refunds'), refundPayment);
 router.get('/job/:job_id', authenticate, requirePaymentsEnabled, getJobPayment);
+// Group 14 Slice 5j (748, D-791): refund status history for one payment.
+// Read-only record surface: no feature flag, no rail gate; the controller
+// scopes to the payment's payer, payee, or an admin.
+router.get('/:paymentId/refund-history', authenticate, getPaymentRefundHistory);
 
 // Route-local JSON error handler for consistent API responses when this router
 // is mounted without the global server error handler (tests, serverless, etc.).

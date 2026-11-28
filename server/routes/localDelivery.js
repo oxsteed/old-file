@@ -95,6 +95,8 @@ router.patch('/driver-documents/:documentId', requireAuth, rejectImpersonated, c
 router.delete('/driver-documents/:documentId', requireAuth, rejectImpersonated, controller.deleteDriverDocument);
 // P2-4-F04: driver payout lifecycle (accrue on delivery; ops approves/pays).
 router.get('/driver-payouts', requireAuth, controller.listDriverPayouts);
+// Group 14 Slice 5j (747, D-790): single-payout detail read.
+router.get('/driver-payouts/:payoutId', requireAuth, controller.getDriverPayout);
 // Group 9 Slice F (items 494/495): the driver's own disputes and
 // weekly work reports. Same /delivery router, not a tenant route.
 router.get('/driver-disputes', requireAuth, controller.listMyDisputes);
@@ -134,6 +136,8 @@ router.post('/internal/drivers', requireAuth, requireOperationsWorkspace, contro
 // P2-4-F04: ops driver-payout management. Paid state requires a payment
 // reference (fails closed).
 router.get('/internal/driver-payouts', requireAuth, requireOperationsWorkspace, controller.listAllDriverPayouts);
+// Group 14 Slice 5j (747, D-790): single-payout detail read for ops.
+router.get('/internal/driver-payouts/:payoutId', requireAuth, requireOperationsWorkspace, controller.getInternalDriverPayout);
 router.post('/internal/driver-payouts/:payoutId/approve', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.approveDriverPayout);
 router.post('/internal/driver-payouts/:payoutId/mark-paid', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.markDriverPayoutPaid);
 router.post('/internal/driver-payouts/:payoutId/void', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.voidDriverPayout);

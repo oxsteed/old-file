@@ -11,7 +11,7 @@
  * sensible currency when the user record doesn't have `preferred_currency`.
  */
 
-import { getDefaultCurrency } from './countries';
+import { getDefaultCurrency } from './countries.js';
 
 const DEFAULT_CURRENCY = 'USD';
 const MAX_FRACTION_DIGITS = 20;
@@ -76,6 +76,9 @@ export function detectLocale() {
  *   country            – ISO-2 code (used to derive currency if not set).
  *   locale             – BCP 47 tag. Default = detectLocale().
  *   minimumFractionDigits / maximumFractionDigits – override decimals.
+ *     When neither is given, the currency's own fraction digits apply
+ *     (JPY 0, USD/EUR 2, BHD 3) instead of a forced 2: a forced 2 prints
+ *     '¥500.00' and truncates a 3-decimal currency to 2. (Slice 5j, 749.)
  *   fallback           – string returned for null/undefined/NaN. Default '-'.
  */
 export function formatMoney(value, opts = {}) {
@@ -83,8 +86,8 @@ export function formatMoney(value, opts = {}) {
     currency,
     country,
     locale = detectLocale(),
-    minimumFractionDigits = 2,
-    maximumFractionDigits = 2,
+    minimumFractionDigits,
+    maximumFractionDigits,
     fallback = '-',
   } = opts;
 
@@ -98,29 +101,27 @@ export function formatMoney(value, opts = {}) {
 
   // Intl.NumberFormat throws if minimumFractionDigits > maximumFractionDigits.
   // Keep the formatter resilient even when callers only override one side.
-  const requestedMinimumFractionDigits = toSafeFractionDigits(minimumFractionDigits, 2);
-  const requestedMaximumFractionDigits = toSafeFractionDigits(
-    maximumFractionDigits,
-    requestedMinimumFractionDigits,
-  );
-  const safeMinimumFractionDigits = Math.min(requestedMinimumFractionDigits, requestedMaximumFractionDigits);
-  const safeMaximumFractionDigits = Math.max(safeMinimumFractionDigits, requestedMaximumFractionDigits);
+  // When neither side is overridden, pass no fraction options at all so
+  // Intl uses the currency's own digits; the old forced-2 default printed
+  // zero-decimal currencies with decimals and truncated 3-decimal ones.
+  const intlOptions = { style: 'currency', currency: ccy };
+  if (minimumFractionDigits !== undefined || maximumFractionDigits !== undefined) {
+    const requestedMinimumFractionDigits = toSafeFractionDigits(minimumFractionDigits, 2);
+    const requestedMaximumFractionDigits = toSafeFractionDigits(
+      maximumFractionDigits,
+      requestedMinimumFractionDigits,
+    );
+    const safeMinimumFractionDigits = Math.min(requestedMinimumFractionDigits, requestedMaximumFractionDigits);
+    const safeMaximumFractionDigits = Math.max(safeMinimumFractionDigits, requestedMaximumFractionDigits);
+    intlOptions.minimumFractionDigits = safeMinimumFractionDigits;
+    intlOptions.maximumFractionDigits = safeMaximumFractionDigits;
+  }
 
   try {
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: ccy,
-      minimumFractionDigits: safeMinimumFractionDigits,
-      maximumFractionDigits: safeMaximumFractionDigits,
-    }).format(n);
+    return new Intl.NumberFormat(locale, intlOptions).format(n);
   } catch (_err) {
     // Some unusual currency codes / locale combos throw - fall back to USD.
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: DEFAULT_CURRENCY,
-      minimumFractionDigits: safeMinimumFractionDigits,
-      maximumFractionDigits: safeMaximumFractionDigits,
-    }).format(n);
+    return new Intl.NumberFormat('en-US', { ...intlOptions, currency: DEFAULT_CURRENCY }).format(n);
   }
 }
 
