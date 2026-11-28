@@ -1319,8 +1319,6 @@
   },
   "screens": {
     "creditPay": "Pagar con OxSteed Credit",
-    "creditRemainder": "Credit cubre {{credit}} · Resto por pagar {{remainder}}",
-    "creditRemainderCovered": "Credit cubre el pedido completo. No queda nada por pagar.",
     "creditScanCard": "Escanea tu tarjeta Credit",
     "creditPin": "PIN de la tarjeta",
     "creditReceipt": "Recibo de Credit",
@@ -1331,6 +1329,9 @@
     "creditCheckReceipt": "Consultar recibo",
     "creditReceiptPending": "El resultado aún no se conoce. Consulta el recibo antes de volver a pagar. Si sigue sin aparecer, muestra la referencia al personal.",
     "creditDeclined": "El pago con Credit fue rechazado. Revisa tu tarjeta y tu PIN o elige otra forma de pago.",
+    "creditBalanceCheckedAtPayment": "Tu saldo de Credit se verificará cuando pagues.",
+    "creditInsufficientFunds": "A tu saldo de Credit le faltan {{shortfall}} para este pedido. Agrega Credit o elige otro método de pago.",
+    "creditInsufficientFundsUnknown": "Tu saldo de Credit no cubre este pedido. Agrega Credit o elige otro método de pago.",
     "creditStorageUnavailable": "El quiosco no pudo guardar una referencia de recuperación. El pago con Credit no se inició.",
     "dataFreshness": "Actualización de datos",
     "fresh": "Actualizado",
