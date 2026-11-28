@@ -318,6 +318,38 @@ describeDb('Group 10 Slice F: handle changes', () => {
     expect(invoice.user_id).toBe(client);
   });
 
+  test('S-C1 (D-767): invoice numbers come from a sequence, so two invoices minted in the same millisecond cannot collide', async () => {
+    const { nextConsultingInvoiceNumber } = require('../utils/consultingInvoiceNumber');
+    const [first, second] = await Promise.all([nextConsultingInvoiceNumber(db), nextConsultingInvoiceNumber(db)]);
+    expect(first).toMatch(/^CONS-\d{6}$/);
+    expect(second).toMatch(/^CONS-\d{6}$/);
+    expect(first).not.toBe(second);
+    // End to end through the draft-invoice site: two approved
+    // additional fees in a row get distinct numbers.
+    const { client, consultant, sessionId } = await setup();
+    const numbers = [];
+    for (const amountCents of [15000, 20000]) {
+      const fee = await fileRequest(sessionId, consultant, {
+        requested_by_consultant: true,
+        request_type: 'additional_fee',
+        reason: 'An extra fee.',
+        amount_cents: amountCents,
+      });
+      const approved = await request(app)
+        .post(`/api/consulting/business-launch/sessions/${sessionId}/change-requests/${fee.body.changeRequest.id}/approve`)
+        .set(clientAuth(client))
+        .send();
+      expect(approved.status).toBe(200);
+      const { rows: [invoice] } = await db.query(
+        'SELECT invoice_number FROM consulting_invoices WHERE id = $1', [approved.body.changeRequest.invoiceId],
+      );
+      numbers.push(invoice.invoice_number);
+    }
+    expect(numbers).toHaveLength(2);
+    expect(new Set(numbers).size).toBe(2);
+    for (const number of numbers) expect(number).toMatch(/^CONS-\d{6}$/);
+  });
+
   test('531: approving a scope change re-opens an accepted milestone', async () => {
     const { client, consultant, sessionId, deliverable } = await setup();
     await db.query(

@@ -6,6 +6,7 @@ const { sendEmail } = require('../utils/email');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { sendNotification } = require('../services/notificationService');
 const { withTransaction } = require('../utils/transaction');
+const { nextConsultingInvoiceNumber } = require('../utils/consultingInvoiceNumber');
 const {
   loadSession,
   actorForSession,
@@ -364,7 +365,7 @@ function decideChangeRequest(decision) {
                VALUES (NULL, $1, $2, $3, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days',
                        'draft', $4, $5, NULL)
                RETURNING id`,
-              [session.user_id, `CONS-${Date.now()}`, request.amount_cents,
+              [session.user_id, await nextConsultingInvoiceNumber(client), request.amount_cents,
                 session.email, `${session.first_name || ''} ${session.last_name || ''}`.trim() || session.email],
             );
             invoiceId = invoice.id;

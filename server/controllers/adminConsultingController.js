@@ -5,6 +5,7 @@ const { sendEmail } = require('../utils/email');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { logAdminAction } = require('../services/auditService');
 const { csvRow } = require('../utils/csv');
+const { nextConsultingInvoiceNumber } = require('../utils/consultingInvoiceNumber');
 // Group 10 item 520: completing a session whose scheduled start is still
 // in the future is refused; the start instant is computed in the row's
 // stored zone.
@@ -190,7 +191,7 @@ exports.generateInvoice = async (req, res) => {
     }
 
     const p = purchase.rows[0];
-    const invoiceNumber = `CONS-${Date.now()}`;
+    const invoiceNumber = await nextConsultingInvoiceNumber(db);
 
     const result = await db.query(
       `INSERT INTO consulting_invoices (
@@ -969,7 +970,7 @@ exports.generateManualInvoice = async (req, res) => {
       }
     }
 
-    const invoiceNumber = `CONS-${Date.now()}`;
+    const invoiceNumber = await nextConsultingInvoiceNumber(db);
     const { rows: linkedUsers } = await db.query(
       'SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1)) AND is_active = TRUE AND deleted_at IS NULL LIMIT 1',
       [client_email]
