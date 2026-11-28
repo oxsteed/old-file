@@ -482,19 +482,34 @@ exports.deletePlannedNeed = async (req, res, next) => {
     const userId = req.user.id;
     const { id } = req.params;
 
-    const { rows: existing } = await db.query(
-      'SELECT status FROM planned_needs WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
-    if (!existing.length) throw new AppError('Planned need not found.', 404, 'not_found');
+    // G13-A1: a funded need carries a real Credit hold (G1-B1). Deleting
+    // the need must release the hold in the SAME transaction as the
+    // delete — otherwise the reservation stays active forever, the money
+    // stays unspendable, and the need it belonged to is gone. Releasing
+    // first means a release failure rolls the delete back: a failed
+    // release never deletes a funded need and orphans the hold.
+    const { releasePlannedNeedCreditHolds } = require('../services/plannedNeedCreditHoldService');
+    await withTransaction(db, async (client) => {
+      const { rows: existing } = await client.query(
+        'SELECT status FROM planned_needs WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [id, userId]
+      );
+      if (!existing.length) throw new AppError('Planned need not found.', 404, 'not_found');
 
-    if (!['planned', 'funding'].includes(existing[0].status)) {
-      throw new AppError('Only planned or funding needs can be deleted. Use cancel instead.', 400, 'invalid_state');
-    }
+      if (!['planned', 'funding'].includes(existing[0].status)) {
+        throw new AppError('Only planned or funding needs can be deleted. Use cancel instead.', 400, 'invalid_state');
+      }
 
-    // Delete with RETURNING to verify deletion
-    const delResult = await db.query('DELETE FROM planned_needs WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
-    if (!delResult.rows.length) throw new AppError('Delete failed unexpectedly', 500, 'delete_failed');
+      await releasePlannedNeedCreditHolds(client, {
+        needId: id,
+        reason: 'need_deleted',
+        actorUserId: userId,
+      });
+
+      // Delete with RETURNING to verify deletion
+      const delResult = await client.query('DELETE FROM planned_needs WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
+      if (!delResult.rows.length) throw new AppError('Delete failed unexpectedly', 500, 'delete_failed');
+    }, 'delete_planned_need');
     res.json({ message: 'Planned need deleted.' });
   } catch (err) {
     if (err instanceof AppError) return next(err);
