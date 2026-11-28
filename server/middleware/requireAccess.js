@@ -214,12 +214,18 @@ const requireInvestorCapability = requireCapability('investor.reporting', {
   // grant (or an administrator using the separate admin path) may pass.
   legacyAllowedFn: (req) => ['admin', 'super_admin'].includes(req.user?.role),
 });
-// Participation is always admission-controlled. Unlike reporting's legacy
-// rollout flag, an authenticated customer must have an explicit, active
-// investor.participate grant before creating applications or commitments.
-// Activation is deliberately tolerated here (same pattern as the helper
-// setup gate): three of investor.participate's declared activation
-// requirements (authority_verified, eligibility_verified,
+// Participation is always admission-controlled. An authenticated customer
+// must have an explicit, active investor.participate grant before
+// commitments (and other protected investment actions). Applications are
+// NOT gated here: they are the customer-safe admission flow — a customer
+// applies per opportunity, a reviewer approves with identity and
+// authority verification, and the grant itself is invite-only and
+// admin-issued (applicantMayRequest is false, so no generic request can
+// mint it). Gating applications on the grant would deadlock admission:
+// nobody could apply without a grant that applying is how you get
+// admitted to. Activation is deliberately tolerated here (same pattern
+// as the helper setup gate): three of investor.participate's declared
+// activation requirements (authority_verified, eligibility_verified,
 // agreement_accepted) are per-opportunity and can never be satisfied
 // from account facts (see activation.js), so a strict gate would refuse
 // every admitted investor. The invest controller rechecks identity,

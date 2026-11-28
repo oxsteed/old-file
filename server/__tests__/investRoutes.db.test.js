@@ -339,6 +339,41 @@ describeDatabase('invest routes', () => {
     expect(projection.invest).toEqual(expect.objectContaining({ investEnabled: true, investCommitmentsEnabled: true }));
   });
 
+  // S-D4 (D-766): the application routes carry no participation grant
+  // on purpose — they are the customer-safe admission flow — while the
+  // commitment routes refuse without it. Pin both halves: an approved
+  // application grants nothing by itself, the commit refuses 403
+  // access_required, and the same commit succeeds once the grant is
+  // admitted. (Gating applications on the grant would deadlock
+  // admission: the grant is invite-only and applicantMayRequest is
+  // false, so nobody could apply without a grant applying is how you
+  // get admitted to.)
+  test('S-D4: applications stay open without the grant, but commitments refuse without it', async () => {
+    const { userId } = await freshInvestor(20000);
+    const { opportunity, version } = await freshOpportunity(15000);
+    const application = await approvedApplication(userId, opportunity.id, version.id);
+    expect(application.status).toBe('approved');
+    const projection = await accessService.getProjection(userId);
+    expect(projection.personal).not.toContain('investor.participate');
+    const refused = await as(userId).postKey(`/api/invest/opportunities/${opportunity.id}/commitments`, `invest-sd4-${crypto.randomUUID()}`, {
+      applicationId: application.id, amountCents: 8000, agreementVersionId: version.id, riskAcknowledged: true,
+    });
+    expect(refused.status).toBe(403);
+    expect(refused.body.code).toBe('access_required');
+    expect(refused.body.capability).toBe('investor.participate');
+    const { rows } = await pool.query(
+      `SELECT id FROM investment_commitments WHERE user_id = $1 AND opportunity_id = $2`,
+      [userId, opportunity.id],
+    );
+    expect(rows).toHaveLength(0);
+    await admitInvestor(userId);
+    const committed = await as(userId).postKey(`/api/invest/opportunities/${opportunity.id}/commitments`, `invest-sd4-${crypto.randomUUID()}`, {
+      applicationId: application.id, amountCents: 8000, agreementVersionId: version.id, riskAcknowledged: true,
+    });
+    expect(committed.status).toBe(201);
+    expect(committed.body.commitment.status).toBe('reserved');
+  });
+
   test('directory lists published opportunities only, neutral sort, no score', async () => {
     const { opportunity } = await freshOpportunity(12000);
     const { opportunity: draft } = await freshDraftOpportunity();
