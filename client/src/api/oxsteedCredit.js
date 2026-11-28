@@ -6,6 +6,14 @@ export const getOxsteedCreditAccount = (params = {}) =>
 export const getOxsteedCreditConversionQuote = (quoteId) =>
   api.get(`/oxsteed-credit/conversion-quotes/${quoteId}`).then((response) => response.data?.quote || null);
 
+// Credit redesign (D-794): the customer creates their own conversion quote
+// from the live FX feed; the Convert drawer confirms against the returned
+// quote instead of asking for an admin-issued Quote ID.
+export const createOxsteedCreditConversionQuote = (payload, idempotencyKey) =>
+  api.post('/oxsteed-credit/conversion-quotes', payload, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  }).then((response) => response.data);
+
 export const convertOxsteedCredit = (payload, idempotencyKey) =>
   api.post('/oxsteed-credit/conversions', payload, {
     headers: { 'Idempotency-Key': idempotencyKey },

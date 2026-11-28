@@ -5,9 +5,13 @@ const {
   calculateQuotedTargetAmount,
   assertDailyConversionCapacity,
   createCurrencyQuote,
+  createLiveRateCurrencyQuote,
   getCurrencyQuote,
   convertCustomerCredit,
 } = require('../services/oxsteedCreditCurrencyConversionService');
+const { getFxQuote } = require('../services/fxRateProvider');
+
+jest.mock('../services/fxRateProvider', () => ({ getFxQuote: jest.fn() }));
 
 const CUSTOMER_ID = '11111111-1111-4111-8111-111111111111';
 const ADMIN_ID = '22222222-2222-4222-8222-222222222222';
@@ -336,4 +340,107 @@ test('concurrent quote creation loses the insert race and replays the winner (M2
   expect(result.replayed).toBe(true);
   expect(result.quote.customerId).toBe(CUSTOMER_ID);
   expect(result.quote.id).toBe('9');
+});
+
+// Credit redesign (D-794): the customer creates their own conversion quote
+// from the live FX feed, so the Convert drawer can show the rate, fee,
+// expiry, and destination amount and confirm against the quote.
+test('creates a self-serve quote from the live rate', async () => {
+  getFxQuote.mockClear();
+  getFxQuote.mockResolvedValue({
+    rateNumerator: '9',
+    rateDenominator: '10',
+    provider: 'frankfurter',
+    quotedAt: '2026-11-28T12:00:00.000Z',
+  });
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ is_enabled: true }] })
+    .mockResolvedValueOnce({ rows: [] }) // Phase 4: operator freeze check (oxsteed_credit_rail_freezes)
+    .mockResolvedValueOnce({ rows: [{
+      id: 11,
+      customer_id: CUSTOMER_ID,
+      source_currency_code: 'USD',
+      target_currency_code: 'EUR',
+      source_amount_minor_units: 100,
+      target_amount_minor_units: 90,
+      fee_amount_minor_units: 0,
+      rate_numerator: '9',
+      rate_denominator: '10',
+      rounding_mode: 'half_up',
+      provider: 'frankfurter',
+      provider_quote_reference: 'frankfurter:USD:EUR:2026-11-28T12:00:00.000Z',
+      status: 'open',
+      expires_at: new Date(Date.now() + 900000).toISOString(),
+      reason: 'customer self-serve conversion quote',
+      metadata: { selfServe: true },
+      created_at: new Date().toISOString(),
+    }] });
+
+  const result = await createLiveRateCurrencyQuote({
+    sourceCurrency: 'USD',
+    targetCurrency: 'EUR',
+    sourceAmountCents: 100,
+    customerId: CUSTOMER_ID,
+    reason: 'customer self-serve conversion quote',
+    actor: CUSTOMER_ID,
+    actorUserId: CUSTOMER_ID,
+    idempotencyKey: 'quote-self-serve-1',
+  });
+
+  expect(getFxQuote).toHaveBeenCalledWith('USD', 'EUR');
+  expect(result).toMatchObject({
+    replayed: false,
+    quote: {
+      id: '11',
+      status: 'open',
+      sourceCurrencyCode: 'USD',
+      targetCurrencyCode: 'EUR',
+      sourceAmountMinorUnits: 100,
+      targetAmountMinorUnits: 90,
+      feeAmountMinorUnits: 0,
+    },
+  });
+  expect(mockQuery.mock.calls.some(([sql]) => sql.includes('INSERT INTO oxsteed_credit_currency_quotes'))).toBe(true);
+});
+
+test('a failed live rate fails closed with no quote row', async () => {
+  getFxQuote.mockClear();
+  getFxQuote.mockRejectedValue(Object.assign(new Error('FX unavailable'), { code: 'fx_rate_unavailable' }));
+
+  await expect(createLiveRateCurrencyQuote({
+    sourceCurrency: 'USD',
+    targetCurrency: 'EUR',
+    sourceAmountCents: 100,
+    customerId: CUSTOMER_ID,
+    reason: 'customer self-serve conversion quote',
+    actor: CUSTOMER_ID,
+    actorUserId: CUSTOMER_ID,
+    idempotencyKey: 'quote-self-serve-2',
+  })).rejects.toMatchObject({ code: 'fx_rate_unavailable' });
+
+  expect(getFxQuote).toHaveBeenCalledWith('USD', 'EUR');
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('a self-serve quote for one currency rejects before any DB call', async () => {
+  getFxQuote.mockReset();
+  // The live provider itself refuses a same-currency pair, so the failure
+  // surfaces from the FX call and no quote row is ever attempted.
+  getFxQuote.mockRejectedValue(Object.assign(new Error('same currency'), { code: 'fx_invalid_currency' }));
+  await expect(createLiveRateCurrencyQuote({
+    sourceCurrency: 'USD',
+    targetCurrency: 'USD',
+    sourceAmountCents: 100,
+    customerId: CUSTOMER_ID,
+    reason: 'customer self-serve conversion quote',
+    actor: CUSTOMER_ID,
+    actorUserId: CUSTOMER_ID,
+    idempotencyKey: 'quote-self-serve-3',
+  })).rejects.toMatchObject({ code: 'fx_invalid_currency' });
+
+  expect(getFxQuote).toHaveBeenCalledWith('USD', 'USD');
+  expect(mockQuery).not.toHaveBeenCalled();
 });

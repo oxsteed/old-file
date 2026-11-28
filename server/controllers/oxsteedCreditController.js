@@ -94,6 +94,7 @@ const {
 } = require('../services/oxsteedCreditPartnerLedgerService');
 const {
   calculateQuotedTargetAmount,
+  createLiveRateCurrencyQuote,
   getCurrencyQuote,
   convertCustomerCredit,
 } = require('../services/oxsteedCreditCurrencyConversionService');
@@ -2823,6 +2824,40 @@ async function getMyCurrencyQuote(req, res, next) {
   }
 }
 
+// Credit redesign (D-794): a customer creates their own conversion quote
+// from the live FX feed — rate, fee, expiry, and destination amount are
+// priced at request time, so the drawer can show the terms and confirm
+// against this quote instead of asking the customer to paste an
+// admin-issued Quote ID. Admin-issued quotes stay available as an
+// override; this path never goes through the dual-approval pending-action
+// flow, because the quote binds only the caller's own balance. The rail
+// gate runs inside createCurrencyQuote, so a paused rail refuses here
+// before any quote row exists.
+async function createMyCurrencyQuote(req, res, next) {
+  try {
+    if (req.user.role !== 'customer') {
+      throw new AppError('Only customer accounts can create a conversion quote', 403, 'credit_conversion_customer_only');
+    }
+    const result = await createLiveRateCurrencyQuote({
+      sourceCurrency: req.body?.sourceCurrencyCode || req.body?.source_currency_code,
+      targetCurrency: req.body?.targetCurrencyCode || req.body?.target_currency_code,
+      sourceAmountCents: req.body?.sourceAmountMinorUnits ?? req.body?.source_amount_minor_units,
+      customerId: req.user.id,
+      reason: 'customer self-serve conversion quote',
+      actor: req.user.id,
+      actorUserId: req.user.id,
+      idempotencyKey: getIdempotencyKey(req),
+      expiresAt: req.body?.expiresAt || req.body?.expires_at,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+      metadata: { ...(req.body?.metadata || {}), selfServe: true },
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getAdminCurrencyQuote(req, res, next) {
   try {
     res.json(await getCurrencyQuote({ quoteId: req.params.quoteId }));
@@ -2985,6 +3020,7 @@ module.exports = {
   getAdminPartnerLedger,
   recordAdminPartnerFunding,
   createAdminCurrencyQuote,
+  createMyCurrencyQuote,
   getMyCurrencyQuote,
   getAdminCurrencyQuote,
   listAdminCreditReconciliationRuns,

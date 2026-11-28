@@ -29,6 +29,7 @@ router.get('/account', controller.getMyAccount);
 // Review P2-7-F07: money-initiating credit mutations honor admin checkout
 // restrictions, like the other checkout surfaces.
 router.post('/conversions', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.convertMyCredit);
+router.post('/conversion-quotes', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.createMyCurrencyQuote);
 router.get('/conversion-quotes/:quoteId', controller.getMyCurrencyQuote);
 router.get('/limits', controller.getMyCreditLimits);
 router.get('/accounts', controller.getMyAccounts);
