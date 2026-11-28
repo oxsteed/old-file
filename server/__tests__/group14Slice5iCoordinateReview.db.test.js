@@ -327,4 +327,33 @@ describeDb('Group 14 Slice 5i: coordinate review (741-745)', () => {
     await postAs(auditor, '/api/audit-requests/invitations/accept',
       { invitationId: invited.id, email: auditor.email, code }).expect(400);
   });
+
+  // 742: audit scope review.
+  test('742: the auditor acknowledges the scope; owner/admin cannot review it', async () => {
+    const created = await createRequest();
+    // No grant yet: the auditor cannot even see the request.
+    await postAs(auditor, `/api/audit-requests/${created.id}/scope-review`, { decision: 'acknowledged' }).expect(404);
+    await grantShare(created.id, auditor.id);
+    // Validation first.
+    await postAs(auditor, `/api/audit-requests/${created.id}/scope-review`, { decision: 'maybe' }).expect(400);
+    await postAs(auditor, `/api/audit-requests/${created.id}/scope-review`, { decision: 'acknowledged', note: 'x'.repeat(1001) }).expect(400);
+    const reviewed = await postAs(auditor, `/api/audit-requests/${created.id}/scope-review`, { decision: 'needs_clarification', note: 'Which months does September close cover?' }).expect(201);
+    expect(reviewed.body.scopeReview.decision).toBe('needs_clarification');
+    expect(reviewed.body.scopeReview.reviewerId).toBe(auditor.id);
+    expect(reviewed.body.scopeReview.note).toBe('Which months does September close cover?');
+    // The owner and the admin cannot review the scope: it is the
+    // reviewer's acknowledgment, not theirs.
+    await postAs(owner, `/api/audit-requests/${created.id}/scope-review`, { decision: 'acknowledged' }).expect(403);
+    await postAs(admin, `/api/audit-requests/${created.id}/scope-review`, { decision: 'acknowledged' }).expect(403);
+    await postAs(stranger, `/api/audit-requests/${created.id}/scope-review`, { decision: 'acknowledged' }).expect(404);
+    // A second review appends; the history reads oldest first.
+    await postAs(auditor, `/api/audit-requests/${created.id}/scope-review`, { decision: 'acknowledged' }).expect(201);
+    const history = await getAs(owner, `/api/audit-requests/${created.id}/scope-review`).expect(200);
+    expect(history.body.scopeReviews.map((item) => item.decision)).toEqual(['needs_clarification', 'acknowledged']);
+    // A closed request refuses new reviews, but the history stays readable.
+    await patchAs(owner, `/api/audit-requests/${created.id}/status`, { status: 'closed' }).expect(200);
+    await postAs(auditor, `/api/audit-requests/${created.id}/scope-review`, { decision: 'acknowledged' }).expect(409);
+    const afterClose = await getAs(auditor, `/api/audit-requests/${created.id}/scope-review`).expect(200);
+    expect(afterClose.body.scopeReviews).toHaveLength(2);
+  });
 });

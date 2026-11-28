@@ -225,6 +225,17 @@ function receiptView(row) {
   };
 }
 
+function scopeReviewView(row) {
+  return {
+    id: row.id,
+    auditRequestId: row.audit_request_id,
+    reviewerId: row.reviewer_id,
+    decision: row.decision,
+    note: row.note,
+    createdAt: row.created_at,
+  };
+}
+
 const REQUEST_COUNTS = `
   (SELECT COUNT(*)::int FROM audit_request_evidence e WHERE e.audit_request_id = r.id) AS evidence_count,
   (SELECT COUNT(*)::int FROM audit_request_evidence e WHERE e.audit_request_id = r.id AND e.status = 'approved') AS approved_count,
@@ -1003,6 +1014,59 @@ function createAuditRequestsRouter({ storage = defaultStorage, notifyStaff = not
         [request.id],
       );
       res.json({ receipts: rows.map(receiptView) });
+    } catch (error) { next(error); }
+  });
+
+  // ── 742: audit scope review ──────────────────────────────────────
+  // POST /:id/scope-review — the reviewing auditor records an explicit
+  // acknowledgment of the request scope. Auditor with an active grant
+  // ONLY: the scope review is the reviewer's word, not the owner's.
+  // Append-only; the latest row is the current position. A closed
+  // request refuses new reviews.
+  router.post('/:id/scope-review', creditMutationLimiter, async (req, res, next) => {
+    try {
+      const { request, access } = await loadRequestForViewer(req.params.id, req.user);
+      if (access !== 'auditor') {
+        throw new AppError('Only the reviewing auditor can review the scope', 403, 'audit_scope_review_forbidden');
+      }
+      if (request.status === 'closed') {
+        throw new AppError('A closed audit request cannot take a scope review', 409, 'audit_request_closed');
+      }
+      const decision = String(req.body?.decision || '');
+      if (decision !== 'acknowledged' && decision !== 'needs_clarification') {
+        throw new AppError('Unsupported scope decision', 400, 'audit_scope_review_decision_invalid');
+      }
+      let note = null;
+      const rawNote = req.body?.note;
+      if (rawNote !== undefined && rawNote !== null && String(rawNote).trim() !== '') {
+        if (typeof rawNote !== 'string') {
+          throw new AppError('Invalid note', 400, 'audit_scope_review_note_invalid');
+        }
+        if (rawNote.length > NOTE_MAX_LENGTH) {
+          throw new AppError('The note is too long', 400, 'audit_scope_review_note_too_long');
+        }
+        note = sanitizeText(rawNote, NOTE_MAX_LENGTH) || null;
+      }
+      const { rows: [row] } = await pool.query(
+        `INSERT INTO audit_request_scope_reviews (audit_request_id, reviewer_id, decision, note)
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        [request.id, req.user.id, decision, note],
+      );
+      res.status(201).json({ scopeReview: scopeReviewView(row) });
+    } catch (error) { next(error); }
+  });
+
+  // GET /:id/scope-review — any viewer of the request reads the review
+  // history, oldest first.
+  router.get('/:id/scope-review', async (req, res, next) => {
+    try {
+      const { request } = await loadRequestForViewer(req.params.id, req.user);
+      const { rows } = await pool.query(
+        `SELECT * FROM audit_request_scope_reviews
+          WHERE audit_request_id = $1 ORDER BY created_at ASC, id ASC`,
+        [request.id],
+      );
+      res.json({ scopeReviews: rows.map(scopeReviewView) });
     } catch (error) { next(error); }
   });
 
