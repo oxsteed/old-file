@@ -514,6 +514,10 @@ exports.sendNotification = async ({
       'invest_reporting_audience_granted', 'invest_reporting_audience_changed',
       // 737 (D-780): removal emails the same way as the other audience notices.
       'invest_reporting_audience_removed',
+      // 745 (D-788): the audit-review completion notice emails the same
+      // way as the audience notices, so an offline requester or auditor
+      // learns the review is done without reopening the app.
+      'audit_review_completed',
       'credit_identity_verification_requested', 'credit_identity_verification_approved',
       'credit_identity_verification_rejected', 'credit_sanctions_review_required',
       'credit_sanctions_cleared', 'credit_sanctions_confirmed',

@@ -8,6 +8,15 @@
  *
  * request -> approved evidence -> time-limited share -> follow-up -> receipt.
  *
+ * Group 14 Slice 5i (741-745, D-784..D-788) coordinates the review on
+ * top of that workflow: accountant invitation (a hashed one-time code;
+ * accepting with the invited account mints the 718 share grant),
+ * audit scope review (the auditor's explicit acknowledgment),
+ * record correction request (auditor asks, owner/admin resolves),
+ * internal annotation thread (owner/admin only — auditors get 403),
+ * review completion notice (closing notifies the requester and every
+ * auditor holding an active grant, after the close commits).
+ *
  * Group 14 is READ-ONLY (D-408): nothing here moves money. These endpoints
  * only insert/read coordination rows; they never mutate amounts, journals,
  * holds, transactions, or statement documents.
@@ -42,6 +51,7 @@ const defaultStorage = require('../utils/statementStorage');
 const { notifySupportStaff } = require('../services/supportNotificationService');
 const { sendEmail } = require('../utils/email');
 const { withTransaction } = require('../utils/transaction');
+const { notifyAuditReviewCompleted } = require('../services/auditReviewNotifications');
 
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -497,6 +507,26 @@ function createAuditRequestsRouter({ storage = defaultStorage, notifyStaff = not
         `UPDATE audit_requests SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
         [request.id, status],
       );
+      if (row.status === 'closed') {
+        // 745 (D-788): the close commits here (single-statement update),
+        // so the notice fires after the commit, never inside it. The
+        // recipients are the requester plus every auditor holding an
+        // active grant; a revoked or expired grant hears nothing. The
+        // helper never throws, so a notice failure cannot roll back
+        // the close.
+        const { rows: grantRows } = await pool.query(
+          `SELECT DISTINCT auditor_user_id FROM audit_request_shares
+            WHERE audit_request_id = $1 AND revoked_at IS NULL AND expires_at > NOW()`,
+          [row.id],
+        );
+        const recipients = new Set([
+          String(row.requested_by),
+          ...grantRows.map((grant) => String(grant.auditor_user_id)),
+        ]);
+        for (const userId of recipients) {
+          await notifyAuditReviewCompleted({ userId, auditRequestId: row.id, title: row.title });
+        }
+      }
       res.json({ request: requestView(row, { ...countsView(request) }) });
     } catch (error) { next(error); }
   });

@@ -437,4 +437,49 @@ describeDb('Group 14 Slice 5i: coordinate review (741-745)', () => {
     const afterClose = await getAs(owner, `/api/audit-requests/${created.id}/annotations`).expect(200);
     expect(afterClose.body.annotations).toHaveLength(3);
   });
+
+  // 745: review completion notice.
+  test('745: closing notifies the requester and the active-grant auditors', async () => {
+    const created = await createRequest();
+    const beforeOwner = await countNotifications(owner.id, 'audit_review_completed');
+    const beforeAuditor = await countNotifications(auditor.id, 'audit_review_completed');
+    const beforeStranger = await countNotifications(stranger.id, 'audit_review_completed');
+    await grantShare(created.id, auditor.id);
+    // A revoked grant hears nothing: grant the stranger, then revoke.
+    const strangerShare = await grantShare(created.id, stranger.id);
+    await postAs(owner, `/api/audit-requests/${created.id}/shares/${strangerShare.id}/revoke`).expect(200);
+    await patchAs(owner, `/api/audit-requests/${created.id}/status`, { status: 'in_review' }).expect(200);
+    // Moving to review is not a completion: nobody is notified.
+    expect(await countNotifications(owner.id, 'audit_review_completed')).toBe(beforeOwner);
+    await patchAs(admin, `/api/audit-requests/${created.id}/status`, { status: 'closed' }).expect(200);
+    expect(await countNotifications(owner.id, 'audit_review_completed')).toBe(beforeOwner + 1);
+    expect(await countNotifications(auditor.id, 'audit_review_completed')).toBe(beforeAuditor + 1);
+    expect(await countNotifications(stranger.id, 'audit_review_completed')).toBe(beforeStranger);
+    const { rows: [note] } = await pool.query(
+      `SELECT title, body, data FROM notifications
+        WHERE user_id = $1 AND type = 'audit_review_completed' ORDER BY created_at DESC LIMIT 1`,
+      [owner.id],
+    );
+    expect(note.title).toBeTruthy();
+    expect(note.title.length).toBeGreaterThan(0);
+    expect(note.data.auditRequestId).toBe(created.id);
+  });
+
+  test('745: the new type sends through the real send path with a non-empty title', async () => {
+    const { sendNotification } = require('../services/notificationService');
+    const result = await sendNotification({
+      userId: admin.id,
+      type: 'audit_review_completed',
+      data: { auditRequestId: crypto.randomUUID(), title: 'Direct send proof' },
+      sequence: `g14i-direct-${runId}-${crypto.randomUUID()}`,
+    });
+    expect(result.success).toBe(true);
+    const { rows: [note] } = await pool.query(
+      `SELECT title FROM notifications
+        WHERE user_id = $1 AND type = 'audit_review_completed' ORDER BY created_at DESC LIMIT 1`,
+      [admin.id],
+    );
+    expect(note.title).toBeTruthy();
+    expect(note.title.length).toBeGreaterThan(0);
+  });
 });
