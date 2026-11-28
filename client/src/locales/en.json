@@ -26565,6 +26565,14 @@
       },
       "intro": "Opportunities from eligible entities, funded with eligible OxSteed Credit. Opportunities are listed in publication or closing order. OxSteed does not rank or recommend investments.",
       "myInvestments": "My investments",
+      "participation": {
+        "creditOnly": "Contributions use eligible OxSteed Credit only. No card, bank, or cash payment is used.",
+        "gateOff": "Commitments are not open yet. They open only for the approved pilot, after counsel and the settlement partner approve. You can still review opportunities and apply.",
+        "gateOn": "Commitments are open for approved participants. You need an approved application before you can commit.",
+        "pending": "A commitment stays pending until the opportunity closes. Closing is all-or-nothing: the target, the deadline, and the approved closing conditions must all be met.",
+        "structure": "Each opportunity is a revenue-share investment in a United States entity.",
+        "title": "How participation works"
+      },
       "requestAccess": "Request investor access",
       "sort": {
         "closingDate": "Closing date",
@@ -26705,6 +26713,11 @@
     "header": {
       "mode": "Investor mode",
       "title": "Investor Dashboard"
+    },
+    "reportingOnly": {
+      "action": "Explore opportunities",
+      "copy": "You are viewing in reporting-only mode. You can review reports for the entities you are authorized to see, but you cannot make investment commitments. To participate, explore opportunities and request access.",
+      "title": "Reporting-only mode"
     },
     "periods": {
       "sevenDays": "Last 7 Days",

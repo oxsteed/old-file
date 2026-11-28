@@ -26565,6 +26565,14 @@
       },
       "intro": "Oportunidades de entidades elegibles, financiadas con Crédito OxSteed elegible. Se muestran por fecha de publicación o de cierre. OxSteed no clasifica ni recomienda inversiones.",
       "myInvestments": "Mis inversiones",
+      "participation": {
+        "creditOnly": "Las contribuciones usan solo Crédito OxSteed elegible. No se usa tarjeta, banco ni efectivo.",
+        "gateOff": "Los compromisos aún no están abiertos. Se abren solo para el piloto aprobado, después de que el asesor legal y el socio de liquidación lo aprueben. Aún puedes revisar las oportunidades y solicitar.",
+        "gateOn": "Los compromisos están abiertos para los participantes aprobados. Necesitas una solicitud aprobada antes de poder comprometerte.",
+        "pending": "Un compromiso se mantiene pendiente hasta que la oportunidad se cierra. El cierre es de todo o nada: el objetivo, la fecha límite y las condiciones de cierre aprobadas deben cumplirse.",
+        "structure": "Cada oportunidad es una inversión de participación en los ingresos en una entidad de los Estados Unidos.",
+        "title": "Cómo funciona la participación"
+      },
       "requestAccess": "Solicitar acceso como inversionista",
       "sort": {
         "closingDate": "Fecha de cierre",
@@ -26705,6 +26713,11 @@
     "header": {
       "mode": "Modo inversionista",
       "title": "Panel de inversionista"
+    },
+    "reportingOnly": {
+      "action": "Explorar oportunidades",
+      "copy": "Estás viendo en modo de solo informes. Puedes revisar los informes de las entidades que tienes autorizado ver, pero no puedes hacer compromisos de inversión. Para participar, explora las oportunidades y solicita acceso.",
+      "title": "Modo de solo informes"
     },
     "periods": {
       "sevenDays": "Últimos 7 días",

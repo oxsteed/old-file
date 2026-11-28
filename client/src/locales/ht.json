@@ -26565,6 +26565,14 @@
       },
       "intro": "Opòtinite antite ki kalifye yo, finanse ak Kredi OxSteed ki kalifye. Yo klase pa dat piblikasyon oswa dat fèmti. OxSteed pa klase ni rekòmande envestisman.",
       "myInvestments": "Envestisman mwen yo",
+      "participation": {
+        "creditOnly": "Kontribisyon yo sèvi ak Kredi OxSteed ki elijib sèlman. Yo pa sèvi ak kat, bank, oswa lajan kach.",
+        "gateOff": "Angajman yo poko louvri. Yo louvri sèlman pou pilòt ki apwouve a, apre konseye legal la ak patnè règleman an apwouve. Ou ka toujou revize opòtinite yo epi aplike.",
+        "gateOn": "Angajman yo louvri pou patisipan ki apwouve yo. Ou bezwen yon aplikasyon ki apwouve anvan ou ka angaje ou.",
+        "pending": "Yon angajman rete an atant jiskaske opòtinite a fèmen. Fèmti a se tout oswa anyen: objektif la, dat limit la, ak kondisyon fèmti yo te apwouve yo dwe satisfè.",
+        "structure": "Chak opòtinite se yon envestisman pataj revni nan yon antite Ozetazini.",
+        "title": "Kijan patisipasyon an fonksyone"
+      },
       "requestAccess": "Mande aksè envestisè",
       "sort": {
         "closingDate": "Dat fèmti",
@@ -26705,6 +26713,11 @@
     "header": {
       "mode": "Mòd envestisè",
       "title": "Tablo envestisè"
+    },
+    "reportingOnly": {
+      "action": "Eksplore opòtinite yo",
+      "copy": "W ap gade nan mòd rapò sèlman. Ou ka revize rapò pou antite ou gen otorizasyon pou wè yo, men ou pa ka pran angajman envestisman. Pou patisipe, eksplore opòtinite yo epi mande aksè.",
+      "title": "Mòd rapò sèlman"
     },
     "periods": {
       "sevenDays": "7 jou dènye jou",

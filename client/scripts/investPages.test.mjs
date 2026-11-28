@@ -544,3 +544,91 @@ test('investor reporting has one canonical destination: /investments', async () 
   const nav = await read('src/utils/personaNavigation.js');
   assert.match(nav, /'investor-reporting': \[\{ id: 'persona-investments', to: '\/investments'/);
 });
+
+// ── Slice 5g: separate participation (731-735) ───────────────────────────
+
+test('Slice 5g (731): reporting-only banner names the mode on the investor dashboard', async () => {
+  const src = await read('src/pages/InvestorDashboardPage.jsx');
+  assert.match(src, /investorDashboard\.reportingOnly\.title/);
+  assert.match(src, /investorDashboard\.reportingOnly\.copy/);
+  assert.match(src, /investorDashboard\.reportingOnly\.action/);
+  // Shown only to a reporting viewer without investor.participate, never
+  // to a participant or a legacy admin.
+  assert.match(src, /investor\.participate/);
+  assert.match(src, /!canParticipate/);
+  assert.match(src, /!legacyInvestor/);
+  assert.match(src, /to="\/invest"/);
+  for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const catalog = JSON.parse(await read(`src/locales/${lang}.json`));
+    for (const key of ['title', 'copy', 'action']) {
+      assert.equal(typeof catalog.investorDashboard.reportingOnly[key], 'string', `${lang} reportingOnly.${key}`);
+    }
+    assert.doesNotMatch(JSON.stringify(catalog.investorDashboard.reportingOnly), /—/, `${lang} em dash`);
+  }
+});
+
+test('Slice 5g (732): directory explains planned participation, with a gate-conditional line', async () => {
+  const src = await read('src/pages/invest/InvestDirectoryPage.jsx');
+  for (const key of [
+    'invest.directory.participation.title',
+    'invest.directory.participation.creditOnly',
+    'invest.directory.participation.structure',
+    'invest.directory.participation.pending',
+    'invest.directory.participation.gateOn',
+    'invest.directory.participation.gateOff',
+  ]) {
+    assert.ok(src.includes(key), key);
+  }
+  // The gate line follows the live commitment gate, never a hard-coded state.
+  assert.match(src, /access\.investCommitmentsEnabled \? t\('invest\.directory\.participation\.gateOn'\) : t\('invest\.directory\.participation\.gateOff'\)/);
+  for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const catalog = JSON.parse(await read(`src/locales/${lang}.json`));
+    for (const key of ['title', 'creditOnly', 'structure', 'pending', 'gateOn', 'gateOff']) {
+      assert.equal(typeof catalog.invest.directory.participation[key], 'string', `${lang} participation.${key}`);
+    }
+    assert.doesNotMatch(JSON.stringify(catalog.invest.directory.participation), /—/, `${lang} em dash`);
+  }
+});
+
+test('Slice 5g (733): issuer identity display renders the entity on the opportunity and the directory card', async () => {
+  const detail = await read('src/pages/invest/InvestOpportunityPage.jsx');
+  assert.match(detail, /opportunity\.entityName/);
+  assert.match(detail, /opportunity\.entityActivity/);
+  assert.match(detail, /opportunity\.entityLocation/);
+  const directory = await read('src/pages/invest/InvestDirectoryPage.jsx');
+  assert.match(directory, /opportunity\.entityName/);
+  // The server detail already pins the issuer fields (investRoutes.db.test.js
+  // asserts the listed opportunity carries entityName); a missing business
+  // row falls back to a labelled unknown-entity string, never a blank.
+  assert.match(directory, /invest\.directory\.entityUnknown/);
+  const en = JSON.parse(await read('src/locales/en.json'));
+  assert.equal(typeof en.invest.directory.entityUnknown, 'string');
+});
+
+test('Slice 5g (734): credit-only contribution policy notice is acknowledged at application and repeated at commit', async () => {
+  const application = await read('src/pages/invest/InvestApplicationPage.jsx');
+  assert.match(application, /creditOnlyAck/);
+  assert.match(application, /invest\.application\.sections\.eligibility\.creditOnlyAck/);
+  const commit = await read('src/pages/invest/InvestCommitPage.jsx');
+  assert.match(commit, /invest\.commit\.amount\.hint/);
+  assert.match(commit, /invest\.commit\.eligibleBalance/);
+  for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const catalog = JSON.parse(await read(`src/locales/${lang}.json`));
+    assert.equal(typeof catalog.invest.application.sections.eligibility.creditOnlyAck, 'string', `${lang} creditOnlyAck`);
+    assert.equal(typeof catalog.invest.commit.amount.hint, 'string', `${lang} commit amount hint`);
+    assert.doesNotMatch(catalog.invest.application.sections.eligibility.creditOnlyAck, /—/, `${lang} em dash`);
+  }
+});
+
+test('Slice 5g (735): disabled commitment state shows the gate-off notice and disables both commit buttons', async () => {
+  const src = await read('src/pages/invest/InvestCommitPage.jsx');
+  assert.match(src, /invest\.commit\.gateOff/);
+  assert.match(src, /\{!access\.investCommitmentsEnabled \? \(/);
+  // Review button disabled while the gate is off; confirm button disabled
+  // while the gate is off (as well as while confirming or incomplete).
+  assert.match(src, /disabled=\{!access\.investCommitmentsEnabled\}/);
+  assert.match(src, /disabled=\{confirming \|\| !access\.investCommitmentsEnabled \|\| missingReviewRows\.length > 0\}/);
+  // The server gate is already pinned (investRoutes.db.test.js returns 503
+  // invest_commitments_disabled with the flag off); the page only renders
+  // the disabled state, it never substitutes its own gate for the server's.
+});

@@ -62,6 +62,16 @@ export default function InvestDirectoryPage() {
 
         {access.investEnabled ? (
           <div className="mt-6 flex flex-col gap-6">
+            {/* Slice 5g, 732: planned participation explanation. */}
+            <section className="rounded-2xl border border-gray-700 bg-gray-900 p-5">
+              <h2 className="text-base font-semibold text-white">{t('invest.directory.participation.title')}</h2>
+              <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-sm leading-relaxed text-gray-300">
+                <li>{t('invest.directory.participation.creditOnly')}</li>
+                <li>{t('invest.directory.participation.structure')}</li>
+                <li>{t('invest.directory.participation.pending')}</li>
+                <li>{access.investCommitmentsEnabled ? t('invest.directory.participation.gateOn') : t('invest.directory.participation.gateOff')}</li>
+              </ul>
+            </section>
             <div className="flex flex-wrap items-center gap-3">
               <label htmlFor="invest-sort" className="text-sm font-medium text-gray-200">
                 {t('invest.directory.sort.label')}
