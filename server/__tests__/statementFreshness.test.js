@@ -5,7 +5,7 @@
 // clock (latestClosedMonthPeriod + issuanceGraceElapsed), so the boundary
 // cases are pinned here against fixed reference dates.
 
-const { assessDatasetFreshness } = require('../services/statementFreshness');
+const { assessDatasetFreshness, findMissingMonths } = require('../services/statementFreshness');
 
 describe('assessDatasetFreshness', () => {
   test('no document yet is none, never a warning', () => {
@@ -51,5 +51,33 @@ describe('assessDatasetFreshness', () => {
     expect(before.state).toBe('pending');
     const at = assessDatasetFreshness('2026-09', new Date('2026-11-04T00:00:00.000Z'));
     expect(at.state).toBe('stale');
+  });
+});
+
+describe('findMissingMonths', () => {
+  test('a hole inside the issued range is listed', () => {
+    expect(findMissingMonths(['2026-05', '2026-07'])).toEqual(['2026-06']);
+    expect(findMissingMonths(['2026-05', '2026-08'])).toEqual(['2026-06', '2026-07']);
+  });
+
+  test('consecutive months and a single month have no gaps', () => {
+    expect(findMissingMonths(['2026-06', '2026-07'])).toEqual([]);
+    expect(findMissingMonths(['2026-07'])).toEqual([]);
+    expect(findMissingMonths([])).toEqual([]);
+  });
+
+  test('year rollover is walked month by month', () => {
+    expect(findMissingMonths(['2025-12', '2026-02'])).toEqual(['2026-01']);
+    expect(findMissingMonths(['2025-11', '2026-02'])).toEqual(['2025-12', '2026-01']);
+  });
+
+  test('unsorted input, duplicates, and pg Date inputs are normalized', () => {
+    expect(findMissingMonths(['2026-07', '2026-05', '2026-05'])).toEqual(['2026-06']);
+    expect(findMissingMonths([
+      new Date('2026-05-01T00:00:00.000Z'),
+      new Date('2026-07-01T00:00:00.000Z'),
+    ])).toEqual(['2026-06']);
+    expect(findMissingMonths(['2026-05-01', '2026-07-31'])).toEqual(['2026-06']);
+    expect(findMissingMonths(['soon', null, '2026-05', '2026-07'])).toEqual(['2026-06']);
   });
 });

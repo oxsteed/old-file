@@ -75,6 +75,11 @@ test('freshness i18n keys exist in all five credit catalogs', async () => {
     'statements.center.freshnessStale',
     'archive.freshnessPending',
     'archive.freshnessStale',
+    // D-748: missing-data warning copy.
+    'archive.missingMonths',
+    'archive.missingMonthsMore',
+    'archive.emptyFiltered',
+    'archive.emptyFilteredBody',
     'statements.dataAsOf',
   ];
   for (const language of ['en', 'es', 'fr', 'ht', 'ar']) {
@@ -100,6 +105,12 @@ test('the three report views render the freshness they were given', async () => 
   assert.match(archive, /archive\.freshness\?\.state === 'stale'/);
   assert.match(archive, /archive\.freshness\?\.state === 'pending'/);
   assert.match(archive, /freshness: result\?\.freshness/);
+  // D-748: the gap banner names the missing months (at most three, then a
+  // count), and a filtered empty shows its own message, not the generic one.
+  assert.match(archive, /archive\.missingMonthsTotal/);
+  assert.match(archive, /missingMonthsMore/);
+  assert.match(archive, /hasActiveFilters \? 'emptyFiltered' : 'empty'/);
+  assert.match(archive, /missingMonths: Array\.isArray\(result\?\.missingMonths\)/);
 
   const credit = await readFile(
     new URL('../src/pages/food/CreditStatementsPage.jsx', import.meta.url), 'utf8');

@@ -156,15 +156,19 @@ let storage;
 let userA;
 let userB;
 let userC;
+let userD;
 let walletAUsd;
 let walletAEur;
 let walletBUsd;
 let walletCUsd;
+let walletDUsd;
 let docAJune;
 let docAJuly;
 let docAEurJuly;
 let docBJuly;
 let docCJuly;
+let docDMay;
+let docDJuly;
 let snapshotAJuly;
 let originalPdf;
 let renditionPdf;
@@ -181,10 +185,12 @@ beforeAll(async () => {
   userA = await createUser();
   userB = await createUser();
   userC = await createUser();
+  userD = await createUser();
   walletAUsd = await createOxsteedAccount(userA, 'USD');
   walletAEur = await createOxsteedAccount(userA, 'EUR');
   walletBUsd = await createOxsteedAccount(userB, 'USD');
   walletCUsd = await createOxsteedAccount(userC, 'USD');
+  walletDUsd = await createOxsteedAccount(userD, 'USD');
 
   docAJune = await insertDocument({
     customerId: userA, product: 'oxsteed', accountId: walletAUsd, currency: 'USD',
@@ -200,6 +206,15 @@ beforeAll(async () => {
   });
   docBJuly = await insertDocument({
     customerId: userB, product: 'oxsteed', accountId: walletBUsd, currency: 'USD',
+    from: '2026-07-01', to: '2026-07-31',
+  });
+  // D-748: user D's issued range has a hole (May and July, no June).
+  docDMay = await insertDocument({
+    customerId: userD, product: 'oxsteed', accountId: walletDUsd, currency: 'USD',
+    from: '2026-05-01', to: '2026-05-31',
+  });
+  docDJuly = await insertDocument({
+    customerId: userD, product: 'oxsteed', accountId: walletDUsd, currency: 'USD',
     from: '2026-07-01', to: '2026-07-31',
   });
   docCJuly = await insertDocument({
@@ -334,6 +349,24 @@ describe('archive listing', () => {
     // A currency filter narrows the scope itself, so freshness follows it.
     const eur = await request(app).get('/api/statement-archive/archive?currency=EUR').set(auth).expect(200);
     expect(eur.body.freshness.latestPeriod).toBe('2026-07');
+  });
+
+  test('missing months inside the issued range are reported, and a clean range reports none (D-748)', async () => {
+    const authD = { Authorization: bearer(userD) };
+    const gapped = await request(app).get('/api/statement-archive/archive').set(authD).expect(200);
+    expect(gapped.body.items.map((item) => item.id).sort()).toEqual([docDMay, docDJuly].sort());
+    expect(gapped.body.missingMonths).toEqual(['2026-06']);
+    expect(gapped.body.missingMonthsTotal).toBe(1);
+    // A year/month filter never changes the gap: the dataset still ends in
+    // July with June missing even when the page shows May only.
+    const may = await request(app).get('/api/statement-archive/archive?year=2026&month=5').set(authD).expect(200);
+    expect(may.body.items.map((item) => item.id)).toEqual([docDMay]);
+    expect(may.body.missingMonths).toEqual(['2026-06']);
+    // User A's June + July range is consecutive: no gap, total zero.
+    const clean = await request(app).get('/api/statement-archive/archive')
+      .set({ Authorization: bearer(userA) }).expect(200);
+    expect(clean.body.missingMonths).toEqual([]);
+    expect(clean.body.missingMonthsTotal).toBe(0);
   });
 
   test('pagination is bounded and consistent', async () => {

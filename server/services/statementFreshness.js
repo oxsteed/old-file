@@ -33,8 +33,7 @@ const {
   issuanceGraceElapsed,
 } = require('./statementIssuanceService');
 
-function assessDatasetFreshness(latestPeriod, now = new Date()) {
-  const expected = latestClosedMonthPeriod(now);
+function assessDatasetFreshness(latestPeriod, now = new Date()) {  const expected = latestClosedMonthPeriod(now);
   const expectedPeriod = expected.to.slice(0, 7);
   // Callers pass 'YYYY-MM', a full date string, or a pg Date; normalize to
   // the month either way. A Date's String() form ("Tue Sep 30 ...") would
@@ -56,4 +55,42 @@ function assessDatasetFreshness(latestPeriod, now = new Date()) {
   return { state: 'pending', latestPeriod: latest, expectedPeriod };
 }
 
-module.exports = { assessDatasetFreshness };
+/**
+ * findMissingMonths(months) — the months strictly between the earliest and
+ * latest issued month that have no document, in order (Slice 5e, item 722).
+ *
+ * The range starts at the FIRST issued document, never at account opening:
+ * months before the first issuance are not expected (the account may not
+ * have existed then), and months after the latest issued month are the
+ * freshness (stale/pending) question, not a gap. Issuance is automatic and
+ * monthly, so a hole inside the issued range means a document that should
+ * exist does not. Accepts 'YYYY-MM' strings, full date strings, or pg
+ * Dates (DATE_TRUNC results). A scope with fewer than two issued months,
+ * or with no holes, returns [].
+ */
+function findMissingMonths(months) {
+  const present = new Set();
+  for (const value of months || []) {
+    const month = value instanceof Date
+      ? value.toISOString().slice(0, 7)
+      : typeof value === 'string' && /^\d{4}-\d{2}/.test(value)
+        ? value.slice(0, 7)
+        : null;
+    if (month) present.add(month);
+  }
+  if (present.size < 2) return [];
+  const sorted = [...present].sort();
+  const last = sorted[sorted.length - 1];
+  const missing = [];
+  let [year, month] = sorted[0].split('-').map(Number);
+  for (;;) {
+    month += 1;
+    if (month === 13) { month = 1; year += 1; }
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+    if (key === last) break;
+    if (!present.has(key)) missing.push(key);
+  }
+  return missing;
+}
+
+module.exports = { assessDatasetFreshness, findMissingMonths };

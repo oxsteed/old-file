@@ -35,7 +35,7 @@ const { creditExportLimiter } = require('../middleware/rateLimiter');
 const { getDownloadStream, createSignedUrl } = require('../services/statementArtifactService');
 const { assertScopeStanding } = require('./settlementStatementArchive');
 const { hashDocument } = require('../services/creditStatementService');
-const { assessDatasetFreshness } = require('../services/statementFreshness');
+const { assessDatasetFreshness, findMissingMonths } = require('../services/statementFreshness');
 const { memberFinanceReadStanding } = require('../services/access/financeStanding');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -684,7 +684,13 @@ function createStatementArchiveRouter({ storage } = {}) {
         const { rows: [{ latest }] } = await pool.query(
           `SELECT MAX(d.period_to) AS latest FROM settlement_statement_documents d WHERE ${scopeConditions.join(' AND ')}`,
           scopeParams);
-        return res.json({ items, page, perPage, total, totalPages: Math.max(1, Math.ceil(total / perPage)), paginationUnit: 'originals', freshness: assessDatasetFreshness(latest) });
+        // D-748: months with no document inside the issued range, over the
+        // same scope conditions (never the year/month page filters).
+        const { rows: monthRows } = await pool.query(
+          `SELECT DISTINCT DATE_TRUNC('month', d.period_from) AS month FROM settlement_statement_documents d WHERE ${scopeConditions.join(' AND ')}`,
+          scopeParams);
+        const missingMonths = findMissingMonths(monthRows.map((row) => row.month));
+        return res.json({ items, page, perPage, total, totalPages: Math.max(1, Math.ceil(total / perPage)), paginationUnit: 'originals', freshness: assessDatasetFreshness(latest), missingMonths: missingMonths.slice(0, 12), missingMonthsTotal: missingMonths.length });
       }
       // G-8: a live statements.view override also admits the auditor to the
       // restaurant wallet statements of exactly the businesses the override
@@ -774,6 +780,11 @@ function createStatementArchiveRouter({ storage } = {}) {
       const { rows: [{ latest }] } = await pool.query(
         `SELECT MAX(d.period_to) AS latest FROM credit_statement_documents d ${scopeWhere}`, scopeParams);
       const freshness = assessDatasetFreshness(latest);
+      // D-748: months with no document inside the issued range, over the
+      // same scope filters (never the year/month page filters).
+      const { rows: monthRows } = await pool.query(
+        `SELECT DISTINCT DATE_TRUNC('month', d.period_from) AS month FROM credit_statement_documents d ${scopeWhere}`, scopeParams);
+      const missingMonths = findMissingMonths(monthRows.map((row) => row.month));
 
       const { rows: [{ total }] } = await pool.query(
         `SELECT COUNT(*)::int AS total FROM credit_statement_documents d ${where}`, params);
@@ -822,6 +833,8 @@ function createStatementArchiveRouter({ storage } = {}) {
         totalPages: Math.max(1, Math.ceil(total / perPage)),
         paginationUnit: 'originals',
         freshness,
+        missingMonths: missingMonths.slice(0, 12),
+        missingMonthsTotal: missingMonths.length,
       });
     } catch (error) { next(error); }
   });
