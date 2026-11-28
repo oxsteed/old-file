@@ -318,6 +318,24 @@ describe('archive listing', () => {
     expect(product.body.total).toBe(3);
   });
 
+  test('freshness describes the dataset, not the page filters (D-746)', async () => {
+    const auth = { Authorization: bearer(userA) };
+    const all = await request(app).get('/api/statement-archive/archive').set(auth).expect(200);
+    // User A's latest issued document is July 2026 (June + July fixtures).
+    expect(all.body.freshness.latestPeriod).toBe('2026-07');
+    expect(all.body.freshness.expectedPeriod).toMatch(/^\d{4}-\d{2}$/);
+    expect(['current', 'pending', 'stale']).toContain(all.body.freshness.state);
+    // A year/month filter narrows the page but must not move freshness:
+    // the dataset still ends in July 2026 even when the page shows June.
+    const june = await request(app).get('/api/statement-archive/archive?year=2026&month=6').set(auth).expect(200);
+    expect(june.body.items.map((item) => item.id)).toEqual([docAJune]);
+    expect(june.body.freshness.latestPeriod).toBe('2026-07');
+    expect(june.body.freshness).toEqual(all.body.freshness);
+    // A currency filter narrows the scope itself, so freshness follows it.
+    const eur = await request(app).get('/api/statement-archive/archive?currency=EUR').set(auth).expect(200);
+    expect(eur.body.freshness.latestPeriod).toBe('2026-07');
+  });
+
   test('pagination is bounded and consistent', async () => {
     const auth = { Authorization: bearer(userA) };
     const first = await request(app).get('/api/statement-archive/archive?per_page=2&page=1').set(auth).expect(200);

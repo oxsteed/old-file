@@ -10,6 +10,12 @@
  *   setupState      — 'ready' | 'setup_needed' | 'unavailable'
  *   latestPeriod    — 'YYYY-MM' of the newest issued statement, or null
  *   statementStatus — 'ready' | 'preparing' | 'none' (best across scopes)
+ *   freshness       — { state, latestPeriod, expectedPeriod } from
+ *                     statementFreshness (Slice 5e, item 721): 'current' when
+ *                     the latest document covers the latest closed month,
+ *                     'pending' while the issuance grace is still running,
+ *                     'stale' once the grace elapsed without the expected
+ *                     document, 'none' when no document exists yet.
  *   summary         — product-correct terminology; every amount is
  *                     { currency, amountCents } or null. Missing data is an
  *                     explicit null ('unavailable' in the UI), never a
@@ -38,6 +44,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { assessDatasetFreshness } = require('./statementFreshness');
 
 const PREPARING_JOB_STATES = ['pending', 'leased', 'snapshotted', 'artifact_ready'];
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
@@ -551,6 +558,10 @@ async function getStatementCenter(userId) {
       logger.warn('statement center product failed', { product: key, error: error.message });
       products[key] = failedProduct();
     }
+    // D-746: freshness rides the same latestPeriod every builder already
+    // computes, so a failed product (latestPeriod null) reports 'none'
+    // instead of a stale warning for a load error.
+    products[key] = { ...products[key], freshness: assessDatasetFreshness(products[key].latestPeriod) };
   }
   return { generatedAt: new Date().toISOString(), products };
 }

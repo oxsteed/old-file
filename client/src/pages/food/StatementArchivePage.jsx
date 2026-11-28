@@ -13,6 +13,7 @@ import {
   listStatementScopes,
 } from '../../api/creditStatements';
 import { formatStatementMoney } from '../../lib/creditStatementFormat';
+import { formatPeriodMonth } from '../../lib/statementFreshness';
 import { STATEMENT_PRODUCTS, statementAccessiblePath, statementCorrectionNotice } from '../../lib/statementProducts';
 import StatementExportPanel from './StatementExportPanel';
 import StatementReport from '../../components/statements/StatementReport';
@@ -50,6 +51,10 @@ export const ARCHIVE_STRINGS = Object.freeze({
   retry: 'Try again',
   empty: 'No statements yet',
   emptyBody: 'Issued monthly statements will appear here. Closed calendar months create immutable documents.',
+  // D-746: freshness banner copy. The month is the expected month (the one
+  // that has not arrived yet), formatted with formatPeriodMonth.
+  freshnessPending: 'The {{month}} statement is still being prepared.',
+  freshnessStale: 'The {{month}} statement has not been issued yet.',
   original: 'Original',
   corrected: 'Corrected',
   superseded: 'Superseded',
@@ -263,6 +268,9 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed',
         perPage: Number(result?.perPage) || PAGE_SIZE,
         totalPages: Math.max(1, Number(result?.totalPages) || 1),
         total: Number(result?.total) || 0,
+        // D-746: freshness describes the filtered scope's dataset, not the
+        // page; the banner below renders it.
+        freshness: result?.freshness || null,
       });
     } catch (failure) {
       if (controller.signal.aborted) return;
@@ -496,6 +504,9 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed',
           <RefreshCw size={16} aria-hidden="true" />{text('refresh')}
         </button>
       </form>
+
+      {archive.status === 'ready' && archive.freshness?.state === 'stale' && <p className="sa-freshness sa-freshness-stale" role="alert">{text('freshnessStale', { month: formatPeriodMonth(archive.freshness.expectedPeriod, language) })}</p>}
+      {archive.status === 'ready' && archive.freshness?.state === 'pending' && <p className="sa-freshness" role="status">{text('freshnessPending', { month: formatPeriodMonth(archive.freshness.expectedPeriod, language) })}</p>}
 
       {archive.status === 'loading' ? <div className="sa-state" role="status">{text('loading')}</div>
         : archive.status === 'error' ? <div className="sa-state" role="alert"><p>{text('loadError')}</p>
