@@ -619,3 +619,16 @@ test('Slice 5g (734): credit-only contribution policy notice is acknowledged at 
     assert.doesNotMatch(catalog.invest.application.sections.eligibility.creditOnlyAck, /—/, `${lang} em dash`);
   }
 });
+
+test('Slice 5g (735): disabled commitment state shows the gate-off notice and disables both commit buttons', async () => {
+  const src = await read('src/pages/invest/InvestCommitPage.jsx');
+  assert.match(src, /invest\.commit\.gateOff/);
+  assert.match(src, /\{!access\.investCommitmentsEnabled \? \(/);
+  // Review button disabled while the gate is off; confirm button disabled
+  // while the gate is off (as well as while confirming or incomplete).
+  assert.match(src, /disabled=\{!access\.investCommitmentsEnabled\}/);
+  assert.match(src, /disabled=\{confirming \|\| !access\.investCommitmentsEnabled \|\| missingReviewRows\.length > 0\}/);
+  // The server gate is already pinned (investRoutes.db.test.js returns 503
+  // invest_commitments_disabled with the flag off); the page only renders
+  // the disabled state, it never substitutes its own gate for the server's.
+});
