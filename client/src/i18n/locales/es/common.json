@@ -6841,6 +6841,13 @@
       "note": "Nota interna (el solicitante no la ve)",
       "informationRequest": "¿Qué debe agregar el solicitante?",
       "investorConfirm": "He revisado la audiencia y los informes solicitados; la aprobación solo crea este acceso de informes con alcance limitado.",
+      "retainedScope": {
+        "title": "Ámbito retenido",
+        "help": "Conjuntos de datos y entidades de la audiencia actual del solicitante que esta aprobación descartaría. Marca solo lo que debe quedarse; nada se retiene por defecto.",
+        "datasets": "Conjuntos de datos",
+        "entities": "Entidades",
+        "notRequested": "no está en la nueva solicitud"
+      },
       "actions": {
         "claim": "Iniciar revisión",
         "request_information": "Pedir información",

@@ -730,3 +730,28 @@ test('Slice 5h (739): the dashboard reporting section shows the audience-change 
     assert.equal(typeof common.progressiveAccess.historyAudienceScope, 'string', `${lang} historyAudienceScope`);
   }
 });
+
+test('Slice 5h (740): the reviewer can retain scope from the prior audience', async () => {
+  const src = await read('src/admin/pages/AccessRequestsQueue.jsx');
+  // The selector renders only for an investor.reporting approval with a
+  // prior audience to retain from.
+  assert.match(src, /data\.priorAudience/);
+  assert.match(src, /needsInvestorConfirmation && data\.priorAudience/);
+  // Retention is explicit and off by default: both checkbox groups start
+  // empty, and nothing is sent unless the reviewer checked something.
+  assert.match(src, /const \[retainedDatasets, setRetainedDatasets\] = useState\(\[\]\)/);
+  assert.match(src, /const \[retainedEntityIds, setRetainedEntityIds\] = useState\(\[\]\)/);
+  assert.match(src, /checked=\{retainedDatasets\.includes\(dataset\)\}/);
+  assert.match(src, /checked=\{retainedEntityIds\.includes\(entity\.id\)\}/);
+  assert.match(src, /retainedScope: decision === 'approve' && \(retainedDatasets\.length \|\| retainedEntityIds\.length\)/);
+  // Prior datasets not in the new request are marked, so the reviewer
+  // can tell what the approval would drop.
+  assert.match(src, /progressiveAccess\.admin\.retainedScope\.notRequested/);
+  for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const common = JSON.parse(await read(`src/i18n/locales/${lang}/common.json`));
+    const scope = common.progressiveAccess.admin.retainedScope;
+    for (const key of ['title', 'help', 'datasets', 'entities', 'notRequested']) {
+      assert.equal(typeof scope[key], 'string', `${lang} retainedScope.${key}`);
+    }
+  }
+});

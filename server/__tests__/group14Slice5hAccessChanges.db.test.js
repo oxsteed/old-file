@@ -508,4 +508,109 @@ describeDb('Group 14 Slice 5h: handle access changes (736-740)', () => {
     const ownAudience = (await accessHistory(applicant)).filter((e) => e.kind === 'audience');
     expect(ownAudience).toHaveLength(1);
   });
+
+  // 740 helpers: read the audience row directly, and fetch the reviewer
+  // detail (getForReview) for a request.
+  async function audienceRow(grantId) {
+    const { rows } = await pool.query(`SELECT datasets, entity_ids FROM investor_reporting_audiences WHERE grant_id = $1`, [grantId]);
+    return rows[0];
+  }
+
+  async function reviewDetail(requestId) {
+    const res = await getAs(investorReviewer, `/api/admin/access-requests/${requestId}`).expect(200);
+    return res.body;
+  }
+
+  test('740: getForReview returns no prior audience for a first request', async () => {
+    const applicant = await makeUser('customer');
+    const detail = await reviewDetail(await seedInvestorRequest(applicant, ['overview']));
+    expect(detail.priorAudience).toBeNull();
+  });
+
+  test('740: getForReview returns the prior audience for a re-approval', async () => {
+    const applicant = await makeUser('customer');
+    const body = await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview', 'revenue']));
+    const detail = await reviewDetail(await seedInvestorRequest(applicant, ['overview']));
+    expect(detail.priorAudience).toBeDefined();
+    expect(detail.priorAudience.datasets).toEqual(['overview', 'revenue']);
+    expect(detail.priorAudience.entityIds).toEqual([]);
+    expect(detail.priorAudience.audienceKey).toBe('quarterly board');
+    expect(detail.priorAudience.grantId).toBe(String(body.grantId));
+  });
+
+  test('740: re-approval with retainedScope keeps a dropped dataset in the audience', async () => {
+    const applicant = await makeUser('customer');
+    const body = await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview', 'revenue']));
+    await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview']), { retainedScope: { datasets: ['revenue'], entityIds: [] } });
+    const row = await audienceRow(body.grantId);
+    expect([...row.datasets].sort()).toEqual(['overview', 'revenue']);
+  });
+
+  test('740: without retainedScope the dropped dataset leaves the audience', async () => {
+    const applicant = await makeUser('customer');
+    const body = await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview', 'revenue']));
+    await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview']));
+    const row = await audienceRow(body.grantId);
+    expect(row.datasets).toEqual(['overview']);
+  });
+
+  test('740: a retained dataset outside the prior audience is refused', async () => {
+    const applicant = await makeUser('customer');
+    await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview']));
+    const requestId2 = await seedInvestorRequest(applicant, ['overview']);
+    const res = await postAs(investorReviewer, `/api/admin/access-requests/${requestId2}/decision`, { decision: 'approve', expectedVersion: 2, retainedScope: { datasets: ['franchise'], entityIds: [] } });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation_failed');
+  });
+
+  test('740: a retained entity outside the prior audience is refused', async () => {
+    const applicant = await makeUser('customer');
+    await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview']));
+    const requestId2 = await seedInvestorRequest(applicant, ['overview']);
+    const res = await postAs(investorReviewer, `/api/admin/access-requests/${requestId2}/decision`, { decision: 'approve', expectedVersion: 2, retainedScope: { datasets: [], entityIds: [999999] } });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation_failed');
+  });
+
+  test('740: retainedScope with no prior audience is refused', async () => {
+    const applicant = await makeUser('customer');
+    const requestId = await seedInvestorRequest(applicant, ['overview']);
+    const res = await postAs(investorReviewer, `/api/admin/access-requests/${requestId}/decision`, { decision: 'approve', expectedVersion: 2, retainedScope: { datasets: ['overview'], entityIds: [] } });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation_failed');
+  });
+
+  test('740: a retained entity with no live position appears in the audience and the entity summary', async () => {
+    const applicant = await makeUser('customer');
+    const owner = await makeUser('customer');
+    const biz = await makeBusiness(owner.id, `Slice 5h 740 ${runId}`);
+    const opp = await makeOpportunity(biz, owner.id);
+    const agreementVersion = await makeAgreementVersion(opp, owner.id);
+    const participation = await makeApplication(applicant.id, opp, 'approved');
+    const commitment = await makeCommitment(applicant.id, opp, participation, agreementVersion, 'reserved');
+    await makePosition(applicant.id, opp, commitment, agreementVersion);
+    const body = await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview']));
+    // The position closes: the live scope empties, so without retention
+    // the business would disappear from the audience on re-approval.
+    await pool.query(`DELETE FROM investment_positions WHERE user_id = $1`, [applicant.id]);
+    await pool.query(`DELETE FROM investment_commitments WHERE user_id = $1`, [applicant.id]);
+    await pool.query(`DELETE FROM investment_participation_applications WHERE user_id = $1`, [applicant.id]);
+    await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview']), { retainedScope: { datasets: [], entityIds: [biz] } });
+    const row = await audienceRow(body.grantId);
+    expect(row.entity_ids.map(Number)).toEqual([biz]);
+    // And the entity summary (726) shows the retained business.
+    const entities = await getAs(applicant, '/api/investor/reporting/entities').expect(200);
+    expect(entities.body.scope.entityIds).toContain(biz);
+    expect(entities.body.entities.map((e) => e.entityId)).toContain(biz);
+  });
+
+  test('740: identical re-approval with retention restoring the prior exactly sends no audience change', async () => {
+    const applicant = await makeUser('customer');
+    await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview', 'revenue']));
+    await approveInvestorRequest(await seedInvestorRequest(applicant, ['overview']), { retainedScope: { datasets: ['revenue'], entityIds: [] } });
+    const audience = (await accessHistory(applicant)).filter((e) => e.kind === 'audience');
+    expect(audience).toHaveLength(1);
+    expect(audience[0].action).toBe('granted');
+    expect(await audienceNotices(applicant.id, 'invest_reporting_audience_changed')).toHaveLength(0);
+  });
 });

@@ -6841,6 +6841,13 @@
       "note": "Note interne (non visible par le demandeur)",
       "informationRequest": "Que doit ajouter le demandeur ?",
       "investorConfirm": "J’ai vérifié l’audience et les rapports demandés ; l’approbation crée uniquement cet accès aux rapports limité.",
+      "retainedScope": {
+        "title": "Portée conservée",
+        "help": "Jeux de données et entités de l’audience actuelle du demandeur que cette approbation écarterait. Cochez uniquement ce qui doit rester ; rien n’est conservé par défaut.",
+        "datasets": "Jeux de données",
+        "entities": "Entités",
+        "notRequested": "pas dans la nouvelle demande"
+      },
       "actions": {
         "claim": "Commencer l'examen",
         "request_information": "Demander des informations",

@@ -121,6 +121,7 @@ const reviewDecide = wrap('admin.access.decide', async (req, res) => {
   const result = await review.decide(req.user, req.params.id, {
     action: b.decision, expectedVersion: b.expectedVersion, reasonCode: b.reasonCode || null,
     note: b.note ?? null, informationRequest: b.informationRequest ?? null, evidenceRevision: b.evidenceRevision ?? null,
+    retainedScope: b.retainedScope ?? null,
   }, { idemKey: idemKey(req) });
   // D-772 (729): the audience notice fires after decide() commits, never
   // inside the decision transaction, so a notice failure can never roll

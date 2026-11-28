@@ -124,11 +124,46 @@ async function getForReview(user, id) {
     [row.applicant_id, id],
   );
   const facts = await access.loadFacts(row.applicant_id);
+  // 740 (D-783): the applicant's current investor.reporting audience,
+  // so the reviewer can retain datasets/entities the new request drops.
+  // Only an active grant's audience is retainable; a revoked grant's
+  // audience is gone, not something to keep.
+  let priorAudience = null;
+  if (row.capability === 'investor.reporting') {
+    const { rows: audienceRows } = await pool.query(
+      `SELECT a.datasets, a.entity_ids, a.audience_key, a.grant_id
+         FROM investor_reporting_audiences a
+         JOIN access_grants g ON g.id = a.grant_id
+        WHERE a.user_id = $1 AND g.status = 'active'
+        ORDER BY a.updated_at DESC LIMIT 1`,
+      [row.applicant_id],
+    );
+    const audience = audienceRows[0];
+    if (audience) {
+      const entityIds = (audience.entity_ids || []).map(Number).filter(Number.isFinite);
+      let entities = [];
+      if (entityIds.length) {
+        const { rows: businesses } = await pool.query(
+          `SELECT id, business_name FROM businesses WHERE id = ANY($1::bigint[])`,
+          [entityIds],
+        );
+        entities = businesses.map((b) => ({ id: Number(b.id), name: b.business_name }));
+      }
+      priorAudience = {
+        datasets: Array.isArray(audience.datasets) ? audience.datasets : [],
+        entityIds,
+        entities,
+        audienceKey: audience.audience_key,
+        grantId: String(audience.grant_id),
+      };
+    }
+  }
   return {
     request: toReviewerView(row),
     history,
     related: related.map((r) => ({ ...r, id: String(r.id) })),
     currentAccess: resolver.project(facts).personal,
+    priorAudience,
     policy: registry.publicPolicy(row.capability),
     currentPolicyVersion: (registry.getCapability(row.capability) || {}).version || null,
     // WP-007: explicit approval conditions — the policy's activation
@@ -139,7 +174,7 @@ async function getForReview(user, id) {
 
 const DECISION_ACTIONS = Object.freeze(['claim', 'request_information', 'approve', 'decline']);
 
-async function decide(user, id, { action, expectedVersion, reasonCode = null, note = null, informationRequest = null, evidenceRevision = null } = {}, { idemKey = null } = {}) {
+async function decide(user, id, { action, expectedVersion, reasonCode = null, note = null, informationRequest = null, evidenceRevision = null, retainedScope = null } = {}, { idemKey = null } = {}) {
   if (!DECISION_ACTIONS.includes(action)) throw err(400, 'validation_failed', 'Unknown decision.', { fields: { decision: 'invalid' } });
   if (reasonCode != null && !lifecycle.isPublicReasonCode(reasonCode)) throw err(400, 'validation_failed', 'Unknown reason.', { fields: { reasonCode: 'invalid' } });
   if ((action === 'decline' || action === 'request_information') && !reasonCode) throw err(400, 'validation_failed', 'A reason is required.', { fields: { reasonCode: 'required' } });
@@ -147,8 +182,19 @@ async function decide(user, id, { action, expectedVersion, reasonCode = null, no
     throw err(400, 'validation_failed', 'Tell the applicant what to add.', { fields: { informationRequest: 'required' } });
   }
   if (note != null && (typeof note !== 'string' || note.length > 2000)) throw err(400, 'validation_failed', 'Note too long.', { fields: { note: 'too_long' } });
+  // 740 (D-783): retained scope is datasets/entities from the prior
+  // audience the reviewer explicitly keeps. It is a shape with two
+  // arrays, and it only applies to approvals — a decline or an
+  // information request retains nothing.
+  if (retainedScope != null) {
+    if (typeof retainedScope !== 'object' || Array.isArray(retainedScope)
+      || !Array.isArray(retainedScope.datasets) || !Array.isArray(retainedScope.entityIds)) {
+      throw err(400, 'validation_failed', 'Retained scope must list datasets and entities.', { fields: { retainedScope: 'invalid' } });
+    }
+    if (action !== 'approve') throw err(400, 'validation_failed', 'Retained scope only applies to approvals.', { fields: { retainedScope: 'approve_only' } });
+  }
 
-  return idempotent(user.id, idemKey, `review:${action}`, String(id), { expectedVersion, reasonCode, note, informationRequest, evidenceRevision }, async (client) => {
+  return idempotent(user.id, idemKey, `review:${action}`, String(id), { expectedVersion, reasonCode, note, informationRequest, evidenceRevision, retainedScope }, async (client) => {
     if (!/^\d{1,18}$/.test(String(id))) throw err(404, 'access_request_not_found', 'Application not found.');
     const { rows } = await client.query('SELECT * FROM access_requests WHERE id = $1 FOR UPDATE', [id]);
     const row = rows[0];
@@ -227,6 +273,31 @@ async function decide(user, id, { action, expectedVersion, reasonCode = null, no
         // The franchise dataset filters by these ids; a re-approval
         // refreshes the snapshot.
         const scope = await access.resolveInvestorScope(row.applicant_id, client);
+        // 740 (D-783): retained scope — datasets/entities from the prior
+        // audience the reviewer explicitly keeps. The new audience
+        // otherwise comes only from the applicant's requestedReports and
+        // live positions, so a dataset the applicant dropped or an entity
+        // whose position closed would silently disappear. Retention is an
+        // explicit reviewer act: nothing is retained by default, and
+        // anything retained must already be in the prior audience.
+        let retainedDatasets = [];
+        let retainedEntityIds = [];
+        if (retainedScope != null) {
+          const priorRow = priorAudience[0] || null;
+          if (!priorRow) throw err(400, 'validation_failed', 'There is no prior audience to retain scope from.', { fields: { retainedScope: 'no_prior_audience' } });
+          const priorDatasets = new Set((priorRow.datasets || []).map((value) => String(value)));
+          const priorEntityIds = new Set((priorRow.entity_ids || []).map(Number).filter(Number.isFinite));
+          retainedDatasets = retainedScope.datasets.map((value) => String(value).trim().toLowerCase());
+          retainedEntityIds = retainedScope.entityIds.map(Number);
+          for (const dataset of retainedDatasets) {
+            if (!INVESTOR_DATASETS.has(dataset) || !priorDatasets.has(dataset)) throw err(400, 'validation_failed', 'Retained datasets must come from the prior audience.', { fields: { retainedScope: 'invalid_dataset' } });
+          }
+          for (const entityId of retainedEntityIds) {
+            if (!Number.isFinite(entityId) || !priorEntityIds.has(entityId)) throw err(400, 'validation_failed', 'Retained entities must come from the prior audience.', { fields: { retainedScope: 'invalid_entity' } });
+          }
+        }
+        const finalDatasets = [...new Set([...datasets, ...retainedDatasets])];
+        const finalEntityIds = [...new Set([...scope.entityIds, ...retainedEntityIds])];
         await client.query(
           `INSERT INTO investor_reporting_audiences (user_id, grant_id, audience_key, datasets, entity_ids, opportunity_ids)
            VALUES ($1, $2, $3, $4, $5, $6)
@@ -234,15 +305,18 @@ async function decide(user, id, { action, expectedVersion, reasonCode = null, no
              SET user_id = EXCLUDED.user_id, audience_key = EXCLUDED.audience_key,
                  datasets = EXCLUDED.datasets, entity_ids = EXCLUDED.entity_ids,
                  opportunity_ids = EXCLUDED.opportunity_ids, status = 'active', revoked_at = NULL, updated_at = NOW()`,
-          [row.applicant_id, grantId, String(answers.audience || '').trim(), datasets, scope.entityIds, scope.opportunityIds],
+          [row.applicant_id, grantId, String(answers.audience || '').trim(), finalDatasets, finalEntityIds, scope.opportunityIds],
         );
         const prior = priorAudience[0] || null;
-        const sameIds = (a, b) => JSON.stringify([...(a || [])].sort()) === JSON.stringify([...(b || [])].sort());
+        // pg returns BIGINT[] elements as strings while resolveInvestorScope
+        // returns numbers; compare as strings so a re-approval with the
+        // same entities does not read as a change (740, D-783).
+        const sameIds = (a, b) => JSON.stringify([...(a || [])].map(String).sort()) === JSON.stringify([...(b || [])].map(String).sort());
         const audienceKey = String(answers.audience || '').trim();
         if (!prior) {
-          audienceChange = { kind: 'granted', datasets, entityIds: scope.entityIds, decisionId, userId: row.applicant_id };
-        } else if (!sameIds(prior.datasets, datasets) || !sameIds(prior.entity_ids, scope.entityIds) || prior.audience_key !== audienceKey) {
-          audienceChange = { kind: 'changed', datasets, entityIds: scope.entityIds, decisionId, userId: row.applicant_id };
+          audienceChange = { kind: 'granted', datasets: finalDatasets, entityIds: finalEntityIds, decisionId, userId: row.applicant_id };
+        } else if (!sameIds(prior.datasets, finalDatasets) || !sameIds(prior.entity_ids, finalEntityIds) || prior.audience_key !== audienceKey) {
+          audienceChange = { kind: 'changed', datasets: finalDatasets, entityIds: finalEntityIds, decisionId, userId: row.applicant_id };
         }
         // An identical re-approval sends no notice: the holder's access
         // did not change, and the approval notice already told them.
@@ -254,7 +328,7 @@ async function decide(user, id, { action, expectedVersion, reasonCode = null, no
           await client.query(
             `INSERT INTO investor_reporting_audience_events (user_id, grant_id, kind, datasets, entity_ids, decision_id)
              VALUES ($1, $2, $3, $4, $5, $6)`,
-            [row.applicant_id, grantId, audienceChange.kind, JSON.stringify(datasets), scope.entityIds, decisionId],
+            [row.applicant_id, grantId, audienceChange.kind, JSON.stringify(finalDatasets), finalEntityIds, decisionId],
           );
         }
       }
