@@ -945,4 +945,39 @@ describeDb('Group 13 Slice 4h: reconcile accounts (686-690)', () => {
     expect(missing.status).toBe(400);
     expect(missing.body.code).toBe('invalid_locationId');
   });
+
+  // G13-B6: the candidate query used to fetch the newest 200 exceptions
+  // platform-wide and filter to the restaurant in JS, so another
+  // restaurant's exceptions could push this location's rows out of the
+  // window entirely. 201 newer exceptions from the second restaurant must
+  // not drop this location's exception — and an exception that names the
+  // second restaurant in details but carries this location's id must not
+  // leak in either (the old `|| true` in the location branch).
+  test('687: another restaurant\u2019s newer exceptions never push this location\u2019s rows out of the list', async () => {
+    await pool.query(
+      `INSERT INTO reconciliation_exceptions
+         (id, domain, reference_id, severity, status, summary, details)
+       SELECT gen_random_uuid(), 'credit_external', 'g13b6-noise-' || g,
+              'warning', 'open', 'Noise from the second restaurant',
+              jsonb_build_object('restaurantId', $1::bigint, 'g13b6', true)
+         FROM generate_series(1, 201) g`,
+      [restaurant2Id],
+    );
+    const leakId = await seedException({
+      domain: 'credit_external', referenceId: `g13b6-leak-${crypto.randomUUID()}`,
+      severity: 'warning', status: 'open',
+      summary: 'Names the second restaurant but carries this location id',
+      details: { restaurantId: restaurant2Id, locationId: locPrimary },
+    });
+    try {
+      const res = await cashierGet(kioskDevice, kioskToken, '/cashier/reconciliation/exceptions');
+      expect(res.status).toBe(200);
+      expect(res.body.total).toBe(1);
+      expect(res.body.exceptions.map((entry) => entry.id)).toEqual([excAId]);
+      expect(res.body.exceptions.map((entry) => entry.id)).not.toContain(leakId);
+    } finally {
+      await pool.query(`DELETE FROM reconciliation_exceptions WHERE details ->> 'g13b6' = 'true'`);
+      await pool.query(`DELETE FROM reconciliation_exceptions WHERE id = $1`, [leakId]);
+    }
+  });
 });

@@ -611,7 +611,12 @@ async function resolveExceptionLocations(client, restaurantId, exceptions) {
 
   for (const entry of candidates) {
     if (entry.locationId != null) {
-      entry.restaurantScoped = entry.restaurantScoped || true;
+      // G13-B6: an explicit restaurant signal naming another restaurant
+      // wins over the location — the exception belongs to that restaurant,
+      // not this one. The old `|| true` let it leak into this restaurant's
+      // list whenever the location id happened to match the requested one.
+      entry.restaurantScoped = entry.detailRestaurant == null
+        || Number(entry.detailRestaurant) === Number(restaurantId);
       continue;
     }
     const details = entry.exception.details || {};
@@ -700,17 +705,49 @@ async function listLocationExceptions(client, scope, { status = null, limit = 20
   const conditions = [];
   if (statusFilter) {
     params.push(statusFilter);
-    conditions.push(`status = $${params.length}`);
+    conditions.push(`e.status = $${params.length}`);
   } else {
-    conditions.push(`status IN ('open', 'acknowledged')`);
+    conditions.push(`e.status IN ('open', 'acknowledged')`);
   }
+  // G13-B6: scope the candidates to this restaurant IN SQL. The old query
+  // fetched the newest 200 exceptions platform-wide and filtered to the
+  // restaurant in JS, so another restaurant's exceptions could push this
+  // location's rows out of the window entirely (and `total` counted only
+  // what survived the cap). Every signal resolveExceptionLocations reads
+  // is mirrored here — an explicit restaurant in details, a location in
+  // details that belongs to this restaurant, a food-order / transaction /
+  // device reference resolving inside it, or an order/device id in details.
+  // The JS pass still resolves the exact location within the restaurant.
+  // The 200-row bound is now per restaurant, not global.
+  // Two params for one id: Postgres infers a single type per placeholder,
+  // and the JSONB text comparison needs text while the id comparisons need
+  // bigint — one placeholder used as both fails with `bigint = text`.
+  params.push(Number(scope.restaurantId));
+  const restaurantIdParam = params.length;
+  params.push(String(scope.restaurantId));
+  const restaurantTextParam = params.length;
+  const restaurantScope = `(
+     e.details ->> 'restaurantId' = $${restaurantTextParam}
+     OR e.details ->> 'restaurant_id' = $${restaurantTextParam}
+     OR (e.details ->> 'locationId' ~ '^[0-9]+$' AND EXISTS (SELECT 1 FROM restaurant_locations l WHERE l.id = (e.details ->> 'locationId')::bigint AND l.restaurant_id = $${restaurantIdParam}))
+     OR (e.details ->> 'location_id' ~ '^[0-9]+$' AND EXISTS (SELECT 1 FROM restaurant_locations l WHERE l.id = (e.details ->> 'location_id')::bigint AND l.restaurant_id = $${restaurantIdParam}))
+     OR (e.reference_id LIKE 'food-order:%' AND split_part(e.reference_id, ':', 2) ~ '^[0-9]+$' AND EXISTS (SELECT 1 FROM food_orders o WHERE o.id = split_part(e.reference_id, ':', 2)::bigint AND o.restaurant_id = $${restaurantIdParam}))
+     OR (e.reference_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' AND EXISTS (SELECT 1 FROM oxsteed_credit_transactions t WHERE t.id::text = e.reference_id AND (${locationAttributionSql('t', `$${restaurantIdParam}`)}) IS NOT NULL))
+     OR (e.reference_id ~ '^[0-9]+$' AND EXISTS (SELECT 1 FROM restaurant_app_devices d WHERE d.id = e.reference_id::bigint AND d.restaurant_id = $${restaurantIdParam}))
+     OR (e.details ->> 'orderId' ~ '^[0-9]+$' AND EXISTS (SELECT 1 FROM food_orders o WHERE o.id = (e.details ->> 'orderId')::bigint AND o.restaurant_id = $${restaurantIdParam}))
+     OR (e.details ->> 'order_id' ~ '^[0-9]+$' AND EXISTS (SELECT 1 FROM food_orders o WHERE o.id = (e.details ->> 'order_id')::bigint AND o.restaurant_id = $${restaurantIdParam}))
+     OR (e.details ->> 'kioskDeviceId' ~ '^[0-9]+$' AND EXISTS (SELECT 1 FROM restaurant_app_devices d WHERE d.id = (e.details ->> 'kioskDeviceId')::bigint AND d.restaurant_id = $${restaurantIdParam}))
+     OR (e.details ->> 'deviceId' ~ '^[0-9]+$' AND EXISTS (SELECT 1 FROM restaurant_app_devices d WHERE d.id = (e.details ->> 'deviceId')::bigint AND d.restaurant_id = $${restaurantIdParam}))
+     OR (e.details ->> 'device_id' ~ '^[0-9]+$' AND EXISTS (SELECT 1 FROM restaurant_app_devices d WHERE d.id = (e.details ->> 'device_id')::bigint AND d.restaurant_id = $${restaurantIdParam}))
+   )`;
+  conditions.push(restaurantScope);
   const { rows: candidates } = await client.query(
     `SELECT id, domain, reference_id, severity, status, owner_admin_id,
             summary, details, source_run_id,
             created_at, updated_at, resolved_at
-       FROM reconciliation_exceptions
+       FROM reconciliation_exceptions e
       ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
-      ORDER BY created_at DESC, id DESC
+      ORDER BY e.created_at DESC, e.id DESC
       LIMIT $${params.length + 1}`,
     [...params, MAX_EXCEPTION_CANDIDATES],
   );
