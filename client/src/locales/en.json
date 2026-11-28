@@ -26706,6 +26706,11 @@
       "mode": "Investor mode",
       "title": "Investor Dashboard"
     },
+    "reportingOnly": {
+      "action": "Explore opportunities",
+      "copy": "You are viewing in reporting-only mode. You can review reports for the entities you are authorized to see, but you cannot make investment commitments. To participate, explore opportunities and request access.",
+      "title": "Reporting-only mode"
+    },
     "periods": {
       "sevenDays": "Last 7 Days",
       "thirtyDays": "Last 30 Days",

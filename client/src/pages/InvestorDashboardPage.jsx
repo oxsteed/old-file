@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Users,
   Briefcase,
@@ -212,6 +212,12 @@ export default function InvestorDashboardPage() {
   const legacyInvestor = ['admin', 'super_admin'].includes(user?.role);
   const projectedAccess = accessProjection?.access || accessProjection;
   const hasInvestorAccess = legacyInvestor || projectedAccess?.personal?.includes('investor.reporting');
+  // Slice 5g, 731: reporting-only mode. A viewer with investor.reporting
+  // but no investor.participate sees the reports without any way to commit;
+  // the banner names that mode instead of leaving it implicit. Admins are
+  // not reporting-only: they hold the full surface.
+  const canParticipate = (projectedAccess?.personal || []).includes('investor.participate');
+  const reportingOnly = hasInvestorAccess && !legacyInvestor && !canParticipate;
   const projectionSettled = Boolean(accessProjection?.status)
     && !['loading', 'refreshing'].includes(accessProjection.status);
   const audienceDatasets = projectedAccess?.investorAudience?.datasets || null;
@@ -336,6 +342,17 @@ export default function InvestorDashboardPage() {
           {error && (
             <div className="rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3">
               {error}
+            </div>
+          )}
+
+          {/* Slice 5g, 731: reporting-only mode copy. */}
+          {reportingOnly && (
+            <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4">
+              <p className="text-sm font-semibold text-white">{t('investorDashboard.reportingOnly.title')}</p>
+              <p className="mt-1 text-sm text-gray-300 leading-relaxed">{t('investorDashboard.reportingOnly.copy')}</p>
+              <Link to="/invest" className="mt-2 inline-block text-sm font-semibold text-orange-400 hover:text-orange-300">
+                {t('investorDashboard.reportingOnly.action')}
+              </Link>
             </div>
           )}
 

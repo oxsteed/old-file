@@ -26706,6 +26706,11 @@
       "mode": "Modo inversionista",
       "title": "Panel de inversionista"
     },
+    "reportingOnly": {
+      "action": "Explorar oportunidades",
+      "copy": "Estás viendo en modo de solo informes. Puedes revisar los informes de las entidades que tienes autorizado ver, pero no puedes hacer compromisos de inversión. Para participar, explora las oportunidades y solicita acceso.",
+      "title": "Modo de solo informes"
+    },
     "periods": {
       "sevenDays": "Últimos 7 días",
       "thirtyDays": "Últimos 30 días",

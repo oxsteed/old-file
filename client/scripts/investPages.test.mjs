@@ -544,3 +544,25 @@ test('investor reporting has one canonical destination: /investments', async () 
   const nav = await read('src/utils/personaNavigation.js');
   assert.match(nav, /'investor-reporting': \[\{ id: 'persona-investments', to: '\/investments'/);
 });
+
+// ── Slice 5g: separate participation (731-735) ───────────────────────────
+
+test('Slice 5g (731): reporting-only banner names the mode on the investor dashboard', async () => {
+  const src = await read('src/pages/InvestorDashboardPage.jsx');
+  assert.match(src, /investorDashboard\.reportingOnly\.title/);
+  assert.match(src, /investorDashboard\.reportingOnly\.copy/);
+  assert.match(src, /investorDashboard\.reportingOnly\.action/);
+  // Shown only to a reporting viewer without investor.participate, never
+  // to a participant or a legacy admin.
+  assert.match(src, /investor\.participate/);
+  assert.match(src, /!canParticipate/);
+  assert.match(src, /!legacyInvestor/);
+  assert.match(src, /to="\/invest"/);
+  for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const catalog = JSON.parse(await read(`src/locales/${lang}.json`));
+    for (const key of ['title', 'copy', 'action']) {
+      assert.equal(typeof catalog.investorDashboard.reportingOnly[key], 'string', `${lang} reportingOnly.${key}`);
+    }
+    assert.doesNotMatch(JSON.stringify(catalog.investorDashboard.reportingOnly), /—/, `${lang} em dash`);
+  }
+});

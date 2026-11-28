@@ -26706,6 +26706,11 @@
       "mode": "Mode investisseur",
       "title": "Tableau de bord investisseur"
     },
+    "reportingOnly": {
+      "action": "Explorer les opportunités",
+      "copy": "Vous consultez en mode rapports uniquement. Vous pouvez examiner les rapports des entités que vous êtes autorisé à voir, mais vous ne pouvez pas prendre d'engagements d'investissement. Pour participer, explorez les opportunités et demandez l'accès.",
+      "title": "Mode rapports uniquement"
+    },
     "periods": {
       "sevenDays": "7 derniers jours",
       "thirtyDays": "30 derniers jours",

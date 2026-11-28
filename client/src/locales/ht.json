@@ -26706,6 +26706,11 @@
       "mode": "Mòd envestisè",
       "title": "Tablo envestisè"
     },
+    "reportingOnly": {
+      "action": "Eksplore opòtinite yo",
+      "copy": "W ap gade nan mòd rapò sèlman. Ou ka revize rapò pou antite ou gen otorizasyon pou wè yo, men ou pa ka pran angajman envestisman. Pou patisipe, eksplore opòtinite yo epi mande aksè.",
+      "title": "Mòd rapò sèlman"
+    },
     "periods": {
       "sevenDays": "7 jou dènye jou",
       "thirtyDays": "30 jou dènye",
