@@ -26778,32 +26778,49 @@
       "position_one": "Limité à vos positions ({{count}} entité).",
       "position_other": "Limité à vos positions ({{count}} entités)."
     },
-        "entityReporting": {
-            "title": "Rapports des entités",
-            "help": "Les entités couvertes par votre audience de rapports et vos participations actives dans chacune.",
-            "audienceKey": "Audience de rapports : {{key}}",
-            "audienceExpires": "Accès expire le {{date}}",
-            "audienceNoExpiry": "Accès sans expiration",
-            "loading": "Chargement des entités…",
-            "loadError": "Impossible de charger le résumé des entités.",
-            "empty": "Aucune entité dans votre audience de rapports pour le moment.",
-            "opportunities": "{{live}} actives sur {{total}} levées",
-            "stakesPositions_one": "{{count}} position",
-            "stakesPositions_other": "{{count}} positions",
-            "stakesCommitments_one": "{{count}} engagement",
-            "stakesCommitments_other": "{{count}} engagements",
-            "stakesApplications_one": "{{count}} demande",
-            "stakesApplications_other": "{{count}} demandes",
-            "active": "Active",
-            "inactive": "Inactive",
-            "types": {
-                "llc": "SARL",
-                "sole_prop": "Entreprise individuelle",
-                "corp": "Société",
-                "partnership": "Société de personnes",
-                "unknown": "Entreprise"
-            }
+    "entityReporting": {
+      "title": "Rapports des entités",
+      "help": "Les entités couvertes par votre audience de rapports et vos participations actives dans chacune.",
+      "audienceKey": "Audience de rapports : {{key}}",
+      "audienceExpires": "Accès expire le {{date}}",
+      "audienceNoExpiry": "Accès sans expiration",
+      "loading": "Chargement des entités…",
+      "loadError": "Impossible de charger le résumé des entités.",
+      "empty": "Aucune entité dans votre audience de rapports pour le moment.",
+      "opportunities": "{{live}} actives sur {{total}} levées",
+      "stakesPositions_one": "{{count}} position",
+      "stakesPositions_other": "{{count}} positions",
+      "stakesCommitments_one": "{{count}} engagement",
+      "stakesCommitments_other": "{{count}} engagements",
+      "stakesApplications_one": "{{count}} demande",
+      "stakesApplications_other": "{{count}} demandes",
+      "active": "Active",
+      "inactive": "Inactive",
+      "types": {
+        "llc": "SARL",
+        "sole_prop": "Entreprise individuelle",
+        "corp": "Société",
+        "partnership": "Société de personnes",
+        "unknown": "Entreprise"
+      },
+      "datasets": {
+        "title": "Jeux de données autorisés",
+        "help": "Les jeux de données accordés par votre audience et la source de chaque donnée. Les jeux non accordés restent masqués sur ce tableau de bord.",
+        "granted": "Accordé",
+        "withheld": "Non accordé",
+        "noRoute": "Aucune route d’exportation ne sert encore ce jeu de données.",
+        "loading": "Chargement des jeux de données…",
+        "loadError": "Impossible de charger les jeux de données autorisés.",
+        "labels": {
+          "overview": "Indicateurs généraux",
+          "revenue": "Revenus",
+          "franchise": "Pipeline des franchises",
+          "supply_demand": "Offre et demande",
+          "evidence": "Détail des preuves",
+          "exports": "Exportations"
         }
+      }
+    }
   },
   "healthAlertsDashboard": {
     "title": "État de l’activité",

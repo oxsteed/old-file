@@ -10,12 +10,16 @@ import api from '../../api/axios';
 // entities; an admin sees the platform-wide list, labeled as such.
 // The section is best-effort like the rest of the dashboard: a load
 // failure shows a line, never a page error.
+//
+// Item 727 (D-770) lives in the same section: the authorized dataset
+// list, so a holder can tell a withheld dataset from a broken one.
 
 const BUSINESS_TYPES = ['llc', 'sole_prop', 'corp', 'partnership'];
 
 export default function EntityReportingSection() {
   const { t, i18n } = useTranslation();
   const [state, setState] = useState({ status: 'loading', data: null });
+  const [datasetsState, setDatasetsState] = useState({ status: 'loading', data: null });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -24,6 +28,17 @@ export default function EntityReportingSection() {
       .catch((err) => {
         if (controller.signal.aborted || err?.name === 'CanceledError') return;
         setState({ status: 'error', data: null });
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api.get('/investor/reporting/datasets', { signal: controller.signal })
+      .then(({ data }) => setDatasetsState({ status: 'ready', data }))
+      .catch((err) => {
+        if (controller.signal.aborted || err?.name === 'CanceledError') return;
+        setDatasetsState({ status: 'error', data: null });
       });
     return () => controller.abort();
   }, []);
@@ -87,6 +102,33 @@ export default function EntityReportingSection() {
                 {' · '}
                 {t('investorDashboard.entityReporting.stakesApplications', { count: Number(entity.stakes?.applications ?? 0) })}
               </p>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* ── 727: authorized datasets ─────────────────────────────── */}
+      <h3 className="font-semibold text-sm text-gray-200 mt-5 mb-2">{t('investorDashboard.entityReporting.datasets.title')}</h3>
+      <p className="text-xs text-gray-500 mb-3">{t('investorDashboard.entityReporting.datasets.help')}</p>
+      {datasetsState.status === 'loading' && <p role="status" className="text-xs text-gray-500">{t('investorDashboard.entityReporting.datasets.loading')}</p>}
+      {datasetsState.status === 'error' && <p role="alert" className="text-xs text-red-400">{t('investorDashboard.entityReporting.datasets.loadError')}</p>}
+      {datasetsState.status === 'ready' && (
+        <ul className="space-y-2">
+          {(datasetsState.data?.datasets ?? []).map((dataset) => (
+            <li key={dataset.id} className="flex items-start justify-between gap-3 rounded-xl bg-gray-800/50 border border-gray-800 px-3 py-2">
+              <div>
+                <p className="text-sm text-gray-200">{t(`investorDashboard.entityReporting.datasets.labels.${dataset.id}`)}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {dataset.apiRoute
+                    ? dataset.apiRoute
+                    : t('investorDashboard.entityReporting.datasets.noRoute')}
+                </p>
+              </div>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${dataset.granted ? 'bg-emerald-500/15 text-emerald-300' : 'bg-gray-700 text-gray-400'}`}>
+                {dataset.granted
+                  ? t('investorDashboard.entityReporting.datasets.granted')
+                  : t('investorDashboard.entityReporting.datasets.withheld')}
+              </span>
             </li>
           ))}
         </ul>

@@ -26789,32 +26789,49 @@
       "position_one": "مقتصر على مراكزك ({{count}} كيان).",
       "position_other": "مقتصر على مراكزك ({{count}} كيانات)."
     },
-        "entityReporting": {
-            "title": "تقارير الكيانات",
-            "help": "الكيانات التي يغطيها جمهور تقاريرك، ومراكزك النشطة في كل منها.",
-            "audienceKey": "جمهور التقارير: {{key}}",
-            "audienceExpires": "ينتهي الوصول في {{date}}",
-            "audienceNoExpiry": "الوصول لا ينتهي",
-            "loading": "جارٍ تحميل الكيانات…",
-            "loadError": "تعذّر تحميل ملخص الكيانات.",
-            "empty": "لا توجد كيانات في جمهور تقاريرك بعد.",
-            "opportunities": "{{live}} نشطة من أصل {{total}} جولة",
-            "stakesPositions_one": "{{count}} مركز",
-            "stakesPositions_other": "{{count}} مركزًا",
-            "stakesCommitments_one": "{{count}} التزام",
-            "stakesCommitments_other": "{{count}} التزامًا",
-            "stakesApplications_one": "{{count}} طلب",
-            "stakesApplications_other": "{{count}} طلبًا",
-            "active": "نشط",
-            "inactive": "غير نشط",
-            "types": {
-                "llc": "شركة ذات مسؤولية محدودة",
-                "sole_prop": "مؤسسة فردية",
-                "corp": "شركة مساهمة",
-                "partnership": "شراكة",
-                "unknown": "نشاط تجاري"
-            }
+    "entityReporting": {
+      "title": "تقارير الكيانات",
+      "help": "الكيانات التي يغطيها جمهور تقاريرك، ومراكزك النشطة في كل منها.",
+      "audienceKey": "جمهور التقارير: {{key}}",
+      "audienceExpires": "ينتهي الوصول في {{date}}",
+      "audienceNoExpiry": "الوصول لا ينتهي",
+      "loading": "جارٍ تحميل الكيانات…",
+      "loadError": "تعذّر تحميل ملخص الكيانات.",
+      "empty": "لا توجد كيانات في جمهور تقاريرك بعد.",
+      "opportunities": "{{live}} نشطة من أصل {{total}} جولة",
+      "stakesPositions_one": "{{count}} مركز",
+      "stakesPositions_other": "{{count}} مركزًا",
+      "stakesCommitments_one": "{{count}} التزام",
+      "stakesCommitments_other": "{{count}} التزامًا",
+      "stakesApplications_one": "{{count}} طلب",
+      "stakesApplications_other": "{{count}} طلبًا",
+      "active": "نشط",
+      "inactive": "غير نشط",
+      "types": {
+        "llc": "شركة ذات مسؤولية محدودة",
+        "sole_prop": "مؤسسة فردية",
+        "corp": "شركة مساهمة",
+        "partnership": "شراكة",
+        "unknown": "نشاط تجاري"
+      },
+      "datasets": {
+        "title": "مجموعات البيانات المصرّح بها",
+        "help": "مجموعات البيانات التي يمنحها جمهورك ومصدر بيانات كل منها. تبقى مجموعات البيانات غير الممنوحة مخفية في لوحة المعلومات هذه.",
+        "granted": "ممنوح",
+        "withheld": "غير ممنوح",
+        "noRoute": "لا يوجد مسار تصدير يخدم مجموعة البيانات هذه بعد.",
+        "loading": "جارٍ تحميل مجموعات البيانات…",
+        "loadError": "تعذّر تحميل مجموعات البيانات المصرّح بها.",
+        "labels": {
+          "overview": "مؤشرات الأداء العامة",
+          "revenue": "الإيرادات",
+          "franchise": "مسار الامتياز",
+          "supply_demand": "العرض والطلب",
+          "evidence": "تفصيل الأدلة",
+          "exports": "التصدير"
         }
+      }
+    }
   },
   "healthAlertsDashboard": {
     "title": "سلامة الأعمال",

@@ -26778,32 +26778,49 @@
       "position_one": "Limitado a sus posiciones ({{count}} entidad).",
       "position_other": "Limitado a sus posiciones ({{count}} entidades)."
     },
-        "entityReporting": {
-            "title": "Informes de entidades",
-            "help": "Las entidades que cubre su audiencia de informes y sus participaciones activas en cada una.",
-            "audienceKey": "Audiencia de informes: {{key}}",
-            "audienceExpires": "El acceso vence el {{date}}",
-            "audienceNoExpiry": "El acceso no vence",
-            "loading": "Cargando entidades…",
-            "loadError": "No se pudo cargar el resumen de entidades.",
-            "empty": "Aún no hay entidades en su audiencia de informes.",
-            "opportunities": "{{live}} activas de {{total}} rondas",
-            "stakesPositions_one": "{{count}} posición",
-            "stakesPositions_other": "{{count}} posiciones",
-            "stakesCommitments_one": "{{count}} compromiso",
-            "stakesCommitments_other": "{{count}} compromisos",
-            "stakesApplications_one": "{{count}} solicitud",
-            "stakesApplications_other": "{{count}} solicitudes",
-            "active": "Activa",
-            "inactive": "Inactiva",
-            "types": {
-                "llc": "LLC",
-                "sole_prop": "Empresa unipersonal",
-                "corp": "Corporación",
-                "partnership": "Sociedad",
-                "unknown": "Empresa"
-            }
+    "entityReporting": {
+      "title": "Informes de entidades",
+      "help": "Las entidades que cubre su audiencia de informes y sus participaciones activas en cada una.",
+      "audienceKey": "Audiencia de informes: {{key}}",
+      "audienceExpires": "El acceso vence el {{date}}",
+      "audienceNoExpiry": "El acceso no vence",
+      "loading": "Cargando entidades…",
+      "loadError": "No se pudo cargar el resumen de entidades.",
+      "empty": "Aún no hay entidades en su audiencia de informes.",
+      "opportunities": "{{live}} activas de {{total}} rondas",
+      "stakesPositions_one": "{{count}} posición",
+      "stakesPositions_other": "{{count}} posiciones",
+      "stakesCommitments_one": "{{count}} compromiso",
+      "stakesCommitments_other": "{{count}} compromisos",
+      "stakesApplications_one": "{{count}} solicitud",
+      "stakesApplications_other": "{{count}} solicitudes",
+      "active": "Activa",
+      "inactive": "Inactiva",
+      "types": {
+        "llc": "LLC",
+        "sole_prop": "Empresa unipersonal",
+        "corp": "Corporación",
+        "partnership": "Sociedad",
+        "unknown": "Empresa"
+      },
+      "datasets": {
+        "title": "Conjuntos de datos autorizados",
+        "help": "Los conjuntos de datos que otorga su audiencia y la fuente de datos de cada uno. Los conjuntos no otorgados permanecen ocultos en este panel.",
+        "granted": "Otorgado",
+        "withheld": "No otorgado",
+        "noRoute": "Aún no hay una ruta de exportación para este conjunto de datos.",
+        "loading": "Cargando conjuntos de datos…",
+        "loadError": "No se pudieron cargar los conjuntos de datos autorizados.",
+        "labels": {
+          "overview": "KPI generales",
+          "revenue": "Ingresos",
+          "franchise": "Cartera de franquicias",
+          "supply_demand": "Oferta y demanda",
+          "evidence": "Desglose de evidencia",
+          "exports": "Exportaciones"
         }
+      }
+    }
   },
   "healthAlertsDashboard": {
     "title": "Salud del negocio",

@@ -85,7 +85,43 @@ function audienceView(req) {
 const LIVE_OPPORTUNITY_STATUSES = ['published', 'paused', 'closing', 'closed'];
 const DEAD_OPPORTUNITY_STATUSES = ['cancelled', 'withdrawn'];
 
-// ── GET /api/investor/reporting/entities — 726 entity summary ──────────
+// ── GET /api/investor/reporting/datasets — 727 authorized KPI dataset ──
+// The six canonical datasets (reviewService.INVESTOR_DATASETS), each with
+// whether this viewer's audience grants it and the API route that serves
+// it. This makes the authorization explicit: the dashboard today hides
+// withheld sections silently (datasetAllowed), so a holder cannot tell a
+// withheld dataset from a broken one. `exports` has no serving route
+// under /investor yet — it is grantable but serves nothing (sibling gap,
+// not invented here): its apiRoute is null.
+const DATASETS = Object.freeze([
+  { id: 'overview', apiRoute: '/investor/kpis' },
+  { id: 'revenue', apiRoute: '/investor/revenue-chart' },
+  { id: 'franchise', apiRoute: '/investor/franchise' },
+  { id: 'supply_demand', apiRoute: '/investor/supply-demand' },
+  { id: 'evidence', apiRoute: '/investor/evidence/:metric' },
+  { id: 'exports', apiRoute: null },
+]);
+
+exports.getDatasets = async (req, res) => {
+  try {
+    const scope = reportingScope(req);
+    const audience = audienceView(req);
+    const granted = new Set(audience ? audience.datasets : []);
+    const all = scope.type === 'platform_wide' || granted.has('all');
+    res.json({
+      datasets: DATASETS.map((d) => ({
+        id: d.id,
+        granted: all || granted.has(d.id),
+        apiRoute: d.apiRoute,
+      })),
+      scope,
+      audience,
+    });
+  } catch (err) {
+    logger.error('[investor-reporting] getDatasets error', { err: err.message });
+    res.status(500).json({ error: 'Failed to load authorized datasets' });
+  }
+};
 // One card per entity in the viewer's scope: the business identity, how
 // many raises it has (live vs total), and the viewer's own live stakes in
 // it (active positions, reserved/completed commitments, live participation

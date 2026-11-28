@@ -45,5 +45,6 @@ router.get('/evidence/:metric', authenticate, requireInvestorCapability, allowIn
 // audience-scope surfaces, not datasets: the capability gate is the
 // authority, and the scope inside is the audience row (D-769).
 router.get('/reporting/entities', authenticate, requireInvestorCapability, allowInvestor, investorReportingController.getEntities);
+router.get('/reporting/datasets', authenticate, requireInvestorCapability, allowInvestor, investorReportingController.getDatasets);
 
 module.exports = router;

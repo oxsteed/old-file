@@ -48,6 +48,7 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
   let holder;
   let holderNoScope;
   let holderExpired;
+  let holderAll;
   let noAudienceUser;
   let admin;
   let stranger;
@@ -218,6 +219,8 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
       entityIds: [bizA],
       expiresAt: new Date(Date.now() - 3600 * 1000).toISOString(),
     });
+    holderAll = await makeUser('customer');
+    await grantReporting(holderAll.id, { datasets: ['all'], entityIds: [bizA] });
     // A granted holder with no audience row at all (separate user).
     noAudienceUser = await makeUser('customer');
     await grantReportingNoAudience(noAudienceUser.id);
@@ -287,5 +290,35 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
     } else {
       expect(res.status).toBe(403);
     }
+  });
+
+  test('727: the holder sees the granted flags for exactly the audience datasets', async () => {
+    const res = await getAs(holder, '/api/investor/reporting/datasets').expect(200);
+    expect(res.body.datasets.map((d) => d.id)).toEqual(
+      ['overview', 'revenue', 'franchise', 'supply_demand', 'evidence', 'exports'],
+    );
+    const byId = Object.fromEntries(res.body.datasets.map((d) => [d.id, d]));
+    expect(byId.overview.granted).toBe(true);
+    expect(byId.franchise.granted).toBe(true);
+    expect(byId.revenue.granted).toBe(false);
+    expect(byId.supply_demand.granted).toBe(false);
+    expect(byId.evidence.granted).toBe(false);
+    expect(byId.exports.granted).toBe(false);
+    expect(byId.overview.apiRoute).toBe('/investor/kpis');
+    expect(byId.evidence.apiRoute).toBe('/investor/evidence/:metric');
+    // exports is grantable but has no serving route yet: reported, not invented.
+    expect(byId.exports.apiRoute).toBeNull();
+  });
+
+  test('727: an audience with all grants everything, and an admin sees everything', async () => {
+    const allRes = await getAs(holderAll, '/api/investor/reporting/datasets').expect(200);
+    expect(allRes.body.datasets.every((d) => d.granted)).toBe(true);
+    const adminRes = await getAs(admin, '/api/investor/reporting/datasets').expect(200);
+    expect(adminRes.body.datasets.every((d) => d.granted)).toBe(true);
+    expect(adminRes.body.scope).toEqual({ type: 'platform_wide' });
+  });
+
+  test('727: a user without the grant is refused', async () => {
+    await getAs(stranger, '/api/investor/reporting/datasets').expect(403);
   });
 });
