@@ -2816,11 +2816,11 @@
     "retriedFrom": "This top-up retries an earlier failed top-up.",
     "viewOriginal": "View the original",
     "fundedByBusiness": "Funded by {{business}}",
-    "fundedByPerson": "Approved by {{name}}",
+    "fundedByPerson": "Authorized by {{name}}",
     "fundingReason": "Reason: {{reason}}",
-    "fundingApprovedAt": "Approved {{date}}",
-    "fundingApprovalState_approved": "Approved",
-    "fundingApprovalState_not_applicable": "Not applicable"
+    "fundingAuthorizedAt": "Authorized {{date}}",
+    "fundingState_funded": "Funded",
+    "fundingState_not_applicable": "Not applicable"
   },
   "identityVerification": {
     "eyebrow": "Identity check",

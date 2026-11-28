@@ -2816,11 +2816,11 @@
     "retriedFrom": "Cette recharge réessaie une recharge antérieure échouée.",
     "viewOriginal": "Voir l’originale",
     "fundedByBusiness": "Financé par {{business}}",
-    "fundedByPerson": "Approuvé par {{name}}",
+    "fundedByPerson": "Autorisé par {{name}}",
     "fundingReason": "Motif : {{reason}}",
-    "fundingApprovedAt": "Approuvé le {{date}}",
-    "fundingApprovalState_approved": "Approuvé",
-    "fundingApprovalState_not_applicable": "Sans objet"
+    "fundingAuthorizedAt": "Autorisé le {{date}}",
+    "fundingState_funded": "Financé",
+    "fundingState_not_applicable": "Sans objet"
   },
   "identityVerification": {
     "eyebrow": "Vérification d'identité",

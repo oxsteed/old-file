@@ -2816,11 +2816,11 @@
     "retriedFrom": "Esta recarga reintenta una recarga anterior fallida.",
     "viewOriginal": "Ver la original",
     "fundedByBusiness": "Financiado por {{business}}",
-    "fundedByPerson": "Aprobado por {{name}}",
+    "fundedByPerson": "Autorizado por {{name}}",
     "fundingReason": "Motivo: {{reason}}",
-    "fundingApprovedAt": "Aprobado el {{date}}",
-    "fundingApprovalState_approved": "Aprobado",
-    "fundingApprovalState_not_applicable": "No aplica"
+    "fundingAuthorizedAt": "Autorizado el {{date}}",
+    "fundingState_funded": "Financiado",
+    "fundingState_not_applicable": "No aplica"
   },
   "identityVerification": {
     "eyebrow": "Verificación de identidad",

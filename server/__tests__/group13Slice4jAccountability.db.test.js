@@ -334,25 +334,25 @@ describeDb('Group 13 Slice 4j: track accountability (696-700)', () => {
       fundedByBusinessId: String(business.id),
       fundingReason: 'Fixture shift bonus',
       fundedByBusinessName: 'Fixture Business',
-      fundingApprovalState: 'approved',
+      fundingState: 'funded',
     });
     expect(recipientRead.body.topup.fundedByName).toBe('Test Fixture');
-    expect(recipientRead.body.topup.fundingApprovedAt).toBeTruthy();
+    expect(recipientRead.body.topup.fundingAuthorizedAt).toBeTruthy();
 
     const funderRead = await getAs(funder, `/api/businesses/${business.id}/credit-topups/${topupId}`);
     expect(funderRead.status).toBe(200);
-    for (const field of ['fundedByUserId', 'fundedByBusinessId', 'fundingReason', 'fundedByName', 'fundedByBusinessName', 'fundingApprovalState', 'fundingApprovedAt']) {
+    for (const field of ['fundedByUserId', 'fundedByBusinessId', 'fundingReason', 'fundedByName', 'fundedByBusinessName', 'fundingState', 'fundingAuthorizedAt']) {
       expect(funderRead.body.topup[field]).toEqual(recipientRead.body.topup[field]);
     }
 
-    // The recipient's list carries the same approval info.
+    // The recipient's list carries the same funding info.
     const list = await getAs(member, '/api/oxsteed-credit/topups');
     expect(list.status).toBe(200);
     const listed = list.body.topups.find((row) => String(row.id) === String(topupId));
     expect(listed).toMatchObject({
       fundedByBusinessId: String(business.id),
       fundingReason: 'Fixture shift bonus',
-      fundingApprovalState: 'approved',
+      fundingState: 'funded',
     });
 
     // Isolation: another customer cannot read the recipient's record.
@@ -360,7 +360,7 @@ describeDb('Group 13 Slice 4j: track accountability (696-700)', () => {
     expect(outsiderRead.status).toBe(404);
   });
 
-  test('699: a self-service top-up carries no funder approval', async () => {
+  test('699: a self-service top-up carries no funding authorization', async () => {
     const user = await makeUser();
     await verifyCustomer(user);
     const created = await postAs(user, '/api/oxsteed-credit/topups')
@@ -375,8 +375,8 @@ describeDb('Group 13 Slice 4j: track accountability (696-700)', () => {
       fundingReason: null,
       fundedByName: null,
       fundedByBusinessName: null,
-      fundingApprovalState: 'not_applicable',
-      fundingApprovedAt: null,
+      fundingState: 'not_applicable',
+      fundingAuthorizedAt: null,
     });
   });
 

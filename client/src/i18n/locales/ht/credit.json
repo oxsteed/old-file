@@ -2816,11 +2816,11 @@
     "retriedFrom": "Rechaj sa a ap eseye yon rechaj anvan ki te echwe ankò.",
     "viewOriginal": "Wè orijinal la",
     "fundedByBusiness": "Finanse pa {{business}}",
-    "fundedByPerson": "Apwouve pa {{name}}",
+    "fundedByPerson": "Otorize pa {{name}}",
     "fundingReason": "Rezon: {{reason}}",
-    "fundingApprovedAt": "Apwouve {{date}}",
-    "fundingApprovalState_approved": "Apwouve",
-    "fundingApprovalState_not_applicable": "Pa aplikab"
+    "fundingAuthorizedAt": "Otorize {{date}}",
+    "fundingState_funded": "Finanse",
+    "fundingState_not_applicable": "Pa aplikab"
   },
   "identityVerification": {
     "eyebrow": "Verifikasyon idantite",

@@ -2816,11 +2816,11 @@
     "retriedFrom": "عملية الشحن هذه تعيد محاولة عملية شحن سابقة فاشلة.",
     "viewOriginal": "عرض العملية الأصلية",
     "fundedByBusiness": "مموّل من {{business}}",
-    "fundedByPerson": "اعتُمد من {{name}}",
+    "fundedByPerson": "تم التفويض بواسطة {{name}}",
     "fundingReason": "السبب: {{reason}}",
-    "fundingApprovedAt": "اعتُمد في {{date}}",
-    "fundingApprovalState_approved": "معتمد",
-    "fundingApprovalState_not_applicable": "غير منطبق"
+    "fundingAuthorizedAt": "تم التفويض في {{date}}",
+    "fundingState_funded": "مموَّل",
+    "fundingState_not_applicable": "غير منطبق"
   },
   "identityVerification": {
     "eyebrow": "التحقق من الهوية",
