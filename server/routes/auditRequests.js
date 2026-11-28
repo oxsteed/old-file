@@ -252,6 +252,17 @@ function correctionView(row) {
   };
 }
 
+function annotationView(row) {
+  return {
+    id: row.id,
+    auditRequestId: row.audit_request_id,
+    authorId: row.author_id,
+    authorRole: row.author_role,
+    note: row.note,
+    createdAt: row.created_at,
+  };
+}
+
 const REQUEST_COUNTS = `
   (SELECT COUNT(*)::int FROM audit_request_evidence e WHERE e.audit_request_id = r.id) AS evidence_count,
   (SELECT COUNT(*)::int FROM audit_request_evidence e WHERE e.audit_request_id = r.id AND e.status = 'approved') AS approved_count,
@@ -1203,6 +1214,47 @@ function createAuditRequestsRouter({ storage = defaultStorage, notifyStaff = not
         throw new AppError('Correction is already resolved', 409, 'audit_correction_already_resolved');
       }
       res.json({ correction: correctionView(row) });
+    } catch (error) { next(error); }
+  });
+
+  // ── 744: internal annotation thread ──────────────────────────────
+  // POST /:id/annotations — an owner/admin-only note on the request.
+  // Auditors never see these rows: both endpoints go through
+  // loadRequestForOwnerOrAdmin, so an auditor gets 403 and a stranger
+  // gets 404. Append-only; a closed request still takes annotations
+  // (post-review notes belong here, not in the shared follow-up).
+  router.post('/:id/annotations', creditMutationLimiter, async (req, res, next) => {
+    try {
+      const request = await loadRequestForOwnerOrAdmin(req.params.id, req.user);
+      const rawNote = req.body?.note;
+      if (typeof rawNote !== 'string' || !rawNote.trim()) {
+        throw new AppError('A note is required', 400, 'audit_annotation_required');
+      }
+      if (rawNote.length > 2000) {
+        throw new AppError('The note is too long', 400, 'audit_annotation_too_long');
+      }
+      const note = sanitizeText(rawNote, 2000);
+      if (!note) throw new AppError('A note is required', 400, 'audit_annotation_required');
+      const authorRole = req.user.role === 'super_admin' ? 'admin' : String(req.user.role);
+      const { rows: [row] } = await pool.query(
+        `INSERT INTO audit_request_annotations (audit_request_id, author_id, author_role, note)
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        [request.id, req.user.id, authorRole, note],
+      );
+      res.status(201).json({ annotation: annotationView(row) });
+    } catch (error) { next(error); }
+  });
+
+  // GET /:id/annotations — owner/admin only, oldest first.
+  router.get('/:id/annotations', async (req, res, next) => {
+    try {
+      const request = await loadRequestForOwnerOrAdmin(req.params.id, req.user);
+      const { rows } = await pool.query(
+        `SELECT * FROM audit_request_annotations
+          WHERE audit_request_id = $1 ORDER BY created_at ASC, id ASC`,
+        [request.id],
+      );
+      res.json({ annotations: rows.map(annotationView) });
     } catch (error) { next(error); }
   });
 

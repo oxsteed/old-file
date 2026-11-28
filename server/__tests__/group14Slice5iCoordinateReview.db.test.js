@@ -405,4 +405,36 @@ describeDb('Group 14 Slice 5i: coordinate review (741-745)', () => {
     await patchAs(owner, `/api/audit-requests/${created.id}/status`, { status: 'closed' }).expect(200);
     await postAs(auditor, `/api/audit-requests/${created.id}/corrections`, { recordRef: 'x', detail: 'y' }).expect(409);
   });
+
+  // 744: internal annotation thread.
+  test('744: internal notes stay owner/admin-only; auditors get 403', async () => {
+    const created = await createRequest();
+    await grantShare(created.id, auditor.id);
+    // The auditor cannot write or read annotations; the stranger sees
+    // nothing at all.
+    await postAs(auditor, `/api/audit-requests/${created.id}/annotations`, { note: 'Snooping.' }).expect(403);
+    await getAs(auditor, `/api/audit-requests/${created.id}/annotations`).expect(403);
+    await postAs(stranger, `/api/audit-requests/${created.id}/annotations`, { note: 'Snooping.' }).expect(404);
+    await getAs(stranger, `/api/audit-requests/${created.id}/annotations`).expect(404);
+    // Validation: empty and over-long notes are refused.
+    await postAs(owner, `/api/audit-requests/${created.id}/annotations`, { note: '' }).expect(400);
+    await postAs(owner, `/api/audit-requests/${created.id}/annotations`, { note: 'x'.repeat(2001) }).expect(400);
+    const first = await postAs(owner, `/api/audit-requests/${created.id}/annotations`,
+      { note: 'Hold the September re-issue until the auditor confirms the cent.' }).expect(201);
+    expect(first.body.annotation.authorId).toBe(owner.id);
+    expect(first.body.annotation.note).toBe('Hold the September re-issue until the auditor confirms the cent.');
+    await postAs(admin, `/api/audit-requests/${created.id}/annotations`,
+      { note: 'Auditor confirmed; re-issue is in the archive.' }).expect(201);
+    const thread = await getAs(admin, `/api/audit-requests/${created.id}/annotations`).expect(200);
+    expect(thread.body.annotations.map((item) => item.authorId)).toEqual([owner.id, admin.id]);
+    // The shared follow-up thread never carries annotations: the
+    // auditor's message list shows no annotation text.
+    const messages = await getAs(auditor, `/api/audit-requests/${created.id}/messages`).expect(200);
+    expect(JSON.stringify(messages.body.messages)).not.toContain('Hold the September re-issue');
+    // A closed request still takes internal notes.
+    await patchAs(owner, `/api/audit-requests/${created.id}/status`, { status: 'closed' }).expect(200);
+    await postAs(owner, `/api/audit-requests/${created.id}/annotations`, { note: 'Closed; file the receipt with the return.' }).expect(201);
+    const afterClose = await getAs(owner, `/api/audit-requests/${created.id}/annotations`).expect(200);
+    expect(afterClose.body.annotations).toHaveLength(3);
+  });
 });
