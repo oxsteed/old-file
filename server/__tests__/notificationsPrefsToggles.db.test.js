@@ -644,8 +644,10 @@ ddescribe('Track C preference toggles (DB)', () => {
         // path once; the worker adds no type of its own.
         { file: 'workers/paymentWorker.js', name: 'type', expansions: [] },
         // N15 (D-744): notifyInvestor in the Invest notice helper; the
-        // five types are the only ones its four send sites pass.
-        { file: 'services/invest/investNotifications.js', name: 'type', expansions: ['invest_distribution_paid', 'invest_proceeds_released', 'invest_raise_closed', 'invest_commitment_excluded', 'invest_amendment_reconfirmation_requested'] },
+        // five N15 types are the only ones its four send sites passed.
+        // 729 (D-772) added the two audience types and 737 (D-780) the
+        // removal type through the same wrapper, so all eight are listed.
+        { file: 'services/invest/investNotifications.js', name: 'type', expansions: ['invest_distribution_paid', 'invest_proceeds_released', 'invest_raise_closed', 'invest_commitment_excluded', 'invest_amendment_reconfirmation_requested', 'invest_reporting_audience_granted', 'invest_reporting_audience_changed', 'invest_reporting_audience_removed'] },
       ];
 
       // Spread sites: sendNotification(payload) with the payload built

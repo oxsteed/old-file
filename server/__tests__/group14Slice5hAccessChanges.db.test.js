@@ -342,4 +342,64 @@ describeDb('Group 14 Slice 5h: handle access changes (736-740)', () => {
     await getAs(stranger, '/api/investor/revenue-chart').expect(403);
     await getAs(stranger, '/api/investor/kpis').expect(403);
   });
+
+  test('737: revoking an investor.reporting grant sends the removal notice, not a changed notice', async () => {
+    const applicant = await makeUser('customer');
+    const requestId = await seedInvestorRequest(applicant, ['overview']);
+    const body = await approveInvestorRequest(requestId);
+    const { rows: grantRows } = await pool.query(`SELECT version FROM access_grants WHERE id = $1`, [body.grantId]);
+    const revoked = await postAs(investorReviewer, `/api/admin/access-requests/grants/${body.grantId}`, { action: 'revoke', expectedVersion: grantRows[0].version, reasonCode: 'policy_not_met' });
+    expect(revoked.status).toBe(200);
+    const removed = await audienceNotices(applicant.id, 'invest_reporting_audience_removed');
+    expect(removed).toHaveLength(1);
+    // The type sends through the real path with a non-empty title, and
+    // the action points at Settings to re-apply — never at the dashboard
+    // the removed holder can no longer open.
+    expect(removed[0].title).toBe('Investor reporting access removed');
+    expect(removed[0].body.length).toBeGreaterThan(0);
+    expect(removed[0].action_url).toBe('/settings/applications');
+    expect(removed[0].data.changeAction).toBe('revoke');
+    expect(removed[0].data.reasonCode).toBe('policy_not_met');
+    expect(await audienceNotices(applicant.id, 'invest_reporting_audience_changed')).toHaveLength(0);
+  });
+
+  test('737: suspending and reinstating an investor.reporting grant still send the changed notice', async () => {
+    const applicant = await makeUser('customer');
+    const requestId = await seedInvestorRequest(applicant, ['overview']);
+    const body = await approveInvestorRequest(requestId);
+    const { rows: grantRows } = await pool.query(`SELECT version FROM access_grants WHERE id = $1`, [body.grantId]);
+    const suspended = await postAs(investorReviewer, `/api/admin/access-requests/grants/${body.grantId}`, { action: 'suspend', expectedVersion: grantRows[0].version, reasonCode: 'policy_not_met' });
+    expect(suspended.status).toBe(200);
+    let changed = await audienceNotices(applicant.id, 'invest_reporting_audience_changed');
+    expect(changed).toHaveLength(1);
+    expect(changed[0].data.changeAction).toBe('suspend');
+    expect(changed[0].action_url).toBe('/investor/dashboard');
+    const reinstated = await postAs(investorReviewer, `/api/admin/access-requests/grants/${body.grantId}`, { action: 'reinstate', expectedVersion: suspended.body.grant.version, reasonCode: 'review_complete' });
+    expect(reinstated.status).toBe(200);
+    changed = await audienceNotices(applicant.id, 'invest_reporting_audience_changed');
+    expect(changed).toHaveLength(2);
+    expect(changed[1].data.changeAction).toBe('reinstate');
+    // No removal notice fires for a temporary suspension.
+    expect(await audienceNotices(applicant.id, 'invest_reporting_audience_removed')).toHaveLength(0);
+  });
+
+  test('737: the removal type is registered on the whole notification surface', async () => {
+    // The revoke test above proves the type sends end to end with a
+    // non-empty title through the real notifyInvestor path (which
+    // resolves copy from T). This test pins the rest of the registration
+    // surface the skill names: catalog, i18n copy, email button, and the
+    // email allow-list — each fails silently if missed.
+    const { NOTIFICATION_TYPES } = require('../utils/notificationTypeCatalog');
+    expect(NOTIFICATION_TYPES.map((entry) => entry.type)).toContain('invest_reporting_audience_removed');
+    const fs = require('fs');
+    const path = require('path');
+    const i18nSrc = fs.readFileSync(path.join(__dirname, '../utils/i18n.js'), 'utf8');
+    const tBlock = i18nSrc.slice(i18nSrc.indexOf('invest_reporting_audience_removed: {'));
+    for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
+      expect(tBlock).toContain(`${lang}: '`);
+    }
+    expect(i18nSrc).toContain('invest_reporting_audience_removed: {\n      en: \'Request Access\'');
+    const serviceSrc = fs.readFileSync(path.join(__dirname, '../services/notificationService.js'), 'utf8');
+    expect(serviceSrc).toContain('invest_reporting_audience_removed');
+  });
 });

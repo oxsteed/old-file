@@ -569,6 +569,25 @@ const T = {
       ar: 'تم تغيير وصولك إلى تقارير المستثمرين. افتح لوحة معلومات المستثمر لترى مجموعات البيانات والكيانات الحالية.',
     },
   },
+  // 737 (D-780): removal is its own type, not a "changed" — the holder
+  // can no longer open the dashboard, so the notice points at Settings
+  // to re-apply instead of at a page that would 403.
+  invest_reporting_audience_removed: {
+    title: {
+      en: 'Investor reporting access removed',
+      fr: 'Accès aux rapports investisseurs retiré',
+      es: 'Acceso a informes para inversores retirado',
+      ht: 'Aksè rapò envestisè yo retire',
+      ar: 'تمت إزالة الوصول إلى تقارير المستثمرين',
+    },
+    body: {
+      en: 'Your investor reporting access was removed. Your reporting datasets and entities are no longer available. You can request access again from Settings.',
+      fr: 'Votre accès aux rapports investisseurs a été retiré. Vos jeux de données et entités ne sont plus disponibles. Vous pouvez demander à nouveau l’accès depuis Réglages.',
+      es: 'Se retiró su acceso a informes para inversores. Sus conjuntos de datos y entidades ya no están disponibles. Puede volver a solicitar acceso desde Ajustes.',
+      ht: 'Yo retire aksè rapò envestisè ou. Dataset ak antite ou yo pa disponib ankò. Ou ka mande aksè ankò nan Anviwònman.',
+      ar: 'تمت إزالة وصولك إلى تقارير المستثمرين. لم تعد مجموعات البيانات والكيانات الخاصة بك متاحة. يمكنك طلب الوصول مجددًا من الإعدادات.',
+    },
+  },
   credit_identity_verification_requested: {
     title: { en: 'Identity review requested', es: 'Solicitud de revisión de identidad', fr: 'Demande de vérification d’identité', ht: 'Demann verifikasyon idantite', ar: 'تم طلب مراجعة الهوية' },
     body: { en: 'Your identity review request is in the compliance queue.', es: 'Tu solicitud de revisión de identidad está en la cola de cumplimiento.', fr: 'Votre demande de vérification d’identité est dans la file de conformité.', ht: 'Demann verifikasyon idantite ou nan ke konformite a.', ar: 'طلب مراجعة هويتك في قائمة الامتثال.' },
@@ -3256,6 +3275,15 @@ const EMAIL_TEMPLATES = {
       es: 'Ver informes',
       ht: 'Gade rapò yo',
       ar: 'عرض التقارير',
+    },
+    // 737 (D-780): the removed notice points at Settings to re-apply,
+    // not at the dashboard the holder can no longer open.
+    invest_reporting_audience_removed: {
+      en: 'Request Access',
+      fr: 'Demander l’accès',
+      es: 'Solicitar acceso',
+      ht: 'Mande aksè',
+      ar: 'طلب الوصول',
     },
     // G10-1: consultant payout leg.
     consultant_payout_paid: {

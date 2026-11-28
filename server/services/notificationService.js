@@ -512,6 +512,8 @@ exports.sendNotification = async ({
       'invest_commitment_excluded', 'invest_amendment_reconfirmation_requested',
       // 729 (D-772): Invest reporting-audience changes email the same way.
       'invest_reporting_audience_granted', 'invest_reporting_audience_changed',
+      // 737 (D-780): removal emails the same way as the other audience notices.
+      'invest_reporting_audience_removed',
       'credit_identity_verification_requested', 'credit_identity_verification_approved',
       'credit_identity_verification_rejected', 'credit_sanctions_review_required',
       'credit_sanctions_cleared', 'credit_sanctions_confirmed',

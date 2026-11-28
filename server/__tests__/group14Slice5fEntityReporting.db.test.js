@@ -508,17 +508,25 @@ describeDb('Group 14 Slice 5f: view entity reporting (726-730)', () => {
     expect(await audienceNotices(applicant.id, 'invest_reporting_audience_granted')).toHaveLength(1);
   });
 
-  test('729: revoking an investor.reporting grant sends the changed notice', async () => {
+  // D-780 (737): a revoke is a removal, not a change — it sends the
+  // removal notice (pointing at Settings to re-apply) instead of the
+  // "changed" notice D-772 originally sent here. The dashboard link in
+  // the changed notice would 403 for a removed holder.
+  test('729/737: revoking an investor.reporting grant sends the removal notice', async () => {
     const applicant = await makeUser('customer');
     const requestId = await seedInvestorRequest(applicant, ['overview']);
     const body = await approveInvestorRequest(requestId);
     const { rows: grantRows } = await pool.query(`SELECT version FROM access_grants WHERE id = $1`, [body.grantId]);
     const revoked = await postAs(investorReviewer, `/api/admin/access-requests/grants/${body.grantId}`, { action: 'revoke', expectedVersion: grantRows[0].version, reasonCode: 'policy_not_met' });
     expect(revoked.status).toBe(200);
-    const changed = await audienceNotices(applicant.id, 'invest_reporting_audience_changed');
-    expect(changed).toHaveLength(1);
-    expect(changed[0].data.changeAction).toBe('revoke');
-    expect(changed[0].data.reasonCode).toBe('policy_not_met');
+    const removed = await audienceNotices(applicant.id, 'invest_reporting_audience_removed');
+    expect(removed).toHaveLength(1);
+    expect(removed[0].title).toBe('Investor reporting access removed');
+    expect(removed[0].action_url).toBe('/settings/applications');
+    expect(removed[0].data.changeAction).toBe('revoke');
+    expect(removed[0].data.reasonCode).toBe('policy_not_met');
+    // And no "changed" notice fires for the revoke.
+    expect(await audienceNotices(applicant.id, 'invest_reporting_audience_changed')).toHaveLength(0);
   });
 
   test('730: the holder in scope sees the owner and the granting admin, and no email', async () => {

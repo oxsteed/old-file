@@ -338,6 +338,9 @@ const NOTIFICATION_TYPES = [
   // 729 (D-772): Invest reporting-audience notices.
   { type: 'invest_reporting_audience_granted', group: 'credit' },
   { type: 'invest_reporting_audience_changed', group: 'credit' },
+  // 737 (D-780): removal is its own type (the holder can no longer open
+  // the dashboard, so the notice points at Settings to re-apply).
+  { type: 'invest_reporting_audience_removed', group: 'credit' },
   { type: 'credit_card_frozen', group: 'credit' },
   { type: 'credit_card_revoked', group: 'credit' },
   // Group 13 (694, D-401/D-402): participant eligibility/status change.
