@@ -254,11 +254,30 @@ async function openShift(client, { device, locationId = null, openingCashCents =
     [device.id],
   );
   if (existing) return { shift: formatShift(existing), alreadyOpen: true };
-  const { rows: [row] } = await client.query(
-    `INSERT INTO oxsteed_credit_kiosk_shifts (device_id, restaurant_id, location_id, opening_cash_cents)
-     VALUES ($1, $2, $3, $4) RETURNING *`,
-    [device.id, Number(device.restaurant_id), location ? location.id : null, opening],
-  );
+  let row;
+  try {
+    ({ rows: [row] } = await client.query(
+      `INSERT INTO oxsteed_credit_kiosk_shifts (device_id, restaurant_id, location_id, opening_cash_cents)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [device.id, Number(device.restaurant_id), location ? location.id : null, opening],
+    ));
+  } catch (error) {
+    // G13-B7 (D-762): two concurrent opens race the SELECT-then-INSERT
+    // above; the loser hits the one-open-per-device unique index
+    // (23505). Return the existing open shift instead of surfacing a raw
+    // 500. Any other error still propagates, and a 23505 with no open
+    // shift on re-read rethrows the original error rather than inventing
+    // a shift. (The caller passes the pool, not a transaction, so the
+    // failed INSERT does not poison a surrounding transaction.)
+    if (error?.code !== '23505') throw error;
+    const { rows: [raced] } = await client.query(
+      `SELECT * FROM oxsteed_credit_kiosk_shifts
+        WHERE device_id = $1 AND status = 'open' ORDER BY opened_at DESC LIMIT 1`,
+      [device.id],
+    );
+    if (!raced) throw error;
+    return { shift: formatShift(raced), alreadyOpen: true };
+  }
   return { shift: formatShift(row), alreadyOpen: false };
 }
 
